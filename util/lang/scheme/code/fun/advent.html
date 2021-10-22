@@ -1,0 +1,319 @@
+; From: ted@nmsu.edu (Ted Dunning)
+; Newsgroups: comp.lang.scheme
+; Subject: Re: scheme for kids
+; Posted: Tue Oct 30 21:08:43 1990
+; 
+; here is a simple adventure game written in an object oriented style
+; mostly by the 10 year old that i taught scheme to last summer.
+; 
+; to start the adventure, use (adventure '() gr).  no more documentation
+; than the following program is available, although i can answer
+; questions about it.  hope it is interesting to somebody.
+
+;; miscellaneous simple functions
+
+;; remove an item from a list
+(define (remove item list)
+  (cond ((null? list) list)		;done?
+	((eq? item (car list))		;is item at the beginning
+	 (remove item (cdr list)))
+	(else				;no, remove it from the rest
+	 (cons (car list) (remove item (cdr list))))))
+
+(define (first x) (car x))
+(define (second x) (cadr x))
+(define (third x) (caddr x))
+(define (randomth list)
+  (nth list (random (length list))))
+(define (nth l n)
+  (cond ((zero? n) (car l))
+	((null? l) '())
+	(else (nth (cdr l) (- n 1)))))
+    
+(define (lookup name table)
+  (cond ((null? table) '())
+	((eq? name (car (car table))) (cdr (car table)))
+	(else (lookup name (cdr table)))))
+
+;adds (name value) to table
+
+(define (acons name value table)
+  (cons (cons name value) table))
+
+;; construct a generic object that can't do much
+
+(define (make-object name description method-list)
+  (define (get-methods) methods)
+  (define methods (let loop ((l `((methods ,@get-methods)
+				  (name ,@name)
+				  (description ,@description)))
+			     (m method-list))
+		    (if (null? m) l
+			(loop (acons (first m) (second m) l) (cddr m)))))
+
+  (define (us message)
+    (let ((binding (assoc message methods)))
+      (if binding (cdr binding)
+	  (begin
+	    (format #t "don't know how to ~a a ~a~%" message name)
+	    #f))))
+
+  us)
+
+;; construct a room
+
+(define (make-room name description)
+  (define neighbors '())
+  (define contents '())
+
+  (define (get-neighbor direction)
+    (lookup direction neighbors))
+    
+  (define (set-neighbor direction room)
+    (set! neighbors (acons direction room neighbors)))
+
+  (define (get-contents) contents)
+
+  (define (look)
+    (format #t "~%")
+    (format #t description)
+    (if (not (null? contents))
+	(begin
+	  (format #t "~%I see ~%")
+	  (for-each (lambda (x) (format #t "    ~a~%" (x 'description)))
+		    contents))
+	(format #t "~%")))
+
+  (define (take what)
+    (set! contents (remove what contents)))
+
+  (define (drop what)
+    (set! contents (cons what contents)))
+
+  (define us (make-object name description
+			  `(get-neighbor ,get-neighbor
+					 set-neighbor ,set-neighbor
+					 look ,look
+					 contents ,get-contents
+					 take ,take
+					 drop ,drop)))
+
+  us)
+  
+
+(define (make-thing name description extra-methods)
+  (define (take-object contents room)
+    (if (member us ((room 'contents)))
+	(begin 
+	  ((room 'take) us)
+	  (format #t "Got ~a~%" name)
+	  (cons us contents))
+	(begin
+	  (if (member us contents)
+	      (format #t "We already have a ~a.~%" (us 'name)))
+	  contents)))
+	    
+  (define (drop-object contents room)
+    ((room 'drop) us)
+    (format #t "Dropped ~a~%" name)
+    (remove us contents))
+
+  (define us (make-object name description
+			  `(drop ,drop-object
+				 take ,take-object ,@extra-methods)))
+  us)
+
+(define (make-edible-thing name description extra-methods)
+  (define (eat-object contents room)
+    (if (member us contents) 
+	(let ((message (randomth '("That was good!~%"
+				   "I nearly choked!~%"
+				   "This is rotten!~%"
+				   "This tastes horrible!~%"
+				   "How lovely!~%"
+				   "It's quite an honor to taste that!~%"
+				   "Have you ever eaten one?~%"
+				   "I liked that!~%"
+				   "Yuck!~%"))))
+	  (format #t message)
+	  (remove us contents))
+	(begin (format #t "can't eat what we don't have!")
+	       contents)))
+
+  (define us (make-thing name description `(eat ,eat-object
+						,@extra-methods)))
+
+  us)
+				 
+(define (make-wearable-thing name description extra-methods)
+  (define (wear contents room)
+    (if (member the-thing contents)
+	(let ((message (randomth '("This feels warm!~%"
+				   "This ITCHES!!!~%"
+				   "It's not as comfortable as my silk pajamas, but it's okay.~%"
+				   "This feels dreadful!~%"
+				   "I feel much warmer.~%"
+				   "It's even better than my ostrich feather jacket!~%"))))
+	  (format #t message)
+	  (remove the-thing contents))
+	(begin
+	  (format #t "How do you expect me to wear something I don't even have?!~%")
+	  contents)))
+
+  (define the-thing (make-thing name description `(wear ,wear ,@extra-methods)))
+
+  the-thing)
+
+(define (make-inedible-thing name description extra-methods)
+  (define (cant-eat contents room)
+    (format #t "~%Thank you but I suspect it is poisonous so no thank you!~%")
+    contents)
+
+  (define us (make-thing name description `(eat ,cant-eat ,@extra-methods)))
+
+  us)
+    
+(define (find-object name list)
+  (if (null? list) #f
+      (if (eq? name ((car list) 'name)) (car list)
+	  (find-object name (cdr list)))))
+
+(define (adventure our-stuff room)
+  (format #t "~%What should we do?~%")
+  (let ((message (read)))
+    (case message
+      ((look) ((room 'look))
+	      (adventure our-stuff room))
+      ((inventory) (if (null? our-stuff)
+		       (format #t "We aren't carrying anything~%")
+		       (begin
+			 (format #t "~%We have~%")
+			 (for-each (lambda (x) (format #t "    ~a~%"
+						       (x 'description)))
+				   our-stuff)))
+		   (adventure our-stuff room))
+      ((go) (let* ((direction (read))
+		   (where-to ((room 'get-neighbor) direction)))
+	      (if where-to
+		  (begin ((where-to 'look))
+			 (adventure our-stuff where-to))
+		  (begin (format #t "dead end~%")
+			 (adventure our-stuff room)))))
+      ((quit) 'done)
+      (else (let* ((object-name (read))
+		   (the-object (or (find-object object-name our-stuff)
+				   (find-object object-name
+						((room 'contents)))))) 
+	      (if the-object
+		  (let ((handler (the-object message)))
+		    (adventure (if handler (handler our-stuff room) our-stuff)
+			       room))
+		  (begin (format #t "I don't see a ~a~%" object-name)
+			 (adventure our-stuff room))))))))
+
+(define gr (make-room "The Greasy Room"
+		      "The walls and floor are all GREASY!!"))
+(define hc (make-room "Hall of Clowns"
+		      "There are many silly little clowns jumping around"))
+(define bs (make-room "The Bookstore"
+		      "Many dusty books lie on the shelves and floor"))
+(define gm (make-room "The Gold Mine"
+		      "In the dark tunnel are many bars of gold"))
+(define ws (make-room "The Woolly Socks Room"
+		      "There are enormous numbers of humongous woolly socks on the wall"))
+
+(define lr (make-room "Loud Room"
+		      "You hear many voices but see no one."))
+(define kc (make-room "Kitchen"
+		      "There is sometimes food here."))
+(define sg (make-room "Secret Garden"
+		      "Flowers and Plants surround you."))
+(define cb (make-room "Crying Baby Room"
+		      "A note says, 'Take care.'"))
+(define sea (make-room "Sea of Riches"
+		       "Shells line the bottom of the sea and are tossed around by the angry waves."))
+
+(define roses (make-thing 'roses "Beautiful, red roses" '()))
+
+(define soap (make-edible-thing 'soap "A bar of soap, be careful, don't slip on it" '()))
+
+(define wizard-hat (make-wearable-thing 'hat "Here lies a spooky blue wizard's hat" '()))
+
+(define gold (make-thing 'gold "Shining, beautiful gold" '()))
+
+(define pearls (make-wearable-thing 'pearls "Bright, sparkling pearls" '()))
+
+(define calculus-book
+  (make-thing 'book "A horrible-looking, thick, blue calculus book labeled 'Used'" '()))
+
+(define shoelaces (make-wearable-thing 'shoelaces "Brown shoelaces" '()))
+
+(define blanket (make-wearable-thing 'blanket "A soft, red, warm blanket" '()))
+
+(define baby (make-thing 'baby "A cute, little crying baby" '()))
+
+(define cake
+  (make-edible-thing
+   'cake "A five-layer chocolate cake with vanilla icing" '()))
+
+(define t-shirt
+  (make-wearable-thing
+   't-shirt
+   "A red, green, and hot pink t-shirt with something written on it"
+   `(read ,(lambda (contents room) (format #t "HAPPY BIRTHDAY, ERIC~%")))))
+
+(define cucumber (make-edible-thing 'cucumber "A green, yummy cucumber" '()))
+
+(define spider-web
+  (make-inedible-thing 'spider-web "An old, sticky spider web"
+		       `(drop
+			 ,(lambda (x y)
+			    (format #t "it is tooooo sticky to drop~%") x))))
+
+(define rope (make-wearable-thing 'rope "A thick, stout rope" '()))
+
+(define mouse
+  (make-edible-thing 'mouse "A yucky DEAD mouse which looks like it's been dead for 50 days"
+		     `(drop
+		       ,(lambda(x y)
+			  (format #t "you can't drop a mouse, you have to EAT it!!~%")
+			  x))))
+
+(define pans (make-thing 'pans "Rusty, black, huge Pans" '()))
+
+((ws 'set-neighbor) 'west lr)
+((lr 'set-neighbor) 'east ws)
+((bs 'set-neighbor) 'west lr)
+((gm 'set-neighbor) 'south kc)
+((kc 'set-neighbor) 'north gm)
+((sg 'set-neighbor) 'east cb)
+((kc 'set-neighbor) 'south sg)
+((sg 'set-neighbor) 'north kc)
+((cb 'set-neighbor) 'west sg)
+((sg 'set-neighbor) 'west sea)
+((sea 'set-neighbor) 'east sg)
+
+((gr 'set-neighbor) 'west hc)
+
+((hc 'set-neighbor) 'east gr)
+((hc 'set-neighbor) 'west ws)
+((hc 'set-neighbor) 'north bs)
+((hc 'set-neighbor) 'down gm)
+
+((ws 'set-neighbor) 'east hc)
+
+((bs 'set-neighbor) 'south hc)
+
+((gm 'set-neighbor) 'up hc)
+
+(for-each (cb 'drop) (list baby blanket calculus-book))
+(for-each (ws 'drop) (list shoelaces rope))
+(for-each (lr 'drop) (list wizard-hat))
+(for-each (hc 'drop) (list cucumber))
+(for-each (gm 'drop) (list gold roses))
+(for-each (sea 'drop) (list pearls t-shirt))
+(for-each (kc 'drop) (list cake pans soap))
+(for-each (bs 'drop) (list spider-web))
+(for-each (sg 'drop) (list mouse))
+
+

@@ -1,0 +1,151 @@
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/faqs/lang/lisp/part5/faq-doc-5.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 17:20:51 GMT -->
+<HEAD>
+<TITLE>FAQ: Object-oriented Programming in Lisp 5/7 [Monthly posting] - [5-4] How can I store data and CLOS instances (with possibly  circular references) on disk so that they may be retrieved at some later time? (Persistent Object Storage)</TITLE>
+</HEAD>
+<BODY>
+<H1>[5-4] How can I store data and CLOS instances (with possibly  circular references) on disk so that they may be retrieved at some later time? (Persistent Object Storage)</H1>
+<PRE>
+There are two approaches to CLOS object persistence. The first uses
+regular CLOS facilities in concert with a standard file system. The
+second uses a more sophisticated storage facility, such as a database.
+The first solution provides just the persistence, and usually cannot
+retrieve only some of the objects from disc. The second goes beyond this
+by providing some or all of the facilities typically associated with
+databases: transaction management, concurrency control, queries,
+selective object materialization, etc. Below, the two solutions are
+addressed in turn.
+
+There are two main techniques for the file system solution. The first
+involves using #. to compile the data into a file.  The second
+produces an ASCII representation which, when evaluated, will reproduce
+an equivalent set of data.
+
+If the data you wish to save is stored in the variable *hash-table*,
+create a file containing just the lines
+        (in-package "YOUR-PACKAGE")
+        (setq *hash-table* '#.*hash-table*)
+and compile it. The #. macro performs read-time evaluation of the
+expression following the dot, and so this compiles the data into the
+file. You may then load the file to restore the data. However, the
+resulting binary file is not portable between Lisp implementations,
+and sometimes not even for the same Lisp on different platforms. Also,
+some Lisps will treat the data as constant, and place it on pages in
+memory that are marked read-only (after it is loaded). If one tries to
+later modify the data, these Lisps will signal an error. Lucid CL only
+puts such constants in a read-only area when they appear inside
+functions, so this should be safe. Allegro CL doesn't seem to complain
+about modification if the data is a cons. DEC's VAXLisp, however, has
+problems with #. circular structures in .fas files. MCL seems to work
+well with using #. to save data (and even functions) to a file.
+
+The other technique is to produce an ASCII representation of the Lisp
+objects which may then be saved to a file. To reproduce the data, one
+can load (or compile and load) the file. This technique is portable
+between different Lisps and platforms. Unfortunately, the resulting
+data is not necessarily EQ to the original. Kerry Koitzsch's
+save-object.lisp package is included in the Lisp Utilities Repository,
+   <A NAME=id6 HREF="ftp://ftp.cs.cmu.edu/user/ai/lang/lisp/code/ext/save_obj/">ftp.cs.cmu.edu:/user/ai/lang/lisp/code/ext/save_obj/</A>
+The Lisp Utilities Repository is described in detail in the answer to
+question [6-1]. 
+
+See also the discussion of MAKE-LOAD-FORM and MAKE-LOAD-FORM-SAVING-SLOTS 
+in CLtL2.
+
+Here are some solutions to object persistence that use databases instead
+of file systems.
+
+Free Persistent Object Storage systems include: 
+
+   WOOD (William's Object Oriented Database) is a simple persistent
+   object store for MCL 2.0.x &#38; MCL 3.0, written by Bill St. Clair
+   &#60;bill@cambridge.apple.com&#62;.  Its goal is to provide a way to
+   save/restore Lisp objects to/from disk. It is available by anonymous
+   ftp from from <A NAME=id7 HREF="ftp://<a name=id8 href=/"ftp://ftp.digitool.com/pub/mcl2/contrib/wood/</A>">ftp.digitool.com:/pub/mcl2/contrib/wood/">ftp://<A NAME=id9 HREF="ftp://ftp.digitool.com/pub/mcl2/contrib/wood/</A></A>">ftp.digitool.com:/pub/mcl2/contrib/wood/</A></A></A>.
+   Send bug reports to bug-wood@cambridge.apple.com. To be added to the
+   mailing list, send mail to info-wood-request@cambridge.apple.com.
+
+   PCLOS is a persistent object store for CLOS that was implemented using
+   CLOS's metaobject protocol. It allowed multiple different storage
+   facilities to be used. The benefit of this approach is it lets you use
+   different storage facilities depending on your needs, ranging from a
+   full-blown database with concurrency control and recovery to a very
+   fast store that trades speed for functionality. For example, an
+   in-memory store that saves its state to disk periodically can be much
+   faster than traditional databases, but risks loss of data due to
+   crashes. Unfortunately, PCLOS was built on a very old version of CLOS,
+   so it is unusable in its current form, and there are no plans to
+   update it. The introductory MOP chapter in the book "Object-Oriented
+   Programming: The CLOS Perspective" (see [5-1] above) explains how to
+   do the rewrite in principle and shows how the CLOS MOP was used for
+   object persistence in PCLOS. See also 
+      1. Andreas Paepcke, "PCLOS: A Flexible Implementation of CLOS 
+         Persistence", in Proceedings of ECOOP-88, S. Gjessing and K.
+         Nygaard, editors, Lecture Notes in Computer Science, Springer
+         Verlag, pages 374-389, 1988.  [Explains the PCLOS architecture.]
+      2. Andreas Paepcke, "PCLOS: A Critical Review", in OOPSLA-89, 1989. 
+         [Uses PCLOS as a roadmap through the issues of object persistence.]
+      3. Andreas Paepcke, "PCLOS Reference Manual", Hewlett-Packard
+         Laboratories, December, 1991.
+   For more information about PCLOS, write to Andreas Paepcke
+   &#60;paepcke@parc.xerox.com&#62;. 
+
+   GBB (see [6-3]) is a blackboard architecture with persistence of a
+   sort. Every object in GBB is held in RAM, and there are dump and
+   restore functions. It handles distributed object delivery and
+   function-call triggering of receiving processes.
+
+Commercial Persistent Object Storage systems include: 
+
+   AllegroStore is a high-performance object-oriented database management
+   system from Franz. It offers Allegro CL users persistent object
+   storage with very fast retrieval and update of object data.  It
+   provides query processing and transaction-based operation. Built on a
+   multi-client, multi-server architecture, it permits concurrent access
+   over a network to objects by multiple independent processes.  It uses
+   the ObjectStore ODBMS from Object Design Inc, and thus has both Lisp
+   and C interfaces and is also very fast.  The CLOS interface is based
+   on MOP, with dynamic class/schema modification and redefinition.
+   AllegroStore can handle large-scale applications with minimal impact
+   on performance. It uses page-faulting and page-locking mechanisms
+   instead of object locking, providing high throughput and low overhead
+   for concurrent access by multiple users.  Standard database features
+   include deadlock detection, referential integrity, and inverse
+   functions.  Exception handling is integrated into the Lisp condition
+   system. AllegroStore runs on Sparc, SGI, HP, RS/6000, and
+   MS-Windows/NT systems.  For more information, send email to
+   info@franz.com, write to Franz Inc., 1995 University Avenue, Berkeley,
+   CA 94704, call 1-800-333-7260, 510-548-3600, fax 510-548-8253, or
+   telex 340179 WUPUBTLXSFO.
+
+   ITASCA ODBMS V2.2 is a distributed active object database management
+   system. ITASCA allows clients to transparently access data that is
+   distributed among multiple servers.  ITASCA supports full dynamic
+   schema modification that can be performed during any phase of the
+   software lifecycle.  Applications written in dissimilar and
+   incompatible languages, such as C/C++ and CLOS, can share objects through
+   ITASCA. ITASCA stores methods inside the database, promoting
+   reusability and maintainability.  ITASCA is based on work at MCC's
+   Object-Oriented and Distributed Systems Lab on the ORION system. For
+   more information, write to Itasca Systems, Inc., 7850 Metro Parkway,
+   Minneapolis, MN 55425, sales@itasca.com, 612-832-0409, fax 612-851-3157.
+   [Clint Hyde has written a MOP CLOS interface to Itasca, which has some
+   features not present in their interface. For a free copy of his source
+   code, send him mail to chyde@bbn.com.]
+
+   LispWorks (from Harlequin), in addition to providing a traditional
+   SQL-based interface to relational databases, also provides a CLOS/SQL
+   interface, which is an object-oriented access layer that enables SQL
+   data to be manipulated as objects within Lisp, even though those objects
+   are not manifest in the database.  This can be especially useful when
+   importing data from and exporting data to a database provided by another
+   (usually non-Lisp-based) application that already uses a relational
+   database to achieve data persistence.
+
+   Statice is a commercial product from Symbolics, that provides a
+   powerful persistent ODBMS. It runs on Symbolics Lisp Machines. 
+</PRE>
+<A NAME=up HREF="faq.html">Go Back Up</A><P>
+<A NAME=up HREF="faq-doc-4.html">Go To Previous</A><P>
+<A NAME=up HREF="faq-doc-6.html">Go To Next</A><P>
+</BODY>

@@ -1,0 +1,124 @@
+                     HOW TO PORT PRODIGY TO YOUR SYSTEM
+
+PRODIGY runs on the IBM PC RT running CMU Common Lisp and the
+Machintosh II with Allegro Common Lisp.  It will also run on the uVAX
+and SUN with Allegro or Lucid Common Lisp.  Anyone installing the
+software needs to read the sections PATHNAMES and COMPILING.
+Installers on other systems will also need to read the section on READ
+CONDITIONAL MACROS.
+
+PATHNAMES
+
+PRODIGY uses three global variables that hold path name information.  They
+are *DOMAINS-PATH*, *PLANNER-PATH* and *WORLD-PATH*.  The ebl system adds
+one more, *EBL-PATH*.  The first two are set in the files startup.lisp (only
+the one for the planner, there are many different startup.lisp files) and
+setpath.lisp and ebl-setpath.lisp.  *WORLD-PATH* is set in the startup.lisp
+file for each of the domains.  The variable *EBL-SETPATH* should be set in
+startup.lisp for the EBL system and also in ebl-setpath.lisp.  For example,
+if your planner is in the directory /usr/prodigy/system/planner/ then you
+will need to add the line
+
+(setq *PLANNER-PATH* (pathname "/usr/prodigy/system/planner/"))
+
+and if the domains are in /usr/prodigy/domains/ then you will need to add
+
+(setq *DOMAINS-PATH* (pathname "/usr/prodigy/domains/"))
+
+If the ebl system is in /usr/prodigy/system/ebl/ then you will need
+
+(setq *EBL-PATH* (pathname "/usr/prodigy/system/ebl/"))
+
+For example, if your frozenblocksworld domain is in the directory
+/usr/prodigy/domains/frozenblocksworld then you need to put the following
+into /usr/prodigy/domains/frozenblocksworld/startup.lisp:
+
+(setq *WORLD-PATH* (pathname "/usr/prodigy/domains/frozenblocksworld"))
+
+Because users can set *WORLD-PATH* to the wrong path by mistake PRODIGY will
+issue a warning if *WORLD-PATH* is set to domain that is not on the path
+*DOMAINS-PATH*.  Sometimes, of course, a user will want a different
+*WORLD-PATH* and then the warning can be ignored.
+
+COMPILING
+
+The most convenient method of compiling the whole planner is to start lisp
+and type 
+
+(load "compile.lisp")
+
+This will load the file compile.lisp which compiles all of the PRODIGY
+files.  The time needed to compile the files will probably vary from about a
+half an hour to a full hour.  To compile just one of the PRODIGY files
+without loading the whole system you may use the Common Lisp compile-file
+function, but you must load the file setpath.lisp first.  If the system is
+already loaded you may skip loading setpath.lisp.
+
+Compiling the files of the domains is not done by the PROIDGY software, but
+you are welcome to do it yourself (using compile-file).  This can lead to
+speed improvements when there are many Lisp functions defined in a
+domain file.
+
+For the EBL system type 
+
+(load "ebl-compile")
+
+To compile just one of the EBL files without loading the system you must
+load ebl-setpath first.
+
+READ CONDITIONAL MACROS
+
+Currently PRODIGY runs on the IBM-RT, uVax, SUN and the Macintosh II.  While
+Common Lisp is in general quite portable some machine-dependent aspects of
+the different implementations have necessarily been used in the PRODIGY
+code.  Often the macro-dispatching character with + or - for the traditional
+read-conditional macros is used to invoke the proper code on a particular
+machine.  See Guy Steele's Common Lisp The Language for an explanation on
+these macros.
+
+In PRODIGY they are usually used with keyword variables such as :coral
+(for the Machintosh), :lucid (for lucid common lisp), :cmu (for cmu
+common lisp, :franz-inc (for allegro).  The file system interface is
+the area where most of the implementation dependent differences are
+found. Below is the output of a grep of all the source files for #-
+and #+.  If you are installing PRODIGY on a machine other then those
+for which it has been tested you may have to add you own
+read-conditional macros.  The name before the colon is the source file
+in which the following read conditional macro occured.
+
+commands.lisp:#-:coral (directory name)
+commands.lisp:  #-:lucid(when (string-equal "" (file-namestring pathname))
+load-domain.lisp:	 #-:coral (compile name)
+setpath.lisp:#-:lucid (setq *print-case* :downcase)  
+startup.lisp:#-:lucid (setq *print-case* :downcase)  
+commands.lisp:#+:coral (append (directory (concatenate 'string name "*:"))
+commands.lisp:  #+:lucid (file-namestring pathname)
+ini.lisp:(setq *DIRECTORY-SEPARATOR* #+:coral ":" 
+ini.lisp:	    #+(or :cmu :lucid :unix) "/") ;; used in commands.lisp
+
+Another method used for producing machine specific code is to check the
+membership of one of the keywords listed above in the *features* list.
+Following are a couple of examples of this code grep'ed from the PRODIGY
+sources.
+
+commands.lisp:   (cond ((member :coral *features* :test #'eq) "startup")
+commands.lisp:  (cond ((and (member :cmu *features*) 
+				(ignore-errors (directory thedir))) 
+commands.lisp:        ((and (not (member :cmu *features*)) (directory thedir))
+startup.lisp:(cond ((member :coral *features*)
+startup.lisp:      ((and (member :cmu *features*) (find-package "X")
+startup.lisp:      ((member :lucid *features*)
+
+We hope that PRODIGY can be implemented with no difficulty on other systems,
+however, if problems occur the read conditional macros are a good place to
+look.  It has been our experience that the least portable aspects of the
+system are the directory structure (which is necessarily not well defined by
+common lisp) and the graphics (under X windows we use the unofficial, but
+proposed CLX routines, under the Macintosh we use Allegro Common Lisp and
+its associated graphics).
+
+For additional help on graphics look at the file pg-system.lisp which is a
+template for all of the different graphics implementations.
+
+Please send bug reports to prodigy@cs.cmu.edu
+

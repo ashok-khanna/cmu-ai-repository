@@ -1,0 +1,145 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node114.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 10:08:54 GMT -->
+<HEAD>
+<TITLE>11.3. Translating Strings to Symbols</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Translating Strings to Symbols">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2947 HREF="node115.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2945 HREF="node111.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2939 HREF="node113.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2949 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2950 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2948 HREF="node115.html"> Exporting and Importing </A>
+<B>Up:</B> <A NAME=tex2html2946 HREF="node111.html"> Packages</A>
+<B> Previous:</B> <A NAME=tex2html2940 HREF="node113.html"> Package Names</A>
+<HR> <P>
+<H1><A NAME=SECTION001530000000000000000>11.3. Translating Strings to Symbols</A></H1>
+<P>
+<A NAME=STRINGTOSYMBOLSECTION>The</A>
+value of the special variable <tt>*package*</tt> must always be a package
+object (not a name).  Whatever package object is currently the
+value of <tt>*package*</tt> is referred to as the <i>current package</i>.
+<P>
+When the Lisp reader has, by parsing, obtained a string of characters
+thought to name a symbol, that name is looked up in the current package.
+This lookup may involve looking in other packages whose external symbols
+are inherited by the current package.  If the name is found,
+the corresponding symbol is returned.  If the name is not found
+(that is, there is no symbol of that name accessible in the current package),
+a new symbol is created for it and is placed in the current package as an
+internal symbol.  Moreover, the current package becomes the owner
+(home package) of the symbol, and so the symbol becomes interned
+in the current package.
+If the name is later read again while this same package is
+current, the same symbol will then be found and returned.
+<P>
+Often it is desirable to refer to an external symbol in some package
+other than the current one.  This is done through the use of a
+<i>qualified name</i>, consisting of a package name, then a colon, then the
+name of the symbol.  This causes the symbol's name to be looked up
+in the specified package, rather than in the current one.  For example,
+<tt>editor:buffer</tt> refers to the external symbol named <tt>buffer</tt>
+accessible in the package named <tt>editor</tt>, regardless of whether
+there is a symbol named <tt>buffer</tt> in the current package.  If there
+is no package named <tt>editor</tt>, or if no symbol named <tt>buffer</tt>
+is accessible in <tt>editor</tt>, or if <tt>buffer</tt> is an internal
+symbol in <tt>editor</tt>, the Lisp reader will signal
+a correctable error to ask the user for instructions.
+<P>
+On rare occasions, a user may need to refer to an <i>internal</i> symbol of
+some package other than the current one.  It is illegal to do this with
+the colon qualifier, since accessing an internal symbol of some other
+package is usually a mistake.  However, this operation is legal if
+a doubled colon
+<tt>::</tt> is used as the separator in place of the usual single colon.  If
+<tt>editor::buffer</tt> is seen, the effect is exactly the same as
+reading <tt>buffer</tt> with <tt>*package*</tt> temporarily rebound to the
+package whose name is <tt>editor</tt>.  This special-purpose qualifier
+should be used with caution.
+<P>
+The package named <tt>keyword</tt> contains all keyword symbols used by the
+Lisp system itself and by user-written code.  Such symbols must be
+easily accessible from any package, and name conflicts are not an issue
+because these symbols are used only as labels and never to carry
+package-specific values or properties.  Because keyword symbols are used
+so frequently, Common Lisp provides a special reader syntax for them.
+Any symbol preceded by a colon but no package name (for example
+<tt>:foo</tt>) is added to (or looked up in) the <tt>keyword</tt> package as
+an <i>external</i> symbol.  The <tt>keyword</tt> package is also treated
+specially in that whenever a symbol is added to the <tt>keyword</tt> package
+the symbol is always made external; the symbol
+is also automatically declared to be a constant
+(see <tt>defconstant</tt>) and made to
+have itself as its value.  This is why every keyword evaluates to
+itself.  As a matter of style, keywords should always be accessed using
+the leading-colon convention; the user should never import or inherit
+keywords into any other package.  It is an error to try to apply
+<tt>use-package</tt> to the <tt>keyword</tt> package.
+<P>
+Each symbol contains a package cell that is used to record the home
+package of the symbol, or <tt>nil</tt> if the symbol is uninterned.  This cell
+may be accessed by using the function <tt>symbol-package</tt>.
+When an interned
+symbol is printed, if it is a symbol in the keyword package,
+then it is printed with a preceding colon; otherwise, if it is accessible
+(directly or by inheritance) in the current package, it is printed
+without any qualification; otherwise, it is printed with the name of the
+home package as the qualifier, using <tt>:</tt> as the separator if the
+symbol is external and <tt>::</tt> if not.
+<P>
+A symbol whose package slot contains <tt>nil</tt> (that is, has no home
+package)
+is printed preceded by <tt>#:</tt>.  It is possible, by the
+use of <tt>import</tt> and <tt>unintern</tt>, to create a symbol that has no
+recorded home package but that in fact is accessible in some package.
+The system does not check for this pathological case, and such symbols
+will always be printed preceded by <tt>#:</tt>.
+<P>
+In summary, the following four uses of symbol qualifier syntax are defined.
+<P>
+<DL COMPACT><DT><tt>foo:bar</tt>
+<DD>
+When read, looks up <tt>BAR</tt> among the external symbols of
+the package named <tt>FOO</tt>.  Printed when symbol <tt>bar</tt> is external in its
+home package <tt>foo</tt> and is not accessible in the current package.
+<P>
+<DT><tt>foo::bar</tt>
+<DD>
+When read, interns <tt>BAR</tt> as if <tt>FOO</tt> were the
+current package.  Printed when symbol <tt>bar</tt> is internal in its home package
+<tt>foo</tt> and is not accessible in the current package.
+<P>
+<DT><tt>:bar</tt>
+<DD>
+When read, interns <tt>BAR</tt> as an external symbol in the
+<tt>keyword</tt> package and makes it evaluate to itself.  Printed when
+the home package of symbol <tt>bar</tt> is <tt>keyword</tt>.
+<P>
+<DT><tt>#:bar</tt>
+<DD>
+When read, creates a new uninterned symbol named <tt>BAR</tt>.
+Printed when the symbol <tt>bar</tt> is uninterned (has no home package),
+even in the pathological case that <tt>bar</tt> is uninterned but
+nevertheless somehow accessible in the current package.
+<P>
+ </DL>
+<P>
+All other uses of colons within names of symbols are not defined by
+Common Lisp but are reserved for implementation-dependent use; this
+includes names that end in a colon, contain two or more colons, or
+consist of just a colon.
+<P>
+<BR> <HR><A NAME=tex2html2947 HREF="node115.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2945 HREF="node111.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2939 HREF="node113.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2949 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2950 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2948 HREF="node115.html"> Exporting and Importing </A>
+<B>Up:</B> <A NAME=tex2html2946 HREF="node111.html"> Packages</A>
+<B> Previous:</B> <A NAME=tex2html2940 HREF="node113.html"> Package Names</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

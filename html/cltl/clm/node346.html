@@ -1,0 +1,319 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node346.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:46:35 GMT -->
+<HEAD>
+<TITLE>29.5. Predefined Condition Types</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Predefined Condition Types">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html6012 HREF="node347.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html6010 HREF="node312.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html6006 HREF="node345.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html6014 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html6015 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html6013 HREF="node347.html"> Series</A>
+<B>Up:</B> <A NAME=tex2html6011 HREF="node312.html"> Conditions</A>
+<B> Previous:</B> <A NAME=tex2html6007 HREF="node345.html"> Debugging Utilities</A>
+<HR> <P>
+<H1><A NAME=SECTION003350000000000000000>29.5. Predefined Condition Types</A></H1>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<A NAME=PREDEFINEDCONDITIONSSECTION>[The</A>
+proposal for the Common Lisp Condition System introduced
+a new notation for documenting types, treating them in the
+same syntactic manner as functions and variables.  This notation
+is used in this section but is not reflected
+throughout the entire book.-GLS]
+<P>
+X3J13 voted in March 1989 (ZLOS-CONDITIONS) <A NAME=37641>&#160;</A>  to integrate
+the Condition System and the Object System.  All condition types
+are CLOS classes and all condition objects are ordinary CLOS objects.
+<P>
+<BR><b>[Type]</b><BR>
+<tt>restart</tt><P>  This is the data type used to represent a restart.
+<P>
+<pre><A NAME=CONDITIONHIERARCHYTABLE>&#160;</A>
+----------------------------------------------------------------
+Table 29-1: Condition Type Hierarchy
+
+condition 
+    simple-condition 
+    serious-condition 
+        error 
+            simple-error 
+            arithmetic-error 
+                division-by-zero 
+                floating-point-overflow 
+                floating-point-underflow 
+                ... 
+            cell-error 
+                unbound-variable 
+                undefined-function 
+                ... 
+            control-error 
+            file-error 
+            package-error 
+            program-error 
+            stream-error 
+                end-of-file 
+                ... 
+            type-error 
+                simple-type-error 
+                ... 
+            ... 
+        storage-condition 
+        ... 
+    warning 
+        simple-warning 
+        ... 
+    ...
+
+----------------------------------------------------------------
+</pre>
+<P>
+The Common Lisp condition type hierarchy is illustrated in table <A HREF="node346.html#CONDITIONHIERARCHYTABLE">29-1</A>.
+<P>
+The types that are not leaves in the hierarchy (that is, <tt>condition</tt>, <tt>warning</tt>,
+<tt>storage-condition</tt>, <tt>error</tt>, <tt>arithmetic-error</tt>, <tt>control-error</tt>,
+and so on) are provided
+primarily for type inclusion purposes. Normally they would not be directly
+instantiated.
+<P>
+Implementations are permitted to support non-portable synonyms for these
+types, as well as to introduce other types that are above, below, or between
+the types shown in this tree as long as the indicated subtype relationships
+are not violated.
+<P>
+The types <tt>simple-condition</tt>, <tt>serious-condition</tt>, and <tt>warning</tt> are pairwise
+disjoint. The type <tt>error</tt> is also disjoint from types <tt>simple-condition</tt> and
+<tt>warning</tt>.
+<P>
+<BR><b>[Type]</b><BR>
+<tt>condition</tt><P>  All types of conditions, whether error or non-error, must inherit from 
+  this type.
+<P>
+<BR><b>[Type]</b><BR>
+<tt>warning</tt><P>  All types of warnings should inherit from this type. 
+  This is a subtype of <tt>condition</tt>.
+<P>
+<BR><b>[Type]</b><BR>
+<tt>serious-condition</tt><P>  All serious conditions (conditions serious enough to require interactive
+  intervention if not handled) should inherit from this type. This is a
+  subtype of <tt>condition</tt>.
+<P>
+  This condition type is provided primarily for terminological convenience.
+  In fact, signaling a condition that inherits from <tt>serious-condition</tt> does
+  not force entry into the debugger. Rather, it is conventional
+  to use <tt>error</tt> (or something built on <tt>error</tt>) to signal conditions that are
+  of this type, and to use <tt>signal</tt> to signal conditions that are not of this
+  type.
+<P>
+<BR><b>[Type]</b><BR>
+<tt>error</tt><P>  All types of error conditions inherit from this condition.
+  This is a subtype of <tt>serious-condition</tt>.
+<P>
+The default condition type for <tt>signal</tt> and <tt>warn</tt> is <tt>simple-condition</tt>.
+The default condition type for <tt>error</tt> and <tt>cerror</tt> is <tt>simple-error</tt>.
+<P>
+<BR><b>[Type]</b><BR>
+<tt>simple-condition</tt><P>  Conditions signaled by <tt>signal</tt> when given a format string as a first
+  argument are of this type. This is a subtype of <tt>condition</tt>.
+  The initialization keywords <tt>:format-string</tt> and <tt>:format-arguments</tt> are supported
+  to initialize the slots, which can be accessed using
+  <tt>simple-condition-format-string</tt> and <tt>simple-condition-format-arguments</tt>.
+  If <tt>:format-arguments</tt> is not supplied to <tt>make-condition</tt>, the 
+  format-arguments slot defaults to <tt>nil</tt>.
+<P>
+<BR><b>[Type]</b><BR>
+<tt>simple-warning</tt><P>  Conditions signaled by <tt>warn</tt> when given a format string as a first
+  argument are of this type. This is a subtype of <tt>warning</tt>.
+  The initialization keywords <tt>:format-string</tt> and <tt>:format-arguments</tt> are supported
+  to initialize the slots, which can be accessed using
+  <tt>simple-condition-format-string</tt> and <tt>simple-condition-format-arguments</tt>.
+  If <tt>:format-arguments</tt> is not supplied to <tt>make-condition</tt>, the 
+  format-arguments slot defaults to <tt>nil</tt>.
+<P>
+  In implementations supporting multiple inheritance, this type will also be
+  a subtype of <tt>simple-condition</tt>.
+<P>
+<BR><b>[Type]</b><BR>
+<tt>simple-error</tt><P>  Conditions signaled by <tt>error</tt> and <tt>cerror</tt> when given a format string 
+  as a first argument are of this type. This is a subtype of <tt>error</tt>.
+  The initialization keywords <tt>:format-string</tt> and <tt>:format-arguments</tt> are supported
+  to initialize the slots, which can be accessed using
+  <tt>simple-condition-format-string</tt> and <tt>simple-condition-format-arguments</tt>.
+  If <tt>:format-arguments</tt> is not supplied to <tt>make-condition</tt>, the 
+  format-arguments slot defaults to <tt>nil</tt>.
+<P>
+  In implementations supporting multiple inheritance, this type will also be
+  a subtype of <tt>simple-condition</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>simple-condition-format-string <i>condition</i></tt><P>  Accesses the format-string slot of a given <i>condition</i>, which must be
+  of type <tt>simple-condition</tt>, <tt>simple-warning</tt>, <tt>simple-error</tt>, or 
+  <tt>simple-type-error</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>simple-condition-format-arguments <i>condition</i></tt><P>  Accesses the format-arguments slot of a given <i>condition</i>, which must
+  be of type <tt>simple-condition</tt>, <tt>simple-warning</tt>, <tt>simple-error</tt>, or
+  <tt>simple-type-error</tt>.
+<P>
+<BR><b>[Type]</b><BR>
+<tt>storage-condition</tt><P>  Conditions that relate to storage overflow should inherit from this type.
+  This is a subtype of <tt>serious-condition</tt>.
+<P>
+<BR><b>[Type]</b><BR>
+<tt>type-error</tt><P>  Errors in the transfer of data in a program should inherit from
+  this type. This is a subtype of <tt>error</tt>. For example, conditions to
+  be signaled by <tt>check-type</tt> should inherit from this type. The
+  initialization keywords <tt>:datum</tt> and <tt>:expected-type</tt> are supported to 
+  initialize the slots, which can be accessed using
+  <tt>type-error-datum</tt> and <tt>type-error-expected-type</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>type-error-datum <i>condition</i></tt><P>  Accesses the datum slot of a given <i>condition</i>, which must be of
+  type <tt>type-error</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>type-error-expected-type <i>condition</i></tt><P>  Accesses the expected-type slot of a given <i>condition</i>, which must be
+  of type <tt>type-error</tt>. Users of <tt>type-error</tt> conditions are expected to
+  fill this slot with an object that is a valid Common Lisp type specifier.
+<P>
+<BR><b>[Type]</b><BR>
+<tt>simple-type-error</tt><P>  Conditions signaled by facilities similar to <tt>check-type</tt> may want to
+  use this type. The initialization keywords <tt>:format-string</tt> and <tt>:format-arguments</tt>
+  are supported to initialize the slots, which can be accessed using 
+  <tt>simple-condition-format-string</tt> and
+  <tt>simple-condition-format-arguments</tt>.
+  If <tt>:format-arguments</tt> is not supplied to
+  <tt>make-condition</tt>, the 
+  format-arguments slot defaults to <tt>nil</tt>.
+<P>
+  In implementations supporting multiple inheritance, this type will also be
+  a subtype of <tt>simple-condition</tt>.
+<P>
+<BR><b>[Type]</b><BR>
+<tt>program-error</tt><P>  Errors relating to incorrect program syntax that are statically
+  detectable should inherit from this type (regardless of whether they
+  are in fact statically detected). This is a subtype of <tt>error</tt>. This is
+  <i>not</i> a subtype of <tt>control-error</tt>.
+<P>
+<BR><b>[Type]</b><BR>
+<tt>control-error</tt><P>  Errors in the dynamic transfer of control in a program should inherit
+  from this type. This is a subtype of <tt>error</tt>. This is <i>not</i> a subtype of
+  <tt>program-error</tt>.
+<P>
+  The errors that result from giving <tt>throw</tt> a tag that is not
+  active or from giving <tt>go</tt> or <tt>return-from</tt> a tag that is no longer
+  dynamically available are control errors.
+<P>
+  On the other hand, the errors that result from naming a <tt>go</tt> tag or <tt>return-from</tt> tag that
+  is not lexically apparent are not control errors. They are program
+  errors. See <tt>program-error</tt>.
+<P>
+<BR><b>[Type]</b><BR>
+<tt>package-error</tt><P>  Errors that occur during operations on packages should inherit from
+  this type. This is a subtype of <tt>error</tt>. The initialization keyword <tt>:package</tt>
+  is supported to initialize the slot, which can be accessed using
+  <tt>package-error-package</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>package-error-package <i>condition</i></tt><P>  Accesses the package (or package name) that was being modified or
+  manipulated in a <i>condition</i> of type <tt>package-error</tt>.
+<P>
+<BR><b>[Type]</b><BR>
+<tt>stream-error</tt><P>  Errors that occur during input from, output to, or closing a stream
+  should inherit from this type. This is a subtype of <tt>error</tt>. The initialization
+  keyword <tt>:stream</tt> is supported to initialize the slot, which can be
+  accessed using <tt>stream-error-stream</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>stream-error-stream <i>condition</i></tt><P>  Accesses the offending stream of a <i>condition</i> of type <tt>stream-error</tt>.
+<P>
+<BR><b>[Type]</b><BR>
+<tt>end-of-file</tt><P>  The error that results when a read operation is done on a stream that has
+  no more tokens or characters should inherit from this type. This is a subtype of 
+  <tt>stream-error</tt>.
+<P>
+<BR><b>[Type]</b><BR>
+<tt>file-error</tt><P>  Errors that occur during an attempt to open a file, or during some low-level
+  transaction with a file system, should inherit from this type. This is a
+  subtype of <tt>error</tt>. The initialization keyword <tt>:pathname</tt> is supported to initialize the
+  slot, which can be accessed using <tt>file-error-pathname</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>file-error-pathname <i>condition</i></tt><P>  Accesses the offending pathname of a <i>condition</i> of type <tt>file-error</tt>.
+<P>
+<BR><b>[Type]</b><BR>
+<tt>cell-error</tt><P>  Errors that occur while accessing a location should inherit from this
+  type. This is a subtype of <tt>error</tt>.  The initialization keyword <tt>:name</tt> is supported to 
+  initialize the slot, which can be accessed using <tt>cell-error-name</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>cell-error-name <i>condition</i></tt><P>  Accesses the offending cell name of a <i>condition</i> of type <tt>cell-error</tt>.
+<P>
+<BR><b>[Type]</b><BR>
+<tt>unbound-variable</tt><P>  The error that results from trying to access the value of an unbound
+  variable should inherit from this type. This is a subtype of <tt>cell-error</tt>.
+<P>
+<BR><b>[Type]</b><BR>
+<tt>undefined-function</tt><P>  The error that results from trying to access the value of an undefined
+  function should inherit from this type. This is a subtype of <tt>cell-error</tt>.
+<P>
+<hr>
+<b>Remark:</b> [Note: This remark was written well before the vote by X3J13 in June 1988 (CLOS) <A NAME=37847>&#160;</A> 
+    to add the Common Lisp Object System to the forthcoming draft standard
+    (see chapter <A HREF="node260.html#CLOS">28</A>) and the vote to integrate the Condition System
+    and the Object System.  I have retained the remark here for reasons
+    of historical interest.-GLS]
+<P>
+    Some readers may wonder why <tt>undefined-function</tt> is not defined to inherit
+    from some condition such as <tt>control-error</tt>. The answer is that any such
+    arrangement would require the presence of multiple inheritance-a 
+    luxury we do not currently have (without resorting to <tt>deftype</tt>, which 
+    we are currently avoiding). When the Common Lisp Object System comes
+    into being, we might want to consider issues like this. 
+    Multiple inheritance makes a lot of things in a condition system much
+    more flexible to deal with.
+<hr>
+<P>
+<BR><b>[Type]</b><BR>
+<tt>arithmetic-error</tt><P>  Errors that occur while doing arithmetic type operations should inherit
+  from this type. This is a subtype of <tt>error</tt>. The initialization keywords <tt>:operation</tt>
+  and <tt>:operands</tt> are supported to initialize the slots, which can be accessed
+  using <tt>arithmetic-error-operation</tt> and <tt>arithmetic-error-operands</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>arithmetic-error-operation <i>condition</i></tt><P>  Accesses the offending operation of a condition of type <tt>arithmetic-error</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>arithmetic-error-operands <i>condition</i></tt><P>  Accesses a list of the offending operands in a condition of type 
+  <tt>arithmetic-error</tt>.
+<P>
+<BR><b>[Type]</b><BR>
+<tt>division-by-zero</tt><P>  Errors that occur because of division by zero should inherit from this type.
+  This is a subtype of <tt>arithmetic-error</tt>.
+<P>
+<BR><b>[Type]</b><BR>
+<tt>floating-point-overflow</tt><P>  Errors that occur because of floating-point overflow should inherit from
+  this type. This is a subtype of <tt>arithmetic-error</tt>.
+<P>
+<BR><b>[Type]</b><BR>
+<tt>floating-point-underflow</tt><P>  Errors that occur because of floating-point underflow should inherit from
+  this type. This is a subtype of <tt>arithmetic-error</tt>.
+
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>	
+
+<BR> <HR><A NAME=tex2html6012 HREF="node347.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html6010 HREF="node312.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html6006 HREF="node345.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html6014 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html6015 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html6013 HREF="node347.html"> Series</A>
+<B>Up:</B> <A NAME=tex2html6011 HREF="node312.html"> Conditions</A>
+<B> Previous:</B> <A NAME=tex2html6007 HREF="node345.html"> Debugging Utilities</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

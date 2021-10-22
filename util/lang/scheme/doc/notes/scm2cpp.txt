@@ -1,0 +1,436 @@
+                  Translations from Scheme into C++
+
+                           Gary T. Leavens
+        Department of Computer Science, Iowa State University
+                      Ames, Iowa 50011-1040 USA
+                        leavens@cs.iastate.edu
+		9 May 1994, Revised 23 September 1994
+
+        This translation of Scheme expressions and program fragments
+into C++ is intended to ease your transition to C++.
+That is, the main idea is to help explain the syntax and semantics of C++
+from the perspective of Scheme.
+
+	  Unfortunately, programming is more than knowing syntax and semantics,
+just as speaking a language like Russian is more than knowing its vocabulary
+and grammar. So although a literal translation of Scheme to C++ may be a good 
+start at writing C++ programs, it is only helpful for *understanding* C++.
+A literal translation is *not* a good way to write programs.  (Imagine
+trying to translate English into Russian by looking up every word
+in a Russian-English dictionary.  No Russian would call that ``Russian''.)
+What you need to learn is the *way* in which C++ is typically and best used.
+(This is called ``pragmatics''.)  For that you will need your C++ text.
+
+        In particular, you should be aware that iteration is more idiomatic
+in C++ than recursion (because C++ is not tail-recursive).  Furthermore,
+such iteration is typically expressed using while-loops, not recursion.
+For example, consider the following.  It is an example of an iterative
+Scheme factorial function on the left, with an idiomatic C++ translation
+on the right.  Note that in C++, assignment (set! in Scheme) is written ``=''.
+The second assignment statement in the while-loop below has to be second,
+otherwise the value of n needed to produce the new value of acc will not
+be correct.
+
+Scheme (with 227 style comments)  C++ code (with 228 style comments)
+--------------------------------------------------------------------
+(define fact                      int fact (int n) {
+  ; TYPE: (-> (integer) integer)    // PRE: n >= 0
+  (lambda (n)                       // POST: result is n!
+   ; REQUIRES: n >= 0               int acc = 1;
+   ; ENSURES: result is n!          while (n != 0) {
+   (letrec                            acc = n * acc;
+    ((fact-it                         n = n - 1;
+      (lambda (n acc)               }
+        (if (zero? n)               return acc;
+            acc                   }    
+            (fact-it                 
+              (sub1 n)            
+              (* n acc))))))       
+     (fact-it n 1))))
+
+        You can write something in Scheme more like the C++, using Scheme's
+``while-proc'', and it is a good exercise to compare that to the C++ code.
+If you are familiar with how to code using ``while-proc'' in Scheme,
+by all means think that way for C++; if you are not familiar with
+``while-proc'', you will be learning the relevant ideas when you learn
+to deal with while-loops in C++.
+
+        In the rest of this note you will find the following:
+approximate translations from Scheme to C++ (Section 1),
+some more exact but not idiomatic translations (Section 2),
+some things that can't be easily translated from Scheme to C++ (Section 3),
+an example of how abstract data types are supported in C++ (Section 4),
+and an example of how object-oriented idioms are supported in C++ (Section 5).
+
+
+1. APPROXIMATE TRANSLATIONS TO AID YOUR UNDERSTANDING OF C++
+
+        The following is a table of approximate translations from
+Scheme to C++.  Translations that are not exact in more than
+just details like naming conventions are indicated by a C++ comment
+noting the inexactness.   In this table, one can tell what is a statement
+in C++ because a statement either ends in a semicolon (;) or
+a right curly brace (}).  Other translations are expressions.
+
+        The presentation of Scheme roughly follows the order in the book
+"Scheme and the Art of Programming" by George Springer and Daniel P. Friedman
+(1989, McGraw-Hill and MIT Press).  Some of the translations are only
+approximate, but this should be a help initially.  A more faithful translation
+can often be made by defining C++ functions, and a still more faithful
+translation can often be made by defining C++ classes and/or macros,
+but that would not be as helpful in learning C++.
+
+        The main semantic difficulty in translating Scheme to C++ is that
+while C++ is technically an expression language, its expressions are
+weak compared to Scheme's.  Thus you will have to learn
+to think in the world of statements and imperative programming,
+as in chapters 9-11 of Springer and Friedman's book, especially chapter 11.
+
+Scheme                          approximate C++ code
+-------------------------------------------------------------
+(myfunction 3 4)                myfunction(3,4)
+(+ 2 3)                         2 + 3
+(* (+ 2 2) 7)                   (2 + 2) * 7
+(add1 i)                        i + 1
+(sub1 i)                        i - 1
+
+; a comment                     // a comment
+
+'ten    ; symbols               "ten"           // only approximately the same
+(eq? x y)                       x == y          // when x and y are pointers
+
+#t      ; booleans              1               // no boolean type in older C++
+#f                              0
+(eqv? x y)                      x == y
+(and (> x 0) (> z (/ x y)))     (x > 0) && (z > (x/y))
+(or (> x 0) (> z (/ x y)))      (x > 0) || (z > (x/y))
+(not (< x y))                   !(x < y)
+
+(define ten (+ 5 5))            int ten = 5 + 5;
+(define mylist '(a b xyz))      char *myarr[3] = {"a", "b", "xyz"}; // approx.
+
+(define add1                    int add1(int x) {
+  (lambda (x)                     return x + 1;
+    (+ x 1)))                   }
+
+(if (> x 0)                     if (x > 0) {
+ (set! s 1)                       s = 1;
+ (set! s 0))                    } else {
+                                  s = 0;
+                                }
+
+(if (< 0 x)                     if (0 < x) {
+  (writeln "x negative"))         cout << "x negative" << endl;
+                                }
+
+(cond                           if (f(x) > 0) {
+  ((> (f x) 0) (set! s 1))        s = 1;
+  ((= (f x) 0) (set! s 0))      } elseif (f(x) == 0) {
+  (else (set! s -1)))             s = 0;
+                                } else {
+                                  s = -1;
+				}
+
+(begin                          {
+   (set! x (+ 3 y))               x = 3 + y;
+   (writeln "x is" x)             cout << "x is " << x << endl;
+   (set! y (+ 3 x)))              y = 3 + x;
+                                }
+
+"a string"                      "a string"
+(string-length s)               strlen(s)
+(string=? s1 s2)                strcmp(s1,s2) == 0
+(string-ci=? s1 s2)             strcasecmp(s1,s2) == 0
+
+
+(error "should be" 5)           cerr << "should be " << 5 << endl;
+                                abort();
+
+(let                            {  // only works for statements in the body
+  ((pi 3.14159)                   double pi = 3.14159;
+   (y (+ 22.567 z)))              double y = 22.567 + z;
+  (set! ans (cos (* pi y))))      ans = cos(pi * y);
+                                }
+
+(letrec                         // have to declare these first...
+  ((odd                         int odd(int i) {
+     (lambda (i)                  if (i == 0) {
+       (if (= 0 i)                  return 0;
+           #f                     } else {
+           (even (sub1 i)))))       return even(--i);
+   (even                          } 
+     (lambda (i)                }
+       (if (= 0 i)              int even(int i) {
+           #t                     if (i == 0) {
+           (odd (sub1 i))))))       return 1;
+ (odd 227))                       } else {
+                                    return odd(--i);
+                                  }
+                                }
+                                // and then where the letrec would be ...
+                                  odd(227)
+
+(display "more data? ")         cout << "more data? ";
+(set! response (read))          cin >> response;
+(write "string with quotes")    cout << "\"string with quotes\"";
+(newline)                       cout << endl;
+
+(define v (make-vector 3))      int v[3];   // the usual way in C++
+(define my-vec (vector 1 2 3))  int my_vec[3] = {1, 2, 3};
+(vector-ref my-vec 2)           my_vec[2]
+(vector-set! my-vec i 99)       my_vec[i] = 99
+
+((matrix-ref mat) 3 4)          mat[3][4]
+
+(set! x (+ y 3))                x = y + 3;
+
+(while-proc                     while (i < new_size) {
+  (lambda () (< i new-size))      if (i < size) {
+  (lambda ()                        res[i] = vec[i];
+    (if (< i size)                } else {    
+      (vector-set! res i            res[i] = 0;
+        (vector-ref vec i))       }
+      (vector-set! res i 0))      i = i+1; // or one could write i++; here
+    (set! i (add1 i))))         }
+
+(let ((i 0))                    for (int i = 0; i < new_size; i++) {
+ (while-proc                      if (i < size) {
+  (lambda () (< i new-size))        res[i] = vec[i]
+  (lambda ()                      } else {
+    (if (< i size)                  res[i] = 0;
+      (vector-set! res i          }
+        (vector-ref vec i))     }
+      (vector-set! res i 0))
+    (set! i (add1 i)))))
+
+(case e                         switch (e) {
+ ((1 2 3) (set! x 1))             case 1: case 2: case 3:
+ ((4 5 6) (set! x 2))               x = 1;
+ (else (set! x 3)))                 break;
+                                  case 4: case 5: case 6:
+                                    x = 2;
+                                    break;
+                                  default
+                                    x = 3;
+                                }
+
+2. TRANSLATIONS YOU PROBABLY SHOULDN'T USE AT FIRST
+
+	The following list is included for completeness.
+It contains several exact translations of Scheme expressions into
+C++ expressions that are not idiomatic.  Most of these show how to do various
+expression idioms in C++ that, if you use them, probably mean that
+you are thinking too functionally.  You should try to use imperative
+programming (see the section above) when possible.  In any case,
+using these may make your programs harder to read.  However, it would be
+unfair to C++ to ignore them completely.
+
+Scheme                          non-idiomatic C++ expression
+-------------------------------------------------------------
+(if (> x 0) x (- x))            (x > 0) ? x : -x
+
+(cond                           
+  ((> (f x) 0) (g x))           (f(x) > 0) ? g(x)
+  ((= (f x) 0) x)               : (f(x) == 0) ? x
+  (else (g (- x))))             : g(-x)
+
+(begin                          (
+   (set! x (+ 3 y))              x = 3 + y,
+   (writeln "x is" x)            (cout << "x is " << x << endl),
+   x)                            x)
+
+(make-vector 3)                 new int[3]
+
+
+3. THINGS THAT CAN'T BE EASILY TRANSLATED FROM SCHEME TO C++
+
+        The following list may be helpful if you want to think of
+ideas to *avoid* in C++ programming.  These ideas can, of course, be translated
+into C++, but doing so requires work, sometimes quite a lot of work.
+
+        Many of the most familiar data structures in Scheme programming
+are not easily translated into C++.  For example, lists in Scheme
+need a lot of work to implement in C++.  Such implementations are
+part of the course material in Com S 228.  Symbols are approximately
+translated by strings in C++, but only approximately so;
+the fast equality testing of symbols in Scheme results from a
+specialized data structure that would have to be user written in C++.
+Similarly vectors in Scheme are approximately translated by arrays in C++,
+but there are some differences; Scheme vectors do range checking on access,
+and Scheme provides an operation to determine at run-time the length
+of a vector.  One could fairly easily build a class in C++ to simulate
+Scheme vectors, however.
+
+        The other main thing that is hard to translate into C++ is
+the use of first-class functions (lambda closures).  It is possible
+to simulate this by sophisticated use of the class mechanism in C++,
+but doing so is beyond the scope of this note.
+
+        The following is a table of things that can't be easily translated
+into C++ from Scheme.
+
+
+Scheme                          reason no easy exact translation exists
+---------------------------------------------------------------
+(number? x)                     C++ is statically typed
+(symbol? x)                             similarly
+
+(transcript-on "test.out")      C++ has no top-level interactive loop
+(load "foo.ss")                 C++ has no top-level interactive loop, but
+					#include "foo.h"
+				is similar in some cases.
+
+(let ((pi 3.14159)              C++ has no local declarations in expressions,
+      (y (+ 22.567 z)))                 but see above for use in statements
+  (cos (* pi y)))
+
+(substring "returns u" 3 4)     C++ has no substring operator
+(string-append "abc" "xyz")     C++ doesn't support string appending.
+
+(define add                     C++'s stdarg.h only handles a known number
+ (lambda num-list                       of arguments (it's more static)
+   (if (null? num-list)
+       0                
+       (+ (car num-list)
+          (apply add
+                 (cdr num-list)
+          )))))
+
+(map (lambda (x) (* x 3) ls)    Need to use classes, as instances of classes
+                                        are essentially closures
+(vector-generator f 3)          Needs to use classes as described above.
+(vector-length v)               You'd need to program your own vector class.
+
+
+4. A DIFFERENCE IN IDIOMS FOR ABSTRACT DATA TYPES
+
+        The abstract data type style studied in Com S 227 do not have
+a language mechanism for their direct expression in Scheme.  However,
+C++ does have a language mechanism to support abstract data types directly:
+classes. As an example of classes in C++,
+here is a coding in C++ of the basic procedures for ratls (similar to
+the code in Springer and Friedman's program 3.21).
+
+class ratl {
+private:
+  int num;                     // data members, hidden from clients
+  int denom;
+public:
+  ratl(int int1, int int2)     // this implements make-ratl in the Scheme code
+     // PRE: int2 is not 0
+     : num(int1), denom(int2)  // initializes the data members
+     { }
+
+  int numr(void) const {       // the void means no arguments other than this
+    return num;
+  }
+
+  int denr(void) const {       // the const means this function doesn't change
+    return denom;              // anything of the data members
+  }
+};
+
+
+// code like that in Springer and Friedman's program 3.9
+ratl operator + (ratl x, ratl y) {
+  return ratl((x.numr() * y.denr()) + (y.numr() * x.denr()),
+              x.denr() * y.denr());
+}
+
+// how to use the above
+  ratl a, b;
+  a = ratl(3,4);
+  b = ratl(-15,3);
+  a = a + b;       // invokes operator + defined above.
+
+As in Scheme, you could change the way that ratl was implemented,
+and no change would be required in the code for (operator +) or
+in how the ratls were used.  However, in C++, the part of the
+code outside of the class (the client code) cannot access the
+data members num and denom.
+
+
+5. A DIFFERENCE IN IDIOMS FOR OBJECT-ORIENTED PROGRAMMING
+
+	This section is optional reading, for those who saw object-oriented
+programming in the Springer and Friedman book.  It uses more advanced C++
+than is really needed for 228.
+
+        Scheme does not directly support object-oriented programming.
+The style of object-oriented programming shown in Springer and Friedman's
+chapter 12 is based on using closures that dispatch to various bodies
+(see Program 12.2, for example); thus message passing is modeled in Scheme
+by application (see Program 12.5).  This coding uses delegation (Program 12.3)
+as illustrated by Programs 12.7 and 12.8.  This style can be coded in C++,
+but it is not idiomatic.  More idiomatic is the following code,
+which uses inheritance in C++.
+
+// a base class for these examples, so that they can be used together.
+template <class T>
+class box_counter_abstraction {
+  // virtual gets message passing in C++
+  virtual const char * type(void) const = 0;
+  virtual T show(void) const = 0;
+  virtual void reset(void) = 0;
+};
+
+// Compare program 12.2 in Springer and Friedman's book
+template <class T>
+class box_abstraction : public box_counter_abstraction {
+protected:              // visible to box2 and counter
+  T contents;
+  T init_value;
+public:
+  box_abstraction(T init)
+      : contents(init), init_value(init)
+      { }
+  virtual T show(void) const {
+    return contents;
+  }
+  virtual void reset(void) {
+    contents = init_value;
+  }
+};
+
+
+// This inherits the member functions of box_abstraction.
+template <class T>
+class box : public box_abstraction<T> {
+public:
+  box(T init)
+       : box_abstraction(init)
+       { }
+  virtual const char * type(void) const {
+    return "box";
+  }
+  virtual void update(T new_value) {
+    contents = new_value;
+  }
+  virtual T swap(T new_value) {
+    T ans;
+    ans = contents;
+    contents = new_value;
+    return ans;
+  }
+};
+
+// Compare to Programs 12.7 and 12.8 in Springer and Friedman's book;
+// This also inherits from box_abstraction.
+template <class T>
+class counter : public box_abstraction<T> {
+protected:
+  typedef T (*pfT2T)(T);   // type of unary functions taking a T, returning T
+  pfT2T unary_proc;
+public:
+  counter(T init, u_proc)
+      : box_abstraction(init), unary_proc(u_proc)
+      { }
+  virtual const char * type(void) const {
+    return "counter";
+  }
+  virtual void update(void) {
+    T result;
+    result = *unary_proc(contents);
+    contents = result;
+  }
+};

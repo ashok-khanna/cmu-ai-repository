@@ -1,0 +1,64 @@
+Return-Path: <kerry@crl.com>
+Received: from CMU2.CS.CMU.EDU by A.GP.CS.CMU.EDU id aa24105;
+          6 Jul 94 14:06:54 EDT
+Received: (from daemon@localhost) by cmu2.cs.cmu.edu (8.6.7/8.6.6) id OAA25150 for mkant+@a.gp.cs.cmu.edu; Wed, 6 Jul 1994 14:06:47 -0400
+Received: via localmail; Wed,  6 Jul 1994 14:06:47 -0400 (EDT)
+Received: from mail.crl.com (mail.crl.com [165.113.1.22]) by cmu2.cs.cmu.edu (8.6.7/8.6.6) with SMTP id OAA25146 for <mkant@cmu.edu>; Wed, 6 Jul 1994 14:06:45 -0400
+Received: from crl.crl.com (crl.com) by mail.crl.com with SMTP id AA10170
+  (5.65c/IDA-1.5 for <mkant@cmu.edu>); Wed, 6 Jul 1994 11:04:20 -0700
+Received: by crl.crl.com id AA05996
+  (5.65c/IDA-1.5 for mkant@cmu.edu); Wed, 6 Jul 1994 11:04:19 -0700
+Date: Wed, 6 Jul 1994 11:04:19 -0700
+From: Kerry Koitzsch <kerry@crl.com>
+Message-Id: <199407061804.AA05996@crl.crl.com>
+Apparently-To: mkant@cmu.edu
+
+Hi Mark;
+	The patch for the ATMS on the MCL 2.0.1 CDROM  is to file: walk.lisp
+ in the ATMS subdirectory of the QPE system. It is to replace the definition 
+of VARIABLE-GLOBALLY-SPECIAL-P (listed below, no big genius here, just adding
+a predicate for MCL as well as the others.) After that, the system(s) compile,
+load and run fine. 
+  I originally got ATMS (way back in the mists of time) from arisia.xerox.com 
+or someplace like that; essentially the same site that distribute(d) PCL: I
+dont know if its released by itself anymore, but it isa discrete set with the
+ BPS material, although BPS has some new & valuable material the older ATMS/
+LTMS/JTMS style systems dont have (planning &symbolic relaxation, to name 
+a couple)
+I've been working on making an object-oriented ATMS (I call it RMS, for
+ 'reason maintenance system', just to be perverse) for quite a while: in order
+to build RMS, I've had to incorporate ideas from many different systems,
+deKleer's and Forbus's among them; BPS uses DEFSTRUCTS and a basically object-
+oriented approach (but no CLOS), whereas, as you know, ATMS uses lots of
+ global variables, but has more features and test cases (not just N-QUEENS and
+ etc. which BPS has, and which is the ONLY example for Charniaks system).
+ Heres the patch: kerry.
+
+;;;; (to file walk.lisp in atms subdirectory of the QPE system on MCL 2.0.1 
+;;;;; CD.
+
+(defun variable-globally-special-p (symbol)
+	  #+Symbolics (si:special-variable-p symbol)
+	  #+Lucid     (lucid::proclaimed-special-p symbol)
+	  #+TI        (get symbol 'special)
+	  #+Xerox     (il:variable-globally-special-p symbol)
+	  #+(and dec vax common)(get symbol 'system::globally-special) 
+	  #+KCL       (si:specialp symbol) 
+	  #+excl      (get symbol 'excl::.globally-special.)
+	  #+:CMU      (get symbol 'lisp::globally-special)
+	  #+HP        (member (get symbol 'impl:vartype)
+					'(impl:fluid impl:global)
+					:test #'eq)
+  #+:GCLISP (gclisp::special-p symbol)
+  #+pyramid (or (get symbol 'lisp::globally-special)
+	    (get symbol 'clc::globally-special-in-compiler))  
+#+MCL (ccl::symbol-special-p symbol) 
+#-(or MCL Symbolics Lucid Xerox Excl KCL (and dec vax common)
+	 :CMU HP GCLisp TI pyramid) 
+ (or (not (null (member symbol *globally-special-variables* :test #'eq)))
+	 (when (eval `(flet ((ref () ,symbol))		     
+	(let ((,symbol '#,(list nil)))		      
+	 (and (boundp ',symbol) (eq ,symbol (ref))))))
+	(push symbol *globally-special-variables*)
+	t)))
+  

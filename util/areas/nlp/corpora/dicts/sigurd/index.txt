@@ -1,0 +1,116 @@
+Return-Path: <sig@Seuss.Vantage.GTE.COM>
+Received: from GLINDA.OZ.CS.CMU.EDU by A.GP.CS.CMU.EDU id aa25671;
+          29 Mar 94 11:38:15 EST
+Received: from sneetches.vantage.gte.com by GLINDA.OZ.CS.CMU.EDU id aa18805;
+          29 Mar 94 11:37:53 EST
+Received: from Seuss.Vantage.GTE.COM by sneetches.vantage.gte.com (4.1/SMI-4.1)
+	id AA01357; Tue, 29 Mar 94 11:35:54 EST
+Received: by Seuss.Vantage.GTE.COM (4.1/SMI-4.1)
+	id AA05508; Tue, 29 Mar 94 11:38:12 EST
+Date: Tue, 29 Mar 94 11:38:12 EST
+From: "Sigurd P. Crossland" <sig@Seuss.Vantage.GTE.COM>
+Message-Id: <9403291638.AA05508@Seuss.Vantage.GTE.COM>
+To: Mark.Kantrowitz@GLINDA.OZ.CS.CMU.EDU
+
+From: Sig@Seuss.Vantage.GTE.COM
+Subject: Proposed index definition for standardized dictionaries
+Newsgroups: comp.ai,comp.ai.nat-lang,comp.compression,comp.compression.research,sci.crypt
+Organization: GTE
+
+As an aid to those involved in natural language parsing, dictionary
+compression, foreign language translation, or textual encryption, I
+have been collecting and compiling a lengthy list of words.  It is
+expected that a comprehensive standardized dictionary will eventually
+result.  This dictionary should contain most common American words,
+abbreviations, acronyms, hyphenations, and even incorrect spellings.
+
+This draft will document the proposed index structure used to access
+the standardized dictionary.  Comments and criticisms are welcome.
+
+'Words' are to be sorted by length, stored in ascending ASCII
+collating sequence and normalized to lower case where possible to save
+space.  Words containing unusual capitalization - other than all
+lower, all upper, or first letter raised - will be represented as a
+separate unique entry in the dictionary.
+
+It is anticipated that a comprehensive dictionary can be compiled from
+words addressed within a space of 1 MB (2^^20 or 1,048,576).  The
+index will be comprised of 32 bits arranged in the following format:
+
+   _________________________________________________________________
+   |0|0|0|0|0|0|0|0|0|0|1|1|1|1|1|1|1|1|1|1|2|2|2|2|2|2|2|2|2|2|3|3|
+   |0|1|2|3|4|5|6|7|8|9|0|1|2|3|4|5|6|7|8|9|0|1|2|3|4|5|6|7|8|9|0|1|
+   |        dictionary index               |  form |    language   |
+
+The lower 20 bits (0-19) are used as pointers to entries in the
+dictionary.  The following 4 bits (20-23) will be used to indicate a
+variance on the form of the word, and the last 8 bits (24-31) will be
+used for future expansion to specify one of 256 dictionaries
+corresponding to various languages or personalized dictionaries.
+
+The data collection process has produced statistics indicating that
+the average word length is centered around 8 characters resulting in a
+1 M word dictionary approximately 8 MB in length.  Encoding common
+capitalization and endings will allow the storage requirements to
+remain manageable and within the capacity and capability of even low
+end computer systems in terms of resource utilization and performance.
+Accordingly, the form bits are interpreted as follows:
+
+   bits 20 and 21 determine case
+
+      00 default case (as stored in dictionary)
+      01 all lower case
+      02 all upper case
+      03 first letter capitalized, rest lower case
+
+   bits 22 and 23 determine the ending
+
+      00 default ending
+      01 ends with a period
+      02 ends with a question mark
+      03 ends with a line termination character or characters
+
+By way of further defining the dictionary index field, bits 16-19 will
+be used as a flag to indicate simple ASCII encoding or ASCII with run
+length encoding.  When bits 16-19 equal zero, ASCII and extended ASCII
+or binary data will be represented by the lowest eight bits with the
+run length represented by bits 8 - 15 as follows:
+
+   _________________________________________________________________
+   |0|0|0|0|0|0|0|0|0|0|1|1|1|1|1|1|1|1|1|1|2|2|2|2|2|2|2|2|2|2|3|3|
+   |0|1|2|3|4|5|6|7|8|9|0|1|2|3|4|5|6|7|8|9|0|1|2|3|4|5|6|7|8|9|0|1|
+   |  ASCII        |  run length   |0|0|0|0|                       |
+
+For a single ASCII character, the run length field would equal 1.
+When the run length field is also set to equal 0, the lowest eight
+bits represent the index version number which will be used to
+correlate with the appropriate dictionary.
+
+Since this technique essentially 'wastes' the first 65,536 entries in
+the dictionary, this space will be redefined and utilized to specify
+the initial index for each length of entry.  A further implication is
+that the first dictionary entry corresponds to index position 65,537.
+
+Index entries 0 and 1 have no meaning within this context, entries 2
+through 31 will point to values in a table which correspond to the
+location and length of the 31 word list files.  As an implementation
+dependent alternative, all dictionary entries would be stored in a
+single file with the index pointing to the beginning of records with
+like lengths.
+
+The physical architecture of the dictionary will depend on the
+hardware/software platform and may be implemented as a table in ROM, a
+single file, or multiple files which may or may not contain line
+termination characters.
+
+Please mail your comments, suggestions, etc. to the addresses below.
+
+Take care.
+
+         - Sig
+
+Sigurd P. Crossland
+Advanced Technology Lab       | Telephone: (703) 818-8504
+GTE                           | Facsimile: (703) 802-3110
+15000 Conference Center Drive | Internet: sig@seuss.vantage.gte.com
+Chantilly, VA   22021         | Home: (703) 818-8942

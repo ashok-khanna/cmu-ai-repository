@@ -1,0 +1,823 @@
+PRELIMINARY DOCUMENTATION FOR KGEN: a rule compiler for PC-KIMMO
+
+Program by Nathan Miles
+Documentation by Nathan Miles and Evan Antworth
+
+April 30, 1991
+
+1 INTRODUCTION
+  1.1 About PC-KIMMO and KGEN
+  1.2 KGEN status
+  1.3 Running KGEN
+  1.4 Error handling
+2 INPUT FILE FORMAT
+  2.1 General conventions
+  2.2 Subsets
+  2.3 Feasible pairs
+  2.4 Rule syntax
+  2.5 Unimplemented rule syntax
+3 OPTIMIZING KGEN'S OUTPUT
+  3.1 Simplifying complex rules
+  3.2 Handling rule conflicts
+  3.3 Overlappping column headers
+  3.4 Backlooping
+4 CONVERTING AN EXISTING PC-KIMMO RULES FILE INTO A KGEN SOURCE FILE
+5 SUMMARY OF LIMITATIONS IN THE BETA VERSION
+6 REPORTING DEFECTS
+7 ACKNOWLEDGMENTS
+8 REFERENCES
+
+
+1 INTRODUCTION
+
+1.1 About PC-KIMMO and KGEN
+
+KGEN is an auxiliary program for PC-KIMMO. PC-KIMMO is a program for
+doing computational phonology and morphology. It is typically used to
+build morphological parsers for natural language processing systems.
+PC-KIMMO is described in the book "PC-KIMMO: a two-level processor
+for morphological analysis" by Evan L. Antworth, published by the
+Summer Institute of Linguistics (1990). The PC-KIMMO software is
+available for MS-DOS (IBM PCs and compatibles), Macintosh, and UNIX.
+The book (including software) is available for $23.00 (plus postage)
+from:
+
+   International Academic Bookstore
+   7500 W. Camp Wisdom Road
+   Dallas TX, 75236
+   U.S.A.
+
+   phone 214/709-2404
+   fax   214/709-2433
+
+The KGEN program which this document describes will be of very little
+use to you without the PC-KIMMO program and book. The remainder of
+this document assumes that you are familiar with PC-KIMMO.
+
+The phonological component of PC-KIMMO is based on a rule formalism
+called two-level phonology. A typical two-level rule looks like this:
+
+   y:i => @:C___+:0
+
+Unfortunately, PC-KIMMO cannot directly use rules written in this
+high-level notation. Two-level rules must first be translated into
+finite state tables such as this:
+
+      @ y + @
+      C i 0 @
+   1: 2 0 1 1
+   2: 2 3 2 1
+   3. 0 0 1 0
+
+The PC-KIMMO book describes in detail how to manually translate
+two-level rules into finite state tables. Clearly, however, this is a
+job for a computer, not a human. The task of building a program for
+translating rules into state tables is not trivial. The only other
+successful rule compiler that we know of has been developed at Xerox
+(see Dalrymple et al. 1987). However, it is proprietary and may not
+run on small computers. The KGEN program is an attempt to build a
+rule compiler that will run on personal computers such as the IBM PC
+and compatibles and the Apple Macintosh (as well as UNIX). Due to the
+complexity of the task, KGEN may never be developed to the point
+where it can automatically handle everything that can be expressed
+with two-level rules. The user may still need to learn enough about
+building state tables to be able to correct KGEN's output. Thus using
+KGEN can perhaps better be described as "computer assisted rule
+compilation".
+
+
+1.2 KGEN Status
+
+The current version of KGEN is Version 0.2.  Caveat lector!
+
+The KGEN program was developed by Nathan Miles as a part-time
+project. Nathan is currently a computational linguistics graduate
+student at The Ohio State University. His background includes a stint
+at IBM writing compilers. The program is offered for your use as
+follows:
+
+   1) You are free to use the program at no charge in any way you
+      see fit. The source code is copyrighted, but may be freely
+      copied for personal or academic use. Neither the source code
+      nor the executable program may be resold or used for commercial
+      profit.
+
+   2) NO GUARANTEE WHATSOEVER is made as to its fitness for any
+      particular purpose.   You must use this program at your
+      own risk.
+
+   3) Although I am interested in improving the program over time,
+      I cannot guarantee that I will fix any problems you find.
+
+Note that this program is not currently a supported program of the
+Summer Institute in Linguistics. If the program proves useful and
+reliable it is my intention to give all rights to it to SIL and they
+MAY choose at that time to make it a standard part of their
+distribution.
+
+The program has successfully compiled approximately 50 rules whose
+tables were then checked manually to the best of the authors' ability.
+An additional file containing several English morphological rules as
+described in the PC-KIMMO book was built. All of the example
+derivations from the book were then successfully executed using the
+tables built by KGEN. This process completed the Alpha test of the
+program.
+
+The program is now being distributed to users who would like to
+participate in the Beta test of the program. The Beta test is
+necessary to determine how effective the program is in building the
+kinds of tables used by "real-world" projects.
+
+KGEN presently runs under MS-DOS and UNIX. We have not yet succeeding
+in porting it to the Macintosh, but hope to eventually. If anyone
+out there is a Think C expert who could help us, let us know.
+
+
+1.3 Running KGEN
+
+KGEN accepts as input a file of two-level rules (whose format is
+described below) and produces as output a PC-KIMMO rules file. The
+KGEN program is invoked as follows:
+
+   kgen <input.fil >output.fil
+
+where input.fil is a file of two-level rules and output.fil is a
+PC-KIMMO rules file. For example, to compile the set of English rules
+that is part of this Beta release, type:
+
+   kgen <english.txt >english.rul
+
+Then run PC-KIMMO in the standard way:
+
+   pckimmo
+   load rules english.rul
+
+
+1.4 Error handling
+
+If an error in the input file is found during program execution, the
+program stops and prints out the offending line with a "<-- ..."
+pointing to the approximate location of the error. For example, this
+rule incorrectly uses a curly brace where it should use a square
+bracket:
+
+   RULE s:z <= [a|b} <-- ... _
+
+The current version of the program halts on the first error
+encountered. Here are the nonsyntactic errors:
+
+Subset name ( xxx ) too long...   (Subset names limited to 40 characters)
+Too many sets defined ...         (More than 63 subsets)
+Undefined subset ( xxx ) referenced ...
+Duplicate subset definition ...
+Too many characters in set ...    (More than 63 characters)
+Cannot mix x:0 and X:Y in alternate ... (  {x,y,z}:{b,0,c} is illegal )
+Number of lexical and surface characters does not match ...
+                                  ( PAIRS  a b c
+                                           a b c d e f )
+Too many feasible pairs defined   (More than 256)
+Too many characters with {}       (More than 20 pairs)
+Unmatched lengths in {}:{} ...    (  {a,b,c}:{u,v,w,x}  )
+Unequal length in alternate sets  (  {a,b}:c <= x ___ {c,d,e}  )
+Segset overflow ...               ( string more 63 pairs match a lexical
+                                    surface pair )
+No pairs match X:V ...            ( no lexical surface pair matches the
+                                    subset pair X:V )
+Too many columns required ...     ( table needs more than 63 columns )
+Translator cannot handle X* at end of pattern
+                                  (  x:y <= z ___ t*   breaks and is dumb )
+Too many states needed ...        ( more than 63 )
+
+
+2 INPUT FILE FORMAT
+
+The format of the KGEN input file is intended to be modeled as closely
+as possible on the format of the PC-KIMMO rules file. See pages 94-101
+and 179-184 of the PC-KIMMO book.  For those who don't like to read
+documentation, a great deal about the file format  can be gathered by
+studying the supplied file "english.txt" which contains the rules for
+English spelling as described in the PC-KIMMO book (appendix A).
+
+
+2.1 General conventions
+
+Comments may be placed anywhere in the rules file.  A semicolon marks
+the beginning of a comment. (In this Beta version, the comment
+character cannot be changed.)  Everything from the semicolon to the
+end of the line is ignored by KGEN.
+
+Lines beginning with an exclamation mark (!) are copied verbatim to
+the output file. This device makes it possible to preserve comments
+and manually constructed rules. For example, if your KGEN input file
+contains these lines:
+
+   ; this is a KGEN comment
+   !; this is a PC-KIMMO comment
+
+the output file will look like this:
+
+   ; this is a PC-KIMMO comment
+
+Blank lines may be inserted anywhere in the file (except between the
+two lines of characters in a PAIRS statement).
+
+The KGEN input file contains three sections:  subset specifications,
+feasible pairs, and the rules section. The ALPHABET, NULL, ANY, and
+BOUNDARY declarations that appear at the beginning of the PC-KIMMO
+rules file are automatically created by KGEN (see below). The file can
+optionally terminate with the END keyword. Any material in the file
+after the END keyword is ignored.
+
+
+2.2 Subsets
+
+The subsets section of the KGEN input file is optional; that is, a
+valid input file does not have to declare any subsets. The subset
+section declares the subset names and the alphabetic characters they
+specify. The format for declaring subsets is identical to the SUBSET
+declarations in the PC-KIMMO rules file (p. 97).   For example:
+
+   SUBSET   Vfront    e i
+
+Subset names must begin with a capital letter and consist entirely of
+letters. (These restrictions apply only to the Beta version of KGEN.)
+
+   Valid Names:     X, Cpal, UVW
+   INVALID Names:   X1, V{-bk,+hi}
+
+There are NO subset names built into KGEN.  In particular you must
+define C and V if you intend to use them.
+
+KGEN does not require that capital letters only be used to name
+subsets. If A, for example, is not defined as a subset it can be used
+an alphabetic character.
+
+
+2.3 Feasible pairs
+
+The pairs section declares all feasible pairs used in the
+description. This includes both default correspondences (such as a:a
+and b:b) and special correspondences (such as y:i and s:0). The pairs
+section is obligatory. The format used by KGEN to specify feasible
+pairs is different, and simpler, than the format used in the PC-KIMMO
+rules file. In the PC-KIMMO rules file, pairs are declared using a
+special finite state table with only one state (p. 97-98). In the
+KGEN input file, pairs are declared with the keyword PAIRS followed
+by pairs of characters. Here is an example:
+
+   PAIRS  b c d f g h j k l m n p q r s t v w x y z
+          b c d f g h j k l m n p q r s t v w x y z
+
+   PAIRS  a e i o u +
+          a e i o u 0
+
+   PAIRS  y s e 0 i
+          i 0 0 e y
+
+Correspondences must always be specified with consecutive pairs of
+lines. Multiple PAIRS statements may, and usually will, be present in
+a rules file. They must all be placed in a block after the subset
+declarations and before the rules; that is, they cannot be
+interspersed with the rules. Pairs of segments do not have to be
+vertically aligned, but the first line must have exactly the same
+number of segments as the second line. KGEN performs no further
+validity checking on the pairs declared. If the user makes a mistake,
+such as including a pair twice, PC-KIMMO will complain when it tries
+to load the table. For more on how to declare pairs, see section 4.
+
+After the pairs section has been completely read, the program will
+automatically generate an ALPHABET declaration which contains all the
+segments referenced in the PAIRS declarations. This declaration is
+placed at the beginning of the output file.
+
+Immediately following the ALPHABET declaration, KGEN also
+automatically inserts these NULL, ANY, and BOUNDARY declarations:
+
+   NULL 0
+   ANY @
+   BOUNDARY #
+
+In the Beta version of KGEN, these declarations cannot be changed.
+KGEN depends on being able to interpret 0 as the null segment and @ as
+the ANY symbol.
+
+
+2.4 Rule syntax
+
+The four basic types of rules are supported:
+
+   x:y <= a ___ b
+   x:y => a ___ b
+   x:y <=> a ___ b
+   x:y /<= a ___ b
+
+The meaning of these rules is explained in the PC-KIMMO book (pp.
+29ff).
+
+A rule is declared with the keyword RULE. The rule must be written
+all on one line; for example,
+
+   RULE t:c <=> _ (+:0) @:i
+
+The environment line must be one or more underline characters. White
+space (spaces, tabs, but not new lines) may be used freely to improve
+readability.  There is one situation in which white space is
+required. Subset names must be followed by a space or some other
+white space character. This means that the program will interpret "C
+V " as a subset named C followed by a subset named V. Without
+intervening space, the sequence "CV " will be interpreted as a subset
+named CV, probably not what you had in mind.
+
+Optional parts of the right context are enclosed in parenthesis (see
+pp. 34-35 of the PC-KIMMO book). Parenthesis may be nested to show
+optional parts within optional parts. For example,
+
+   RULE  x:y <=  a (b (c d)) ___
+   RULE  e:0 <=  V (Cpal) Cpal ___ +:0 V
+
+Alternative choices (disjunction) are enclosed by square brackets and
+separated by a vertical bar (see pp. 35-36 of the PC-KIMMO book). The
+following rule contains a segmental position which can be filled by
+either a vowel or y.   Alternatives may be nested within optional
+elements and vice versa.
+
+   RULE  e:0 <= C [V|y] ___ +:0 e
+
+When there are several possible right-hand sides (environments) for a
+rule, they are separated by a vertical bar (but without square
+brackets) as in the following example. Notice that an environment line
+occurs in each subpart of the right side of the rule.
+
+   RULE e:0 => V C C*___+:0 V | C [V|y]___+:0 e | C u___+:0 V
+
+Correspondences are specified as follows (see p. 31 of the PC-KIMMO
+book):
+
+   s:s     Lexical s corresponds to surface s
+   s       Lexical s corresponds to surface s (same as s:s)
+   s:z     Lexical s corresponds to surface z
+   s:@     Lexical s corresponds to any surface character
+   @:s     Surface s realizes any lexical character
+   s:      Same as s:@, but dangerous to use
+   :z     Same as @:z, but dangerous to use
+
+The last two forms are used in the PC-KIMMO book (p. 31) but are
+marked as dangerous here because KGEN will often not interpret them
+the way you wish.  This is because spaces are not significant.  Thus
+the compiler will interpret the following two rules identically:
+
+   a:b <= ___ s:z  :z
+   a:b <= ___ s:  z:z
+
+We recommend using s:@ and @:z rather than the shortened forms s: and
+:z.
+
+Correspondences using subset names are written just like the character
+correspondences shown above; for instance, Cpal:Cpal, Cpal:@, @:Cpal
+(where Cpal stands for the subset of palatal consonants).
+
+An asterisk (Kleene-star) is used to indicate zero or more instances
+of a correspondence; for instance, s*, s:s*, s:@*, Cpal*, or @:Cpal*.
+If you wish to indicate one or more instances of a correspondence, use
+the construct X X*.   KGEN will not generate the correct table if you
+place the X* first. Here are some rules using the asterisk notation.
+
+   RULE  e:0 => V C C* ___ +:0 V
+   RULE  s:z => V* C* e ___
+
+The compiler interprets a string of consecutive asterisked elements as
+occurring an arbitrary number of times in any order. This means, for
+example, that the second rule above would match the lexical form
+"axaxaxe" as well as the form "aaaxxxe".   Note also that only single
+elements may be replicated, not string of elements or disjunctions of
+elements; for example, the following asterisked expressions are
+invalid:
+
+   RULE s:z <= ___ [x|y]*    !!! INVALID
+   RULE s:z <= ___ (abc)*    !!! INVALID
+
+When a series of mappings all occur in the same environment they can
+often be expressed with one rule using curly braces as shown in the
+PC-KIMMO book (p. 135).
+
+   RULE {b,d,g}:0 => {b,d,g} (+:0) ___
+   RULE 0:{b,d,g,p,t} <=> `:0 C* V {b,d,g,p,t} ___ +:0 [V|y:@]
+
+2.5 Unimplemented rule syntax
+
+The negative operator ~ is not implemented in the Beta version of
+KGEN. For example, on page 219 of the PC-KIMMO book, rule R5a uses the
+expression ~[i|'], which means neither i nor '.
+
+
+3 OPTIMIZING KGEN'S OUTPUT
+
+The process of translating two-level rules into finite state tables is
+an intricate process. It is unfortunately true that this Beta test
+version of KGEN is not likely always to do this correctly.  This
+section describes strategies for working around problems you find in
+the Beta version.
+
+3.1 Simplifying complex rules
+
+We suspect that KGEN works fairly well for simple tables but that its
+accuracy decreases as the tables built become more and more intricate.
+One strategy for dealing with this kind of failure is to replace a
+single complicated rule by two or more simpler rules. The following
+list suggests ways in which this can be done:
+
+   More complex                     Less complex
+
+   x:y <=> a___b                    x:y <= a___b
+                                    x:y => a___b
+
+   x:y <= a___b | c___d | e___      x:y <= a___b
+                                    x:y <= c___d
+                                    x:y <= e___
+
+   {a,b,c}:y <= {d,e,f} ___         a:y <= d___
+                                    b:y <= e___
+                                    c:y <= f___
+
+It would be helpful in the Beta test process if you would first write
+the rule in the most natural fashion, even if this creates a fairly
+complicated rule.   If the rule does not compile correctly, save a
+copy of the offending rule file to submit with a defect report, then
+try the simplification process.  By doing this we can incrementally
+improve the ability of KGEN to handle all rules.
+
+Here is another tip for dealing with troublesome rules. Examine your
+context specifications and see if you have a specified a context that
+is more general than actually occurs in your data. For example, if the
+expression x:y* in a rule seems to cause KGEN to fail but you know
+that your data never has more than two consecutive instances of x:y,
+you can try replacing the expression with (x:y (x:y)) to see if KGEN
+can produce a correct table.
+
+
+3.2 Handling rule conflicts
+
+One problem that KGEN does not handle (and may never handle) is rule
+conflicts. Rule conflicts are discussed in the PC-KIMMO book on pages
+85-88. The source of rule conflicts lies in the way in which PC-KIMMO
+applies rules. PC-KIMMO applies all the rules in a description
+simultaneously (or in parallel if you prefer). This means that, for an
+input form to be successfully processed by the rules, *all* the rules
+must apply successfully. Even rules that do not crucially affect a
+particular input form must apply to the form successfully. In such
+cases the rules apply 'vacuously', but successfully nevertheless. The
+point is that, if you have two rules in a description such
+that, the applying one rule makes it impossible to successfully apply
+the rule, processing will fail and no result will be returned. This
+constitutes a rule conflict.
+
+There are two types of rule conflicts: the => (or environment)
+conflict and the <= (or realization) conflict (these terms are due to
+Dalrymple et al 1987:25). The => conflict arises when two => rules
+have the same correspondence on the left side of the rule. For
+example:
+
+   p:b => m___
+   p:b => V___V
+
+The rule operator => means that the correspondence can occur *only* in
+the specified environment; thus these two rules contradict each other.
+If either one is applies, the other is blocked. The simplest way to
+resolve such a conflict is to combine the two rules into one rule with
+a disjunctive environment:
+
+   p:b => m___ | V___V
+
+This appears to go against our advice above to simplify complex rules
+by breaking them into two or more smaller rules. But in the case of
+this type of rule conflict it can't be helped. However, if KGEN seems
+to have trouble compiling a => rule with a complex environment such as
+the one above, try changing the order of the alternative environments.
+Perhaps inserting a later alternative in the table is breaking the
+entries for an earlier alternative. This might not happen if they were
+inserted in another order.  We suspect that the most complicated
+entries should be inserted first for maximum reliability. For example:
+
+   p:b => V___V | m___
+
+The second type of rule conflict is the <= conflict. It arises when
+two conditions exist: (1) the correspondence parts (to the left of the
+arrow) of two <= rules have the same lexical character but different
+surface realizations of it, and (2) the environments of the two rules
+intersect (or overlap, including proper inclusion). A typical example
+is these two rules:
+
+   s:Z <= i___i  (where Z stands for z-hachek, an alveopalatal fricative)
+   s:z <= V___V
+
+These two rules meet both conditions for a <= conflict. First, the
+lexical characters of their correspondence parts are the same (namely
+s), while the surface characters are different (Z and z). Second,
+because the character i is a member of the subset V (for vowels), the
+two environments intersect. Specifically, V_V properly includes i_i,
+since any form that matches i_i will also match V_V. Thus a lexical
+input form such as isi meets the structural description of both rules;
+that is, both rules are eligible to apply to it. But because the two
+rules have different structural changes (one requires a surface Z, the
+other a surface z), applying one rule will prevent the other rule from
+applying. Thus the rules contradict each other, and a rules file
+containing these rules will not work properly.
+
+KGEN will do most of the work of compiling these rules, but the user
+must manually adjust the resulting state tables to resolve the
+conflict. Given these rules, KGEN will produce tables like these:
+
+   RULE "s:Z <= i___i" 3 4
+      i s s @
+      i Z @ @
+   1: 2 1 1 1
+   2: 2 1 3 1
+   3: 0 1 1 1
+
+   RULE "s:z <= V___V" 3 4
+      V s s @
+      V z @ @
+   1: 2 1 1 1
+   2: 2 1 3 1
+   3: 0 1 1 1
+
+We will assume that these rules should accept the underlying form isi
+and produce the surface form iZi. In other words, when the two rules
+conflict, the first rule (the s:Z rule) should win (or take
+applicational precedence, if you prefer). To ensure this behavior, the
+second rule (the s:z rule) must be modified to allow (but not require)
+the s:Z correspondence from the first rule to occur in its
+environment. This is done by manually inserting an s:Z column into the
+second table with transitions back to state 1 in each row:
+
+   RULE "s:z <= V___V" 3 4
+      V s s s @
+      V z @ Z @
+   1: 2 1 1 1 1
+   2: 2 1 3 1 1
+   3: 0 1 1 1 1
+
+In order to preserve this modified table, copy it back into your KGEN
+input file of rules and put an exclamation mark (!) at the beginning
+of each line. Any line in the KGEN input file that begins with an
+exclamation point in the first column will be directly copied to the
+output file without any alteration, except the deletion of the !. Thus
+the KGEN input file containing the above rule will look like this:
+
+   !RULE "s:z <= V___V" 3 4
+   !   V s s s @
+   !   V z @ Z @
+   !1: 2 1 1 1 1
+   !2: 2 1 3 1 1
+   !3: 0 1 1 1 1
+
+Particularly in this Beta version of KGEN, you will undoubtedly find
+rules (besides instances of rule conflicts) that KGEN does not
+translate completely correctly. The same technique can be used: let
+KGEN produce a table the best it can, fix up the table by hand, and
+copy back into the source rules file with exclamation points to
+preserve it. In the worst case, if KGEN fails to produce a usable
+table at all, you will have to construct the table completely by hand
+and insert it in the source rules file with exclamation points.
+
+3.3 Overlapping column headers
+
+The problem of overlapping column headers is discussed on pages 76-78
+of the PC-KIMMO book. KGEN attempts to automatically handle column
+overlap. For example, it will correctly generate table T54a on page
+78. On the other hand, it may insert columns where it does not need
+to. These columns are redundant, but do not do any harm. Please
+report any problems with how KGEN handles overlapping column headers.
+
+3.4 Backlooping
+
+Another potential problem is backlooping (see pp. 60ff of the
+PC-KIMMO book). In some cases it is very difficult to determine what
+state to backloop to.   We hope that the Beta testing will clarify
+where this is true of and what algorithms are necessary to correctly
+handle tricky backlooping.
+
+
+4 CONVERTING AN EXISTING PC-KIMMO RULES FILE INTO A KGEN SOURCE FILE
+
+If you have a PC-KIMMO rules file that you have already developed by
+hand, follow these steps to convert it to a KGEN source file.
+
+1. Make a copy of the PC-KIMMO rules file and rename it. Do *not*
+throw away your original PC-KIMMO rules file. For example, copy
+FRENCH.RUL (the existing rules file) as FRENCH.TXT (the new KGEN
+file). Use whatever filename extension you want for the new KGEN file.
+KGEN does not presently accept any default file names or extensions.
+
+2. Remove (or comment out) the ALPHABET, NULL, ANY, and BOUNDARY
+declarations. KGEN automatically generates these.
+
+3. Retain the SUBSET declarations just as they appear in the PC-KIMMO
+rules file.
+
+4. Construct all the PAIRS declarations and place them together
+directly after the SUBSET declarations. There are likely to be two
+types of tables in your original file that you will convert to PAIRS
+declarations. First, at the beginning of the file you should have one
+or more special tables whose purpose is to declare all the default
+correspondences used in the description; for example,
+
+   RULE "1 Consonant defaults"  1 22
+       b c d f g h j k l m n p q r s t v w x y z @
+       b c d f g h j k l m n p q r s t v w x y z @
+   1:  1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
+
+   RULE "2 Vowels and other defaults"  1 11
+       a e i o u ' - - ` + @
+       a e i o u ' - 0 0 0 @
+   1:  1 1 1 1 1 1 1 1 1 1 1
+
+Convert these tables into PAIRS declarations like these:
+
+   PAIRS  b c d f g h j k l m n p q r s t v w x y z
+          b c d f g h j k l m n p q r s t v w x y z
+
+   PAIRS  a e i o u ' - - ` +
+          a e i o u ' - 0 0 0
+
+Second, you may have scattered throughout your rules file special
+tables whose purpose is to declare the special correspondences that
+result from using subsets. For example, if a rule uses a
+correspondence such as B:P where B is a subset containing b, d, and g
+(voiced stops) and P is a subset containing p, t, and k (voiceless
+stops), the set of pairs that B:P actually stands for must be
+explicitly declared in a special table like this:
+
+   RULE "B:P correspondences" 1 4
+      b d g @
+      p t k @
+   1: 1 1 1 1
+
+Tables such as this must also be converted to a PAIRS declarations
+like this:
+
+   PAIRS  b d g
+          p t k
+
+Finally, you must declare any other special correspondences used in
+rules. For example, if you have rule such as this:
+
+   RULE y:i => @:C (+:0)___+:0
+
+you must include the y:i correspondence in a PAIRS declaration. (This
+requirement applies to the Beta version of KGEN and may be removed in
+the production version.)
+
+5. Remove (or comment out) all the state tables.
+
+6. Construct the RULE declarations. If you have been conscientious
+about writing the original rules file, the table headers should
+already contain the two-level rule on which it is based. For example,
+here is a table header from the original English rules file:
+
+   RULE "13 i:y-spelling, i:y <= ___ e: +:0 i"
+
+Assuming that this rule is already correctly formulated, only a little
+clean-up work is needed. First, remove the quotation marks and any
+material that is not part of the actual rule (for instance, the number
+and name of the rule). Second, change correspondences of the form x: or
+:x to x:@ and @:x. And fourth, insert a space after each subset name
+(for instance, change "VC" to "V C "). The rule above should now look
+like this:
+
+   RULE i:y <= ___ e:@ +:0 i
+
+7. If there are any comments or other material that you want to
+preserve in the output file, place an exclamation mark (!) before each
+line.
+
+You are now ready to run KGEN on your new file. 
+
+
+5 SUMMARY OF LIMITATIONS IN THE BETA VERSION
+
+The Beta version of KGEN has a number of limitations and restrictions
+that are not true of PC-KIMMO. We hope that most if not all these
+limitations will be removed in the production version of KGEN.
+
+1. The NULL, ANY, and BOUNDARY symbols cannot be assigned by the user.
+KGEN automatically sets them to be 0, @, and #, respectively.
+
+2. Subset names are limited to 40 characters.
+
+3. Subset names must begin with a capital letter and must consist
+entirely of letters (A-Z and a-z).
+
+4. Subset lists are limited to 63 characters.
+
+5. There can be no more than 63 subsets in a description.
+
+6. The PAIRS declaration is limited to a total of 256 pairs.
+
+7. All feasible pairs (both default and special) must be explicitly
+declared in PAIRS statements.
+
+8. The {} notation is limited to 20 pairs.
+
+9. Tables are limited in size to no more than 63 columns and 63
+states.
+
+10. The default comment character cannot be changed.
+
+11. Shortened notations of the form x: and :x should not be used. Use
+x:@ and @:x instead.
+
+12. The asterisk notation can be used only with single correspondences
+not with strings or complex structures. That is, expressions such as
+x* and x:y* are valid, but expressions such as (abc)* or [x|y]* are
+invalid.
+
+13. The negative operator ~ is not implemented.
+
+
+6 REPORTING DEFECTS
+
+When you detect a defect in this program I (Nathan Miles) would very
+much like to know about it.   My intention is to gather information
+and create later releases. Please be aware that I am still early in my
+graduate school process here at OSU and it is not inconceivable that
+time pressures could lead to long gaps between releases.
+
+Defect reports can be sent to:
+
+   via Email (This is preferred mode)
+
+      miles@cis.ohio-state.edu
+
+   via US Mail
+
+      Nathan Miles
+      681 Maclam Dr.
+      Columbus, OH   43204
+
+If you would like to discuss the program with me I can be reached at
+1-614-276-7893 evenings.   I cannot guarantee that I will always be
+able to make written responses.   Email is better for me than US Mail.
+If you are going to physically send me machine-readable material it
+must be a 5 1/4" low density MSDOS IBM/PC compatible diskette.
+
+It would be very helpful if bug reports could contain the following
+information:
+
+   o  Complete set of rules.  (In some cases there might be
+      interactions between rules which could only be seen with all
+      the rules present.)
+
+   o  The input given, the response received, and the response that
+      should have been received when PC-KIMMO interpreted the
+      table.
+
+   o  An indication of what part of the table was incorrectly generated
+      and what the correct table should have been (if known).
+
+Another valuable form of feedback would be a list of things which you
+wish the documentation had of told you that you had to work out for
+yourself.
+
+I would be interested in hearing suggestions for extensions to KGEN
+also although I don't anticipate having time to make major changes in
+KGEN in the near future.
+
+Questions and requests for information related to PC-KIMMO should be
+directed to Evan Antworth at this address:
+
+   Evan Antworth
+   Academic Computing Department
+   Summer Institute of Linguistics
+   7500 W. Camp Wisdom Road
+   Dallas, TX  75236
+
+   phone: 214/709-2418
+   email: evan@txsil.lonestar.org
+
+
+7 ACKNOWLEDGMENTS
+
+This program would not have existed if it were not for the extensive
+work done by Evan Antworth in describing the process of state table
+generation.   Evan also provided valuable input during the development
+process.
+
+My wife Janis cheerfully endured my occasional absence (or worse yet
+my distracted presence) while I wrote this program.   Those who know
+how quickly three daughters can realize and react to the fact that a
+1-1 zone defense by 2 parents has collapsed into a 3 on 1 break
+against Mom alone will appreciate the sacrifice made.
+
+
+8 REFERENCES
+
+Antworth, Evan L. 1990. PC-KIMMO: a two-level processor for
+    morphological analysis. Occasional Publications in Academic
+    Computing No. 16. Dallas, TX: Summer Institute of Linguistics.
+    ISBN 0-88312-639-7, 273 pages, paperbound.
+
+Dalrymple, Mary et al. 1987. DKIMMO/TWOL: a development environment
+    for morphological analysis. Stanford, CA: Xerox Palo Alto Research
+    Center and Center for the Study of Language and Information.
+

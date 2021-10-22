@@ -1,0 +1,181 @@
+From bh@anarres.CS.Berkeley.EDU Wed May 11 14:31:43 EDT 1994
+Article: 8712 of comp.lang.scheme
+Xref: glinda.oz.cs.cmu.edu comp.lang.scheme:8712
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!newsfeed.pitt.edu!gatech!howland.reston.ans.net!agate!anarres.CS.Berkeley.EDU!bh
+From: bh@anarres.CS.Berkeley.EDU (Brian Harvey)
+Newsgroups: comp.lang.scheme
+Subject: Re: what *exactly* is tail recursion?
+Date: 2 May 1994 23:43:10 GMT
+Organization: University of California, Berkeley
+Lines: 24
+Message-ID: <2q436e$13i@agate.berkeley.edu>
+References: <RV.94May2144902@cslab9d.cs.brown.edu>
+NNTP-Posting-Host: anarres.cs.berkeley.edu
+
+rv@cs.brown.edu (rodrigo vanegas) writes:
+>Can anyone give me a formal definition of what qualifies as tail
+>recursion?  Informally, i tend to think of it as anything that would
+>allow the compiler to substitute the bottoming out part of the
+>recursion with a single GOTO to the very first call.
+
+Yes, basically.  I find it a little easier to think about in terms
+of tail *calling* rather than tail *recursion*.  So in your non-tail-
+recursive example
+
+>  (define (notail-fact n)
+>    (if (= n 0) 1
+>	(* n (notail-fact (- n 1)))))
+
+this procedure *does* make a tail call, to the * procedure.  When * is
+finished, it can return its result directly to the caller of notail-fact
+(which might be another invocation of notail-fact).
+
+Once you have that idea, then tail recursion is just a tail call to
+the same procedure.  But thinking in terms of tail calling also lets
+you understand situations such as mutual tail recursion, in which
+procedure A tail-calls B, and B tail-calls A.
+
+FAQ person:  This should be in the FAQ!
+
+
+Article 8742 of comp.lang.scheme:
+Xref: glinda.oz.cs.cmu.edu comp.lang.scheme:8742
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!godot.cc.duq.edu!news.duke.edu!MathWorks.Com!europa.eng.gtefsd.com!howland.reston.ans.net!nctuccca.edu.tw!netnews.ntu.edu.tw!ken
+From: ken@math.ntu.edu.tw (Shan_Chung-Jie)
+Newsgroups: comp.lang.scheme
+Subject: Re: what *exactly* is tail recursion?
+Date: 4 May 1994 11:37:51 GMT
+Organization: National Taiwan University
+Lines: 23
+Message-ID: <2q81ef$qgu@netnews.ntu.edu.tw>
+References: <RV.94May2144902@cslab9d.cs.brown.edu> <2q436e$13i@agate.berkeley.edu>
+NNTP-Posting-Host: ken%@cauchy.math.ntu.edu.tw
+X-Newsreader: TIN [version 1.2 PL1]
+
+: >  (define (notail-fact n)
+: >    (if (= n 0) 1
+: >	(* n (notail-fact (- n 1)))))
+
+: this procedure *does* make a tail call, to the * procedure.  When * is
+: finished, it can return its result directly to the caller of notail-fact
+: (which might be another invocation of notail-fact).
+
+: Once you have that idea, then tail recursion is just a tail call to
+: the same procedure.  But thinking in terms of tail calling also lets
+: you understand situations such as mutual tail recursion, in which
+: procedure A tail-calls B, and B tail-calls A.
+
+Well that seems to suggest that tail recursion is just a compiler
+optimization technique, namely to replace the stack frame of the
+caller with the stack frame of the last callee, instead of push
+the new stack frame to the stack.
+
+Am I right?
+--
+----------
+Chung-chieh (Ken) Shan   ken@cauchy.math.ntu.edu.tw
+"Ay, fashion you may call it.  Go to, go to." -- Hamlet
+
+
+Article 8747 of comp.lang.scheme:
+Xref: glinda.oz.cs.cmu.edu comp.lang.scheme:8747
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!news.mic.ucla.edu!library.ucla.edu!agate!anarres.CS.Berkeley.EDU!bh
+From: bh@anarres.CS.Berkeley.EDU (Brian Harvey)
+Newsgroups: comp.lang.scheme
+Subject: Re: what *exactly* is tail recursion?
+Date: 4 May 1994 14:55:23 GMT
+Organization: University of California, Berkeley
+Lines: 12
+Message-ID: <2q8d0r$2ov@agate.berkeley.edu>
+References: <RV.94May2144902@cslab9d.cs.brown.edu> <2q436e$13i@agate.berkeley.edu> <2q81ef$qgu@netnews.ntu.edu.tw>
+NNTP-Posting-Host: anarres.cs.berkeley.edu
+
+ken@math.ntu.edu.tw (Shan_Chung-Jie) writes:
+>Well that seems to suggest that tail recursion is just a compiler
+>optimization technique, namely to replace the stack frame of the
+>caller with the stack frame of the last callee, instead of push
+>the new stack frame to the stack.
+>
+>Am I right?
+
+Yes, that's my understanding.  Some people would argue with your
+use of the word "just," because in effect a tail-calling compiler
+can turn a recursion into an iteration, thereby eliminating one
+of the big fears that the Real Programmer types have about Lisp.
+
+
+Article 8760 of comp.lang.scheme:
+Xref: glinda.oz.cs.cmu.edu comp.lang.scheme:8760
+Newsgroups: comp.lang.scheme
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!newsfeed.pitt.edu!godot.cc.duq.edu!news.duke.edu!convex!cs.utexas.edu!swrinde!ihnp4.ucsd.edu!galaxy.ucr.edu!library.ucla.edu!csulb.edu!csus.edu!netcom.com!hbaker
+From: hbaker@netcom.com (Henry G. Baker)
+Subject: Re: what *exactly* is tail recursion?
+Message-ID: <hbakerCpAqK7.9wL@netcom.com>
+Organization: nil
+References: <2q436e$13i@agate.berkeley.edu> <2q81ef$qgu@netnews.ntu.edu.tw> <2q8d0r$2ov@agate.berkeley.edu>
+Date: Wed, 4 May 1994 21:04:55 GMT
+Lines: 22
+
+In article <2q8d0r$2ov@agate.berkeley.edu> bh@anarres.CS.Berkeley.EDU (Brian Harvey) writes:
+>ken@math.ntu.edu.tw (Shan_Chung-Jie) writes:
+>>Well that seems to suggest that tail recursion is just a compiler
+>>optimization technique, namely to replace the stack frame of the
+>>caller with the stack frame of the last callee, instead of push
+>>the new stack frame to the stack.
+>
+>Yes, that's my understanding.  Some people would argue with your
+>use of the word "just," because in effect a tail-calling compiler
+>can turn a recursion into an iteration, thereby eliminating one
+>of the big fears that the Real Programmer types have about Lisp.
+
+A machine-independent way of looking at 'tail recursion' is as a use
+of the lambda-calculus 'eta' axiom on the continuation:
+
+Axiom eta:  (lambda (x) (foo x)) => foo
+
+E.g., (bar 3 4 (lambda (z) (foo z))) => (bar 3 4 foo)
+
+The logicians of the 20's and 30's were just as curious about
+eta/tail-recursion as we are.  They found that 'eta' is _independent_
+of the other axioms like 'alpha' (renaming) and 'beta' (in-lining).
+
+
+Article 8791 of comp.lang.scheme:
+Xref: glinda.oz.cs.cmu.edu comp.lang.scheme:8791
+Path: honeydew.srv.cs.cmu.edu!bb3.andrew.cmu.edu!news.sei.cmu.edu!toads.pgh.pa.us!newsfeed.pitt.edu!gatech!howland.reston.ans.net!cs.utexas.edu!swrinde!hookup!yeshua.marcam.com!zip.eecs.umich.edu!newsxfer.itd.umich.edu!nntp.cs.ubc.ca!utcsri!newsServ.csri!qobi
+Newsgroups: comp.lang.scheme
+From: qobi@qobi.ai.toronto.edu (Jeffrey Mark Siskind)
+Subject: Re: what *exactly* is tail recursion?
+Message-ID: <QOBI.94May6112103@qobi.ai.toronto.edu>
+Reply-To: Qobi@CS.Toronto.EDU
+In-reply-to: bhogan@crl.com's message of 6 May 1994 03:16:05 -0700
+Organization: Department of Computer Science, University of Toronto
+References: <RV.94May2144902@cslab9d.cs.brown.edu> <2qd5d5$kf3@crl2.crl.com>
+Date: 6 May 94 15:21:05 GMT
+Lines: 23
+
+A basic concept taught to Scheme programmers is the difference between a
+non-tail-recursive implementation of factorial:
+
+(define (factorial n)
+ (if (= n 0)
+     1
+     (* n (factorial (- n 1)))))
+
+and a tail-recursive one:
+
+(define (factorial n)
+ (define (loop n c)
+  (if (= n 0)
+      c
+      (loop (- n 1) (* n c))))
+ (loop n 1))
+
+While the later is more efficient, in most cases, the former is easier to
+understand, write, and debug. My question is: Has there been any work on
+automatically converting programs from the former style to the later? If so,
+are there any implementations that do so?
+	Thanks,
+	Jeff
+
+

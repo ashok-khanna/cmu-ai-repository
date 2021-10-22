@@ -1,0 +1,338 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node68.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:47:08 GMT -->
+<HEAD>
+<TITLE>5.3.3. Control of Time of Evaluation</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Control of Time of Evaluation">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2356 HREF="node69.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2354 HREF="node65.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2350 HREF="node67.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2358 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2359 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2357 HREF="node69.html"> Predicates</A>
+<B>Up:</B> <A NAME=tex2html2355 HREF="node65.html"> Top-Level Forms</A>
+<B> Previous:</B> <A NAME=tex2html2351 HREF="node67.html"> Declaring Global Variables </A>
+<HR> <P>
+<H2><A NAME=SECTION00933000000000000000>5.3.3. Control of Time of Evaluation</A></H2>
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+The <tt>eval-when</tt> special form allows pieces of code to
+be executed only at compile time, only at load time, or
+when interpreted but not compiled.  Its uses are relatively esoteric.
+<P>
+<BR><b>[Special Form]</b><BR>
+<tt>eval-when</tt> <tt>({<i>situation</I>}*)</tt> <tt>{<I>form</I>}*</tt><P>
+The body of an <tt>eval-when</tt> form is processed as an implicit
+<tt>progn</tt>, but only in the situations listed.  Each <i>situation</i>
+must be a symbol, either <tt>compile</tt>, <tt>load</tt>, or <tt>eval</tt>.
+<P>
+<tt>eval</tt> specifies that the interpreter should process the body.
+<tt>compile</tt> specifies that the compiler should evaluate the body
+at compile time in the compilation context.
+<tt>load</tt> specifies that the compiler should arrange to evaluate
+the forms in the body when the compiled file containing the
+<tt>eval-when</tt> form is loaded.
+<P>
+The <tt>eval-when</tt> construct may be more precisely understood in terms
+of a model of how the compiler processes forms in a file to
+be compiled.  Successive forms are read from the file using the
+function <tt>read</tt>.
+These top-level forms are normally processed in what we shall call
+<i>not-compile-time</i> mode.  There is another mode called <i>compile-time-too</i>
+mode.  The <tt>eval-when</tt> special form controls which of these two
+modes to use.
+<P>
+Every form is processed as follows:
+<UL><LI>
+If the form is an <tt>eval-when</tt> form:<p>
+<UL><LI>
+If the situation <tt>load</tt> is specified:<p>
+<UL><LI>
+If the situation <tt>compile</tt> is specified, <i>or</i> if the
+current processing mode is <i>compile-time-too</i> and the situation <tt>eval</tt>
+is specified, then process each of the forms in the body
+in <i>compile-time-too</i> mode.
+<P>
+<LI>
+Otherwise, process each of the forms in the body in <i>not-compile-time</i> mode.
+</UL>
+<P>
+<LI>
+If the situation <tt>load</tt> is not specified:<p>
+<UL><LI>
+If the situation <tt>compile</tt> is specified, <i>or</i> if the
+current processing mode is <i>compile-time-too</i> and the situation <tt>eval</tt>
+is specified, then evaluate each of the forms in the body
+in the compiler's executing environment.
+<P>
+<LI>
+Otherwise, ignore the <tt>eval-when</tt> form entirely.
+</UL>
+</UL>
+<P>
+<LI>
+If the form is not an <tt>eval-when</tt> form, then do two things.
+First, if the current processing mode is <i>compile-time-too</i> mode,
+evaluate the form in the compiler's executing environment.
+Second, perform normal compiler processing of the form
+(compiling functions defined by <tt>defun</tt> forms, and so on).
+</UL>
+<P>
+One example of the use of <tt>eval-when</tt> is that
+if the compiler is to be able to properly read a file
+that uses user-defined reader macro characters,
+it is necessary to write
+<P><pre>
+(eval-when (compile load eval) 
+  (set-macro-character #\$ #'(lambda (stream char) 
+                               (declare (ignore char)) 
+                               (list 'dollar (read stream)))))
+</pre><P>
+This causes the call to <tt>set-macro-character</tt> to be executed
+in the compiler's execution environment, thereby modifying its
+reader syntax table.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (EVAL-WHEN-NON-TOP-LEVEL) <A NAME=3719>&#160;</A>  to
+completely redesign the <tt>eval-when</tt> construct to solve some problems
+concerning its treatment in other than top-level contexts.
+The new definition is upward compatible with the old definition,
+but the old keywords are deprecated.
+<P>
+<BR><b>[Special Form]</b><BR>
+<tt>eval-when</tt> <tt>({<i>situation</I>}*)</tt> <tt>{<I>form</I>}*</tt><P>
+  The body of an <tt>eval-when</tt> form is processed as an implicit <tt>progn</tt>, but
+  only in the situations listed.  Each <i>situation</i> must be a symbol,
+  either <tt>:compile-toplevel</tt>,
+  <tt>:load-toplevel</tt>, or <tt>:execute</tt>.
+<P>
+  The use of <tt>:compile-toplevel</tt> and <tt>:load-toplevel</tt>
+  controls whether and when processing
+  occurs for top-level forms. The use of <tt>:execute</tt> controls whether
+  processing occurs for non-top-level forms.
+<P>
+  The <tt>eval-when</tt> construct may be more precisely understood in terms of
+  a model of how the file compiler, <tt>compile-file</tt>, processes forms in a
+  file to be compiled.
+<P>
+  Successive forms are read from the file by the file compiler using 
+  <tt>read</tt>. These top-level forms are normally processed in what we call
+  ``not-compile-time'' mode. There is one other mode, called 
+  ``compile-time-too'' mode, which can come into play for top-level
+  forms. The <tt>eval-when</tt> special form is used to annotate a program
+  in a way that allows the program doing the processing to select
+  the appropriate mode.
+<P>
+  Processing of top-level forms in the file compiler works as follows:
+<P>
+<UL>   <LI> If the form is a macro call, it is expanded and the result is
+     processed as a top-level form in the same processing mode
+     (compile-time-too or not-compile-time).
+<P>
+   <LI> If the form is a <tt>progn</tt> (or <tt>locally</tt> (LOCALLY-TOP-LEVEL) <A NAME=3740>&#160;</A> )
+     form, each of its body forms is
+     sequentially processed as top-level forms in the same processing
+     mode.
+<P>
+   <LI> If the form is a <tt>compiler-let</tt>, <tt>macrolet</tt>,
+     or <tt>symbol-macrolet</tt>,
+     the file compiler makes the appropriate bindings and recursively
+     processes the body forms as an implicit top-level <tt>progn</tt> with those 
+     bindings in effect, in the same processing mode.
+<P>
+   <LI> If the form is an <tt>eval-when</tt> form, it is handled according to
+     the following table:
+          <P><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tabular3747.gif"><P>
+<P>
+     In the preceding table the column LT asks whether <tt>:load-toplevel</tt>
+     is one of the situations specified in the <tt>eval-when</tt> form;
+     CT similarly refers to <tt>:compile-toplevel</tt> and EX to <tt>:execute</tt>.
+     The column CTTM asks whether the <tt>eval-when</tt> form was encountered
+     while in compile-time-too mode.  The phrase
+     ``process body'' means to process the body as an implicit top-level
+     <tt>progn</tt> in the indicated mode, and  ``evaluate body'' means to
+     evaluate the body forms sequentially as an
+     implicit <tt>progn</tt> in the dynamic execution context of the compiler and
+     in the lexical environment in which the <tt>eval-when</tt> appears.
+<P>
+   <LI> Otherwise, the form is a top-level form that is not one of the
+     special cases.  If in compile-time-too mode, the compiler first
+     evaluates the form and then performs normal compiler processing
+     on it.  If in not-compile-time mode, only normal compiler
+     processing is performed (see section <A HREF="node224.html#COMPILERSECTION">25.1</A>).
+     Any subforms are treated as non-top-level forms.
+</UL>
+<P>
+  Note that top-level forms are guaranteed to be processed in the order
+  in which they textually appear in the file, and that each top-level
+  form read by the compiler is processed before the next is read.
+  However, the order of processing (including, in particular, macro
+  expansion) of subforms that are not top-level forms is unspecified.
+<P>
+  For an <tt>eval-when</tt> form that is not a top-level form in the file compiler
+  (that is, either in the interpreter, in <tt>compile</tt>, or in the file
+  compiler but not at top level), if the <tt>:execute</tt> situation is specified,
+  its body is treated as an implicit <tt>progn</tt>.  Otherwise, the body
+  is ignored and the <tt>eval-when</tt> form has the value <tt>nil</tt>.
+<P>
+  For the sake of backward compatibility,
+  a <i>situation</i> may also be <tt>compile</tt>, <tt>load</tt>, or <tt>eval</tt>.
+  Within a top-level <tt>eval-when</tt> form
+  these have the same meaning as <tt>:compile-toplevel</tt>, <tt>:load-toplevel</tt>,
+  and <tt>:execute</tt>, respectively; but their effect is undefined when used
+  in an <tt>eval-when</tt> form that is not at top level.
+<P>
+  The following effects are logical consequences of the preceding specification:
+  <UL>   <LI> It is never the case that the execution of a single <tt>eval-when</tt>
+     expression will execute the body code more than once.
+<P>
+   <LI> The old keyword <tt>eval</tt> was a misnomer because execution of
+     the body need not be done by <tt>eval</tt>.  For example, when the
+     function definition
+     <P><pre>
+     (defun foo () (eval-when (:execute) (print 'foo)))
+     </pre><P>
+     is compiled
+     the call to <tt>print</tt> should be compiled, not evaluated at compile time.
+<P>
+   <LI> Macros intended for use in top-level forms should arrange for all
+     side-effects to be done by the forms in the macro expansion.
+     The macro-expander itself should not perform the side-effects.
+<P><pre>
+(defmacro foo () 
+  (really-foo)                              ;Wrong
+  `(really-foo)) 
+
+(defmacro foo () 
+  `(eval-when (:compile-toplevel 
+               :load-toplevel :execute)     ;Right 
+    (really-foo)))
+</pre><P>
+     Adherence to this convention will mean that such macros will behave
+     intuitively when called in non-top-level positions.
+<P>
+   <LI> Placing a variable binding around an <tt>eval-when</tt>
+     reliably captures the
+     binding because the ``compile-time-too'' mode cannot occur (because 
+     the <tt>eval-when</tt> could not be a top-level form).
+     For example,
+<P><pre>
+(let ((x 3)) 
+  (eval-when (:compile-toplevel :load-toplevel :execute) 
+    (print x)))
+</pre><P>
+will print 3 at execution (that is, load) time
+     and will not print anything at
+     compile time.  This is important so that expansions of <tt>defun</tt> and 
+     <tt>defmacro</tt> can be done in terms of <tt>eval-when</tt>
+     and can correctly capture the lexical environment.
+     For example, an implementation might expand a <tt>defun</tt> form such as
+<P><pre>
+(defun bar (x) (defun foo () (+ x 3)))
+</pre><P>
+into
+<P><pre>
+(progn (eval-when (:compile-toplevel) 
+         (compiler::notice-function 'bar '(x))) 
+       (eval-when (:load-toplevel :execute) 
+         (setf (symbol-function 'bar) 
+               #'(lambda (x) 
+                   (progn (eval-when (:compile-toplevel)  
+                            (compiler::notice-function 'foo 
+                                                       '())) 
+                          (eval-when (:load-toplevel :execute) 
+                            (setf (symbol-function 'foo) 
+                                  #'(lambda () (+ x 3)))))))))
+</pre><P>
+     which by the preceding rules would be treated the same as
+<p><pre>
+(progn (eval-when (:compile-toplevel) 
+         (compiler::notice-function 'bar '(x))) 
+       (eval-when (:load-toplevel :execute) 
+         (setf (symbol-function 'bar) 
+               #'(lambda (x) 
+                   (progn (eval-when (:load-toplevel :execute) 
+                            (setf (symbol-function 'foo) 
+                                  #'(lambda () (+ x 3)))))))))
+<P>
+</CODE><P>
+</UL>
+<P>
+Here are some additional examples.
+<P><pre>
+(let ((x 1)) 
+  (eval-when (:execute :load-toplevel :compile-toplevel) 
+    (setf (symbol-function 'foo1) #'(lambda () x))))
+<P>
+</pre><P>
+ The <tt>eval-when</tt> in the preceding expression is not at top level,
+       so only the <tt>:execute</tt>
+       keyword is considered.  At compile time, this has no effect.
+       At load time (if the <tt>let</tt> is at top level), or at execution time
+       (if the <tt>let</tt> is embedded in some other form which does not execute
+       until later), this sets <tt>(symbol-function 'foo1)</tt> to a function that
+       returns <tt>1</tt>.
+<P><pre>
+(eval-when (:execute :load-toplevel :compile-toplevel) 
+  (let ((x 2)) 
+    (eval-when (:execute :load-toplevel :compile-toplevel) 
+      (setf (symbol-function 'foo2) #'(lambda () x)))))
+</pre><P>
+ If the preceding expression occurs at the top level of a file to be compiled,
+       it has <i>both</i> a compile time <i>and</i> a load-time effect of setting
+       <tt>(symbol-function 'foo2)</tt> to a function that returns <tt>2</tt>.
+<P><pre>
+(eval-when (:execute :load-toplevel :compile-toplevel) 
+  (setf (symbol-function 'foo3) #'(lambda () 3)))
+</pre><P>
+ If the preceding expression occurs at the top level of a file to be compiled,
+       it has <i>both</i> a compile time <i>and</i>
+       a load-time effect of setting the
+       function cell of <tt>foo3</tt> to a function that returns <tt>3</tt>.
+<P><pre>
+(eval-when (:compile-toplevel) 
+  (eval-when (:compile-toplevel)  
+    (print 'foo4)))
+</pre><P>
+  The preceding expression always does nothing; it simply returns <tt>nil</tt>.
+<P><pre>
+(eval-when (:compile-toplevel)  
+  (eval-when (:execute) 
+    (print 'foo5)))
+</pre><P>
+  If the preceding form occurs at the top level of a file to be compiled,
+       <tt>foo5</tt> is
+       printed at compile time. If this form occurs in a non-top-level
+       position, nothing is printed at compile time. Regardless of context,
+       nothing is ever printed at load time or execution time.
+<P>
+<P><pre>
+(eval-when (:execute :load-toplevel) 
+  (eval-when (:compile-toplevel) 
+    (print 'foo6)))
+</pre><P>
+<P>
+    If the preceding form occurs at the top level of a file to be compiled,
+       <tt>foo6</tt> is
+       printed at compile time.  If this form occurs in a non-top-level
+       position, nothing is printed at compile time. Regardless of context,
+       nothing is ever printed at load time or execution time.
+<P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+		
+<P>
+<BR> <HR><A NAME=tex2html2356 HREF="node69.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2354 HREF="node65.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2350 HREF="node67.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2358 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2359 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2357 HREF="node69.html"> Predicates</A>
+<B>Up:</B> <A NAME=tex2html2355 HREF="node65.html"> Top-Level Forms</A>
+<B> Previous:</B> <A NAME=tex2html2351 HREF="node67.html"> Declaring Global Variables </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

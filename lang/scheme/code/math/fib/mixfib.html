@@ -1,0 +1,94 @@
+;;; Kent Dybvig's fibonacci routines
+
+(define (1+ n) (+ n 1))
+(define (1- n) (- n 1))
+
+;;; fib with peano arithmetic (using numbers)
+
+(define addr
+   (rec addr
+      (lambda (x y)
+         (if (zero? y)
+             x
+             (addr (1+ x) (1- y))))))
+
+(define fibr
+   (rec fibr
+      (lambda (x)
+         (if (zero? x)
+             0
+             (if (zero? (1- x))
+                 1
+                 (addr (fibr (1- x))
+                       (fibr (1- (1- x)))))))))
+
+;;; fib with peano arithmetic (using numbers) in CPS
+
+(define addk
+   (rec addk
+      (lambda (x y k)
+         (if (zero? y)
+             (k x)
+             (addk (1+ x) (1- y) k)))))
+
+(define fibk
+   (rec fibk
+      (lambda (x k)
+         (if (zero? x)
+             (k 0)
+             (if (zero? (1- x))
+                 (k 1)
+                 (fibk (1- x)
+                       (lambda (a)
+                          (fibk (1- (1- x))
+                                (lambda (b)
+                                   (addk a b k))))))))))
+
+;;; fib with peano arithmetic (using numbers) with set!
+
+(define add!
+   (lambda (x y)
+      ((rec add!
+         (lambda ()
+            (if (zero? y)
+                x
+                (begin (set! x (1+ x))
+                       (set! y (1- y))
+                       (add!))))))))
+
+(define fib!
+   (rec fib!
+      (lambda (x)
+         (if (zero? x)
+             0
+             (if (zero? (1- x))
+                 1
+                 (add! (fib! (1- x))
+                       (fib! (1- (1- x)))))))))
+
+;;; fib with peano arithmetic (using numbers) with call/cc
+
+(define addc
+   (rec addc
+      (lambda (x y k)
+         (if (zero? y)
+             (k x)
+             (addc (1+ x) (1- y) k)))))
+
+(define fibc
+   (rec fibc
+      (lambda (x c)
+         (if (zero? x)
+             (c 0)
+             (if (zero? (1- x))
+                 (c 1)
+                 (addc (call/cc (lambda (c) (fibc (1- x) c)))
+                       (call/cc (lambda (c) (fibc (1- (1- x)) c)))
+                       c))))))
+
+
+; regular fib: (fibr 18) => 2584
+; cpstyle fib: (fibk 18 (lambda (n) n)) => 2584
+; glb-val fib: (fib! 18) => 2584
+; call/cc fib: (fibc 18 (lambda (n) n)) => 2584
+

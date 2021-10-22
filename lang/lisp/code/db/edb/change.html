@@ -1,0 +1,1048 @@
+Changelog for EDB.
+Michael Ernst <mernst@theory.lcs.mit.edu>
+
+This file is in chronological order, so the most recent changes appear at
+the bottom.  A release incorporates all the changes listed above the
+release number and date, but none of those listed below it.  Releases
+before April, 1992 were unnumbered (only dated), and no changelog was
+maintained.
+
+---------------------------------------------------------------------------
+
+Most of the changes are enhancements, though a fair number were (mostly
+minor) bug fixes.  The remainder of this message describes the user-visible
+changes that might affect you.
+
+Incompatible changes that might affect you:
+
+* New README file.
+
+* The manual has been vastly improved; the sections on designing a database
+(as opposed to simply using EDB to view and edit an existing database)
+continue to expand.  There are still some lacunae; if you've a question,
+ask, and I'll add a section to answer your question.
+
+* Alternate formats (different ways of viewing a database record) are now
+permitted in a single format buffer; these can be triggered by values of
+record fields.  See the manual, and the new variable
+dbf-before-display-hook.
+
+* EDB runs faster.
+
+* Many other minor enhancements and new hooks.  See the manual for a full
+description.
+
+* The ftp directory has been rearranged slightly.  The entire distribution
+is still available as theory.lcs.mit.edu:/ftp/pub/mernst/edb/edb.tar.Z.
+Examples are in /ftp/pub/mernst/edb/examples.tar.Z; individual source and
+example files are available from the /ftp/pub/mernst/edb/code and
+/ftp/pub/mernst/edb/examples directories.
+
+* Those of you who don't yet have version 2 of texinfo had trouble
+processing the database.texi file; you can now get the files database.dvi
+and database.info* from theory:/ftp/pub/mernst/edb/.
+
+* The auxiliary file is now read after the format file has been found
+(though before it has been parsed).  This means that code in the auxiliary
+file can no longer set the format file, but the auxiliary file can set
+variables local to the format buffer.
+
+* I have switched to the use of a different defstruct macro.
+   * This macro can be compiled by both the old and new byte-compilers, so
+     you can compile the entire edb distribution, and there are no longer
+     any special rules about loading edb before byte-compiling it.
+   * The setf syntax has changed as well; instead of using
+		 (setf (structname-slotname struct) value),
+     you now use
+		 (structname-set-slotname struct value).
+     For instance, you would change the code
+
+	(setf (database-fieldnames database) '(place time purpose)
+	      (sepinfo-sep-string (database-record-sepinfo database)) "\n\n"
+	      (database-read-record-from-region database) 'arb-demo-rrfr)
+     to
+	(database-set-fieldnames database '(place time purpose))
+	(sepinfo-set-sep-string (database-record-sepinfo database) "\n\n")
+	(database-set-read-record-from-region database 'arb-demo-rrfr)
+
+     There are some simple examples in /ftp/pub/mernst/edb/examples/.
+     All of your existing databases will still work.
+   * Performance should be a bit better, both because of the better macro
+     and because of byte-compilation.
+   * The file db-rep-uncomp.el has been removed from the distribution.
+
+* Some names have changed:
+	fieldtype ==> displaytype
+	...number... ==> ...integer...
+	add-displayspec ==> define-displaytype-from-displayspec
+	add-recordspec ==> define-recordtype-from-recordspec
+	db-set-summary-format ==> dbf-set-summary-format
+
+* The name and print-name fields have been removed from the recordspec
+structure.
+
+* The structure of a database has changed.  This should not affect you,
+since EDB automatically converts databases saved in the old format to the
+new one.
+
+**************** Release 0.20, April 26, 1992
+
+Michael Patton has contributed a new file, db-tagged.el, which provides
+support for files of tagged fields, such as
+  Name:  John Doe
+  Age:   42
+  Salary:22000
+The documentation is at the top of the file.
+
+EDB no longer uses cl.el.  This means that it loads and runs faster.
+
+EDB could get into a state in which the display was never updated; uncommented
+out call to dbf-process-current-record-maybe in dbf-goto-record-internal.
+
+Auxiliary file was sometimes read twice; commented out call to
+read-db-aux-file in read-database-file.
+
+Progress reports are now printed every so often when saving a database, just
+like when reading one from disk.
+
+New function edb-update; if you autoload it:
+	(autoload 'edb-update "database" "EDB database package" t)
+then in the future, when you get a message like this from me, you can
+simply do M-x edb-update to install and recompile the changes.
+
+New variable edb-directory.  If you set it in your .emacs to the directory
+containing EDB source on your system, then when you run edb-update, you
+won't get prompted for the directory containing EDB source.
+
+Variable db-disable-debugging has been renamed to
+db-disable-debugging-support.  A few other fixes to debugging code have
+been made.
+
+There is a known problem with reading the database when regular expressions
+are specified as field delimiters and substitution is specified.  I will
+correct this soon.
+
+**************** Release 0.21
+
+Thanks to those who have sent in bug reports or suggestions.
+
+There was a silly error in which I left the "-p" off the name of
+if-file-readable-p in its function definition (in file util-mde.el).  This
+was actually changed in version 0.21, but after it was released.  If you
+didn't install that patch, this one won't fix the problem.
+
+Functions set-record-field and set-this-record-field have been renamed to
+record-set-field and this-record-set-field.  The old names will still work,
+but I recommend using the new ones instead.
+
+I had forgotten to update the ftp-able example databases from my private
+copies; the versions in the ftp directory now work.
+
+Corrected a problem with setting the display format from the text of a
+field that was just changed; for now, after you change the value of a field
+upon which the format depends, you need to move off and back on the record
+before the new format is selected.
+
+Sometimes literal text after the last field of a display could get mistaken
+for part of the last field's contents due to a bug in
+db-previous-field-internal.
+
+Function db-alternate-format now recognizes the equality of (hard and soft)
+links to the same file.
+
+Mouse clicks in view mode used the old value of dbf-this-field-beginning-pos.
+Also, mouse clicks that changed the current buffer could confuse EDB.
+
+Databases in internal format could lose field type information due to
+unconditional call to db-set-field-variables.
+
+A few summary mode keybindings were corrected, and more functions now work
+there as well as in the format buffer.
+
+Unimplemented displaytype string-or-nil now works; so does new displaytype
+nil-or-string.  The former prefers to return "", and the latter nil, for
+the empty string.  Both return a string when the input isn't empty.
+
+Various improvements were made to the documentation, including better
+indexing, typo correction, and a few new sections.  Many cross-references
+could confuse info because they weren't immediately followed by a comma or
+period.
+
+As you may have noticed from the header of this message, there is now a
+mailing list for discussions relating to EDB:  edb-list@theory.lcs.mit.edu.
+I prefer that you send bug reports to me for the time being; if the bug is
+sufficiently serious, I will send a fix or a new release to the list.  You
+may send bug fixes to either me or the list :-).  When EDB is officially
+released, I expect the list to be used for trading neat hacks, asking
+questions and advice, and reporting the occasional bug.
+
+**************** Release 0.22
+
+Sometimes the last character of the last field got dropped when nothing
+followed it in the buffer.
+
+In edit mode, db-backward-char now respects indentation, as do the killing
+and yanking functions.  This means it is easy to cut and paste from
+non-database buffers to indented fields and vice versa.
+
+Recordtypes have been renamed to recordfieldtypes, and recordspecs to
+recordfieldspecs; although the new names are longer, they reflect more
+clearly just what is being described.  Displayspecs determine how a value
+appears on the screen, and recordfieldspecs specify other information about
+a record field's contents.  Also, type->recordspec has been renamed to
+recordfieldtype->recordfieldspec.
+
+**************** Release 0.23, May 17 1992
+
+This is primarily a bugfix release.  Since many changes were made, listing
+them would be tedious.  The amazing thing is that EDB worked for most
+applications despite these problems.  Warm thanks to Joe Wells and Mike
+Patton for pushing the envelope of its performance and for finding and
+correcting many bugs, and to everyone else who has reported problems.
+
+There are also three new features:
+ * New displayspec slot unreachablep; when non-nil, movement commands skip
+   over that field.  
+ * db-field-help now works.
+ * New hook dbf-set-this-record-modified-hook is called when a record is first
+   set modified.
+Thanks to Joe Wells for these enhancements.
+
+**************** Release 0.24, Jun  7 1992
+
+This is a bugfix release to correct a problem with display-record and a few
+other minor items.
+
+**************** Release 0.25, Jun  8 1992
+
+Joe Wells contributed code which permits single summaries to be updated in
+the summary buffer, a modification I had been meaning to make for a long
+while.  Now updating the summary buffer continuously is no longer
+impractically expensive.
+
+Changed the bindings of some functions from meta keys to escape-prefixed
+keys.  This should not affect you unless you're using an 8-bit patch -- in
+which case things should work better -- or you don't look up meta keys in
+the escape keymap -- in which case things will work worse, but you can
+easily change the definition of the function `meta-key' in util-mde.el.
+
+Modified database-{sort,order}-function to return something reasonable when
+both the order-fn and sort-fn database slots are empty.  This means that if
+there is a field which it doesn't make sense to sort, you can leave those
+slots empty, and if the user is foolish enough to try to sort on them, no
+change in the database order will result.  Then again, neither will an
+error be signalled; I will probably add that later.
+
+Corrected a tricky bug with the overloaded definition of insert (which now
+respects indentation) and the use of the format buffer for writing
+databases to files (which is done so that buffer-local variables are
+available to the database-writing function).
+
+**************** Release 0.26, Jun 24 1992
+
+This is a bugfix release.
+
+When the current record is [un]marked or [un]omitted, the mode line
+reflects this immediately, and so does the summary buffer.  Omitting works
+from the summary buffer, as do other (though not yet all) view mode
+commands; you can also use `g' to regenerate the summary.
+
+The default value for dbc-omit-p is now t.
+
+The table of contents now appears before page 1 in the dvi and PostScript
+versions of the manual available from theory.  The texinfo file hasn't
+changed, so if you're generating this on your own, they still appear at the
+back.  (Just reshuffle the pages after printing to correct this.)
+
+Fixed a type error in dbf-update-summary-item.
+
+Changed the name of `meta-key' to `meta-prefix-ify'.
+
+If you have trouble applying the EDB patches that I include with these
+release notes, you may have an advance release.  When a bug is reported, I
+often make a fix immediately (and make it available for ftp) but don't
+bother the entire list with a new release.  If you have this problem, the
+solution is to just get the entire release anew from theory.
+
+I will be out of town for a week starting today.  If you have problems, ask
+edb-list and perhaps one of the other users will be able to help you.
+
+**************** Release 0.27, Jun 27 1992
+
+New variables:
+  dbf-enter-field-hook:  function called whenever a display field is entered.
+  dbf-stay-in-edit-mode:  Boolean; set it to nil if you want moving from
+	record to record to always leave you in view mode.
+  db-format-file-path, db-auxiliary-file-path:  lists of strings for those
+	who don't want to keep such files in the same directory as database
+	files.
+
+Changed bindings of C-y and M-y back to yank and yank-pop; the db- versions
+of these functions no longer exist.
+
+Non-EDB buffers no longer show "Omit" in their mode lines.  Default value
+for dbc-omit-p is nil again, but omitting a record now automatically turns
+on omitting, so the user gets immediate visual feedback.  You can turn it
+back off with M-o.
+
+The summary and mode line now use "+" rather than "*" to indicate a marked
+record, because Emacs associates "*" with a changed buffer, so overloading
+the asterisk with this additional meaning was confusing.
+
+The extra empty buffer created by db-find-file was due to in-buffer
+evaluating its buffer argument twice; this has been corrected.  Although
+in-buffer is a macro, the only files that use it which are affected are
+db-format.el and util-mde.el.  (If you recompile everything, or if you use
+edb-update, you don't have to worry about this.)
+
+Bug fixes related to the format buffer, including:
+ Control-O no longer acts like Control-M.
+ Reverting a record from edit mode leaves the cursor more nearly in the
+	right place.
+ Mousing past the end of the last field no longer errs.
+
+Bug fixes related to the summary buffer, including:
+ It is updated when first accessed after a call to dbf-set-summary-format.
+ More commands keep the summary up-to-date.
+ Most functions should now behave correctly when called from either the
+     summary or the format buffer, thanks to new macro db-in-format-buffer.
+
+A tip o' the hat to Bob Chassell, Mike Patton, Joe Wells, and others for
+useful bug reports, and to Joe Wells for bug fixes.
+
+
+A number of you have asked how to debug your EDB code.  There are two
+difficulties.
+ * First, EDB sometimes catches and ignores errors, particularly when it is
+   doing file operations in the format buffer.  Permitting the error to be
+   signalled in the ordinary way would leave the format buffer a mess and
+   immediately lead to a (harmless) second error, which would be handled by
+   db-emergency-restore-format.
+ * Second, and more seriously, the database structure is circular (one of
+   its slots contains a doubly-linked list), so trying to print it leads to
+   a secondary "Apparently circular structure being printed" error.
+The solution to both of these problems is to use edebug (version 2.7 or
+later), a nice source-level debugger for GNU Emacs Lisp written by Dan
+LaLiberte, and the custom-print package, which implements the print-level
+and print-length variables functionality.  Get these two packages from
+archive.cis.ohio-state.edu (I am promised edebug 2.7 will be there soon),
+install them on your load-path, and add to your .emacs file something like
+the following:
+  (load "custom-print" nil t)
+  (install-custom-print-funcs)
+  (define-key emacs-lisp-mode-map "\C-xx" 'edebug-defun)
+  (autoload 'edebug-defun "edebug" nil t)
+  (autoload 'edebug-all-defuns "edebug" nil t)
+Before you debug EDB, you'll want to
+  (setq print-level 4)
+to prevent circular structures from printing forever.  Then you can use C-x x
+to cause a particular function to be stepped through; see the manual for more
+features.
+
+**************** Release 0.28, Jul  9 1992
+
+db-{next,previous}-line-or-field (bound to C-n and C-p) have been made to
+keep a goal column and to always attempt to move to another line, not move
+to a different field in the same line, when invoked on a field's first
+line.  Let me know how you feel about this interface change.
+
+Poll:  How do you think SPC and DEL should be bound in the summary buffer?
+To next-record and previous-record?  To scroll-up and scroll-down?  In some
+other way?  Or should they be left unbound?
+
+Added height checking to displayspec->printed-rep.  The max-height
+displayspec slot used to be ignored.  Since it defaults to 1, you may get
+different behavior now if you depended on that field being ignored instead
+of setting it yourself.  Should it default to 1 or to nil (no limit)?
+
+The name of the display format buffer has been changed to the "data display
+buffer", which I hope is more evocative of the buffer's function.  The file
+which specifies the layout of the data display buffer is still called a
+format file.  The following variables and functions have undergone a name
+change (change "format-buffer" to "data-display-buffer"):
+  db-format-buffer
+  db-format-buffer-p
+  db-in-format-buffer
+  db-make-format-buffer
+  dbs-format-buffer
+  dbs-in-format-buffer
+  dbsi-format-buffer
+  format-buffer-database
+  format-buffers slot of database structure
+Also:
+  db-additional-format => db-additional-data-display-buffer
+  db-setup-format => db-setup-data-display-buffer
+  db-setup-format-parse-displayspecs => db-setup-ddb-parse-displayspecs
+No names beginning with a dbf- prefix have changed.  The documentation has
+been modified to take account of these name changes.
+
+The unreachablep slot of the database structure has been renamed to
+reachablep and (obviously) its value now means the opposite of what it used
+to.  It defaults to t (it used to default to nil, so this is no change).
+The "unreachablep" name will be supported for a while, but not forever.
+
+Improved support for format files not in the database file's directory,
+including bug fixes in the locate-file functions; bound default-directory
+to the database file's directory when looking for the format file.
+
+Variable db-tagged-wrfr-hooks has been split into two variables,
+db-tagged-wrfr-before-hooks and db-tagged-wrfr-after-hooks.  See their
+documentation strings.
+
+Optimized db-jump-to-point when the jumped-to position is after point in a
+data display buffer, and avoided a slow call to dbf-in-indentation-p when
+point wasn't in a field at all, but the nearest field to point is being
+selected.
+
+Documentation of the support for database files in tagged format has been
+added to the manual.  A PostScript version of the documentation is now
+available on theory along with the info and .dvi versions.
+
+**************** Release 0.29, Jul 19 1992
+
+The good news this version of EDB is a significant improvement over its
+predecessors.  The other good news is that EDB is getting more stable every
+day; it is unlikely that there will again be a release with this many
+changes.  In fact, I plan to release EDB to the world soon, so keep those
+letters and postcards coming.
+
+* Interface changes:
+
+In the summary buffer, SPC and DEL are now bound to
+db-{next,previous}-screen-or-record, like they are in database view mode.
+
+In a field with max-height = 1, RET acts like TAB.
+
+C-p and C-n act better when moving into lines containing no fields at all.
+
+New functions db-{beginning,end}-of-field-or-record are defined in
+db-interface.el.  They act like db-{beginning,end}-of-field unless already
+at the field's extremum, in which case they're like db-{first,last}-field.
+You might want to experiment by binding them to < and > in edit mode:
+    (define-key database-edit-mode-map (meta-prefix-ify "<")
+		'db-beginning-of-field-or-record)
+    (define-key database-edit-mode-map (meta-prefix-ify ">")
+		'db-end-of-field-or-record)
+Let me know what you think.
+
+Command db-exit ("x" in database view mode) now really kills the database
+if you call it with a prefix argument.  The database will not be
+garbage-collected if you just kill the data display buffer and the database
+summary buffer; you have to call db-exit with the prefix argument.
+
+* New variable:
+
+New variable db-inform-interval controls how often EDB informs the user of
+progress when doing a lengthy computation such as reading or writing a
+database or computing summaries.  The default is 10.  It used to be 10 in
+some places and 25 in others.
+
+* Example databases:
+
+Michael Patton has made a new example database, geneal.dat, available by
+ftp from ftp.lcs.mit.edu:~map/; see the genealogy directory or the file
+genealogy.tar.Z.  This is a fairly involved database, one of the handful
+that have been driving the development of EDB.  Check it out.  You need EDB
+0.29 to run this database.  Problem:  EDB 0.30 makes a few incompatible
+variable name changes (see below).  Mike will announce to
+edb-list@theory.lcs.mit.edu when a new version (EDB 0.30 compatibility and
+bug fixes only) is ready.
+
+A good set of examples is just as important as a good manual in encouraging
+the meek to get started with EDB.  Please send in examples or suggest what
+I should add to the existing ones.
+
+Speaking of examples, forms-demo2.dat works again; the foolish bug in
+substitution of newline for ^K that I introduced months ago is corrected.
+Let me know if this causes problems elsewhere and I'll make a better fix.
+
+* Other improvements:
+
+EDB loads faster because five of its files are now autoloaded, rather than
+always being loaded at startup.  You need no longer explicitly load or
+require db-tagged; function db-tagged-setup is autoloaded.  (However, you
+may want to leave require statements in your code if you byte-compile it.)
+
+The manual is improved.  A section or two is added for almost every
+release, as well as smaller problems being fixed, but since the
+improvements are more significant this time around, I thought it worthwhile
+to mention explicitly.  Much of its readability is thanks to Michael
+Patton's careful and repeated proofing; Robert Chassell made useful
+suggestions about its organization and contributed some sections.
+
+Function database-set-fieldnames-to-list now calls db-set-fieldname-vars.
+Once upon a time there was a reason it couldn't, but I don't see any
+difficulties with this now.
+
+You still can't paste with the mouse (you can cut, though).  This is a good
+project for someone who understands Emacs's mouse handling better than I do.
+
+* Renamed variables and functions:
+
+Renamed dbf-redisplay-entire-record to dbf-redisplay-entire-record-p.
+
+Renamed this-record-field and this-record-set-field to
+dbf-this-record-field and dbf-this-record-set-field.  set-record-field and
+set-this-record-field are no longer supported aliases for these functions.
+In any event, in most cases the new functions dbf-displayed-record-field
+and dbf-displayed-record-set-field are preferred to these functions.  There
+is a new function, dbf-displayed-record-set-field-and-redisplay, which does
+the obvious thing.
+
+Changed "hook" to "function" in db-new-record-hook,
+dbf-after-record-change-hook, dbf-change-hooks, dbf-enter-field-hook,
+dbf-every-change-hook, dbf-first-change-hook, dbf-set-change-hook, and
+dbf-set-this-record-modified-hook.  The rationale is that all these refer
+to functions invoked by funcall, not by run-hooks.  Also renamed
+db-load-hook to db-load-hooks; it *is* invoked by run-hooks.
+
+Renamed set-sepinfo-regexp-and-submatch-from-string to
+sepinfo-set-regexp-and-submatch-from-string.  This had better not affect
+you, or you're doing something wrong.
+
+**************** Release 0.30, Jul 28 1992
+
+This is a bugfix release.  I have jumped the version number to 1.00 because
+I am about to release this to the world.
+
+I forgot the definition of run-hooks and broke some calls to it in
+db-tagged; they have been restored.
+
+The optional arguments to db-{next,previous}-screen-or-record are now
+required.  These functions now work even when only the summary buffer (and
+not its associated data display buffer) is visible in a window.
+
+**************** Release 1.00, Aug  5 1992
+
+This is a bugfix release.
+
+Function set-link-record has been renamed to link-set-record for
+consistency with every other function that sets a slot of a structure.  If
+you really want to change only the "record" slot of a link, use macro
+link-set-record-slot.
+
+Fixed a number of typos (mostly misspellings) in the documentation.
+
+**************** Release 1.01, Aug  6 1992
+
+This is a bugfix release.
+
+Rewrote point-after macro so it doesn't use backquote, and added new
+variable dont-fix-backquote.  If non-nil, then the buggy definition of
+function bq-splicequote in the standard distribution will not be
+overridden.  I was incorrectly informed that 18.58 corrected this bug.
+
+**************** Release 1.02, Aug  6 1992
+
+Changed the name of variable db-use-internal-rep to db-use-internal-rep-p,
+and of function set-db-use-internal-rep to set-db-use-internal-rep-p,
+because variables used as Boolean values should really end with "p" or "-p".
+
+Corrected bug in db-copy-record which made both links point to the same record.
+
+New variable db-sort-modifies-p:  If non-nil, then sorting a database marks
+it as modified too.
+
+Added manual sections about making a quick-and-dirty database (this should
+really be automated) and about what information is saved in EDB internal
+format.
+
+Keep the comments and bug reports coming!
+
+**************** Release 1.03, Aug 22 1992
+
+Modified save-some-buffers to also save modified databases.  This means
+that when you exit Emacs, you will be queried about saving modified databases.
+
+Fixed dbf-in-indentation-p to run in a reasonable amount of time.  This was
+what made moving to a new line so slow sometimes.  Also corrected
+db-jump-to-point to always move out of the indentation.
+
+Added a manual section about using custom-print and Edebug to debug
+in the presence of circular structures.
+
+**************** Release 1.04, Aug 27 1992
+
+The date and time types have been considerably improved by Alan Stebbens.
+He added a number of formatting styles, and it's easy to create more of
+your own.  Weekday, day-of-year, and some other calculations are also
+supported.  All this hasn't made its way into the documentation yet, but
+see db-time.el.
+
+The search expression operators >, <, and = no longer consume all
+surrounding spaces and tabs, though AND, OR, NOT, and REGEXP still do.  You
+can revert to the previous behavior by setting the dbm-<-prefix,
+dbm->-prefix, and dbm-=-prefix variables like this:
+  (defvar dbm-<-prefix "^[ =t]*<[ \t]+")
+  etc.
+
+Backtrace-fix.el, which permits backtrace to display useful information
+even in the presence of circular structures, is now part of the
+distribution; in EDB it is called backtracef.el.
+
+Added kill-buffer-hooks variable.  Now killing a database buffer doesn't
+confuse save-some-buffers.
+
+Corrected a problem with hook variables when db-tagged.el was loaded
+multiple times; now each function is only added once, not once per load.
+
+The set of states and abbreviations in db-types.el is now complete.
+
+Name changes:
+ * Renamed some files to accommodate 14-character filenames on System V:
+    db-change-format.el => db-layout.el
+    db-interface.el => db-interfa.el
+    backtrace-fix.el => backtracef.el
+    util-cl-mde.el => util-clmde.el
+   There is still a problem with database.info-*; for the time being, the
+   recommended fix is to rename them if you're stuck with 14-character
+   filenames.
+ * Changed a few function names to reduce the number of warning messages
+   generated under Lucid GNU Emacs 19.
+
+**************** Release 1.05, Oct  9 1992
+
+This is primarily a bugfix release.
+
+Replaced add-hook-to-list-hack by Joe Wells' superior add-to-hook.
+
+Alan Stebbens provided many improvements and bug fixes, including:
+ * New function database-set-recordfieldspec permits redefinition of slots
+	of an existing recordfield spec.
+ * Help string support improved for db-tagged and enumerated types.
+ * Various improvements to time support.
+
+Various other bug fixes and minor enhancements.
+
+**************** Release 1.06, Oct 28 1992
+
+Variable db-debug has been renamed db-debug-p.  If you have compiled EDB
+with variable db-disable-debugging-support set to nil (it defaults to t),
+you may need to recompile all files of EDB, because variable db-debug will
+have been macro-substituted into compiled code.  (I modified all of the
+files so that they would be recompiled automatically when you install this
+set of changes.)
+
+New display specification parameter right-justify (a slotsetter) has been
+added, so you can put, for instance,
+	\index,width=3,right-justify
+in a format file and it will do the obvious thing.
+
+Corrected the documentation's method for setting find-file-hooks to let you
+do find-file on database in EDB internal file layout.
+
+To make EDB use with-electric-help instead of with-output-to-temp-buffer,
+set variables {db,best-fit-message}-use-ehelp-p to non-nil; they default
+to nil.  You must have ehelp.el on your load-path or have already loaded it.
+
+Writing databases to disk no longer uses the end of the data display buffer
+as scratch area.
+
+Several parts of the documentation have been measurably improved.
+
+The value of db-new-record-function now takes two arguments, a record and a
+database; previously, the function to which this variable was set needed to
+have dbc-database hardcoded in it.
+
+The displayspec's display->actual and actual->display functions also take
+additional arguments:
+
+  The @code{display->actual} function takes four arguments:  the field
+  text, the previous field value, the record being operated upon, and the
+  record fieldnumber of the field in question.  The old field value is
+  passed in case it contains hidden (undisplayed) attributes that need to
+  be preserved across changes.  The other two arguments permit a
+  particular @code{display->actual} function to be used for more than one
+  field of a record, allow the field text parse to depend on other record
+  field values, and provide for other complicated needs.  Most
+  @code{display->actual} functions will ignore all but the first argument.
+
+  The @code{actual->display} function takes three arguments:  the field
+  value, the record, and the record fieldnumber.  The reasons are 
+  similar to those outlined above (for instance, to permit the displayed
+  representation of a field to depend on other information in the record)
+  and most @code{actual->display} functions will ignore the second two
+  arguments.
+
+The constraint-function recordfieldspec slot's value takes three
+more arguments than it did before:
+
+  Four arguments are supplied to @code{constraint-function}:  the field
+  value, the record, the record fieldnumber, and the database.  This
+  permits whether a particular value is acceptable to depend on other
+  information in the record or in the database.
+
+Function record-set-field-from-index takes a fourth argument, the database,
+and checks the appropriate constraint function before setting the value.
+(It calls the new function record-check-constraint to do so.)  To avoid the
+check, provide nil as the fourth argument.  Function record-set-field also
+performs the check; specify the optional fifth argument to circumvent it.
+Constraints are now checked most places that record fields are set; let me
+know if you find problems with this.
+
+Functions database-{gs}et-local take an optional final argument no-error
+which makes them do what you probably want.
+
+Thanks to everyone who reported bugs or provided fixes, especially Chris
+Moore and Joe Wells.  (I don't mention most minor bug fixes in this
+changelog, since they shouldn't affect anyone adversely.)  Keep the
+comments coming!
+
+----------------
+
+From: mernst@theory.lcs.mit.edu (Michael Ernst)
+Date: Sun, 29 Nov 92 16:50:51 EST
+To: edb-list
+Subject: Making your EDB databases compatible with EDB 1.07
+
+Some of you may find that your actual->display functions (and a few others,
+all documented in the changelog) no longer work with EDB 1.07.  Here is an
+excerpt from a message to Horacio Martinez-Alfaro which may be of use to
+others on this list.
+					-Michael Ernst
+					 mernst@theory.lcs.mit.edu
+
+> I followed the installaion procedure and now a format file is not working.
+> This format file was working ok with EDB 1.06.
+> I get an error:
+> 	Wrong number of arguments: #<subr upcase>, 3
+> This is the format file:
+> ::::::::::::::::::::::::::  Begin db-Direc.fmt  :::::::::::::::::::::::::::::::
+> \ape,actual->display=upcase, \nombre	\email,actual->display=downcase
+> ...
+
+Your problem is that the way the actual->display functions are called has
+changed; they are called with more arguments than before.  You don't really
+need the additional arguments, but others do.  Try replacing the first line
+of db-Direc.fmt with
+
+\ape,actual->display=db-upcase, \nombre	\email,actual->display=db-downcase
+
+and defining two new functions like so:
+
+(defun db-upcase (s &rest ignore)
+  (upcase s))
+(defun db-downcase (s &rest ignore)
+  (downcase s))
+
+You can put these definitions in an auxiliary file, behind an "eval:" in
+the Local Variables section of the format file, or anywhere else you like
+so long as the definitions are made by the time that EDB tries to call
+db-upcase and db-downcase.
+
+**************** Release 1.07, Nov 27 1992
+
+New variables db-{edit,summary,view}-mode-hooks are run-hooks'ed when the
+database minor mode in question is entered.
+
+Function database-summary-mode renamed to db-summary-mode for consistency
+with db-{edit,view}-mode.
+
+Fixed a bug in write-database-file which was a result of copying too much
+state from the data display buffer to the buffer in which the database file
+was being built.
+
+The actual->display and display->actual display specifications have been
+modified to be backward-compatible with both EDB 1.06 and EDB 1.07.  You
+can define an actual->display which takes a single argument, or one that
+takes three arguments; EDB will ascertain at runtime which type you've
+specified and call it with the correct number of arguments.  This means
+that actual->display functions like "upcase" will work again.  There isn't
+any need to define a db-upcase function that ignores its second and third
+arguments while calling upcase on its first argument.  Such a db-upcase
+will continue to work, however, as will actual->display functions that use
+their second and third arguments.  Similar comments apply to
+display->actual functions.
+
+Changed the default stored->actual function for the date record field type.
+It used to be storage-string->date, which is very efficient but assumes
+that the date in the database file has the format mm/dd/yy (or mm/dd/yyyy).
+This was good if you were reading a large database and don't want to spend
+a lot of time parsing the dates.  The new stored->actual function is
+parse-date-string, which can parse just about any string representation of
+a date.  If you want to use the more efficient routine to read strings from
+a file, use the date-efficient-storage type.  (These two behaviors used to
+be available as date and date-arb-storage, so another way to look at this
+change is that I've renamed the date type to date-efficient-storage and
+renamed the date-arb-storage type to date.)
+
+Changed the default grouping of fields when reading an ill-formed database.
+EDB used to make as few records as possible, consistent with the placement
+of the field and record separators; now it creates as many as possible.  In
+particular, you can now add a new field to a database stored in regular
+file layout by simply specifying an extra field after all the others,
+reading the database (ignore the warning messages), and writing it back
+out.  The new field will be added at the end of each record.
+
+Added Alan Stebbins' EICSW database to the examples distribution.
+
+**************** Release 1.08, Dec 21 1992
+
+This is a bugfix release.
+
+Corrected misplaced parenthesis in copy-buffer-local-variables that could
+lead to an infinite loop in Emacs version 18.57 and above.
+
+Report display fields no longer have to have minimum and maximum height
+equal; this bug manifested itself by reporting only the first line of
+fields whose maximum height was nil (i.e., unconstrained).
+
+Creating a report commits the current record first.
+
+Removed "function" call from values placed in match-actual->display and
+match-display->actual slots; it interfered with vararg-call.
+
+EDB now ignores require-final-newline.
+
+**************** Release 1.09, Jan 21 1993
+
+New function byte-compile-database is similar to byte-recompile-directory;
+function byte-compile-database-all compiles every source file regardless of
+whether it has changed since last being compiled.
+
+Changed optional second argument of db-jump-to-record from ignore-omit to
+respect-omitting, and changed the default behavior to ignore omitting.
+This means that if you ask for record 40, that's where you'll end up.  I
+also added optional ignore-omitting arguments to a number of other record
+selection functions.
+
+Changed the keybinding for db-field-help to M-?, so that ? in db-edit-mode
+self-inserts.
+
+Added the README file for the examples distribution to the code distribution.
+
+The manual now documents functions db-next-record-ignore-omitting,
+db-previous-record-ignore-omitting, db-next-marked-record, and
+db-previous-marked-record, and their keybindings.
+
+Added variable db-mouse-buffer-switch-moves-point-p.  Set this if you
+prefer that switching to a database buffer via mouse clicks does not move
+point.
+
+Bug fixes:
+
+Reading a database in tagged format no longer makes it impossible to use
+those in other formats.
+
+Db-report respects dbc-omit-p again.  Dbc-omit-p gets set in the summary
+buffer as well, so that its mode line correctly reflects whether omitting
+is in effect.
+
+Corrected a problem with saving tagged databases in internal layout (by
+setting db-use-internal-rep-p to t).
+
+Modified storage-string->date so that null components of dates are not
+converted into zeros; they remain nil as they should.  Incorrectly stored
+dates will be silently corrected for you.
+
+**************** Release 1.10, Feb 12 1993
+
+New variable db-delete-record-modifies-database-p controls whether deleting
+a record should mark the database as modified; it defaults to t.
+
+Added db-commit-record as an alias for db-accept-record.
+
+Reimplemented db-additional-data-display-buffer to eliminate its limitations.
+
+The semantics of the optional argument IGNORE-OMITTING of db-first-record
+and db-last-record were incorrect and have been reversed to match the name
+and documentation.
+
+Corrected a typo in the body of byte-compile-database-all.
+
+Clarified and expanded some manual sections.
+
+**************** Release 1.11, Feb 21 1993
+
+This release introduces numerous changes to EDB.
+
+EDB can now read empty database files; a result of this change is that
+stored->actual functions which return a string should be able to take the
+empty string as an argument.
+
+The EDB Info file is now split into five parts, database.info-[12345].
+Many of the changes in the two latest versions of EDB have been to the
+documentation, which is substantially more complete than it was previously.
+(It still contains a few lacunae, which I will fill as I can.)
+
+Alan Stebbins contributed file db-rdb.el, which allows EDB access to
+/rdb-style databases (plain-ASCII files manipulated by some Perl scripts by
+Walter Hobbs).  Currently, only list mode is implemented; table-style will
+be added soon.
+
+Kill-buffer (C-x k) asks whether to save modified databases first.
+
+The default values for date and time types now have nil, not 0, in all the
+slots.
+
+Variables db-use-ehelp-p and best-fit-message-use-ehelp-p are superceded by
+use-electric-help-p.
+
+New variable db-mention-filename-on-save-p:  set it to nil if you're a
+sneaky database designer who doesn't want his users to be told the
+database's print name or its disk file.  It defaults to t.
+
+Very many other small but important corrections were made; listing them
+would be tedious.
+
+Thanks to Ken Olstad, Alan Stebbins, and Jonathan Kamens for contributing
+bug fixes, and to many others including Joe Wells, Bob Chassell, Jonathan
+Kamens, and Michael Burschick for bug reports.  Bob Chassell contributed a
+database and a detailed explanation of how to use it; Jonathan Kamens and
+Michael Burschick also contributed databases.  Thanks to all of you for
+helping to make EDB even better.
+
+**************** Release 1.12, Mar 28 1993
+
+Corrected numerous bugs, including a problem with redisplay of the entire
+record, when triggered by an edit, preventing point from moving.
+
+Enumeration types have been reimplemented; the ALTERNATIVES argument to
+define-enum-type is not compatible with the previous version.
+Documentation of enum types has been added to the manual.
+
+Variable db-use-internal-rep-p has been renamed to
+db-use-internal-file-layout-p.
+
+Function maprecords-accumulate has been removed; this functionality has
+been folded into maprecords, which takes two extra optional arguments.
+New macro maprecords-macro is analogous to maplinks-macro.
+
+The function cells of new symbols date->storage-string and
+storage-string->date are used to determine how dates are written to and
+read from files.  They default to format-date-full and date-stored->actual.
+
+The official name for function define-alternative-multi-char-displaytype
+has been changed to define-enum-type, which was already an alias for that
+function.  The longer name will be supported for backward compatibility.
+
+Added new address/rolodex databases by Jonathan Kamens and Michael Ernst to
+the examples distribution, and new versions of other databases such as
+edbibtex.
+
+**************** Release 1.13, May  3 1993
+
+Corrected several bugs due to variable renaming, primarily with
+maprecords-index and db-use-internal-file-layout-p.
+
+Changed the interface to functions maplinks and maprecords; a new optional
+argument is added, not at the end but in the fourth place.
+
+byte-compile-database[-all] now gives fewer messages in the *Compile-Log*
+buffer.
+
+**************** Release 1.14, May  5 1993
+
+Variable db-use-internal-file-layout-p has been removed in favor of a new
+database slot, internal-file-layout-p.  Now multiple databases, some stored
+in internal file layout and others not, may be simultaneously read in.
+New function db-toggle-internal-file-layout does what its name says.
+
+It is now possible to call db-find-file on files that don't yet exist.
+
+The user is not permitted to edit databases read from non-writable files.
+(Use db-toggle-modifiable-p to change whether the database may be modified.)
+
+Function database-elt-and-index renamed to database-link-and-index.
+Functions database-elt and nth-link removed in favor of database-link.
+Variable db-summary-mode-hooks has been renamed to database-summary-mode-hooks.
+
+Alastair Burt's file db-lucid.el provides support for Lucid Emacs menus and
+fontification.  GNU Emacs 19.7 isn't yet specially supported, but
+contributions of code to do so will be welcomed.  I am now using GNU diff
+2.0 to produce patches to EDB; supposedly this will let you create this new
+file via the ordinary use of the patch program.
+
+New variable db-tagged-default-field replaces hardcoded 'comments.
+
+Changed handling of the prompt-for-format argument to db-find-file.
+
+The order of arguments to record-set-field has been changed from
+ (record fieldname database value &optional nocheck)
+to
+ (record fieldname value database &optional nocheck)
+for consistency with other functions.  This is an incompatible change!
+However, either order of arguments will work in the near future.  No other
+functions are affected by this change in arguments.  The examples
+distribution has been updated to reflect this change.
+
+Numerous other enhancements, including:
+ * corrected several broken interactive specifications
+ * doubled backslashes now work in format files and reports
+ * unexpectely killed data display buffers no longer cause errors
+ * the time type now deals with nil similarly to the date type
+ * databases in internal file layout are marked unmodified when read in
+
+If you used an early pre-release of EDB 1.15 (before May 15), and you saved
+databases in internal file layout, please contact me, as you may experience
+difficulty.
+
+Most of the changes in this version were suggested by, or implemented by,
+EDB users.  Thanks to all those users, and special thanks to Alastair Burt
+and Ken Olstad for their major contributions.
+
+**************** Release 1.15, May 25 1993
+
+Support for Emacs 19 has been added.  The most important of these are a fix
+to calls of hack-local-variables and support for floating point numbers.
+The new number and number-or-nil types may contain either integers or
+floats.  The display type abbreviation for number is $; that for integer
+remains #.  How do you feel about this?  Should I change the abbreviation
+for integer (to %, perhaps?), so that number can take the # abbreviation?
+(Ordinarily it's not necessary to use these abbreviations at all.)
+
+There is now a new directory, diffs/, under
+theory.lcs.mit.edu:/pub/emacs/edb/.  It contains compressed patch files
+such as edb-diff-1.14-1.15.Z.
+
+New function db-prepare-to-debug sets appropriate variables and loads
+uncompiled code.  Please execute this before sending a bug report.  When
+sending a bug report, include all of the appropriate files, including the
+database file, the format file, the auxiliary file (if any), and the
+backtrace and the database log (found in the *Backtrace* and
+*Database Log* buffers).  Describe how to reproduce the bug and what
+you expected to occur.  Also state which version of which version of EDB
+you are running (do M-x edb-version RET) and which version of
+Emacs (do M-x emacs-version RET).
+
+**************** Release 1.16, Jun  9 1993
+
+This release makes mostly cosmetic changes.  (It also corrects a few
+problems with EDB 1.16, mainly undefined functions; that version was
+released in haste so that Emacs 19 users could run EDB.)
+
+File db-util.el replaces files util-mde.el and util-mdecl.el, which have
+been removed from the distrubution.  If you want to continue to use these
+files, move them from your EDB directory to your standard Emacs Lisp
+directory.  I will still distribute them, but separate from db-util.
+(db-util is about half the size of the other two files combined.)
+
+Documentation strings for many non-user-visible functions have been changed
+into comments.  This change, along with the previous one, resulted in a
+35K (10%) reduction in the size of the byte-compiled code.
+
+EDB now conforms to the FSF conventions for GNU Emacs library header
+comments.  Documentation string punctuation has also been upgraded from the
+old to the new style.
+
+db-setup-ddb-parse-displayspecs has been modified to use less taxing
+regular expressions.  Emacs 19's regular expression searching routines,
+while POSIX-compliant, are much slower than the Emacs 18 versions.  You may
+still find that parsing format files is very slow in Emacs 19; please
+report this to me, and I'll try to work around the problem.  (Specifying no
+display specification modifiers usually speeds up the regular expression
+match significantly.)
+
+**************** Release 1.17, Jun 14 1993
+
+It is no longer possible to sort a database field according to an ordered
+list of values.  This shouldn't matter because it can be easily done using
+a function (or for enumerated types, automatically) and no one used this
+feature anyway.
+
+Many EDB functions are now prefixed to indicate that EDB defined them and
+to reduce collisions with similarly-named functions in other packages.
+I plan to add such prefixes to all EDB functions.
+
+Several minor bugs associated with the recent logistical changes to EDB
+have been corrected.

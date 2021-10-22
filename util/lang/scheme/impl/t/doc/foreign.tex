@@ -1,0 +1,573 @@
+\documentstyle{article}
+\newcommand{\lf}{{\tt load-foreign}}
+\newcommand{\df}{{\tt define-foreign}}
+\newcommand{\unix}{{\sc UNIX}}
+\newcommand{\horizline}{\makebox[0.5\textwidth]{\hrulefill}}
+\title{Using \lf\ and \df\ under \unix}
+\author{Dorab Patel}
+\begin{document}
+
+\maketitle
+
+\section{Introduction}
+\label{sec-intro}
+
+This document attempts to give some idea of how to use foreign (at
+this time only C) functions from T under \unix.
+All the examples described herein work on Sun-3's under SunOS 3.4 and
+above.
+Most will also work on a VAX, but look out for byte order problems.
+
+\section{A Simple Example}
+\label{sec-example}
+
+A simple example is used to demonstrate the basic procedure.
+Later, more complex examples show how to handle the esoteric cases.
+First create a file called (say) {\tt x.c} with the following contents
+
+\horizline
+{\tt
+\begin{tabbing}
+/* addfive adds 5 to its argument and returns that */\\
+int\\
+addfive\= (x)\\
+	\> int x;\\
+\{\\
+	\> return(x+5);\\
+\}
+\end{tabbing}
+}
+\horizline
+
+You have now defined a simple C function {\tt addfive} that takes a C
+{\tt int} and returns a C {\tt int}.
+The next step is to compile this file using {\tt cc} thusly
+\begin{center}
+\tt
+cc -c x.c
+\end{center}
+This will result in a file called {\tt x.o} that contains the
+compiled function {\tt addfive}.
+
+The idea is to now define a T function called (say) {\tt addfiveto}
+that, when called with a T fixnum, will convert the T fixnum to a C
+{\tt int}, pass that {\tt int} to the C function {\tt addfive},
+obtain the result from that as a C {\tt int}, convert the result back
+to a T fixnum and return that as its result.
+Thus, the T function {\tt addfiveto} behaves similarly to the C
+function {\tt addfive}, takes care of all the conversions between C
+and T, and calls {\tt addfive} to actually do the computation.
+
+Create a file called {\tt y.t} that contains the following
+
+\horizline
+{\tt
+\begin{tabbing}
+(herald y)\\[2ex]
+;;; adds 5 to its argument\\
+(define-foreign \= addfiveto\\
+	\> (addfive (in rep/integer x))\\
+	\> rep/integer)
+\end{tabbing}
+}
+\horizline
+
+This defines a T function called {\tt addfiveto} that corresponds to
+the C function {\tt addfive}, takes one argument, which is
+{\tt fixnum} and returns a {\tt fixnum}.
+Compile this file by starting up a T and running orbit
+\begin{center}
+\tt
+(comfile y)
+\end{center}
+After this, you will have the files {\tt y.mo},
+{\tt y.mn}, and {\tt y.mi} ({\tt y.vo},
+{\tt y.vn}, and {\tt y.vi} on the Vax).
+
+Now, you are all set.
+In the same (or another) T, you should first load in the compiled C
+file {\tt x.o}.
+This is accomplished by executing the following T function
+\begin{center}
+\tt
+(load-foreign~~\verb!"!x.o\verb!"!)
+\end{center}
+The corresponding T function is now loaded in using
+\begin{center}
+\tt
+(load 'y)
+\end{center}
+Now, you have the T function {\tt addfiveto} defined that will do the
+right thing.
+Note that the order of the two {\tt load}s is important.
+The compiled C function must be loaded in first, before the compiled T
+function is loaded in.
+The file containing the \df s (in this case {\tt y.t}
+must be compiled.
+It will not work interpreted.
+
+Try out the new function
+
+\horizline
+\begin{tabbing}
+{\tt (addfiveto 6)}\\
+{\em 11}\\
+{\tt (addfiveto 8)}\\
+{\em 13}
+\end{tabbing}
+\horizline
+
+\section{More details on \lf}
+\label{sec-lf-details}
+
+The full specification of the \lf\ function is
+\begin{center}
+\tt
+(load-foreign {\em filespec}
+	{\em optionalLibstring} {\em optionalOtherstring})
+\end{center}
+{\em filespec\/} can be any T filespec and corresponds to
+the \unix\ {\tt .o} file to be loaded in.
+\lf\ will check for its existence.
+You have to specify the full name of the file including the {\tt .o}
+extension.
+The {\em optionalLibstring\/} is optional, and can be used to specify
+libraries if necessary.
+For example, if the file you are loading in uses X Window System
+graphics functions
+then the \lf\ command you execute will probably look like
+\begin{center}
+\tt
+(load-foreign~~ \verb!"!mygraphics.o\verb!"!~~ \verb!"!-lX\verb!"!)
+\end{center}
+Note that you have to type in {\tt -lX} and not just {\tt X}.
+Also, if you need other libraries, include the libraries in the same
+string.
+For example, if you need both the X library and the dbm library,
+then the command will look something like
+\begin{center}
+\tt
+(load-foreign~~ \verb!"!mygraphics.o\verb!"!~~ \verb!"!-lX -ldbm\verb!"!)
+\end{center}
+The order of the libraries specified is significant and the C library
+{\tt -lc} is automatically included at the end and so need not be specified.
+This is the sanctioned way of accessing libraries.
+Do not link in libraries into a {\tt .o} and then attempt to load in
+that {\tt .o} file.
+That scheme might not always work if the libraries have been previously
+loaded in, whereas the sanctioned scheme will always work.
+\lf\ returns \verb!#t! if everything worked ok, and returns \verb!#f!
+otherwise.
+The {\em optionalOtherstring\/} will not be used by ``normal'' users
+and is further discussed in section~\ref{sec-lf-esoterica}.
+
+Unfortunately, it is not currently possible to reload a \unix\
+{\tt .o} file into a running T.
+You will have to exit the T and start up a new one.
+If an error is discovered in a C function already loaded in, a new T
+will have to be started up and the corrected recompiled C file will
+have to be loaded in.
+
+\section{More details on \df}
+\label{sec-df-details}
+
+This section gives you some examples on how to specify different C
+functions using \df.
+The full specification of \df\ is
+
+\horizline
+{\tt
+\begin{tabbing}
+(define-foreign \= {\em t-function-name}\\
+	\> ({\em c-function-name\/} \= (in {\em type-spec} {\em opt-doc\/})\\
+		\>\> (in {\em type-spec} {\em opt-doc\/})\\
+		\>\> $\dots$\\
+	\> )\\
+	\> {\em ret-type-spec} )
+\end{tabbing}
+}
+\horizline
+
+where {\em type-spec\/} is one of of the entries shown in
+Table~\ref{table-type}.
+
+\begin{table}
+\tt
+\begin{tabular}{lll}
+{\rm Type-spec}	& {\rm Corresponding C type}	& {\rm Number of bits}\\
+\hline
+rep/integer		& int {\rm or} long	& 30\\
+rep/char		& unsigned char		& 8\\
+rep/integer-8-s		& char			& 8\\
+rep/integer-8-u		& unsigned char		& 8\\
+rep/integer-16-s	& short			& 16\\
+rep/integer-16-u	& unsigned short	& 16\\
+rep/double		& double		& 64\\
+rep/string		& (char *)		& 30\\
+rep/extend		& (void *)		& 30\\
+rep/pointer		& (void *)		& 30
+\end{tabular}
+\caption{{\em Type-spec\/}s and their corresponding C types}
+\label{table-type}
+\end{table}
+
+{\em opt-doc\/} is any T symbol and is only used to document the name
+of the parameter.
+{\em ret-type-spec\/} can be one of the {\em type-spec\/}s or
+{\tt ignore}, in which case, the return value is discarded.
+
+For example, consider the following definition
+
+\horizline
+{\tt
+\begin{tabbing}
+(define-foreign \= hack\+ \\
+	(hackc \= (in rep/integer x)\+ \\
+		(in rep/char y)\\
+		(in rep/double z))\- \\
+	rep/integer)
+\end{tabbing}
+}
+\horizline
+
+This corresponds to a C function defined as
+
+\horizline
+{\tt
+\begin{tabbing}
+int\\
+hackc\= (x, y, z)\\
+	\> int x;\\
+	\> char y;\\
+	\> double z;\\
+\{\\
+	\> $\dots$\\
+\}
+\end{tabbing}
+}
+\horizline
+
+Next we consider how to pass strings to C functions.
+T strings are not null-terminated, whereas C strings are.
+Thus, before T strings are passed to C, they must be null terminated.
+This is done by calling the T function \verb%string->asciz!%.
+Unfortunately, this function modifies its argument, so you may want to
+use {\tt copy-string} to first make a new copy of the T string.
+\verb%string->asciz!% is only available in the
+{\tt t-implementation-env} so if you want to use it in another
+locale, you might want to {\tt import} it there.
+Here is an example:
+
+\horizline
+{\tt
+\begin{tabbing}
+(define-foreign \= thirdchar4?\\
+	\> (checkthirdchar (in rep/string x))\\
+	\> rep/integer)
+\end{tabbing}
+}
+\horizline
+
+corresponds to the C function
+
+\horizline
+{\tt
+\begin{tabbing}
+int\\
+checkthirdchar\= (x)\\
+	\> char *x;\\
+\{\\
+	\> if \= (*(x+2) == '4')\\
+		\>\> return (1);\\
+	\> else\\
+		\>\> return (0);\\
+\}
+\end{tabbing}
+}
+\horizline
+
+Now, say that we had a T string bound to the T symbol {\tt mystring},
+then we could call this function as
+\begin{center}
+\tt
+(thirdchar4? (string->asciz! (copy-string mystring)))
+\end{center}
+
+C does not have the capability of having multiple return values.
+To work around this, C programmers pass in a pointer to a
+variable and then have the called function use that pointer to write
+the result into the caller's variable.
+It should be noted that the caller has to allocate the memory required
+for this return value.
+Here is an example of how to do this.
+
+\horizline
+{\tt
+\begin{tabbing}
+(define-foreign \= xhack\+ \\
+	(chack \= (in rep/extend xptr)\+ \\
+		(in rep/extend yptr))\- \\
+	ignore)
+\end{tabbing}
+}
+\horizline
+
+and the corresponding C function is
+
+\horizline
+{\tt
+\begin{tabbing}
+void\\
+chack\= (xptr, yptr)\\
+	\> int *xptr, yptr;\\
+\{\\
+	\> *xptr = 3; *yptr = 5;\\
+\}
+\end{tabbing}
+}
+\horizline
+
+Now, before calling xhack, we have to allocate storage for the two
+{\tt int}s that will be returned.
+This memory is usually allocated as a T bytev.
+Also, the return value will be whatever the C function wrote into that
+bytev and will have to be converted into a value that T can accept.
+If we are dealing with C {\tt int}s which are positive integers using
+less than 29 bits, then the function {\tt bref-32} does the job.
+This is done as follows.
+
+\horizline
+{\tt
+\begin{tabbing}
+(lset realy (bref-32 y 0))andsomemx\= \kill
+(lset x (make-bytev 4))		\> ; allocate storage for x\\
+(lset y (make-bytev 4))		\> ; allocate storage for y\\
+(xhack x y)			\> ; call xhack\\
+(lset realx (bref-32 x 0))	\> ; get T value for x\\
+(lset realy (bref-32 y 0))	\> ; get T value for y
+\end{tabbing}
+}
+\horizline
+
+A similar procedure may be used to return
+any value, including C structures.
+The important points to keep in mind are that the caller (i.e. the T
+function) should first allocate the required memory using
+{\tt make-bytev}, then call the foreign function to fill in the
+bytev, and then the caller has to explicitly convert the bits in the
+bytev into a representation that T understands.
+All this can be encapsulated into another function.
+For example,
+
+\horizline
+{\tt
+\begin{tabbing}
+(define \= (xnothack)\\
+	\> (let \= (\= (x (make-bytev 4))\\
+			\>\>\> (y (make-bytev 4)))\\
+		\>\> (xhack x y)\\
+		\>\> (return \= (bref-32 x 0)\\
+			\>\>\> (bref-32 y 0))))
+\end{tabbing}
+}
+\horizline
+
+Returning strings is somewhat more problematic because their size
+cannot be known before calling the foreign function.
+Of course, one way to handle this is to have a maximum size string
+allocated, but this is often wasteful.
+Here is an example of how one might return a string from a C function.
+
+\horizline
+{\tt
+\begin{tabbing}
+(define-foreign \= retstr\+ \\
+	(cstr)\\
+	rep/string)
+\end{tabbing}
+}
+\horizline
+
+and the corresponding C function is
+
+\horizline
+{\tt
+\begin{tabbing}
+char *\\
+cstr \=()\\
+\{\+ \\
+	extern char *malloc();\\
+	char *strptr;\\
+	int strsize;\\[2ex]
+
+	$\dots$ find out how big the string is to be $\dots$\\
+	strptr = malloc(strsize);\\
+	$\dots$ fill in the string as required $\dots$\\
+	return(strptr);\- \\
+\}
+\end{tabbing}
+}
+\horizline
+
+This function is called as follows
+\begin{center}
+\tt
+(lset retval (asciz->string (retstr)))
+\end{center}
+\verb!asciz->string! converts a null-terminated sequence of bytes into
+a T string.
+It also makes a copy of those bytes, so after it is done, there is no
+connection between the C string and the T string.
+Thus, the C string may be {\tt free}d at this point.
+\verb!asciz->string! is available in the \verb!t-implementation-env!
+and you may want to \verb!import! it into the locale you are using.
+
+The {\em type-spec\/} \verb!rep/extend! is to be used when you are
+dealing with a pointer into T space (like a bytev), but
+\verb!rep/pointer! should be used when the pointer points into C
+space.
+In addition, \verb!rep/pointer! can only be used if no manipulations
+are done to it in T.
+In other words, use \verb!rep/pointer! if you are returning a pointer
+into C space and if {\em all\/} you are going to do is to pass that pointer
+back to a C function.
+
+The {\em c-function-name\/} in the definition of the foreign function
+can either be a T symbol or a T string.
+If it is a T symbol (the normal case), the symbol is converted to a
+string, then all the characters in that string are converted to
+lower-case.
+An underscore ``\,\verb!_!\,'' is prepended to this string to form the
+name of that is searched for in the C symbol table.
+Since most C functions have only lower-case characters in their names,
+this works just fine.
+However, in the cases when you need to call a C function which has
+upper-case characters in its name, you will have to use a T string
+rather than a T symbol for the C function name.  If a string is provided as
+the foreign name no conversions are done.
+For example consider the definition of the {\tt XOpenDisplay}
+function for the X Window System.
+
+\horizline
+{\tt
+\begin{tabbing}
+(define-foreign \= xopendisplay\+ \\
+	(\verb!"!XOpenDisplay\verb!"! (in rep/string name))\\
+	rep/pointer)
+\end{tabbing}
+}
+\horizline
+
+It will have been noticed that it is not possible to directly pass or
+return 32-bit entities to/from C.
+This is because T uses the high-order two bits for tag information.
+A T {\tt fixnum} can have a maximum magnitude of 29 bits.
+Most of the time, this will not be a problem, but sometimes it is
+desirable to have a full 32 bits passed back and forth between T and
+C.
+The way to do this is to use a four byte bytev to hold the 32 bits and
+then transfer a pointer to this bytev to C.
+For this to work, an auxiliary help function must be written in C that
+wiil do the appropriate conversions.
+For example, suppose there is a C function defined as follows:
+
+\horizline
+{\tt
+\begin{tabbing}
+unsigned long\\
+cfun\= (x)\\
+	\> unsigned long x;\\
+\{\\
+	\> return ( x + 5L);\\
+\}
+\end{tabbing}
+}
+\horizline
+
+If all the bits are being used, then we cannot just use a
+\verb!rep/integer! declaration in the \df\ for the function.
+First, we have to define a new ``help'' function that will do the
+conversions and then call {\em that\/} function from T.
+The ``help'' function can be defined as
+
+\horizline
+{\tt
+\begin{tabbing}
+void\\
+helpcfun\= (y,ret)\\
+	\> unsigned long *y, *ret;\\
+\{\\
+	\> *ret = cfun(*y);\\
+\}
+\end{tabbing}
+}
+\horizline
+
+and the corresponding T function and the \df\ for the C help function
+can be defined as
+
+\horizline
+{\tt
+\begin{tabbing}
+(define-foreign \= helpcfun\\
+	\> (helpcfun \= (in rep/extend y)\\
+		\>\> (in rep/extend ret))\\
+	\> ignore)\\[2ex]
+
+;;; expects a bytev as argument and returns a bytev\\
+(define \= (cfun x)\\
+	\> (let \= ((rv (make-bytev 4)))\\
+		\>\> (helpcfun x rv)\\
+		\>\> rv))
+\end{tabbing}
+}
+\horizline
+
+You should also be aware that the function
+{\tt bref-32} only converts the
+low-order 30 bits to a T {\tt fixnum} and so cannot be used when
+dealing with 32-bit entities.  This 32-bit value could be made into a
+bignum by using bref-16-u to extract the high and low half and using
+generic arithmetic.  Such code would be different on a Vax than a Sun.
+
+\section{How \lf\ actually works}
+\label{sec-lf-esoterica}
+
+In order to perform the dynamic linking, \lf\ first has to figure out
+the file containing the relocation information for the current state
+of the running T process.
+The filename is specified as the value returned by the switch
+{\tt reloc-file} in the {\tt t-implementation-env}.
+It then page aligns the current end of allocated memory.
+Next, the file to be loaded in is relocated and linked by calling on
+\verb!/bin/ld -A! to do the job.
+It is at this point that the libraries are linked in.
+
+The actual \verb!/bin/ld! command that is executed looks like
+\begin{center}
+\tt
+/bin/ld -N -x -A {\em rfile\/} -T {\em lpoint\/} {\em ostr\/}
+{\em ofile\/} -o {\em tfile\/} {\em lstr\/} -lc
+\end{center}
+{\em rfile\/} is the file containing the current relocation
+information.
+{\em lpoint\/} is the load point, that is, the point in memory where
+the resultant relocated file is going to be loaded in.
+{\em ostr\/} is the {\em otherString\/} argument (optionally) passed
+to \lf.
+{\em ofile\/} is the {\tt .o} file that is to be loaded in.
+{\em tfile\/} is the output file created by this \verb!/bin/ld! run
+and contains the result of the relocation.
+This file also contains the new relocation information and after
+successful loading, the switch {\tt reloc-file} is set to be this file
+name.
+{\em tfile\/} is created in \verb!/tmp! and has a name that starts
+with the letters {\tt dyn}.
+{\em str\/} is the library string specified in the \lf\ command.
+
+After successful relocation,
+the temporary file's header is read to figure out how much extra space
+is required.
+Next, that much extra space is requested from \unix\ and the data from
+the temporary file is read in.
+\end{document}

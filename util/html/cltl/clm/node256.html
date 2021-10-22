@@ -1,0 +1,581 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node256.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:32:30 GMT -->
+<HEAD>
+<TITLE>27.3. Dynamic Control of the Arrangement of Output</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Dynamic Control of the Arrangement of Output">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4764 HREF="node257.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4762 HREF="node253.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4756 HREF="node255.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4766 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4767 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4765 HREF="node257.html"> Format Directive Interface</A>
+<B>Up:</B> <A NAME=tex2html4763 HREF="node253.html"> Pretty Printing</A>
+<B> Previous:</B> <A NAME=tex2html4757 HREF="node255.html"> Pretty Printing Control </A>
+<HR> <P>
+<H1><A NAME=SECTION003130000000000000000>27.3. Dynamic Control of the Arrangement of Output</A></H1>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+The following functions and macros support precise control of what should
+be done when a piece of output is too large to fit in the space available.
+Three concepts underlie the way these operations work: <i>logical blocks</i>,
+<i>conditional newlines</i>, and <i>sections</i>.  Before proceeding further, it is
+important to define these terms.
+<P>
+The first line of figure <A HREF="node256.html#PRETTYPRINTSECTIONSFIGURE">27-1</A> shows a
+schematic piece of output.  The characters in the output are represented by
+hyphens.  The positions of conditional newlines are indicated by
+digits.  The beginnings and ends of logical blocks are indicated in the
+figure by ``<tt>&lt;</tt>'' and ``<tt>&gt;</tt>'' respectively.
+<P>
+The output as a whole is a logical block and the outermost section.  This
+section is indicated by the <tt>0</tt>'s on the second line of
+figure <A HREF="node256.html#PRETTYPRINTSECTIONSFIGURE">27-1</A>.  Logical blocks nested within
+the output are specified by the macro
+<tt>pprint-logical-block</tt>.  Conditional newline positions are specified by calls
+on <tt>pprint-newline</tt>.  Each conditional newline defines two sections (one
+before it and one after it) and is associated with a third (the section
+immediately containing it).
+<P>
+The section after a conditional newline consists of all the output up to,
+but not including, (a) the next conditional newline immediately contained
+in the same logical block; or if (a) is not applicable, (b) the next
+newline that is at a lesser level of nesting in logical blocks; or if (b)
+is not applicable, (c) the end of the output.
+<P>
+The section before a conditional newline consists of all the output back
+to, but not including, (a) the previous conditional newline that is
+immediately contained in the same logical block; or if (a) is not
+applicable, (b) the beginning of the immediately containing logical block.
+The last four lines in figure <A HREF="node256.html#PRETTYPRINTSECTIONSFIGURE">27-1</A> indicate
+the sections before and after the four conditional newlines.
+<P>
+The section immediately containing a conditional newline is the shortest
+section that contains the conditional newline in question.  In
+figure <A HREF="node256.html#PRETTYPRINTSECTIONSFIGURE">27-1</A>, the first conditional newline is
+immediately contained in the section marked with <tt>0</tt>'s, the second and third
+conditional newlines are immediately contained in the section before the
+fourth conditional newline, and the fourth conditional newline is
+immediately contained in the section after the first conditional newline.
+<P>
+<pre><A NAME=PRETTYPRINTSECTIONSFIGURE>&#160;</A>
+----------------------------------------------------------------
+Figure 27-1: Example of Logical Blocks, Conditional Newlines, and Sections
+
+                 <-1---<--<--2---3->--4-->->
+                 000000000000000000000000000
+                 11 111111111111111111111111
+                           22 222           
+                              333 3333      
+                        44444444444444 44444
+
+----------------------------------------------------------------
+</pre>
+<P>
+Whenever possible, the pretty printer displays the entire contents of a
+section on a single line.  However, if the section is too long to fit in
+the space available, line breaks are inserted at conditional newline
+positions within the section.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>pprint-newline <i>kind</i> &amp;optional <i>stream</i></tt><P>The <i>stream</i> (which defaults to <tt>*standard-output*</tt>) follows the
+standard conventions for stream arguments to printing functions (that is,
+<tt>nil</tt> stands for <tt>*standard-output*</tt> and <tt>t</tt> stands for
+<tt>*terminal-io*</tt>).  The <i>kind</i> argument specifies the style of
+conditional newline.  It must be one of <tt>:linear</tt>, <tt>:fill</tt>,
+<tt>:miser</tt>, or <tt>:mandatory</tt>.  An error is signaled if any other value is
+supplied.  If <i>stream</i> is a pretty printing stream created by
+<tt>pprint-logical-block</tt>, a line break is inserted in the output when the
+appropriate condition below is satisfied.  Otherwise, <tt>pprint-newline</tt>
+has no effect.  The value <tt>nil</tt> is always returned.
+<P>
+If <i>kind</i> is <tt>:linear</tt>, it specifies a `linear-style' conditional newline.
+ A line break is inserted if and only if the immediately containing section
+cannot be printed on one line.  The effect of this is that line breaks are
+either inserted at every linear-style conditional newline in a logical
+block or at none of them.
+<P>
+If <i>kind</i> is <tt>:miser</tt>, it specifies a `miser-style' conditional newline. 
+A line break is inserted if and only if the immediately containing section
+cannot be printed on one line and miser style is in effect in the
+immediately containing logical block.  The effect of this is that
+miser-style conditional newlines act like linear-style conditional
+newlines, but only when miser style is in effect.  Miser style is in effect
+for a logical block if and only if the starting position of the logical
+block is less than or equal to <tt>*print-miser-width*</tt> from the right margin.
+<P>
+If <i>kind</i> is <tt>:fill</tt>, it specifies a `fill-style' conditional
+newline.  A line break is inserted if and only if either (a) the following
+section cannot be printed on the end of the current line, (b) the preceding
+section was not printed on a single line, or (c) the immediately containing
+section cannot be printed on one line and miser style is in effect in the
+immediately containing logical block.  If a logical block is broken up into
+a number of subsections by fill-style conditional newlines, the basic
+effect is that the logical block is printed with as many subsections as
+possible on each line.  However, if miser style is in effect, fill-style
+conditional newlines act like linear-style conditional newlines.
+<P>
+If <i>kind</i> is <tt>:mandatory</tt>, it specifies a `mandatory-style' conditional
+newline.  A line break is always inserted.  This implies that none of the
+containing sections can be printed on a single line and will therefore
+trigger the insertion of line breaks at linear-style conditional newlines
+in these sections.
+<P>
+When a line break is inserted by any type of conditional newline, any
+blanks that immediately precede the conditional newline are omitted from
+the output and indentation is introduced at the beginning of the next line.
+By default, the indentation causes the following line to begin in the same
+horizontal position as the first character in the immediately containing
+logical block.  (The indentation can be changed via <tt>pprint-indent</tt>.)
+<P>
+There are a variety of ways <i>un</i>conditional newlines can be introduced into
+the output (for example, via <tt>terpri</tt> or by printing a string containing a newline
+character).  As with mandatory conditional newlines, this prevents any of
+the containing sections from being printed on one line.  In general, when
+an unconditional newline is encountered, it is printed out without
+suppression of the preceding blanks and without any indentation following
+it.  However, if a per-line prefix has been specified (see
+<tt>pprint-logical-block</tt>), that prefix will always be printed no matter how a
+newline originates.
+<P>
+<BR><b>[Macro]</b><BR>
+<pre>
+pprint-logical-block (<i>stream-symbol</i> <i>list</i>
+       <b>[[</b> { :prefix | :per-line-prefix} <i>p</i> | :suffix <i>s</i> <b>]]</b>)
+       {<i>form</i>}*
+</pre>
+<P>This macro causes printing to be grouped into a logical block.  It returns
+<tt>nil</tt>.
+<P>
+The <i>stream-symbol</i> must be a symbol.  If it is <tt>nil</tt>, it is treated the same
+as if it were <tt>*standard-output*</tt>.  If it is <tt>t</tt>, it is treated the same as if
+it were <tt>*terminal-io*</tt>.  The run-time value of <i>stream-symbol</i> must
+be a stream (or <tt>nil</tt> standing for <tt>*standard-output*</tt>
+or <tt>t</tt> standing for <tt>*terminal-io*</tt>).
+The logical block is printed into this destination stream.
+<P>
+The body (which consists of the <i>form</i>s)
+can contain any arbitrary Lisp forms.  Within the body,
+<i>stream-symbol</i> (or <tt>*standard-output*</tt> if <i>stream-symbol</i> is
+<tt>nil</tt>, or <tt>*terminal-io*</tt> if <i>stream-symbol</i> is <tt>t</tt>) is bound
+to a ``pretty printing'' stream that supports decisions about the arrangement
+of output and then forwards the output to the destination stream.  All the
+standard printing functions (for example, <tt>write</tt>, <tt>princ</tt>, <tt>terpri</tt>) can
+be used to send output to the pretty printing stream created by
+<tt>pprint-logical-block</tt>.  All and only the output sent to this pretty
+printing stream is treated as being in the logical block.
+<P>
+<tt>pprint-logical-block</tt> and the pretty printing stream it creates have dynamic
+extent.  It is undefined what happens if output is attempted outside of
+this extent to the pretty printing stream created.  It is unspecified what
+happens if, within this extent, any output is sent directly to the
+underlying destination stream (by calling <tt>write-char</tt>, for example).
+<P>
+The <tt>:suffix</tt>, <tt>:prefix</tt>, and <tt>:per-line-prefix</tt> arguments must all
+be expressions that (at run time) evaluate to strings.  The <tt>:suffix</tt> argument <i>s</i>
+(which defaults to the null string) specifies a suffix that is printed just
+after the logical block.  The <tt>:prefix</tt> and <tt>:per-line-prefix</tt> arguments
+are mutually exclusive.  If neither <tt>:prefix</tt> nor <tt>:per-line-prefix</tt> is 
+specified, a <tt>:prefix</tt> of the null string is assumed.
+The <tt>:prefix</tt> argument
+specifies a prefix <i>p</i> that is printed before the beginning of the logical block.
+The <tt>:per-line-prefix</tt> specifies a prefix <i>p</i> that is printed before the block 
+and at the beginning of each subsequent line in the block.
+An error is signaled if <tt>:prefix</tt> and <tt>:per-line-prefix</tt> are both used
+or if a <tt>:suffix</tt>, <tt>:prefix</tt>, or <tt>:pre-line-prefix</tt> argument does not
+evaluate to a string.
+<P>
+The <i>list</i> is interpreted as being a list that the body is responsible
+for printing.  (See <tt>pprint-exit-if-list-exhausted</tt> and
+<tt>pprint-pop</tt>.)  If <i>list</i> does not (at run time) evaluate to a list,
+it is printed using <tt>write</tt>.  (This makes it easier to write printing
+functions that are robust in the face of malformed arguments.)  If
+<tt>*print-circle*</tt> (and possibly also <tt>*print-shared*</tt>)
+is not <tt>nil</tt> and <i>list</i> is a circular (or shared) reference
+to a cons, then an appropriate ``<tt>#<i>n</i>#</tt>'' marker is printed.
+(This makes it easy to write printing functions that provide full support
+for circularity and sharing abbreviation.)  If <tt>*print-level*</tt> is not
+<tt>nil</tt> and the logical block is at a dynamic nesting depth of greater
+than <tt>*print-level*</tt> in logical blocks, ``<tt>#</tt>'' is printed.  (This
+makes it easy to write printing functions that provide full support for depth
+abbreviation.)
+<P>
+If any of the three preceding conditions occurs, the indicated output is
+printed on <i>stream-symbol</i> and the <i>body</i> is skipped along with the
+printing of the prefix and suffix.  (If the
+body is not responsible for printing a list, then the first two tests
+above can be turned off by supplying <tt>nil</tt> for the <i>list</i> argument.)
+<P>
+In addition to the <i>list</i> argument of <tt>pprint-logical-block</tt>, the
+arguments of the standard printing functions such as <tt>write</tt>,
+<tt>print</tt>, <tt>pprint</tt>, <tt>print1</tt>, and <tt>pprint</tt>, as well as the
+arguments of the standard <tt>format</tt> directives such as <tt>~A</tt>,
+<tt>~S</tt>, (and <tt>~W</tt>) are all checked (when necessary) for
+circularity and sharing.  However, such checking is not applied to the
+arguments of the functions <tt>write-line</tt>, <tt>write-string</tt>, and
+<tt>write-char</tt> or to the literal text output by <tt>format</tt>.  A
+consequence of this is that you must use one of the latter functions if you
+want to print some literal text in the output that is not supposed to be
+checked for circularity or sharing.  (See the examples below.)
+<P>
+<hr>
+<b>Implementation note:</b> Detection of circularity and sharing is supported by the pretty printer by
+in essence performing the requested output twice.  On the first pass,
+circularities and sharing are detected and the actual outputting of
+characters is suppressed.  On the second pass, the appropriate 
+``<tt>#<i>n</i>=</tt>'' and ``<tt>#<i>n</i>#</tt>'' markers are inserted and
+characters are output.
+<P>
+A consequence of this two-pass approach to the detection of circularity and
+sharing is that the body of a <tt>pprint-logical-block</tt> must not
+perform any side-effects on the surrounding environment.  This includes not
+modifying any variables that are bound outside of its scope.  Obeying this
+restriction is facilitated by using <tt>pprint-pop</tt>, instead of an ordinary
+<tt>pop</tt> when traversing a list being printed by the body of a
+<tt>pprint-logical-block</tt>.)
+<hr>
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>pprint-exit-if-list-exhausted</tt><P><tt>pprint-exit-if-list-exhausted</tt> tests whether or not the <i>list</i>
+argument of <tt>pprint-logical-block</tt> has been exhausted (see
+<tt>pprint-pop</tt>).  If this list has been reduced to <tt>nil</tt>,
+<tt>pprint-exit-if-list-exhausted</tt> terminates the execution of the
+immediately containing <tt>pprint-logical-block</tt> except for the printing of
+the suffix.  Otherwise <tt>pprint-exit-if-list-exhausted</tt> returns <tt>nil</tt>.
+An error message is issued if <tt>pprint-exit-if-list-exhausted</tt> is used
+anywhere other than syntactically nested within a call on
+<tt>pprint-logical-block</tt>.  It is undefined what happens if <tt>pprint-pop</tt>
+is executed outside of the dynamic extent of this
+<tt>pprint-logical-block</tt>.
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>pprint-pop</tt><P><tt>pprint-pop</tt> pops elements one at a time off the <i>list</i> argument of
+<tt>pprint-logical-block</tt>, taking care to obey <tt>*print-length*</tt>,
+<tt>*print-circle*</tt>, and <tt>*print-shared*</tt>.  An error message is issued if it is
+used anywhere other than syntactically nested within a call on
+<tt>pprint-logical-block</tt>. It is undefined what happens if <tt>pprint-pop</tt> is executed
+outside of the dynamic extent of this call on <tt>pprint-logical-block</tt>.
+<P>
+Each time <tt>pprint-pop</tt> is called, it pops the next value off the <i>list</i> argument of <tt>pprint-logical-block</tt> and returns it.  However,
+before doing this, it performs three tests.  If the remaining list is not a
+list (neither a cons nor <tt>nil</tt>), ``<tt>. </tt>'' is printed
+followed by the remaining list.  (This makes it easier to write printing
+functions that are robust in the face of malformed arguments.)  If
+<tt>*print-length*</tt> is <tt>nil</tt> and <tt>pprint-pop</tt> has already been called
+<tt>*print-length*</tt> times within the immediately containing logical block,
+``<tt>...</tt>'' is printed.  (This makes it easy to write printing functions
+that properly handle <tt>*print-length*</tt>.)  If <tt>*print-circle*</tt> (and possibly also
+<tt>*print-shared*</tt>) is not <tt>nil</tt>, and the remaining list is a circular
+(or shared) reference, then ``<tt>. </tt>'' is printed followed by an appropriate
+``<tt>#<i>n</i>#</tt>'' marker.  (This catches instances of cdr circularity and sharing
+in lists.)
+<P>
+If any of the three preceding conditions occurs, the indicated output is
+printed on the pretty printing stream created by the immediately containing
+<tt>pprint-logical-block</tt>
+and the execution of the immediately containing
+<tt>pprint-logical-block</tt>
+is terminated except for the printing of the suffix.
+<P>
+If <tt>pprint-logical-block</tt> is given a <i>list</i> argument of
+<tt>nil</tt>-because it is not processing a list-<tt>pprint-pop</tt> can still
+be used to obtain support for <tt>*print-length*</tt> (see the example function
+<tt>pprint-vector</tt> below).  In this situation, the first and third tests
+above are disabled and <tt>pprint-pop</tt> always returns <tt>nil</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>pprint-indent <i>relative-to</i> <i>n</i> &amp;optional <i>stream</i></tt><P><tt>pprint-indent</tt> specifies the indentation to use in a logical block.
+<i>Stream</i> (which defaults to <tt>*standard-output*</tt>) follows the
+standard conventions for stream arguments to printing functions.  The argument <i>n</i> specifies the indentation in ems.  If <i>relative-to</i> is <tt>:block</tt>, the
+indentation is set to the horizontal position of the first character in the
+block plus <i>n</i> ems.  If <i>relative-to</i> is <tt>:current</tt>, the
+indentation is set to the current output position plus <i>n</i> ems.
+<P>
+The argument <i>n</i> can be negative; however, the total indentation cannot be moved
+left of the beginning of the line or left of the end of the rightmost per-line
+prefix.  Changes in indentation caused by <tt>pprint-indent</tt> do not take
+effect until after the next line break.  In addition, in miser mode all
+calls on <tt>pprint-indent</tt> are ignored, forcing the lines corresponding to the
+logical block to line up under the first character in the block.
+<P>
+An error is signaled if a value other than <tt>:block</tt> or <tt>:current</tt> is
+supplied for <i>relative-to</i>.  If <i>stream</i> is a pretty printing
+stream created by <tt>pprint-logical-block</tt>, <tt>pprint-indent</tt> sets the
+indentation in the innermost dynamically enclosing logical block.
+Otherwise, <tt>pprint-indent</tt> has no effect.  The value <tt>nil</tt> is always
+returned.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>pprint-tab <i>kind</i> <i>colnum</i> <i>colinc</i> &amp;optional <i>stream</i></tt><P><tt>pprint-tab</tt> specifies tabbing as performed by the standard <tt>format</tt>
+directive <tt>~T</tt>.  <i>Stream</i> (which defaults to
+<tt>*standard-output*</tt>) follows the standard conventions for stream
+arguments to printing functions.  The arguments <i>colnum</i> and <i>colinc</i> correspond to the two parameters to <tt>~T</tt> and are in
+terms of ems.  The <i>kind</i> argument specifies the style of tabbing.  It
+must be one of <tt>:line</tt> (tab as by <tt>~T</tt>) <tt>:section</tt> (tab as
+by <tt>~T</tt>, but measuring horizontal positions relative to the
+start of the dynamically enclosing section), <tt>:line-relative</tt> (tab as by
+<tt>~@T</tt>), or <tt>:section-relative</tt> (tab as by
+<tt>~@T</tt>, but measuring horizontal positions relative to
+the start of the dynamically enclosing section).  An error is signaled if
+any other value is supplied for <i>kind</i>.  If <i>stream</i> is a pretty
+printing stream created by <tt>pprint-logical-block</tt>, tabbing is performed.
+Otherwise, <tt>pprint-tab</tt> has no effect.  The value <tt>nil</tt> is always
+returned.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>pprint-fill <i>stream</i> <i>list</i> &amp;optional <i>colon?</i> <i>atsign?</i> <BR></tt><tt>pprint-linear <i>stream</i> <i>list</i> &amp;optional <i>colon?</i> <i>atsign?</i> <BR></tt><tt>pprint-tabular <i>stream</i> <i>list</i> &amp;optional <i>colon?</i> <i>atsign?</i> <i>tabsize</i></tt><P>These three functions specify particular ways of pretty printing lists.
+<i>Stream</i> follows the standard conventions for stream arguments to
+printing functions.  Each function prints parentheses around the output if
+and only if <i>colon?</i> (default <tt>t</tt>) is not <tt>nil</tt>.  Each function
+ignores its <i>atsign?</i> argument and returns <tt>nil</tt>.  (These two
+arguments are included in this way so that these functions can be used via
+<tt>~/.../</tt> and as <tt>set-pprint-dispatch</tt> functions as well as
+directly.)  Each function handles abbreviation and the detection of
+circularity and sharing correctly and uses <tt>write</tt> to print <i>list</i>
+when given a non-list argument.
+<P>
+The function <tt>pprint-linear</tt> prints a list either all on one line or with
+each element on a separate line.  The function <tt>pprint-fill</tt> prints a list
+with as many elements as possible on each line.  The function
+<tt>pprint-tabular</tt> is the same as <tt>pprint-fill</tt> except that it prints the
+elements so that they line up in columns.  This function takes an
+additional argument <tt>tabsize</tt> (default 16) that specifies the column
+spacing in ems.
+<P>
+As an example of the interaction of logical blocks, conditional newlines,
+and indentation, consider the function <tt>pprint-defun</tt> below.  This
+function pretty prints a list whose <i>car</i> is <tt>defun</tt> in the standard way assuming
+that the length of the list is exactly 4.
+<P><pre>
+;;; Pretty printer function for DEFUN forms. 
+
+(defun pprint-defun (list) 
+  (pprint-logical-block (nil list :prefix &quot;(&quot; :suffix &quot;)&quot;) 
+    (write (first list)) 
+    (write-char #\space) 
+    (pprint-newline :miser) 
+    (pprint-indent :current 0) 
+    (write (second list)) 
+    (write-char #\space) 
+    (pprint-newline :fill) 
+    (write (third list)) 
+    (pprint-indent :block 1) 
+    (write-char #\space) 
+    (pprint-newline :linear) 
+    (write (fourth list))))
+</pre><P>
+<P>
+Suppose that one evaluates the following:
+<P><pre>
+(pprint-defun '(defun prod (x y) (* x y)))
+</pre><P>
+<P>
+If the line width available is greater than or equal to 26, all of the
+output appears on one line.  If the width is reduced to 25,
+a line break is inserted at the linear-style conditional newline before
+<tt>(* X Y)</tt>, producing the output shown below.  The
+<tt>(pprint-indent :block 1)</tt> causes <tt>(* X Y)</tt> to be printed at a relative
+indentation of 1 in the logical block.
+<P><pre>
+(DEFUN PROD (X Y)  
+  (* X Y))
+</pre><P>
+<P>
+If the width is 15, a line break is also inserted at the
+fill-style conditional newline before the argument list.  The argument list lines
+up under the function name because of the call on
+<tt>(pprint-indent :current 0)</tt> before the printing of the function name. 
+<P><pre>
+(DEFUN PROD 
+       (X Y) 
+  (* X Y))
+</pre><P>
+<P>
+If <tt>*print-miser-width*</tt> were greater than or equal to 14,
+the output would have been entirely in miser mode.
+All indentation changes are
+ignored in miser mode and line breaks are inserted at miser-style
+conditional newlines.  The result would have been as follows:
+<P><pre>
+(DEFUN 
+ PROD 
+ (X Y) 
+ (* X Y))
+</pre><P>
+<P>
+As an example of the use of a per-line prefix, consider that evaluating the expression
+<P><pre>
+(pprint-logical-block (nil nil :per-line-prefix &quot;;;; &quot;) 
+  (pprint-defun '(defun prod (x y) (* x y))))
+</pre><P>
+produces the output
+<P><pre>
+;;; (DEFUN PROD 
+;;;        (X Y) 
+;;;   (* X Y))
+</pre><P>
+with a line width of 20 and <tt>nil</tt> as the value
+of the printer control variable <tt>*print-miser-width*</tt>.
+<P>
+(If <tt>*print-miser-width*</tt> were not <tt>nil</tt> the output
+<P><pre>
+;;; (DEFUN 
+;;;  PROD 
+;;;  (X Y) 
+;;;  (* X Y))
+</pre><P>
+might appear instead.)
+<P>
+As a more complex (and realistic) example, consider the function
+<tt>pprint-let</tt> below.  This specifies how to pretty print a <tt>let</tt> in the
+standard style.  It is more complex than <tt>pprint-defun</tt> because it has
+to deal with nested structure.  Also, unlike <tt>pprint-defun</tt>, it contains
+complete code to print readably any possible list that begins with the
+symbol <tt>let</tt>.  The outermost <tt>pprint-logical-block</tt> handles the
+printing of the input list as a whole and specifies that parentheses should
+be printed in the output.  The second <tt>pprint-logical-block</tt> handles the
+list of binding pairs.  Each pair in the list is itself printed by the
+innermost <tt>pprint-logical-block</tt>.  (A <tt>loop</tt> is used instead of
+merely decomposing the pair into two elements so that readable output will
+be produced no matter whether the list corresponding to the pair has one
+element, two elements, or (being malformed) has more than two elements.)  A
+space and a fill-style conditional newline are placed after each pair
+except the last.  The loop at the end of the topmost
+<tt>pprint-logical-block</tt> prints out the forms in the body of the <tt>let</tt>
+separated by spaces and linear-style conditional newlines.
+<P><pre>
+;;; Pretty printer function for LET forms, 
+;;; carefully coded to handle malformed binding pairs. 
+
+(defun pprint-let (list) 
+  (pprint-logical-block (nil list :prefix &quot;(&quot; :suffix &quot;)&quot;) 
+    (write (pprint-pop)) 
+    (pprint-exit-if-list-exhausted) 
+    (write-char #\space) 
+    (pprint-logical-block 
+        (nil (pprint-pop) :prefix &quot;(&quot; :suffix &quot;)&quot;) 
+      (pprint-exit-if-list-exhausted) 
+      (loop (pprint-logical-block 
+                (nil (pprint-pop) :prefix &quot;(&quot; :suffix &quot;)&quot;) 
+              (pprint-exit-if-list-exhausted) 
+              (loop (write (pprint-pop)) 
+                    (pprint-exit-if-list-exhausted) 
+                    (write-char #\space) 
+                    (pprint-newline :linear))) 
+            (pprint-exit-if-list-exhausted) 
+            (write-char #\space) 
+            (pprint-newline :fill))) 
+    (pprint-indent :block 1) 
+    (loop (pprint-exit-if-list-exhausted) 
+          (write-char #\space) 
+          (pprint-newline :linear) 
+          (write (pprint-pop)))))
+</pre><P>
+<P>
+Suppose that the following is evaluated with <tt>*print-level*</tt> having the value <tt>4</tt> and
+<tt>*print-circle*</tt> having the value <tt>t</tt>.
+<P><pre>
+(pprint-let '#1=(let (x (*print-length* (f (g 3)))  
+                      (z . 2) (k (car y))) 
+                  (setq x (sqrt z)) #1#))
+</pre><P>
+<P>
+If the line length is greater than or equal to 77, the output produced
+appears on one line.  However, if the line length is 76, line breaks are
+inserted at the linear-style conditional newlines separating the forms in
+the body and the output below is produced.  Note that the degenerate
+binding pair <tt>X</tt> is printed readably even though it fails to be a list; a
+depth abbreviation marker is printed in place of <tt>(G 3)</tt>; the binding pair
+<tt>(Z . 2)</tt> is printed readably even though it is not a proper list; and
+appropriate circularity markers are printed.
+<P><pre>
+#1=(LET (X (*PRINT-LENGTH* (F #)) (Z . 2) (K (CAR Y)))  
+     (SETQ X (SQRT Z)) 
+     #1#)
+</pre><P>
+<P>
+If the line length is reduced to 35, a line break is inserted at one of the
+fill-style conditional newlines separating the binding pairs.
+<P><pre>
+#1=(LET (X (*PRINT-PRETTY* (F #)) 
+         (Z . 2) (K (CAR Y))) 
+     (SETQ X (SQRT Z)) 
+     #1#)
+</pre><P>
+<P>
+Suppose that the line length is further reduced to 22 and <tt>*print-length*</tt> is
+set to 3. In this situation, line breaks are inserted after both the first
+and second binding pairs.  In addition, the second binding pair is itself
+broken across two lines.  Clause (b) of the description of fill-style
+conditional newlines prevents the binding pair <tt>(Z . 2)</tt> from being printed
+at the end of the third line.  Note that the length abbreviation hides the
+circularity from view and therefore the printing of circularity markers
+disappears.
+<P><pre>
+(LET (X 
+      (*PRINT-LENGTH* 
+       (F #)) 
+      (Z . 2) ...) 
+  (SETQ X (SQRT Z)) 
+  ...)
+</pre><P>
+<P>
+The function <tt>pprint-tabular</tt> could be defined as follows:
+<P><pre>
+(defun pprint-tabular (s list &amp;optional (c? t) a? (size 16)) 
+  (declare (ignore a?)) 
+  (pprint-logical-block 
+      (s list :prefix (if c? &quot;(&quot; &quot;&quot;) :suffix (if c? &quot;)&quot; &quot;&quot;)) 
+    (pprint-exit-if-list-exhausted) 
+    (loop (write (pprint-pop) :stream s) 
+          (pprint-exit-if-list-exhausted) 
+          (write-char #\space s) 
+          (pprint-tab :section-relative 0 size s) 
+          (pprint-newline :fill s))))
+</pre><P>
+<P>
+Evaluating the following with a line length of 25 produces the output shown.
+<P><pre>
+(princ &quot;Roads &quot;) 
+(pprint-tabular nil '(elm main maple center) nil nil 8) 
+<BR>Roads ELM     MAIN 
+      MAPLE   CENTER
+</pre><P>
+<P>
+The function below prints a vector using <tt>#(...)</tt> notation.
+<P><pre>
+(defun pprint-vector (v) 
+  (pprint-logical-block (nil nil :prefix &quot;#(&quot; :suffix &quot;)&quot;) 
+    (let ((end (length v)) (i 0)) 
+      (when (plusp end) 
+        (loop (pprint-pop) 
+              (write (aref v i)) 
+              (if (= (incf i) end) (return nil)) 
+              (write-char #\space) 
+              (pprint-newline :fill))))))
+</pre><P>
+<P>
+Evaluating the following with a line length of 15 produces the output shown.
+<P><pre>
+(pprint-vector '#(12 34 567 8 9012 34 567 89 0 1 23)) 
+
+#(12 34 567 8  
+  9012 34 567  
+  89 0 1 23)
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html4764 HREF="node257.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4762 HREF="node253.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4756 HREF="node255.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4766 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4767 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4765 HREF="node257.html"> Format Directive Interface</A>
+<B>Up:</B> <A NAME=tex2html4763 HREF="node253.html"> Pretty Printing</A>
+<B> Previous:</B> <A NAME=tex2html4757 HREF="node255.html"> Pretty Printing Control </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

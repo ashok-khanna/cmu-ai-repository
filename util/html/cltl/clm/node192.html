@@ -1,0 +1,592 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node192.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:32:03 GMT -->
+<HEAD>
+<TITLE>22.1.5. The Readtable</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" The Readtable">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3939 HREF="node193.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3937 HREF="node187.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3931 HREF="node191.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3941 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3942 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3940 HREF="node193.html"> What the Print </A>
+<B>Up:</B> <A NAME=tex2html3938 HREF="node187.html"> Printed Representation of </A>
+<B> Previous:</B> <A NAME=tex2html3932 HREF="node191.html"> Standard Dispatching Macro </A>
+<HR> <P>
+<H2><A NAME=SECTION002615000000000000000>22.1.5. The Readtable</A></H2>
+<P>
+<A NAME=READTABLESECTION>Previous</A>
+<A NAME=21728>sections</A>
+describe the standard syntax accepted by the <tt>read</tt>
+function.  This section discusses the advanced topic of altering the
+standard syntax either to provide extended syntax for Lisp objects
+or to aid the writing of other parsers.
+<P>
+There is a data structure called the <i>readtable</i> that is used to
+control the reader.  It contains information about the syntax of each
+character equivalent to that in table <A HREF="node188.html#StandardCharacterSyntaxTable">22-1</A>.
+It is set up exactly as in
+table <A HREF="node188.html#StandardCharacterSyntaxTable">22-1</A> to give the standard Common Lisp
+meanings to all the characters, but the user can change the meanings of
+characters to alter and customize the syntax of characters.  It is also
+possible to have several readtables describing different syntaxes and to
+switch from one to another by binding the variable <tt>*readtable*</tt>.
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+Even if an implementation supports characters with non-zero bits and font attributes,
+it need not (but may) allow for such characters to have syntax
+descriptions in the readtable.  However, every character of type
+<tt>string-char</tt> must be represented in the readtable.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (CHARACTER-PROPOSAL) <A NAME=21738>&#160;</A> 
+to remove the type <tt>string-char</tt> and to replace the bits and font attributes
+with the notion of implementation-defined attributes.
+If any implementation-defined attributes are supported, an implementation
+may (but need not) allow for such characters to have syntax
+descriptions in the readtable.  Characters that do not have non-standard values
+for any implementation-defined attribute must be represented in the readtable.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Variable]</b><BR>
+<tt>*readtable*</tt><P>The value of <tt>*readtable*</tt> is the current readtable.  The initial
+value of this is a readtable set up for standard Common Lisp syntax.
+You can bind this variable to temporarily change the readtable being used.
+<P>
+To program the reader for a different syntax, a set of functions are
+provided for manipulating readtables.  Normally, you should begin
+with a copy of the standard Common Lisp readtable and then customize
+the individual characters within that copy.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>copy-readtable &amp;optional <i>from-readtable</i> <i>to-readtable</i></tt><P>A copy is made of <i>from-readtable</i>, which defaults to the current readtable
+(the value of the global variable <tt>*readtable*</tt>).  If <i>from-readtable</i>
+is <tt>nil</tt>, then a copy of a standard Common Lisp readtable is made.
+For example,
+<P><pre>
+(setq *readtable* (copy-readtable nil))
+</pre><P>
+will restore the input syntax to standard Common Lisp syntax, even if
+the original readtable has been clobbered (assuming it is not so
+badly clobbered that you cannot type in the above expression!).
+On the other hand,
+<P><pre>
+(setq *readtable* (copy-readtable))
+</pre><P>
+will merely replace the current readtable with a copy of itself.
+<P>
+If <i>to-readtable</i> is unsupplied or <tt>nil</tt>, a fresh copy is made.  Otherwise,
+<i>to-readtable</i> must be a readtable, which is destructively copied into.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>readtablep <i>object</i></tt><P><tt>readtablep</tt> is true if its argument is a readtable,
+and otherwise is false.
+<P><pre>
+(readtablep x) == (typep x 'readtable)
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>set-syntax-from-char to-char <i>from-char</i> &amp;optional <i>to-readtable</i> <i>from-readtable</i></tt><P>This makes the syntax of <i>to-char</i> in <i>to-readtable</i> be the same as the
+syntax of <i>from-char</i> in <i>from-readtable</i>.  The <i>to-readtable</i>
+defaults to the current readtable (the value of the global variable
+<tt>*readtable*</tt>), and <i>from-readtable</i> defaults to <tt>nil</tt>, meaning
+to use the syntaxes from the standard Lisp readtable.
+<p>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(ARGUMENTS-UNDERSPECIFIED) <A NAME=21772>&#160;</A> 
+to clarify that the <i>to-char</i> and <i>from-char</i>
+must each be a character.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+Only attributes as shown in
+table <A HREF="node188.html#StandardCharacterSyntaxTable">22-1</A> are copied; moreover,
+if a <i>macro character</i> is copied, the macro definition function
+is copied also.
+However, attributes as shown
+in table <A HREF="node189.html#StandardReadtableAttributesTable">22-3</A> are not copied;
+they are ``hard-wired'' into the extended-token parser.
+For example, if the definition of <tt>S</tt> is copied to <tt>*</tt>,
+then <tt>*</tt> will become a <i>constituent</i> that is
+<i>alphabetic</i> but cannot be used
+as an exponent indicator for short-format floating-point number syntax.
+<P>
+It works to copy a macro definition from a character such as
+<tt>&quot;</tt> to another character; the standard definition for <tt>&quot;</tt>
+looks for another character that is the same as the character that
+invoked it.  It doesn't work to copy the definition of <tt>(</tt>
+to <tt>{</tt>, for example; it can be done, but it lets one write lists
+in the form <tt>{a b c)</tt>, not <tt>{a b c}</tt>,
+because the definition
+always looks for a closing parenthesis, not a closing brace.  See the function
+<tt>read-delimited-list</tt>, which is useful in this connection.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(RETURN-VALUES-UNSPECIFIED) <A NAME=21793>&#160;</A> 
+to specify that the <tt>set-syntax-from-char</tt> function returns <tt>t</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<pre>
+<tt>set-macro-character <i>char</i> <i>function</i> &amp;optional 
+         <i>non-terminating-p</i> <i>readtable</i> 
+</tt><tt>get-macro-character <i>char</i> &amp;optional <i>readtable</i></tt>
+</pre>
+<tt>set-macro-character</tt> causes <i>char</i> to be a macro character that
+when seen by <tt>read</tt> causes <i>function</i> to be called.
+If <i>non-terminating-p</i> is not <tt>nil</tt> (it defaults to <tt>nil</tt>),
+then it will be a non-terminating macro character: it may be embedded
+within extended tokens.
+<tt>set-macro-character</tt> returns <tt>t</tt>.
+<P>
+<tt>get-macro-character</tt> returns the function associated with <i>char</i>
+and, as a second value, returns the <i>non-terminating-p</i> flag; it returns
+<tt>nil</tt> if <i>char</i> does not have macro-character syntax.  In each case,
+<i>readtable</i> defaults to the current readtable.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(GET-MACRO-CHARACTER-READTABLE) <A NAME=21815>&#160;</A> 
+to specify that if <tt>nil</tt> is explicitly passed as the
+second argument to <tt>get-macro-character</tt>, then the standard readtable is used.
+This is consistent with the behavior of <tt>copy-readtable</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+The <i>function</i> is called with two arguments, <i>stream</i>
+and <i>char</i>.  The <i>stream</i> is the input stream, and <i>char</i> is the
+macro character itself.
+In the simplest case, <i>function</i> may return a Lisp object.
+This object is taken to be that whose printed representation
+was the macro character and any following characters read
+by the <i>function</i>.
+As an example, a plausible definition of the standard single quote
+character is:
+<P><pre>
+(defun single-quote-reader (stream char) 
+  (declare (ignore char)) 
+  (list 'quote (read stream t nil t))) 
+
+(set-macro-character #\' #'single-quote-reader)
+</pre><P>
+(Note that <tt>t</tt> is specified for the <i>recursive-p</i> argument
+to <tt>read</tt>; see section <A HREF="node195.html#CHARACTERINPUTSECTION">22.2.1</A>.)
+The function reads an object following the single-quote and returns
+a list of the symbol <tt>quote</tt> and that object.
+The <i>char</i> argument is ignored.
+<P>
+
+<P>
+The function may choose instead to return <i>zero</i> values
+(for example, by using <tt>(values)</tt> as the return expression).
+In this case, the macro character and whatever it may have read
+contribute nothing to the object being read.
+As an example, here is a plausible definition for the standard semicolon
+(comment) character:
+<P><pre>
+(defun semicolon-reader (stream char) 
+  (declare (ignore char)) 
+  ;; First swallow the rest of the current input line. 
+  ;; End-of-file is acceptable for terminating the comment. 
+  (do () ((char= (read-char stream nil #\Newline t) #\Newline))) 
+  ;; Return zero values. 
+  (values)) 
+
+(set-macro-character #\; #'semicolon-reader)
+</pre><P>
+(Note that <tt>t</tt> is specified for the <i>recursive-p</i> argument
+to <tt>read-char</tt>; see section <A HREF="node195.html#CHARACTERINPUTSECTION">22.2.1</A>.)
+<P>
+The <i>function</i> should not have any side effects other than on the
+<i>stream</i>.
+Because of backtracking and restarting of the <tt>read</tt> operation,
+front ends (such as editors and
+rubout handlers) to the reader may cause
+<i>function</i> to be called repeatedly during the
+reading of a single expression in which the macro character only appears
+once.
+<P>
+<hr>
+<b>Compatibility note:</b> The ability to return either zero or one value
+is the closest Common Lisp macro characters come to the splicing macro
+characters of MacLisp or the <tt>splice</tt> macro characters of Interlisp.
+The Common Lisp definition does not allow the splicing of arbitrarily many
+values, but it does allow a macro-character function to decide
+after it is invoked whether or not to yield a value, an option not
+possible in MacLisp or Interlisp.
+<P>
+MacLisp has nothing equivalent to non-terminating macro characters.
+The Interlisp equivalents of terminating and non-terminating macro
+characters are macro characters with the <tt>ALWAYS</tt> or <tt>FIRST</tt> option,
+respectively.  Common Lisp has nothing equivalent to the Interlisp <tt>ALONE</tt>
+macro-character option.
+<hr>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+Here is an example of a more elaborate set of read-macro characters
+that I used in the implementation of the original
+simulator for Connection Machine Lisp
+[<A HREF="node368.html#CONNECTIONMACHINELISP">44</A>,<A HREF="node368.html#CMLISPIMPLEMENTATION">57</A>],
+a parallel dialect of Common Lisp.  This simulator was used to gain experience with
+the language before freezing its design for full-scale implementation on a
+Connection Machine computer system.  This example illustrates the typical manner
+in which a language designer can embed a new language within the syntactic and
+semantic framework of Lisp, saving the effort of designing an implementation
+from scratch.
+<P>
+Connection Machine Lisp introduces a new data type called a <i>xapping</i>,
+which is simply an unordered set of ordered pairs of Lisp objects.
+The first element of each pair is called the <i>index</i> and the second element
+the <i>value</i>.  We say that the xapping maps each index to its corresponding value.
+No two pairs of the same xapping may have the same (that is, <tt>eql</tt>) index.
+Xappings may be finite or infinite sets of pairs; only certain kinds
+of infinite xappings are required, and special representations are used for them.
+<P>
+A finite xapping is notated by writing the pairs between braces, separated by whitespace.
+A pair is notated by writing the index and the value, separated by a right arrow
+(or an exclamation point if the host Common Lisp has no right-arrow character).
+<P>
+<hr>
+<b>Remark:</b> The original language design used the right arrow; the exclamation point was
+chosen to replace it on ASCII-only terminals because it is one of
+the six characters <tt>[ ] { } ! ?</tt> reserved by Common Lisp to the user.
+<P>
+While preparing the TeX manuscript for this book I made a mistake
+in font selection and discovered that by an absolutely incredible coincidence
+the right arrow has the same numerical code (octal 41) within TeX fonts
+as the ASCII exclamation point.
+The result was that although the manuscript called for right arrows,
+exclamation points came out in the printed copy.  Imagine my astonishment!
+<hr>
+<P>
+Here is an example of a xapping that maps three symbols to strings:
+
+<P><pre>
+{moe-&gt;&quot;Oh, a wise guy, eh?&quot; larry-&gt;&quot;Hey, what's the idea?&quot; 
+  curly-&gt;&quot;Nyuk, nyuk, nyuk!&quot;}
+</pre><P>
+For convenience there are certain abbreviated notations.
+If the index and value for a pair are the same object <i>x</i>,
+then instead of having to write ``<i>x</i>-&gt;<i>x</i>''
+(or, worse yet, ``<tt>#43=<i>x</i>-&gt;#43#</tt>'')
+we may write simply <i>x</i> for the pair.
+If all pairs of a xapping are of this form, we call the xapping a <i>xet</i>.
+For example, the notation
+<P><pre>
+{baseball chess cricket curling bocce 43-man-squamish}
+</pre><P>
+is entirely equivalent in meaning to
+<P><pre>
+{baseball-&gt;baseball curling-&gt;curling cricket-&gt;cricket 
+ chess-&gt;chess bocce-&gt;bocce 43-man-squamish-&gt;43-man-squamish}
+</pre><P>
+namely a xet of symbols naming six sports.
+<P>
+Another useful abbreviation covers the situation where the <i>n</i> pairs of a finite
+xapping are integers, collectively covering a range from zero to <i>n</i>-1.
+This kind of xapping is called a <i>xector</i> and may be notated by writing
+the values between brackets in ascending order of their indices.
+Thus
+<P><pre>
+[tinker evers chance]
+</pre><P>
+is merely an abbreviation for
+<P><pre>
+{tinker-&gt;0 evers-&gt;1 chance-&gt;2}
+</pre><P>
+<P>
+There are two kinds of infinite xapping: constant and universal.
+A constant xapping <tt>{-&gt;<i>z</i>}</tt> maps every object to the same value <i>z</i>.
+The universal xapping <tt>{-&gt;}</tt> maps every object to itself and is therefore the xet
+of all Lisp objects, sometimes called simply the universe.
+Both kinds of infinite xet may be modified by explicitly writing exceptions.
+One kind of exception is simply a pair, which specifies the value for a particular index;
+the other kind of exception is simply <i>k</i>-&gt;indicating that the xapping does
+<i>not</i> have a pair with index <i>k</i> after all.  Thus the notation
+<P><pre>
+{sky-&gt;blue grass-&gt;green idea-&gt;glass-&gt;-&gt;red}
+</pre><P>
+indicates a xapping that maps <tt>sky</tt> to <tt>blue</tt>, <tt>grass</tt> to <tt>green</tt>,
+and every other object except <tt>idea</tt> and <tt>glass</tt> to <tt>red</tt>.
+Note well that the presence or absence of whitespace on either side
+of an arrow is crucial to the correct interpretation
+of the notation.
+<P>
+Here is the representation of a xapping as a structure:
+<P><pre>
+(defstruct 
+  (xapping (:print-function print-xapping) 
+           (:constructor xap 
+             (domain range &amp;optional 
+              (default ':unknown defaultp) 
+              (infinite (and defaultp :constant)) 
+              (exceptions '())))) 
+  domain 
+  range 
+  default 
+  (infinite nil :type (member nil :constant :universal) 
+  exceptions)
+</pre><P>
+The explicit pairs are represented as two parallel lists, one of indexes (<tt>domain</tt>)
+and one of values (<tt>range</tt>).  The <tt>default</tt> slot is the default value, relevant
+only if the <tt>infinite</tt> slot is <tt>:constant</tt>.
+The <tt>exceptions</tt> slot is a list of indices for which there are no values.
+(See the end of section <A HREF="node200.html#FORMATSECTION">22.3.3</A> for the definition of <tt>print-xapping</tt>.)
+<P>
+Here, then, is the code for reading xectors in bracket notation:
+<P><pre>
+(defun open-bracket-macro-char (stream macro-char) 
+  (declare (ignore macro-char)) 
+  (let ((range (read-delimited-list #\] stream t))) 
+    (xap (iota-list (length range)) range))) 
+
+(set-macro-character #\[ #'open-bracket-macro-char) 
+(set-macro-character #\] (get-macro-character #\) )) 
+
+(defun iota-list (n)     ;Return list of integers from <b>0</b> to <b><i>n</i>-1</b>
+  (do ((j (- n 1) (- j 1)) 
+       (z '() (cons j z))) 
+      ((&lt; j 0) z)))
+</pre><P>
+The code for reading xappings in the more general brace notation, with all the
+possibilities for xets (or individual xet pairs), infinite xappings, and exceptions,
+is a bit more complicated; it is shown in table <A HREF="node192.html#XAPPINGMACROCHARTABLE">22-5</A>.
+That code is used in conjunction with the initializations
+<P><pre>
+(set-macro-character #\{ #'open-brace-macro-char) 
+(set-macro-character #\} (get-macro-character #\) ))
+</pre><P>
+<P>
+<pre>
+<A NAME=XAPPINGMACROCHARTABLE>&#160;</A>
+----------------------------------------------------------------
+Table 22-5: Macro Character Definition for Xapping Syntax
+
+(defun open-brace-macro-char (s macro-char) 
+  (declare (ignore macro-char)) 
+  (do ((ch (peek-char t s t nil t) (peek-char t s t nil t)) 
+       (domain '())  (range '())  (exceptions '())) 
+      ((char= ch #\}) 
+       (read-char s t nil t) 
+       (construct-xapping (reverse domain) (reverse range))) 
+    (cond ((char= ch #\->) 
+           (read-char s t nil t) 
+           (let ((nextch (peek-char nil s t nil t))) 
+             (cond ((char= nextch #\}) 
+                    (read-char s t nil t) 
+                    (return (xap (reverse domain) 
+                                 (reverse range) 
+                                 nil :universal exceptions))) 
+                   (t (let ((item (read s t nil t))) 
+                        (cond ((char= (peek-char t s t nil t) #\}) 
+                               (read-char s t nil t) 
+                               (return (xap (reverse domain) 
+                                            (reverse range) 
+                                            item :constant 
+                                            exceptions))) 
+                              (t (reader-error s 
+                                   "Default -> item must be last")))))))) 
+          (t (let ((item (read-preserving-whitespace s t nil t)) 
+                   (nextch (peek-char nil s t nil t))) 
+               (cond ((char= nextch #\->) 
+                      (read-char s t nil t) 
+                      (cond ((member (peek-char nil s t nil t) 
+                                     '(#\Space #\Tab #\Newline)) 
+                             (push item exceptions)) 
+                            (t (push item domain) 
+                               (push (read s t nil t) range)))) 
+                     ((char= nch #\}) 
+                      (read-char s t nil t) 
+                      (push item domain) 
+                      (push item range) 
+                      (return (xap (reverse domain) (reverse range)))) 
+                     (t (push item domain) 
+                        (push item range))))))))
+
+----------------------------------------------------------------
+</pre>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+
+<P>
+<BR><b>[Function]</b><BR>
+<pre>
+<tt>make-dispatch-macro-character <i>char</i> 
+      &amp;optional <i>non-terminating-p</i> <i>readtable</i></tt>
+</pre>This causes the character <i>char</i> to be a dispatching macro character
+in <i>readtable</i> (which defaults to the current readtable).
+If <i>non-terminating-p</i> is not <tt>nil</tt> (it defaults to <tt>nil</tt>),
+then it will be a non-terminating macro character: it may be embedded
+within extended tokens.
+<tt>make-dispatch-macro-character</tt> returns <tt>t</tt>.
+<P>
+Initially every character in the dispatch table has a character-macro
+function that signals an error.  Use <tt>set-dispatch-macro-character</tt>
+to define entries in the dispatch table.
+<p>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(ARGUMENTS-UNDERSPECIFIED) <A NAME=21965>&#160;</A> 
+to clarify that <i>char</i> must be a character.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<pre>
+<tt>set-dispatch-macro-character <i>disp-char</i> <i>sub-char</i> <i>function</i> 
+    &amp;optional <i>readtable</i> 
+</tt><tt>get-dispatch-macro-character <i>disp-char</i> <i>sub-char</i> 
+    &amp;optional <i>readtable</i></tt>
+</pre>
+<P><tt>set-dispatch-macro-character</tt>
+causes <i>function</i> to be called when the <i>disp-char</i>
+followed by <i>sub-char</i> is read.  The <i>readtable</i> defaults to the
+current readtable.  The arguments and return values for <i>function</i> are
+the same as for normal macro characters
+except that <i>function</i> gets <i>sub-char</i>, not <i>disp-char</i>,
+as its second argument and also receives a third
+argument that is the non-negative integer whose decimal
+representation appeared between
+<i>disp-char</i> and <i>sub-char</i>, or <tt>nil</tt> if no decimal integer appeared
+there.
+<P>
+The <i>sub-char</i> may not be one of the ten decimal digits;
+they are always reserved for specifying an infix integer argument.
+Moreover, if <i>sub-char</i> is a lowercase character
+(see <tt>lower-case-p</tt>), its uppercase equivalent is used instead.
+(This is how the rule is enforced that the case of a dispatch sub-character
+doesn't matter.)
+<P>
+<tt>set-dispatch-macro-character</tt> returns <tt>t</tt>.
+<P>
+<tt>get-dispatch-macro-character</tt> returns the macro-character function
+for <i>sub-char</i> under <i>disp-char</i>, or <tt>nil</tt> if there is no
+function associated with <i>sub-char</i>.
+<P>
+If the <i>sub-char</i> is one of the ten decimal digits <tt>0 1 2 3 4 5 6 7 8 9</tt>,
+<tt>get-dispatch-macro-character</tt> always returns <tt>nil</tt>.
+If <i>sub-char</i> is a lowercase character,
+its uppercase equivalent is used instead.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(GET-MACRO-CHARACTER-READTABLE) <A NAME=21998>&#160;</A> 
+to specify that if <tt>nil</tt> is explicitly passed as the
+second argument to <tt>get-dispatch-macro-character</tt>, then the standard readtable is used.
+This is consistent with the behavior of <tt>copy-readtable</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+For either function,
+an error is signaled if the specified <i>disp-char</i> is not in fact
+a dispatch character in the specified readtable.  It is necessary
+to use <tt>make-dispatch-macro-character</tt> to set up the
+dispatch character before specifying its sub-characters.
+<P>
+As an example, suppose one would like <tt>#$<i>foo</i></tt> to be read
+as if it were <tt>(dollars <i>foo</i>)</tt>.  One might say:
+<P><pre>
+(defun |#$-reader| (stream subchar arg) 
+  (declare (ignore subchar arg)) 
+  (list 'dollars (read stream t nil t))) 
+
+(set-dispatch-macro-character #\# #\$ #'|#$-reader|)
+</pre><P>
+<P>
+<hr>
+<b>Compatibility note:</b> This macro-character mechanism is different from
+those in MacLisp, Interlisp, and Lisp Machine Lisp.  Recently Lisp systems have
+implemented very general readers, even readers so programmable that they
+can parse arbitrary compiled BNF grammars.  Unfortunately, these
+readers can be complicated to use.  This design is an attempt to make the
+reader as simple as possible to understand, use, and implement.
+Splicing macros have been eliminated; a recent informal poll indicates
+that no one uses them to produce other than zero or one value.  The
+ability to access parts of the object preceding the macro character has
+been eliminated.  The MacLisp single-character-object feature has been
+eliminated because it is seldom used and trivially obtainable by
+defining a macro.
+<P>
+The user is encouraged to turn off most macro characters, turn
+others into single-character-object macros, and then use <tt>read</tt>
+purely as a lexical analyzer on top of which to build a parser.
+It is unnecessary, however, to cater to more complex lexical analysis
+or parsing than that needed for Common Lisp.
+<hr>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<BR><b>[Function]</b><BR>
+<tt>readtable-case <i>readtable</i></tt><P>X3J13 voted in June 1989 (READ-CASE-SENSITIVITY) <A NAME=22018>&#160;</A> 
+to introduce the function <tt>readtable-case</tt> to
+control the reader's interpretation of case.
+It provides access to a slot in a readtable, and may be used with <tt>setf</tt>
+to alter the state of that slot.
+The possible values for the slot are <tt>:upcase</tt>, <tt>:downcase</tt>,
+<tt>:preserve</tt>, and <tt>:invert</tt>; the <tt>readtable-case</tt> for the standard readtable
+is <tt>:upcase</tt>.
+Note that <tt>copy-readtable</tt> is required to copy the <tt>readtable-case</tt> slot
+along with all other readtable information.
+<P>
+Once the reader has accumulated a token as described in section <A HREF="node188.html#READER">22.1.1</A>,
+if the token is a symbol, ``replaceable'' characters (unescaped uppercase or
+lowercase constituent characters)
+may be modified under the control of the <tt>readtable-case</tt> of the current readtable:
+<UL><LI> For <tt>:upcase</tt>, replaceable characters are converted to uppercase.
+(This was the behavior specified by the first edition.)
+<P>
+<LI> For <tt>:downcase</tt>, replaceable characters are converted to lowercase.
+<P>
+<LI> For <tt>:preserve</tt>, the cases of all characters remain unchanged.
+<P>
+<LI> For <tt>:invert</tt>, if all of the replaceable letters
+in the extended token are of the same case, they are all converted to the opposite case;
+otherwise the cases of all characters in that token remain unchanged.
+</UL>
+As an illustration, consider the following code.
+<P><pre>
+(let ((*readtable* (copy-readtable nil))) 
+  (format t &quot;READTABLE-CASE  Input   Symbol-name~ 
+           ~%-----------------------------------~ 
+           ~%&quot;) 
+  (dolist (readtable-case '(:upcase :downcase :preserve :invert)) 
+    (setf (readtable-case *readtable*) readtable-case) 
+    (dolist (input '(&quot;ZEBRA&quot; &quot;Zebra&quot; &quot;zebra&quot;)) 
+      (format t &quot;:~A~16T~A~24T~A~%&quot; 
+                (string-upcase readtable-case) 
+                input 
+                (symbol-name (read-from-string input)))))))
+</pre><P>
+The output from this test code should be
+<P><pre>
+READTABLE-CASE  Input   Symbol-name 
+------------ 
+:UPCASE         ZEBRA   ZEBRA 
+:UPCASE         Zebra   ZEBRA 
+:UPCASE         zebra   ZEBRA 
+:DOWNCASE       ZEBRA   zebra 
+:DOWNCASE       Zebra   zebra 
+:DOWNCASE       zebra   zebra 
+:PRESERVE       ZEBRA   ZEBRA 
+:PRESERVE       Zebra   Zebra 
+:PRESERVE       zebra   zebra 
+:INVERT         ZEBRA   zebra 
+:INVERT         Zebra   Zebra 
+:INVERT         zebra   ZEBRA
+</pre><P>
+<P>
+The <tt>readtable-case</tt> of the current readtable also affects the printing
+of symbols (see <tt>*print-case*</tt> and <tt>*print-escape*</tt>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html3939 HREF="node193.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3937 HREF="node187.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3931 HREF="node191.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3941 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3942 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3940 HREF="node193.html"> What the Print </A>
+<B>Up:</B> <A NAME=tex2html3938 HREF="node187.html"> Printed Representation of </A>
+<B> Previous:</B> <A NAME=tex2html3932 HREF="node191.html"> Standard Dispatching Macro </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

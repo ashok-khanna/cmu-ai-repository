@@ -1,0 +1,235 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node245.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:46:35 GMT -->
+<HEAD>
+<TITLE>26.7. End-Test Control</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" End-Test Control">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4628 HREF="node246.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4626 HREF="node235.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4620 HREF="node244.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4630 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4631 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4629 HREF="node246.html"> Value Accumulation</A>
+<B>Up:</B> <A NAME=tex2html4627 HREF="node235.html"> Loop</A>
+<B> Previous:</B> <A NAME=tex2html4621 HREF="node244.html"> Iteration Control</A>
+<HR> <P>
+<H1><A NAME=SECTION003070000000000000000>26.7. End-Test Control</A></H1>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<A NAME=LOOPTESTSECTION>The</A>
+loop keywords <tt>always</tt>, <tt>never</tt>, <tt>thereis</tt>,
+<tt>until</tt>, and <tt>while</tt> designate constructs that use a single test 
+condition to determine when loop iteration should terminate.
+<P>
+The constructs <tt>always</tt>, <tt>never</tt>, and <tt>thereis</tt> provide
+specific values to be returned when a loop terminates.  
+Using <tt>always</tt>, <tt>never</tt>, or <tt>thereis</tt> with 
+value-returning accumulation clauses can produce unpredictable results.
+In all other respects these
+constructs behave like the <tt>while</tt> and <tt>until</tt> constructs.
+<P>
+The macro <tt>loop-finish</tt> can be used at any time to cause normal
+termination.  In normal termination, <tt>finally</tt> clauses are 
+executed and default return values are returned.
+<P>
+End-test control constructs can be used anywhere within the loop
+body.  The termination conditions are tested in the order in which
+they appear.
+<P>
+<BR><b>[Loop Clause]</b><BR>
+<tt>while</tt> <em>expr</em> <tt><BR></tt><tt>until</tt> <em>expr</em><P>The <tt>while</tt> construct allows iteration to continue until the specified
+expression <i>expr</i> evaluates to <tt>nil</tt>.  The expression
+is re-evaluated at the location of the <tt>while</tt> clause.
+<P>
+The <tt>until</tt> construct is equivalent to 
+<tt>while</tt> (<tt>not</tt> <i>expr</i>).  If the value of the
+specified expression is non-<tt>nil</tt>, iteration terminates.
+<P>
+You can use <tt>while</tt> and <tt>until</tt> 
+at any point in a loop.  If a <tt>while</tt> or <tt>until</tt> clause causes
+termination, any clauses that precede it in the source
+are still evaluated.
+<P>
+Examples:
+<P><pre>
+;;; A classic &quot;while-loop&quot;. 
+(loop while (hungry-p) do (eat)) 
+
+;;; UNTIL NOT is equivalent to WHILE. 
+(loop until (not (hungry-p)) do (eat)) 
+
+;;; Collect the length and the items of STACK. 
+(let ((stack '(a b c d e f))) 
+  (loop while stack 
+        for item = (length stack) then (pop stack) 
+        collect item)) 
+   => (6 A B C D E F) 
+
+;;; Use WHILE to terminate a loop that otherwise wouldn't 
+;;; terminate.  Note that WHILE occurs after the WHEN. 
+(loop for i fixnum from 3 
+      when (oddp i) collect i 
+      while (&lt; i 5)) 
+   => (3 5)
+</pre><P>
+<P>
+<BR><b>[Loop Clause]</b><BR>
+<tt>always</tt> <em>expr</em> <tt><BR></tt><tt>never</tt> <em>expr</em> <tt><BR></tt><tt>thereis</tt> <em>expr</em><P>The <tt>always</tt> construct takes one form and terminates the loop 
+  if the form ever evaluates to <tt>nil</tt>; in this case, it returns
+  <tt>nil</tt>.  Otherwise, it provides a default return value of <tt>t</tt>.
+<P>
+  The <tt>never</tt> construct takes one form and terminates the loop
+  if the form ever evaluates to non-<tt>nil</tt>; in this case, it returns
+  <tt>nil</tt>.  Otherwise, it provides a default return value of <tt>t</tt>.
+<P>
+  The <tt>thereis</tt> construct takes one form and terminates the loop
+  if the form ever evaluates to non-<tt>nil</tt>; in this case, it returns
+  that value.
+<P>
+If the <tt>while</tt> or <tt>until</tt> construct causes termination,
+control is passed to the loop epilogue, where any <tt>finally</tt>
+clauses will be executed.  Since <tt>always</tt>, <tt>never</tt>, and 
+<tt>thereis</tt> use the Common Lisp macro <tt>return</tt> to terminate
+iteration, any <tt>finally</tt> clause that is specified is not
+evaluated.
+<P>
+Examples:
+<P><pre>
+;;; Make sure I is always less than 11 (two ways). 
+;;; The FOR construct terminates these loops.
+</pre><P>
+<P><pre>
+(loop for i from 0 to 10 
+      always (&lt; i 11)) 
+   => T
+</pre><P>
+<P><pre>
+(loop for i from 0 to 10 
+      never (&gt; i 11)) 
+   => T
+</pre><P>
+<P><pre>
+;;; If I exceeds 10, return I; otherwise, return NIL. 
+;;; The THEREIS construct terminates this loop.
+</pre><P>
+<P><pre>
+(loop for i from 0 
+      thereis (when (&gt; i 10) i) ) 
+   => 11
+</pre><P>
+<P><pre>
+;;; The FINALLY clause is not evaluated in these examples.
+</pre><P>
+<P><pre>
+(loop for i from 0 to 10 
+      always (&lt; i 9) 
+      finally (print &quot;you won't see this&quot;)) 
+   => NIL
+</pre><P>
+<P><pre>
+(loop never t 
+      finally (print &quot;you won't see this&quot;)) 
+   => NIL
+</pre><P>
+<P><pre>
+(loop thereis &quot;Here is my value&quot; 
+      finally (print &quot;you won't see this&quot;)) 
+   => &quot;Here is my value&quot;
+</pre><P>
+<P><pre>
+;;; The FOR construct terminates this loop, 
+;;; so the FINALLY clause is evaluated.
+</pre><P>
+<P><pre>
+(loop for i from 1 to 10 
+      thereis (&gt; i 11) 
+      finally (print i)) `;Prints 1 line
+11 
+   => NIL
+</pre><P>
+<P><pre>
+(defstruct mountain height difficulty (why &quot;because it is there&quot;)) 
+(setq everest (make-mountain :height '(2.86e-13 parsecs))) 
+(setq chocorua (make-mountain :height '(1059180001 microns))) 
+(defstruct desert area (humidity 0)) 
+(setq sahara (make-desert :area '(212480000 square furlongs))) 
+`;First there is a mountain, then there is no mountain, then there is <b>...</b> 
+(loop for x in (list everest sahara chocorua) `; -GLS 
+      thereis (and (mountain-p x) (mountain-height x))) 
+   => (2.86E-13 PARSECS) 
+
+;;; If you could use this code to find a counterexample to 
+;;; Fermat's last theorem, it would still not return the value 
+;;; of the counterexample because all of the THEREIS clauses 
+;;; in this example return only T.   Of course, this code has 
+;;; never been observed to terminate. 
+ 
+(loop for z upfrom 2 
+      thereis 
+        (loop for n upfrom 3 below (log z 2) 
+              thereis 
+                (loop for x below z 
+                      thereis 
+                        (loop for y below z 
+                              thereis (= (+ (expt x n) 
+                                            (expt y n)) 
+                                         (expt z n))))))
+</pre><P>
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>loop-finish</tt><P>The macro <tt>loop-finish</tt> terminates iteration normally
+and returns any accumulated result.  If specified, a <tt>finally</tt> clause
+is evaluated.
+<P>
+In most cases it is not necessary to use <tt>loop-finish</tt>
+because other loop control clauses terminate the loop.  
+Use <tt>loop-finish</tt> to provide a normal exit
+from a nested condition inside a loop.
+<P>
+You can use <tt>loop-finish</tt>
+inside nested Lisp code to provide a normal exit from a loop.
+Since <tt>loop-finish</tt> transfers control to the loop epilogue,
+using <tt>loop-finish</tt> within a <tt>finally</tt> expression can cause
+infinite looping.
+<P>
+  Implementations are allowed to provide this construct as a local macro
+  by using <tt>macrolet</tt>.
+<P>
+Examples:
+<P><pre>
+;;; Print a date in February, but exclude leap day. 
+;;; LOOP-FINISH exits from the nested condition. 
+(loop for date in date-list 
+      do (case date 
+           (29 (when (eq month 'february) 
+                     (loop-finish)) 
+             (format t &quot;~:@(~A~) ~A&quot; month date)))) 
+
+;;; Terminate the loop, but return the accumulated count. 
+(loop for i in '(1 2 3 stop-here 4 5 6) 
+      when (symbolp i) do (loop-finish) 
+      count i) 
+   => 3 
+
+;;; This loop works just as well as the previous example. 
+(loop for i in '(1 2 3 stop-here 4 5 6) 
+      until (symbolp i) 
+      count i) 
+   => 3
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html4628 HREF="node246.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4626 HREF="node235.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4620 HREF="node244.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4630 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4631 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4629 HREF="node246.html"> Value Accumulation</A>
+<B>Up:</B> <A NAME=tex2html4627 HREF="node235.html"> Loop</A>
+<B> Previous:</B> <A NAME=tex2html4621 HREF="node244.html"> Iteration Control</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

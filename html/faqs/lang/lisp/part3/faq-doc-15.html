@@ -1,0 +1,40 @@
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/faqs/lang/lisp/part3/faq-doc-15.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 05:31:21 GMT -->
+<HEAD>
+<TITLE>FAQ: Lisp Frequently Asked Questions 3/7 [Monthly posting] - [3-14] When producing formatted output in Lisp, where should you  put the newlines (e.g., before or after the line, FRESH-LINE vs TERPRI, ~& vs ~% in FORMAT)?</TITLE>
+</HEAD>
+<BODY>
+<H1>[3-14] When producing formatted output in Lisp, where should you  put the newlines (e.g., before or after the line, FRESH-LINE vs TERPRI, ~& vs ~% in FORMAT)?</H1>
+<PRE>
+Where possible, it is desirable to write functions that produce output
+as building blocks. In contrast with other languages, which either
+conservatively force a newline at various times or require the program
+to keep track of whether it needs to force a newline, the Lisp I/O
+system keeps track of whether the most recently printed character was
+a newline or not. The function FRESH-LINE outputs a newline only if
+the stream is not already at the beginning of a line.  TERPRI forces a
+newline irrespective of the current state of the stream. These
+correspond to the ~&#38; and ~% FORMAT directives, respectively. (If the
+Lisp I/O system can't determine whether it's physically at the
+beginning of a line, it assumes that a newline is needed, just in case.)
+
+Thus, if you want formatted output to be on a line of its own, start
+it with ~&#38; and end it with ~%. (Some people will use a ~&#38; also at the
+end, but this isn't necessary, since we know a priori that we're not
+at the beginning of a line. The only exception is when ~&#38; follows a
+~A, to prevent a double newline when the argument to the ~A is a
+formatted string with a newline at the end.) For example, the
+following routine prints the elements of a list, N elements per line,
+and then prints the total number of elements on a new line:
+
+   (defun print-list (list &#38;optional (elements-per-line 10))
+     (fresh-line)
+     (loop for i upfrom 1
+           for element in list do
+       (format t "~A ~:[~;~%~]" element (zerop (mod i elements-per-line))))
+     (format t "~&#38;~D~%" (length list)))
+</PRE>
+<A NAME=up HREF="faq.html">Go Back Up</A><P>
+<A NAME=up HREF="faq-doc-14.html">Go To Previous</A><P>
+<A NAME=up HREF="faq-doc-16.html">Go To Next</A><P>
+</BODY>

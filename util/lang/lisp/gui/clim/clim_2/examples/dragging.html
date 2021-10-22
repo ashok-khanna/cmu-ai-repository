@@ -1,0 +1,98 @@
+;;; -*- Mode: LISP; Syntax: ANSI-Common-Lisp; Package: CLIM-USER; Base: 10; Lowercase: Yes -*-
+
+#|
+Date: Wed, 18 Aug 1993 11:41 -0400
+From: Scott McKay <SWM@stony-brook.scrc.symbolics.com>
+Subject: dragging-output
+To: jga@harlequin.com, paolucci+@pitt.edu
+Cc: clim@bbn.com
+In-Reply-To: <13632.199308172116@sonata.harlequin.com>
+Message-Id: <19930818154138.0.SWM@SUMMER.SCRC.Symbolics.COM>
+
+    Date: Tue, 17 Aug 1993 17:16 EDT
+    From: John Aspinall <jga@harlequin.com>
+
+       Date: Wed, 28 Jul 1993 17:06:57 -0400 (EDT)
+       From: Massimo Paolucci <paolucci+@pitt.edu>
+
+       is it possible to have an example of use of the functions
+       dragging-output and dragging-output-record?
+
+    I didn't see any public replies to this query, although you may have
+    received some private ones.  In case you (or anyone else) is still
+    looking for something, here's a toy app illustrating the classical use
+    of dragging-output-record to move something around the screen.
+
+    For CLIM 1.1 - tested on Symbolics Genera 8.1, and Harlequin Lispworks 3.1.
+
+And here it is for CLIM 2.0...
+
+-------- cut here --------
+|#
+
+(defclass movable-object () ())
+
+(define-presentation-type movable-object ())
+
+(define-application-frame funbox ()
+    ((points :initform nil))
+  (:panes
+    (title :title :display-string "Funbox")
+    (display :application
+	     :display-function 'do-the-display
+	     :display-after-commands nil)
+    (interactor :interactor)
+    (menu :command-menu))
+  (:menu-bar nil)
+  (:layouts
+    (only
+      (vertically ()
+	title
+	(:fill display)
+	(1/5 (horizontally ()
+	       (3/4 interactor)
+	       (:fill menu)))))))
+
+(defmethod do-the-display ((frame funbox) pane)
+  (with-output-as-presentation (pane 'xyzzy 'movable-object)
+    (draw-rectangle* pane 100 100 140 200
+		     :ink (find-named-color "light-gray" (frame-palette frame))))
+  (with-output-as-presentation (pane 'gnorph 'movable-object)
+    (draw-triangle* pane 100 100 90 150 170 140 
+		    :ink (find-named-color "gray" (frame-palette frame)))))
+
+(define-funbox-command (com-exit-funbox :menu "Exit") ()
+  (frame-exit *application-frame*))
+
+(define-funbox-command (com-redraw-funbox :menu "Redraw") ()
+  (let* ((frame *application-frame*)
+	 (pane (get-frame-pane frame 'display)))
+    (window-clear pane)
+    (do-the-display *application-frame* pane)))
+
+(define-presentation-action move-the-shape
+    (movable-object nil funbox :gesture :select)
+    (presentation window)
+  (drag-output-record window presentation
+		      :finish-on-release t))
+
+;;; Now make a drawer that simplifies the object as it moves it
+(define-presentation-action move-the-shape-with-outline
+    (movable-object nil funbox :gesture :describe)
+    (presentation window)
+  (flet ((drawer (record stream init-x init-y x y alu)
+	   (declare (ignore alu init-x init-y x y))
+	   (with-bounding-rectangle* (lef top rit bot) record
+	     (draw-rectangle* stream lef top rit bot
+			      :filled nil :ink +flipping-ink+))))
+    (drag-output-record window presentation
+			:finish-on-release t :feedback #'drawer)))
+
+#|
+()
+(setq fb (make-application-frame 'funbox
+                                 :left 100 :right 500
+                                 :top 100 :bottom 500))
+(run-frame-top-level fb)
+|#
+

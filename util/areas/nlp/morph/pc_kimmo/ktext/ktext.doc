@@ -1,0 +1,2014 @@
+                         KTEXT User's Guide
+
+               Evan L. Antworth and Stephen R. McConnel
+                   Summer Institute of Linguistics
+                           evan@sil.org
+                          steve@sil.org
+
+                         November 19, 1991
+                         updated 18-Feb-92
+                         KTEXT version 1.0.3
+
+1  Overview of KTEXT
+   1.1  What does KTEXT do?
+   1.2  Placing KTEXT in its context
+   1.3  Technical specifications
+   1.4  Program status
+2  Example of using KTEXT to process a text
+3  Running KTEXT
+4  KTEXT's functional structure
+5  The text data file
+6  The main control file
+7  The TXTIN control file
+   7.1  Text orthography changes
+   7.2  Words or format markers?
+   7.3  Selecting fields
+   7.4  Special output characters
+   7.5  Controlling capitalization
+   7.6  A sample text input control file
+8  The output data file
+9  CED: an editor for failures and ambiguities
+   9.1  Overview of CED
+   9.2  Starting the CED editor
+   9.3  Editing for text glossing
+   9.4  The editing process
+   9.5  Command summary
+Notes
+References
+
+
+1  Overview of KTEXT
+
+This section briefly describes what KTEXT does, places KTEXT in its
+computational context, lists technical specifications of the program,
+and gives information on use and support of the program.
+
+1.1  What does KTEXT do?
+
+KTEXT is a text processing program that uses the PC-KIMMO parser (see
+below about PC-KIMMO). KTEXT reads a text from a disk file, parses
+each word, and writes the results to a new disk file. This new file is
+in the form of a structured text file where each word of the original
+text is represented as a database record composed of several fields.
+Each word record contains a field for the original word, a field for
+the underlying or lexical form of the word, and a field for the gloss
+string. For example, if the text in the input file contains the word
+hoping (to use an English example), KTEXT's output file will have a
+record of this format:
+
+\a  V(hope)+PROG
+\d  hope+ing
+\w  hoping
+
+This record consists of three fields, each tagged with a backslash
+code.[1] The first field, tagged with \a for analysis, contains the
+gloss string for the word. The second field, tagged with \d for
+(morpheme) decomposition, contains the underlying or lexical form of
+the word. And the third field, tagged with \w for word, contains the
+original word. The word spies demonstrates how KTEXT handles multiple
+parses:
+
+\a  %2%N(spy)+PLURAL%V(spy)+3SG%
+\d  %2%spy+s%spy+s%
+\w  spies
+
+Percent signs (or some other designated character) separate the
+multiple results in the \a and \d fields, with a number indicating how
+many results were found.
+
+A word record also saves any capitalization or punctuation associated
+with the original word. For example, if a sentence begins "Obviously,
+this hypothesis.", KTEXT will output the first word like this:
+
+\a  ADJ(obvious)+ADVR
+\d  obvious+ly
+\w  obviously
+\c  1
+\n  ,
+
+The \w field contains the original word without capitalization or the
+following comma. The \c field contains the number 1 which indicates
+that the first letter of the original word is upper case. The \n field
+contains the comma that follows the original word. The purpose of
+retaining the capitalization and punctuation of the original text is,
+of course, to enable one to recover the original text from KTEXT's
+output file.
+
+The output of KTEXT is not intended to be an end in itself. While
+there may be some usefulness in directly examining the data structures
+produced by KTEXT, the intention is to use KTEXT's output as the basis
+of further data processing. A number of applications could use the
+kind of morphologically parsed text that KTEXT produces, including
+syntactic parsers, concordance programs, and machine translation
+programs.
+
+1.2  Placing KTEXT in its context
+
+KTEXT can only be understood by describing two other programs:
+PC-KIMMO and AMPLE. First, we will take a look at PC-KIMMO. KTEXT is
+intended to be used with PC-KIMMO (though it is a stand-alone
+program). PC-KIMMO is a program for doing computational phonology and
+morphology. It is typically used to build morphological parsers for
+natural language processing systems. PC-KIMMO is described in the book
+"PC-KIMMO: a two-level processor for morphological analysis" by Evan
+L. Antworth, published by the Summer Institute of Linguistics (1990).
+The PC- KIMMO software is available for MS-DOS (IBM PCs and
+compatibles), Macintosh, and UNIX. The book (including software) is
+available for $23.00 (plus postage) from:
+
+    International Academic Bookstore
+    7500 W. Camp Wisdom Road
+    Dallas TX, 75236
+    U.S.A.
+
+    phone  214/709-2404
+    fax    214/709-2433
+
+The KTEXT program which this document describes will be of very little
+use to you without the PC-KIMMO program and book. The remainder of
+this document assumes that you are familiar with PC-KIMMO. 
+
+PC-KIMMO was deliberately designed to be reuseable. The core of 
+PC-KIMMO is a library of functions such as load rules, load lexicon, 
+generate, and recognize. The PC-KIMMO program supplies on the release 
+diskette is just a user shell built around these basic functions. This 
+shell provides an environment for developing and testing sets of rules 
+and lexicons. Since the shell is a development environment, it has very
+little built-in data processing capability. But because PC-KIMMO is
+modular and portable, you can write your own data processing program
+that uses PC-KIMMO's function library. KTEXT is an example of how to
+use PC- KIMMO to create a new natural language processing program.
+KTEXT is a text processing program that uses PC-KIMMO to do
+morphological parsing.
+
+KTEXT is also closely related to a program called AMPLE (Weber et al.
+1988), which is also a morphological parser designed to process text.
+KTEXT was created by replacing AMPLE's parsing engine with the
+PC-KIMMO parser. Thus KTEXT has the same text-handling mechanisms as
+AMPLE and produces output similar or even identical to AMPLE. The
+advantages of this design are (1) we were able to develop KTEXT very
+quickly and easily since it involved very little new code, and (2)
+existing programs that use AMPLE's output format can also use KTEXT's
+output. The disadvantage of basing KTEXT on AMPLE is that the format
+of the output file is perhaps not consistent with terminology already
+established for PC-KIMMO.
+
+1.3  Technical specifications
+
+KTEXT runs under three operating systems: 
+
+    MS-DOS (IBM PC compatibles),
+    UNIX System V (SCO UNIX V/386 and A/UX) and 4.2 BSD UNIX, and
+    Apple Macintosh. 
+
+KTEXT does not require any graphics capability. It handles eight- bit
+characters (such as the IBM extended character set). It requires a
+minimal amount of memory (at least 256KB on an IBM PC compatible), but
+more memory is needed to load large lexicons. The Macintosh version
+has the same user interface as the DOS and UNIX versions, namely a
+batch-processing, command-line interface. In other words, it does not
+use the Macintosh mouse, menus, and windows interface.
+
+As of version 1.0.3, there is also a version of KTEXT for PC's
+running a 386 CPU. This version will use all available extended
+or expanded memory. It supports VCPI-compliant memory managers
+such as MS-DOS 5.0's EMM386 and Quarterdeck's QEMM386. It does
+not support Microsoft Windows. In this software release, the
+non-386 version is named KTEXT.EXE and the 386 version is named
+KTEXT386.EXE. The 386 version of KTEXT is especially intended for
+use with Englex, a large English lexicon that exceeds the limits
+of the 640K version of KTEXT. Englex should be available from the
+same source as KTEXT.
+
+The program is written entirely in C and is very portable. The
+Macintosh version was compiled with the Lightspeed Think C compiler.
+
+1.4  Program status
+
+KTEXT was developed by Stephen McConnel and Evan Antworth of the Summer
+Institute of Linguistics. KTEXT version 1.0 is an initial release 
+version. Its features are subject to change. Several qualifications apply 
+to its use and support:
+
+(1)  This software, source code and executable program, is copyrighted
+by the Summer Institute of Linguistics. You may use this software at
+no cost for whatever purpose you see fit. You are granted the right to
+distribute this software to others, provided that all files are
+included in unmodified form and that you charge no fee (except cost of
+media). This software is intended for academic use only, and may not
+be distributed or used for commercial profit without express
+permission of the Summer Institute of Linguistics.
+
+(2)  This software represents work in progress and bears no warranty,
+either expressed or implied, of its fitness for any particular
+purpose.
+
+(3)  In releasing this software , the Summer Institute of Linguistics
+is making no commitment to maintain it. It is, however, committed to
+forwarding user feedback to the software's authors who may or may not
+choose to develop the software further.
+
+Bug reports, wish lists, requests for support, and positive feedback
+should be directed to Evan Antworth at this address:
+
+    Evan Antworth
+    Academic Computing Department
+    Summer Institute of Linguistics
+    7500 W. Camp Wisdom Road
+    Dallas, TX  75236
+
+    phone: 214/709-2418
+    e-mail: evan@sil.org
+
+2  Example of using KTEXT to process a text
+
+Typically, the steps involved in using KTEXT are:
+
+(1)  Collect a corpus of language data suitable for phonological and
+morphological analysis (typically paradigms of words).
+
+(2)  Do phonological and morphological analysis on the data.
+
+(3)  Use the PC-KIMMO shell to develop a rules file and a lexicon file
+that encode your phonological and morphological analyses and to test
+them against your corpus of data.
+
+(4)  Select a text and keyboard it.
+
+(5)  Set up the control files required by KTEXT.
+
+(6)  Using the rules and lexicon you developed, process the text with
+KTEXT.
+
+(7)  Edit KTEXT's output file to remove multiple parses.
+
+(8)  Use the edited file as input to some other program.
+
+To demonstrate how to use KTEXT to process a text, we will use a
+folktale text taken from Leonard Bloomfield's (1917) collection of
+Tagalog[2] texts. The first step in the project was to analyze the
+phonology and morphology of Tagalog and develop the rules and lexicon
+files for PC-KIMMO. The phonology and morphology of Tagalog are rather
+complex. Verbs in particular exhibit a considerable amount of both
+derivational and inflectional morphology. One of the more exotic
+features of Tagalog morphology is its pervasive use of infixes and
+reduplication. For example, the root l†kad is made into a verb by
+placing the infix um after the first consonant of the root to produce
+lum†kad. The durative aspect of this verb is signaled by reduplicating
+the first consonant and vowel of the root to produce l†l†kad. The two
+processes can be combined to produce lum†l†kad. In addition to this
+morphological complexity, at least a dozen rules are required to
+account for various morphophonemic processes, including coalescence,
+stress shift, and syncope. For example, the underlying form bilç+in is
+realized as the surface form bilhçn. In the two-level model, these
+forms are related like this:
+
+UF:  b i l ç 0 + i n
+SF:  b i l 0 h 0 ç n
+
+Rules are required to account for the syncopation of ç, the insertion
+of h, and the shift of stress from the last syllable of the root to
+the suffix.
+
+After the rules and lexicon had been written and tested using
+PC-KIMMO, the next step was to keyboard the chosen text. The first
+paragraph of the text is shown in figure 1.
+
+                 Figure 1  Fragment of a Tagalog text
+
+\ti A§ ulïl na u§gï at a§ mar£no§ na pagï§.
+
+\p
+\s M°nsan a§ pagï§ h†ba§ nalçl°go sa °log, ay nakÖk°ta syÖ
+na§ isa_§ p£no_§-s†gi§ na lumól£ta§ at tin†ta§Öy na§ †gos.
+\s Hin°la niya sa pas°gan, d†tapwat hind° nya madalÖ sa l£paq.
+\s D†hil d°to tin†wag nya a§ kayb°gan niya_§ u§gïq at iniy†lay
+nyÖ a§ kap£tol na§ p£no_§-s†gi§ ku§ it†tanim nyÖ a§ kanyÖ_§
+kapartä.
+\s Tuma§ïq a§ u§gïq at hin†te nilÖ sa gitnÖq mul† sa magk†bila_§
+d£lo a§ p£no na§ s†gi§.
+\s Ina§kçn na§ u§gï a§ kap£tol na m†y ma§a d†hon, d†hil sa
+panuk†lÖ nya na iyïn ay tót£bo na mab£ti k†y sa kap£tol na wala_§
+d†hon.
+
+The text was keyboarded using a very simple system of document markup
+that tags parts of the document with backslash codes. The \ti tag
+indicates the title of the story, the \p tag indicates the beginning
+of a paragraph, and the \s tag indicates the beginning of a sentence.
+A few small adjustments to the original transcription were made. For
+instance, where Bloomfield wrote enclitics separate from the preceding
+word, they have been joined with the underline character: isa_ng.
+
+The next step was to process the keyboarded text with KTEXT. A
+fragment of the resulting output file is shown in figure 2.
+
+                      Figure 2  Output of KTEXT
+
+                      \a <DET S>
+                      \d a§
+                      \w \\ti
+                      \c 1
+
+                      \a <AJ foolish>
+                      \d ulïl
+                      \w ulïl
+
+                      \a %2%<PRT LKR>%<PRT ENC>%
+                      \d %2%na%nÖ%
+                      \w na
+
+                      \a <N1 monkey>
+                      \d u§gïq
+                      \w u§gï
+
+                      \a <CNJ and>
+                      \d at
+                      \w at
+
+                      \a <DET S>
+                      \d a§
+                      \w a§
+
+                      \a AJR <N2 wisdom>
+                      \d ma-d£no§
+                      \w mar£no§
+
+                      \a %2%<PRT LKR>%<PRT ENC>%
+                      \d %2%na%nÖ%
+                      \w na
+
+                      \a <N1 turtle>
+                      \d pagï§
+                      \w pagï§
+                      \n .\n\n
+
+This is as far as KTEXT takes us. What you do with KTEXT's output is
+limited only by your imagination and ingenuity. One obvious way to
+continue is to reassemble the text in interlinear format. That is, we
+could write a program that would take the data structures shown in
+figure 2 and create a new file where the text is stored in interlinear
+format. The resulting interlinear text is shown in figure 3. An
+interlinear text editor like IT[3] could then be used to add more lines
+of annotations to the text.
+
+        Figure 3  A Tagalog example of interlinear text format
+
+        Ang ulïl    na  unggï  at  ang mar£nong   na  pagïng.
+        ang ulïl    na  unggoq at  ang ma- d£nong na  pagïng
+        S   foolish LKR monkey and S   AJR-wisdom LKR turtle
+
+Interlinear translation is a time-honored format for presenting
+analyzed vernacular texts. An interlinear text consists of a baseline
+text and one or more lines of annotations that are vertically aligned
+with the baseline. In the text shown in figure 3, the first line is
+the baseline text. The second line provides the lexical form of each
+original word, including morpheme breaks. The third line gives the
+gloss of each word or morpheme. Grammatical morphemes are glossed with
+abbreviations in all capital letters and lexical morphemes are glossed
+with equivalent English words. For instance, the word mar£nong in the
+first line is written as two morphemes in the second line: ma-d£nong
+(notice the phonological alternation between d and r). The third line
+gives its gloss, AJR-wisdom, where AJR stands for an adjectivizer
+prefix that changes the noun stem d£nong 'wisdom' into an adjective
+meaning 'wise'.
+
+Another way to proceed would be to take the output of KTEXT as shown
+in figure 2 and format it directly for printing. In other words, there
+would be no disk file of interlinear text corresponding to figure 3;
+rather, the interlinear text is created on the fly as it is prepared
+for printing. Fortunately, the software required to print interlinear
+text is now available. As a complement to the IT program, a system for
+formatting interlinear text for typesetting has recently been
+developed (see Kew and McConnel, 1991). Called ITF, for Interlinear
+Text Formatter,[4] it is a set of TEX[5] macros that can format an
+arbitrary number of aligning annotations with up to two freeform
+(nonaligning) annotations. While ITF is primarily intended to format
+the data files produced by IT (similar to the interlinear text shown
+in figure 3), an auxiliary program provided with ITF accepts the
+output of the KTEXT program. The final printed result of the
+formatting process is shown in figure 4.[6] It should be noted that this
+is just one of many formats that ITF can produce. Because ITF is built
+on a full-featured typesetting system, virtually all aspects of the
+formatting detail can be customized, including half a dozen different
+schemes for laying out the freeform annotations relative to the
+interlinear text.
+
+3  Running KTEXT
+
+This section describes KTEXT's user interface and the input files it
+uses.
+
+KTEXT is a batch-processing program. This means that the program takes
+as input a text from a disk file and returns as output the processed
+text in a new disk file. KTEXT is run from the command line by giving
+it the information it needs (file names and other options). It does
+not have an interactive interface. The user controls KTEXT's operation
+by means of special files that contain all the information KTEXT needs
+to process the input text. These files are called control files. Here
+is an example of running KTEXT on an English text (an excerpt from
+Lewis Carroll's Alice's Adventures in Wonderland). At the operating
+system prompt, type "ktext" plus various command line options:
+
+C:\>ktext -w -x english.ctl -i alice.txt -o alice.ana -l alice.log
+
+The following will appear on the screen:
+
+KTEXT TWO-LEVEL PROCESSOR
+Version 1.0.3 (18 February 1992), Copyright 1992 SIL
+
+      Using the following as word-formation characters:
+      ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-'
+
+Rules being loaded from english.rul
+Lexicon being loaded from english.lex
+..................................................................
+..................................................................
+............
+
+Each dot represents one word successfully processed. When the program
+is done, it will return you to the operating system prompt.
+
+To see a list of the command line options, type "ktext -h". You will
+see a display similar to this:
+
+-c <char>     make <char> the comment character (default is ;)
+-t            set tracing on (default is off)
+-w            include \w field in output file(default is no \w field)
+-x <ctlfile>  specify the control file name (default is ktext.ctl)
+-i <infile>   specify the input data file name
+-o <outfile>  specify the output file name
+-l <logfile>  specify the log file name (default is none)
+
+The command line options (-w, -x, and so on) are all lower case
+letters. Here is a detailed description of each command line option.
+
+-c  The -c option takes an argument that sets the comment character
+used in the PC-KIMMO rules and lexicon files. It has no effect on any
+other files used by KTEXT except these two. If the -c option is not
+used, the default PC-KIMMO comment character is used, namely semicolon
+(;).
+
+-t  The -t option turns the PC-KIMMO tracing mechanism on. This
+displays on the screen everything the parser is doing when it
+processes a word. Tracing is used for debugging the rules and lexicon,
+and is better used with the PC-KIMMO shell program.
+
+-w  The -w option causes the \w field to be included in each word
+record of the output file. The \w field contains the original word
+from the text. If you don't include the -w option, the word records of
+the output file will contain only the \a (analysis) and \d (morpheme
+decomposition) fields.
+
+-x  The -x option takes an optional argument that specifies the name
+of the main KTEXT control file. This main control file contains the
+name of the TXTIN control file and the names of the rules and lexicon
+files. It can also specify consistent changes to be made to the output
+fields. The -x option accepts a default file name extension of CTL;
+for example if you use "- x english" KTEXT will try to load the file
+"english.ctl". If the -x option is not used, KTEXT will try to load a
+control file with the default file name KTEXT.CTL.
+
+-i  The -i option takes an obligatory argument that specifies the name
+of the input file containing the text that KTEXT will process. If the
+-i option is not used, KTEXT will prompt you to enter the name of the
+input file.
+
+-o  The -o option takes an obligatory argument that specifies the name
+of the output file that KTEXT creates. If the -o option is not used,
+KTEXT will prompt you to enter the name of the output file. If a file
+with the same name already exists, KTEXT will will ask for
+confirmation that you want to overwrite it.
+
+-l  The -l option takes an obligatory argument that specifies the name
+of a log file. The log file will contain any analysis failures or
+other anomalous behavior during processing of the input text.
+
+In all instances where file names are supplied to KTEXT, an optional
+directory path can be included; for example, -i c:\texts\alice.txt.
+
+4  KTEXT's functional structure
+
+KTEXT has two main functional modules: the TXTIN module and the
+ANALYSIS module. The diagram in figure 5 shows the flow of data
+through these modules. The input text is fed into the TXTIN module
+which outputs the text as a stream of normalized words with
+capitalization and punctuation stripped out and saved. The TXTIN
+module also uses a control file that specifies orthographic changes.
+Each word is then passed to the ANALYSIS module where it is parsed and
+output as a database record. The ANALYSIS module also uses the
+PC-KIMMO rules and lexicon files.
+
+               Figure 5  Functional structure of KTEXT
+
+                           input text
+                                |
+                                |
+                   +------------------------+
+                   |            |           |
+                   |    +--------------+    |
+  text input       |    |              |    |
+  control file---->|    |    TXTIN     |    |--------+
+                   |    |              |    |        |
+                   |    +--------------+    |        |
+                   |            |           |   punctuation
+                   |          words         |   white space
+                   |            |           |   capitalization
+                   |    +--------------+    |   format marking
+  rules and        |    |              |    |
+  lexicon files--->|    |   ANALYSIS   |    |
+                   |    |              |    |
+                   |    +--------------+    |
+                   |            |           |
+                   +------------------------+
+                                |
+                                |
+                          parsed output
+
+KTEXT uses five input files and produces one output file (plus an
+optional log file). These five input files are:
+
+    the text data file,
+    the main control file,
+    the TXTIN control file,
+    the PC-KIMMO rules file, and
+    the PC-KIMMO lexicon file.
+
+The PC-KIMMO rules and lexicon files are described in the PC-KIMMO
+book (Antworth 1990) and will not be discussed further in this
+document. The other input files and the output data file are described
+in the following sections.
+
+5  The text data file
+
+The text data file contains the text that KTEXT will process. It must
+be a plain text file, not a file formatted by a word processor. If you
+use a word processor such as Microsoft Word to create your text, you
+must save it as plain text with no formatting. KTEXT preserves all the
+"white space" used in the text file. That is, it saves in its output
+file the location of all line breaks, blank lines, tabs, spaces, and
+other nonalphabetic characters. This enables you to recover from the
+output file the precise format and page layout of the original text.
+
+While KTEXT will accept text with no formatting information other than
+white space characters, it will also handle text that contains special
+format markers. These format markers can indicate parts of the text
+such as sentences, paragraphs, sections, section headings, and titles.
+The use of special format markers is called descriptive markup. KTEXT
+(because it is based on AMPLE) works best with a system of descriptive
+markup called "standard format" that is used by the Summer Institute
+of Linguistics. SIL standard format marks the beginning of each text
+unit with a format marker. There is no explicit indication of the end
+of a unit. A format marker is composed of a special character (a
+backslash by default) followed by a code of one or more letter. For
+example, \ti for title, \ch for chapter, \p for paragraph, \s for
+sentence, and so on. KTEXT does not "know" any particular format
+markers. You can use whatever markers you like, as long as you declare
+them in the TXTIN control file. For more on format markers, see
+section 7.2.2 below.
+
+One of the best know systems of descriptive markup is SGML (Standard
+Generalized Markup Language). One very significant difference between
+SGML and SIL standard format is that SGML uses markers in pairs, one
+at the beginning of a text unit and a matching one at the end. This
+should not pose a problem for KTEXT, since KTEXT just preserves all
+format markers wherever they occur. Another difference is that SGML
+flags format markers with angle brackets, for instance <paragraph>.
+KTEXT can recognize SGML markers by changing the format marker flag
+character from backslash to left angled bracket (see section 7.2.2
+below). Recognizing the end of the SGML format marker is a bit of a
+problem. While SGML uses a matching right angled bracket to indicate
+the end of the marker, SIL standard format simply uses a space to
+delineate the format marker from the following text. This means that
+for KTEXT to find the end of an SGML tag, you must leave at least one
+space after it.
+
+6  The main control file
+
+The main control file controls various aspects of KTEXT's operation.
+It is structured as a standard format database, composed of various
+fields marked by backslash codes. Figure 6 shows the fields available
+in the main control file:
+
+               Figure 6  Main control file field codes
+
+               Code         Description
+               ---------    -----------------------
+               \textin      name of text control file
+               \rules       name of PC-KIMMO rules file
+               \lexicon     name of PC-KIMMO lexicon file
+               \ach         change in \a field
+               \dch         change in \d field
+               \scl         string class definition
+
+The use of the first three fields listed above is straightforward. The
+\textin field specifies the name of the text control file described
+below in section 7. The \rules and \lexicon fields specify the names
+of the PC-KIMMO data files. For example, a main control file for
+Tagalog may contain these lines:
+
+\textin  tagtxtin.ctl
+\rules   tag.rul
+\lexicon tag.lex
+
+The next two fields, \ach and \dch, require more comment. These fields
+allow you to make consistent changes in the contents of the \a and \d
+fields before they are written to the output file. It works like this:
+the ANALYSIS module processes an input word from the text and returns
+its gloss and lexical form in \a and \d fields. KTEXT then applies any
+changes that have been specified in \ach and \dch fields and then
+writes the results to the output file. For example, the Tagalog main
+control file may contain these lines:
+
+\dch "I-" "in-"
+\dch "U-" "um-"
+
+The parser returns the lexical forms I- and U-, which is how they are
+found in the PC-KIMMO Tagalog lexicon (these are essentially special
+symbols represented infixes). The \dch fields change these forms into
+in- and um-, which is their typical phonological shape. The changes
+can also be restricted to apply only in certain environments. The \ach
+and \dch fields work identically to the \ch fields used in the text
+control file, described in detail in section 7.1.
+
+The last field in figure 6 above is the \scl field, which is a string
+class definition field. It allows you to define a special symbol to
+stand for a set of characters; for instance, this string class field
+defines the symbol Vowel to stand for the set of vowels:
+
+\scl Vowel a e i o u
+
+The symbol Vowel can then be used in the environments of \ach and \dch
+fields. String class definitions are described in detail in section
+7.1.4.
+
+When KTEXT reads the main control file, it ignores any lines beginning
+with field codes other than those listed in figure 6. For example, a
+line beginning \co would be ignored. Such lines are treated as
+comments. Comments in the control file can also be indicated with the
+comment character, which by default is semicolon. This is the only way
+to place comments on the same line as a field. The comment character
+can be changed with the command line option -c when running KTEXT (see
+section 3). The main control file must use the same comment character
+as the rules and lexicon files.
+
+The following shows a sample main control file.
+
+\id tag.ctl - KTEXT main control file for Tagalog, 7-Mar-91
+
+; select the various other files
+\textin  tagtxtin.ctl
+\rules   tag.rul
+\lexicon tag.lex
+
+; fix up some underlying forms
+\dch "I-" "in-"
+\dch "U-" "um-"
+
+7  The TXTIN control file[7]
+
+  7.1 Text orthography changes
+      7.1.1 Basic changes
+      7.1.2 Environmentally constrained changes
+      7.1.3 Where orthography changes apply
+      7.1.4 A sample orthography change table
+      7.1.5 Orthography change (\ch)
+      7.1.6 String class definition (\scl)
+  7.2 Words or format markers?
+      7.2.1 Word formation characters (\wfc)
+      7.2.2 Primary format marker character (\format)
+      7.2.3 Secondary format marker character (\barchar)
+      7.2.4 Single character bar codes (\barcodes)
+  7.3 Selecting fields
+      7.3.1 Fields to exclude (\excl)
+      7.3.2 Fields to include (\incl)
+  7.4 Special output characters
+      7.4.1 Ambiguity marker (\ambig)
+      7.4.2 Morpheme decomposition separator (\dsc)
+  7.5 Controlling capitalization
+  7.6 A sample text input control file
+
+The TXTIN module applies to a text, splitting off the punctuation,
+format marking, white space (space, tab, carriage return), and
+capitalization information. It passes just the words of the text on to
+the ANALYSIS module, in a normalized, lower case form after making any
+user-specified orthographic changes. The TXTIN module requires three
+types of control information.
+
+(1)  To identify words, TXTIN must know what letters make up words. It
+assumes that the alphabetic characters (a to z, upper and lower case)
+are used to make words; these are called the standard word formation
+characters. In addition to these there may be characters like tilde
+(~) and apostrophe (') in words like canon (Spanish), don't (English),
+etc. These are called nonstandard word formation characters.
+
+(2)  It is desirable to apply KTEXT directly to texts in their
+practical orthographies, but to maintain the files the parser needs in
+a more linguistically-appropriate orthography. For example, Latin x
+can be converted to ks; Quechua long vowels, represented practically
+by doubling the vowel, can be converted to a single vowel followed by
+a colon (i.e., aa is converted to a:); and Campa nasals occurring
+before a noncontinuant can be represented as the morphophoneme N,
+unspecified for point of articulation (i.e., mp is converted to Np).
+This kind of change is made possible by the text input orthography
+changes, the rules defined for changing the orthography.
+
+(3)  KTEXT incorporates rather specific ideas about how formatting
+information is given in texts. Some details of how formatting marks
+are separated from the words in the text are provided by the special
+formatting information. The text input control file influences how
+KTEXT reads the input text files, and, to some degree, the format of
+the output analysis files. Like the other input control files, it is
+structured as a standard format database file. Figure 7 shows the
+fields available in the text control file:
+
+            Figure 7  Text input control file field codes
+
+            Code         Description
+            ---------    -----------------------
+            \ambig       analysis output ambiguity marker
+            \barchar     secondary format marker
+            \barcodes    single character bar codes
+            \ch          orthography change
+            \dsc         morpheme decomposition separator
+            \excl        fields to exclude
+            \format      primary format marker
+            \incl        fields to include
+            \luwfc       lower-upper word formation characters
+            \noincap     disable word-internal capitalization
+            \scl         string class definition
+            \wfc         word formation characters
+
+When KTEXT reads the text input control file, it ignores any lines
+beginning with field codes other than those listed in figure 7. For
+example, a line beginning \co would be ignored. Such lines are treated
+as comments. Comments in the control file can also be indicated with
+the comment character, which by default is semicolon. This is the only
+way to place comments on the same line as a field. The comment
+character can be changed with the command line option -c when running
+KTEXT (see section 3). The main control file must use the same comment
+character as the rules and lexicon files.
+
+7.1 Text orthography changes
+
+7.1.1 Basic changes
+
+To substitute one string of characters for another, these must be made
+known to the program in a change. (The technical term for this sort of
+change is a production, but we will simply call them changes.)  In the
+simplest case, a change is given in three parts: (1) the field code
+\ch must be given at the extreme left margin to indicate that this
+line contains a change; (2) the match string is the string for which
+KTEXT must search; and (3) the substitution string is the replacement
+for the match string, wherever it is found.
+
+The beginning and end of the match and substitution strings must be
+marked. The first printing character following \ch (with at least one
+space or tab between) is used as the delimiter for that line. The
+match string is taken as whatever lies between the first and second
+occurrences of the delimiter on the line and the substitution string
+is whatever lies between the third and fourth occurrences. For
+example, the following lines indicate the change of hi to bye, where
+the delimiters are the double quote mark ("), the single quote mark
+('), the period (.), and the at sign (@).
+
+\ch "hi" "bye"
+\ch 'hi' 'bye'
+\ch .hi. .bye.
+\ch @hi@ @bye@
+
+Throughout this document, we use the double quote mark as the
+delimiter unless there is some reason to do otherwise.
+
+Change tables follow these conventions:
+
+(1)  Any characters (other than the delimiter) may be placed between
+the match and substitution strings. This allows various notations to
+symbolize the change. For example, the following are equivalent:
+
+    \ch "thou" "you"
+    \ch "thou" to "you"
+    \ch "thou" > "you"
+    \ch "thou" --> "you"
+    \ch "thou" becomes "you"
+
+(2)  Comments included after the substitution string are initiated by
+a semicolon (;), or whatever is indicated as the comment character by
+means of the -c option when KTEXT is started. The following lines
+illustrate the use of comments:
+
+    \ch "qeki" "qiki" ; for cases like wawqeki
+    \ch "thou" "you"  ; for modern English
+
+(3)  A change can be ignored temporarily by turning it into a comment
+field. This is done either by placing an unrecognized field code in
+front of the normal \ch, or by placing a semicolon (;) in front of it
+(the default comment character). For example, only the first of the
+following three lines would effect a change:
+
+    \ch "nb" "mp"
+    \no \ch "np" "np"
+    ;\ch "mb" "nb"
+
+KTEXT applies a change table as an ordered set of changes. The first
+change is applied to the entire word by searching from left to right
+for any matching strings and, upon finding any, replacing them with
+the substitution string. After the first change has been applied to
+the entire word, then the next change is applied, and so on. Thus,
+each change applies to the result of all prior changes. When all the
+changes have been applied, the resulting word is returned. For
+example, suppose we have the following changes:
+
+\ch "aib" > "ayb"
+\ch "yb"  > "yp"
+
+Consider the effect these have on the word paiba. The first changes i
+to y, yielding payba; the second changes b to p, to yield paypa. (This
+would be better than the single change of aib to ayp if there were
+sources of yb other than the output of the first rule.)
+
+The way in which change tables are applied by KTEXT allows certain
+tricks. For example, suppose that for Quechua, we wish to change hw to
+f, so that hwista becomes fista and hwis becomes fis. However, we do
+not wish to change the sequence shw or chw to sf or cf (respectively).
+This could be done by the following sequence of changes. (Note, @ and
+$ are not otherwise used in the orthography.)
+
+\ch "shw" > "@"     ; (1)
+\ch "chw" > "$"     ; (2)
+\ch "hw"  > "f"     ; (3)
+\ch "@"   > "shw"   ; (4)
+\ch "$"   > "chw"   ; (5)
+
+Lines (1) and (2) protect the sh and ch by changing them to
+distinguished symbols. This clears the way for the change of hw to f
+in (3). Then lines (4) and (5) restore @ and $ to sh and ch,
+respectively. (An alternative, simpler way to do this is discussed in
+the next section.)
+
+7.1.2 Environmentally constrained changes
+
+It is possible to impose string environment constraints (SEC's) on
+changes in the orthography change tables. The syntax of SEC's is
+described in detail in section 7.2.
+
+For example, suppose we wish to change the mid vowels (e and o) to
+high vowels (i and u respectively) immediately before and after q.
+This could be done with the following changes:
+
+\ch "o" "u"  / _ q  / q _
+\ch "e" "i"  / _ q  / q _
+
+This is not entirely a hypothetical example; some Quechua practical
+orthographies write the mid vowels e and o. However, in the
+environment of /q/ these could be considered phonemically high vowels
+/i/ and /u/. Changing the mid vowels to high upon loading texts has
+the advantage that--for cases like upun `he drinks' and upoq `the one
+who drinks'--the root needs to be represented internally only as upu
+`drink'. But note, because of Spanish loans, it is not possible to
+change all cases of e to i and o to u. The changes must be
+conditioned.
+
+In reality, the regressive vowel-lowering effect of /q/ can pass over
+various intervening consonants, including /y/, /w, /l/, /ll/, /r/,
+/m/, /n/, and /n/. For example, /ullq/ becomes ollq, /irq/ becomes
+erq, etc. Rather than list each of these cases as a separate
+constraint, it is convenient to define a class (which we label
++resonant) and use this class to simplify the SEC. Note that the
+string class must be defined (with the \scl field code) before it is
+used in a constraint.
+
+\scl +resonant y w l ll r m n n~
+\ch "o" "u" / q _ / _ ([+resonant]) q
+\ch "e" "i" / q _ / _ ([+resonant]) q
+
+This says that the mid vowels become high vowels after /q/ and before
+/q/, possibly with an intervening /y/, /w/, /l/, /ll/, /r/, /m/, /n/,
+or /n/.
+
+Consider the problem posed for Quechua in the previous section, that
+of changing hw to f. An alternative is to condition the change so that
+it does not apply adjacent to a member of the string class Affric
+which contains s and c. \scl Affric c s
+
+\ch "hw" "f" / [Affric] ~_
+
+It is sometimes convenient to make certain changes only at word
+boundaries, that is, to change a sequence of characters only if they
+initiate or terminate the word. This conditioning is easily expressed,
+as shown in the following examples.
+
+\ch "this" "that"           ; anywhere in the word
+\ch "this" "that"  / # _    ; only if word initial
+\ch "this" "that"  /   _ #  ; only if word final
+\ch "this" "that"  / # _ #  ; only if entire word
+
+7.1.3  Using text orthography changes
+
+The purpose of orthography change is to convert text from an external
+orthography to an internal representation more suitable for
+morphological analysis. In many cases this is unnecessary, the
+practical orthography being completely adequate as KTEXT's internal
+representation. In other cases, the practical orthography is an
+inconvenience that can be circumvented by converting to a more
+phonemic representation.
+
+Let us take a simple example from Latin. In the Latin orthography, the
+nominative singular masculine of the word king is rex. However,
+phonemically, this is really /reks/; /rek/ is the root meaning king
+and the /s/ is an inflectional suffix. If KTEXT is to recover such an
+analysis, then it is necessary to convert the x of the external,
+practical orthography into ks internally. This can be done by
+including the following orthography change in the text input control
+file:
+
+\ch  "x"  "ks"
+
+In this, x is the match string and ks is the substitution string, as
+discussed in chapter 8. Whenever x is found, ks is substituted for it.
+
+Let us consider next an example from Huallaga Quechua. The practical
+orthography currently represents long vowels by doubling the vowel.
+For example, what is written as kaa is /ka:/ 'I am', where the length
+(represented by a colon) is the morpheme meaning 'first person
+subject'. Other examples, such as upoo /upu:/ 'I drink' and upichee
+/upi-chi-:/ 'I extinguish', motivate us to convert all long vowels
+into a vowel followed by a colon. The following changes do this:
+
+\ch  "aa"  "a:"
+\ch  "ee"  "i:"
+\ch  "ii"  "i:"
+\ch  "oo"  "u:"
+\ch  "uu"  "u:"
+
+Note that the long high vowels (i and u) have become mid vowels (e and
+o respectively); consequently, the vowel in the substitution string is
+not necessarily the same as that of the match string. What is the
+utility of these changes? In the lexicon, the morphemes can be
+represented in their phonemic forms; they do not have to be
+represented in all their orthographic variants. For example, the first
+person subject morpheme can be represented simply as a colon (-:),
+rather than as -a in cases like kaa, as -o in cases like qoo, and as
+-e as in cases like upichee. Further, the verb 'drink' can be
+represented as upu and the causative suffix (in upichee) can be
+represented as -chi; these are the forms these morphemes have in other
+(nonlowered) environments. As the next example, let us suppose that we
+are analyzing Spanish, and that we wish to work internally with k
+rather than c (before a, o, and u) and qu (before i and e). (Of
+course, this is probably not the only change we would want to make.)
+Consider the following changes:
+
+\ch  "ca"  "ka"
+\ch  "co"  "ko"
+\ch  "cu"  "ku"
+\ch  "qu"  "k"
+
+The first three handle c and the last handles qu. By virtue of
+including the vowel after c, we avoid changing ch to kh. There are
+other ways to achieve the same effect. One way exploits the fact that
+each change is applied to the output of all previous changes. Thus, we
+could first protect ch by changing it to some distinguished character
+(say @), then changing c to k, and then restoring @ to ch:
+
+\ch  "ch"  "@"
+\ch  "c"  "k"
+\ch  "@"  "ch"
+\ch  "qu"  "k"
+
+Another approach conditions the change by the adjacent characters. The
+changes could be rewritten as
+
+\ch  "c"  "k"  / _a  / _o  / _u  ; only before a, o, or u
+\ch  "qu"  "k"                   ; in all cases
+
+The first change says, "change c to k when followed by a, o, or u."
+(This would, for example, change como to komo, but would not affect
+chal.) The syntax of such conditions is exactly that used in string
+environment constraints; see section 7.2.
+
+7.1.1 Where orthography changes apply
+
+Orthography changes are made when the text being analyzed may be
+written in a practical orthography. Rather than requiring that it be
+converted as a prerequisite to morphological analysis, it is possible
+to have KTEXT convert the orthography as it loads and analyzes each
+word, before any analysis is performed.
+
+The changes loaded from the text input control file are used in the
+module TXTIN, after all the text is converted to lower case (and the
+information about upper and lower case, along with information about
+format marking, punctuation and white space, has been put to one
+side.) Consequently, the match strings of these orthography changes
+should be all lower case; any change that has an uppercase character
+in the match string will never apply.
+
+7.1.2 A sample orthography change table
+
+We include here the entire orthography input change table for Caquinte
+(Campa). There are basically four changes that need to be made: (1)
+nasals, which in the practical orthography reflect their assimilation
+to the point of articulation of a following noncontinuant, must be
+changed into an unspecified nasal, represented by N; (2) c and qu are
+changed to k; (3) j is changed to h; and (4) gu is changed to g before
+i and e.
+
+             Figure 8  Caquinte orthography change table
+
+            \ch  "mp"  "Np"     ; for unspecified nasals
+            \ch  "nch" "Nch"
+            \ch  "nc"  "Nk"
+            \ch  "nqu" "Nk"
+            \ch  "nt"  "Nt"
+
+            \ch  "ch"  "@"   ; to protect ch
+            \ch  "c"   "k"   ; other c's to k
+            \ch  "@"   "ch"  ; to restore ch
+            \ch  "qu"  "k"
+
+            \ch  "j"   "h"
+
+            \ch  "gue" "ge"
+            \ch  "gui" "gi"
+
+This change table can be simplified by the judicious use of string
+environment constraints:
+
+        Figure 9  Simplified Caquinte orthography change table
+
+        \ch  "m"  >  "N"  / _p
+        \ch  "n"  >  "N"  / _c  / _t  / _qu
+
+        \ch  "c"  >  "k"  / _~h
+        \ch  "qu" >  "k"
+
+        \ch  "j"  >  "h"
+
+        \ch  "gu" >  "g"  / _e  /_i
+
+7.1.3  Orthography change (code \ch)
+
+As suggested by the preceding examples, the text orthography change
+table is composed of all the \ch fields found in the text input
+control file. These may appear anywhere in the file relative to the
+other fields. It is recommended that all the orthography changes be
+placed together in one section of the text input control file, rather
+than being mixed in with other fields.
+
+7.1.4  String class definition (code \scl)
+
+String classes are defined using the \scl field code. The members of
+string classes are literal strings or single characters. Any number of
+string classes may be defined, and any class may contain any number of
+strings. These strings may be of any length, although they usually
+represent phonological segments. String class names can be used in the
+string environment constraints of following changes.
+
+String classes must be defined before being used. For example, the
+first two lines of the Caquinte example above could be given as
+follows:
+
+\scl  -bilabial  c t qu
+\ch  "m"  >  "N"  / _ p
+\ch  "n"  >  "N"  / _ [-bilabial]
+
+The string class definition could be in the main control file: string
+classes defined there can be used in the text input control file as
+well.
+
+7.2 Words or format markers?
+
+KTEXT may sometimes be applied to a pure text file, such as a
+wordlist. Usually, however, there may be formatting information (i.e.,
+punctuation and some sort of descriptive markup) mixed in with the
+words. KTEXT needs to differentiate between the words and everything
+else in the input text file. The fields discussed in this section
+allow the user to inform KTEXT how to recognize words and how to
+recognize formatting information.
+
+7.2.1 Word formation characters (codes \wfc and \luwfc)
+
+To break a text into words, KTEXT needs to know which characters are
+used to form words. It always assumes that the letters A to Z and a to
+z will be used as word formation characters. (Note that uppercase
+letters are converted to lowercase letters when KTEXT reads a text
+file.) If the orthography of the language the user is working in uses
+any other characters, these must given in a \wfc field in the text
+input control file. For example, Quechua uses tilde (~) and an accent
+mark ('). This information is provided by the following example:
+
+\wfc  ~  ; needed for words like nin~o
+\wfc  '  ; needed for words like papa'
+
+Notice that the characters may be separated by spaces, although it is
+not required to do so. If more than one \wfc field occurs in the text
+input control file, KTEXT uses the combination of all characters
+defined in all such fields as word formation characters.
+
+The \wfc field is also used to declare accented (or eight bit)
+characters, such as those available in the IBM extended character set.
+For example,
+
+\wfc  † Ç ° ¢ £ Ö ä ç ï ó § •
+
+KTEXT automatically converts the upper case characters A-Z to their
+equivalent lower case characters a-z. You can also declare other pairs
+of characters as lower-to-upper case pairs. This is especially useful
+when using accented characters (such as those available in the IBM
+extended character set). Lower-to-upper case pairs are declared in a
+field beginning with the code \luwfc (for "lower-upper word formation
+characters"). For each following pair of  characters, the first
+character is the lower case equivalent of the second (which is assumed
+to  be upper case). Several such pairs can be placedin the field or
+they may be placed in separate fields. Whitespace can be used in the
+field freely. Characters that are declared in a \luwfc do not also
+have to be included in a \wfc field. For example,
+
+\luwfc  Ç ê  Å ö  § •
+
+After reading the text input control file, KTEXT reports the full set
+of word formation characters being used. This is what KTEXT would
+report for the Quechua example above:
+
+Using the following as word-formation characters:
+ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz~'
+
+The comment character (normally ;) cannot be designated as a word
+formation character. If the orthography includes semicolon (;), then a
+different comment character must be defined with the - c command line
+option when KTEXT is initiated; see section 3.
+
+7.2.2 Primary format marker character (code \format)
+
+KTEXT has a simple view of format markers: they consist of one or more
+contiguous characters beginning with a special flag character. The
+default character initiating format markers is the backslash (\).
+Thus, each of the following would be recognized as a format marker and
+would not be analyzed by KTEXT:
+
+\
+\p
+\sp
+\xx(yes)
+\very-long.and;muddled/format*marker,to#be$sure
+
+If \ is used in the orthography, or some other character is used to
+flag format markers, it is possible to change to another format flag
+character with a \format field in the text input control file. This
+field designates a single character to replace the default \. For
+example, if the format markers in the text files begin with the at
+sign (@), the following should be placed in the text input control
+file:
+
+\format @   ; format markers start with at sign
+
+This would be used, for example, if the text contained format markers
+like the following:
+
+@
+@p
+@sp
+@xx(yes)
+@very-long.and;muddled/format*marker,to#be$sure
+
+Note that format markers cannot have a space or tab embedded in them;
+the first space or tab encountered terminates the format marker as far
+as KTEXT is concerned.
+
+If a \format field occurs in the text input control file without a
+following character to serve for flagging format markers, then KTEXT
+will not recognize any format markers and will try to parse everything
+other than punctuation characters.
+
+It makes sense to use the \format field only once in the text input
+control file. If multiple \format fields do occur in the file, KTEXT
+uses only the value given in the first one. KTEXT uses only the first
+printing character following the \format field code. The same
+character cannot be used for flagging both format markers in text
+input files and comments in control input files. Thus, semicolon (;)
+cannot normally be used to flag format markers.
+
+One final note: the format character under discussion here applies
+only to the input text files which are to be analyzed. It has
+absolutely nothing to do with the use of backslash (\) to flag field
+codes in the control files read by KTEXT.
+
+7.2.3 Secondary format marker character (code \barchar)
+
+In addition to the general format markers discussed above, KTEXT
+assumes a secondary type of marker which has a very restricted form.
+It consists of a flag character followed by a single character from a
+list of known values. It is typically used to indicate type style,
+such as bold, italics, and so on. This secondary flag character must
+be different than the one associated with the \format field. Its
+default value is the vertical bar (|), causing this type of format
+marker to be frequently called a bar code. The following could be
+valid (secondary) format markers and would not be analyzed by KTEXT:
+
+|b
+|i
+|r
+
+(These codes typically stand for bold, italics, and regular,
+respectively.)
+
+Consider the following two lines of input text:
+
+\bgoodbye\r
+|bgoodbye|r
+
+Using the default definitions of KTEXT, the first line is considered
+to be a single format marker, and provides nothing which the program
+should try to parse. The second line, however contains two format
+markers, |b and |r, and the word goodbye which will be analyzed by
+KTEXT.
+
+If | is used in the orthography, or some other character is used to
+flag format markers, the flag character can be changed with a \barchar
+field in the text input control file. This field designates a single
+character to replace the default |. For example, if this type of
+format marker begins with the dollar sign ($), the following should be
+placed in the text input control file:
+
+\barchar  $  ; "bar codes" start with $
+
+This would cause KTEXT to consider the following to be valid format
+markers:
+
+$b
+$i
+$r
+
+An empty \barchar field in the text input control file causes KTEXT to
+not recognize any bar code format markers. Thus, the following field
+effectively turns off special treatment of this style of format
+marking:
+
+\barchar  ; no bar character
+
+It makes sense to use the \barchar field only once in the text input
+control file. If multiple \barchar fields do occur in the file, KTEXT
+uses only the value given in the first one. KTEXT uses only the first
+printing character following the \barchar field code. The same
+character cannot be used for marking both bar codes in the text file
+and comments in the input control files. Thus, semicolon (;) cannot
+normally be used as the bar code marker.
+
+7.2.4 Single character bar codes (code \barcodes)
+
+In conjunction with the special format marking character discussed in
+the previous section, the \barcodes field defines the individual
+characters used with in bar codes. These characters may be separated
+by spaces or lumped together. Thus, the following two fields are
+equivalent:
+
+\barcodes  abcdefg  ; lumped together
+\barcodes  a b c d e f g  ; separated
+
+If provided more than one \barcodes field in the text input control
+file, KTEXT uses the combination of all characters defined in all such
+fields. No check is made for repeated characters: the previous example
+would be accepted without complaint despite the redundancy of the
+second line.
+
+The default value for the bar codes is bdefhijmrsuvyz. Therefore, if
+the text input control file contains neither a \barchar nor a
+\barcodes field, the following bar codes are considered to be
+formatting information by KTEXT: |b, |d, |e, |f, |h, |i, |j, |m, |r,
+|s, |u, |v, |y, and |z. These are exactly the codes recognized by the
+SIL MS (Manuscripter) program.
+
+7.3 Selecting fields
+
+There are times when it is undesirable for KTEXT to analyze every
+field of a text input file. For instance, texts often begin with
+identification lines to record authorship and state of revision. There
+is no reason why this information should be morphologically parsed. It
+may not even be in the same language!
+
+KTEXT considers a field of an input text file to be everything from
+one format marker to the next (or to the end of the file). This is
+different than the definition of fields in the input control files,
+which require field codes to be at the beginning of a line. Even
+though it seems a bit strange to mix the concepts of fields and format
+marking, this has proven to be useful in practice. (However, the
+structure of a formatted text may not look that different from the
+types of database files used by KTEXT, especially the text
+approximates the style of descriptive markup. In the next two
+sections, we will discuss two fields for controlling what parts of a
+file KTEXT applies to. It does not make sense to include both of these
+in the same text input control file. The one which best fits the task
+at hand must be chosen.
+
+7.3.1 Fields to exclude (code \excl)
+
+The \excl field excludes one or more fields from processing by KTEXT.
+For example, to have KTEXT ignore everything in \co and \id fields,
+the following line is included in the text input control file:
+
+\excl  \co  \id  ; ignore these fields
+
+If more than one \excl field is found in the text input control file,
+KTEXT keeps adding the contents of each field to the overall list of
+text fields to exclude. This list is initially empty, and stays empty
+unless the text input control file contains an \excl field. Thus,
+KTEXT normally does not exclude any text fields from processing.
+
+If the text input control file contains \excl fields, then only those
+text fields are not processed. Every word in every text field not
+mentioned explicitly in an \excl field will be analyzed.
+
+7.3.2 Fields to include (code \incl)
+
+The \incl field explicitly includes one or more text fields for
+processing by KTEXT, excluding all other fields. For instance, to have
+KTEXT process everything in \txt and \qt fields, but ignore everything
+else, the following line is placed in the text input control file:
+
+\incl  \txt  \qt  ; process these fields
+
+If more than one \incl field is found in the text input control file,
+KTEXT keeps adding the contents of each field to the overall list of
+text fields to process. This list is initially empty, and stays empty
+unless the text input control file contains an \incl field.
+
+If the text input control file contains \incl fields, then only those
+text fields are processed. Every word in every text field not
+mentioned explicitly in an \incl field will not be analyzed. Note that
+KTEXT processes every text field in the text input files unless the
+text input control file contains either an \excl or an \incl field.
+One or the other is used to limit processing, but never both.
+
+7.4 Special output characters
+
+The last two fields provided in the text input control file change
+certain special characters in the analysis output file. This may be
+required by the orthography of the language to which KTEXT is being
+applied.
+
+7.4.1 Ambiguity marker (code \ambig)
+
+The morphological analysis performed by KTEXT may result in multiple
+parses, an ambiguity which the computer program cannot resolve. It is
+also possible for KTEXT to fail altogether in trying to analyze a
+word. These two possibilities are normally shown in the analysis
+output file as follows:
+
+\a  %3%< N0 kay >%< V1 ka > IMP%< V1 ka > INF%
+
+\a  %0%qoyka:rala:may%
+
+This works fine unless the percent sign (%) is used in the
+orthography.
+
+The \ambig field controls the character used to mark ambiguities and
+failures in the analysis output file. For example, to use the hash
+mark (#), the text input control file should include:
+
+\ambig #  ; % isn't good enough
+
+This would cause the sample analysis to be output as follows:
+
+\a  #3#< N0 kay >#< V1 ka > IMP#< V1 ka > INF#
+
+\a  #0#qoyka:rala:may#
+
+It makes sense to use the \ambig field only once in the text input
+control file. If multiple \ambig fields do occur in the file, KTEXT
+uses only the value given in the first one. If the text input control
+file does not have an \ambig field, KTEXT uses the %.
+
+KTEXT uses only the first printing character following the \ambig
+field code. The same character cannot be used for marking both
+ambiguities in the analysis output file and comments in the input
+control files. Thus, semicolon (;) cannot normally be used as the
+ambiguity marker.
+
+7.4.2 Morpheme decomposition separator (code \dsc)
+
+When KTEXT asks whether to include the morpheme decomposition field in
+the output, if the user responds positively, it produces results like
+the following:
+
+\a  < V2 *qu > IN PLDIR POL 1O IMP
+\d  qo-yka-:ra-lla:-ma-y
+
+\a  %3%< N0 kay >%< V1 ka > IMP%< V1 ka > INF%
+\d  %3%kay%ka-y%ka-y%
+
+Note that the allomorph strings in the decomposition (\d) field are
+separated by dashes (-). This works fine unless the language uses the
+dash in its orthography.
+
+The \dsc field controls the character used to separate the morphemes
+in the decomposition field. For example, one might use the equal sign
+(=) by including the following in the text input control file:
+
+\dsc  =  ; - is used by the orthography
+
+This would cause the sample analysis to be output as follows:
+
+\a  < V2 *qu > IN PLDIR POL 1O IMP
+\d  qo=yka=:ra=lla:=ma=y
+
+\a  %3%< N0 kay >%< V1 ka > IMP%< V1 ka > INF%
+\d  %3%kay%ka=y%ka=y%
+
+It makes sense to use the \dsc field only once in the text input
+control file. If multiple \dsc fields do occur in the file, KTEXT uses
+the value given in the first one. If the text input control file does
+not have an \dsc field, KTEXT uses a dash (-). KTEXT uses only the
+first printing character following the \dsc field code. The same
+character cannot be used both for separating decomposed morphemes in
+the analysis output file and for marking comments in the input control
+files. Thus, one normally cannot use semicolon (;) as the
+decomposition separation character.
+
+7.5 Controlling capitalization
+
+KTEXT records the capitalization pattern of each word in the text
+file. Besides the typical case of a word whose initial letter is
+capitalized (because it is a proper noun or because it is the first
+word in a sentence), there are two special cases: words with mixed
+capitals and words in all capitals. First, for words with mixed
+capitals (such as MacDonald), the capitalization of each letter is
+recorded through the first thirteen letters of the word (this
+limitation is due to the length of the bit field used to record
+capitalization information). Second, words in all capitals are
+specially marked as such and capitalization is recorded no matter how
+long the word is.
+
+Word-internal capitalization can be disabled by using the \noincap
+option in the input text control file. This feature will likely only
+be of use if you intend to translate KTEXT's output into another
+language and you know that the internal recapitalization is likely to
+be wrong.
+
+7.6 A sample text input control file
+
+The following is the complete text input control file for Huallaga
+Quechua:
+
+\id HGTEXT.CTL - for Huallaga Quechua, 25-May-88
+
+\co         WORD FORMATION CHARACTERS
+
+\wfc  ' ~
+
+\co         FIELDS TO EXCLUDE
+
+\excl  \id            ; identification fields
+
+\co         ORTHOGRAPHY CHANGES
+
+\ch  "aa" > "a:"      ; for long vowels
+\ch  "ee" > "i:"
+\ch  "ii" > "i:"
+\ch  "oo" > "u:"
+\ch  "uu" > "u:"
+\ch  "qeki" > "qiki"  ; for cases like wawqeki
+\ch  "~n" > "n~"      ; for typos
+                      ; for Spanish loans like hwista
+\scl sib s c          ; sibilants
+\ch  "hw" > "f"  / ~[sib]_
+
+8    The output data file
+
+KTEXT formats its output as a database, each record of which
+corresponds to a word of the source text. The first field of each
+entry contains the analysis, the second field the morpheme
+decomposition, and the third field (which is optional, see section 3
+on using the -w option) the original word. Other fields, which may or
+may not occur in any given entry, contain information about the
+capitalization of the word, format marking, punctuation, and white
+space. The fields and their field codes are as shown in figure 10:
+
+           Figure 10  Field codes produced in the analysis
+
+           Code            Description
+           -------         ----------------
+           \a              analysis
+           \d              morpheme decomposition
+           \w              original word
+           \f              preceding format marks
+           \c              capitalization
+           \n              trailing nonalphabetics
+
+For example, suppose that it†tanim (from a Tagalog input text)
+analyzes unambiguously, and that the original word and the morpheme
+decomposition are both requested. The resulting analysis file contains
+the following lines:
+
+\a IP DUR < V plant >
+\d i-RE-tançm
+\w it†tanim
+
+For some words, KTEXT discovers more than one possible analysis. We
+call these ambiguities (or multiple parses). In this case, KTEXT puts
+all the alternatives into the resulting analysis file separated by a
+percent sign (%), and with a number to indicate how many there are.
+For example, Quechua kay is a three-fold ambiguity:
+
+\a	%3%< N0 kay >%< V1 ka > IMP%< V1 ka > INF%
+\d	%3%kay%ka-y%ka-y%
+\w	kay
+
+KTEXT may fail to analyze a word from the input text. Analysis
+failures appear in the resulting analysis file surrounded by percent
+signs and preceded by the number zero (0), as the following
+illustrates:
+
+\a	%0%qoyka:rala:may%
+\d	%0%qoyka:rala:may%
+\w	qoykaaralaamay
+
+If you use a log file (see section 3), it will record all instances of
+analysis failures. To edit failures and ambiguities in the output
+file, you can use a special editor called CED, which is described in
+section 9.
+
+As has been noted elsewhere, KTEXT has much in common with the program
+AMPLE, whose text-processing routines KTEXT has borrowed. In order to
+be able to use other software that expects AMPLE-style output, it is
+desireable to understand how to reproduce it with KTEXT. There are
+some features of KTEXT's output file that you cannot change, notably
+the field code names and their order in a record. Indeed, to remain
+compatible with AMPLE they should not be changed. But the actual
+contents of the fields themselves depend entirely on the format of the
+PC- KIMMO lexicon file and consistent changes speciified in the
+control files. For example, here is a record from the output file
+produced by the English example (supplied with KTEXT):
+
+\a V(be`gin)+PROG
+\d be`gin+ing
+\w beginning
+
+And here is a record from the output file produced by the Tagalog
+example (supplied with KTEXT):
+
+\a IP DUR < V plant >
+\d i-RE-tançm
+\w it†tanim
+
+The Tagalog example conforms to AMPLE while the English example does
+not. The salient features of AMPLE output are as follows.
+
+(1)  AMPLE requires every word to minimally contain a root. Even
+particles that cannot take affixes are treated like roots.
+
+(2)  In the \a field of a word record, the root of a word is delimited
+by angled brackets (<>). In the Tagalog example above, the root of the
+word is < V plant >. Notice that the left bracket is followed by a
+space and the right bracket is preceded by a space.
+
+(3)  Inside the angled brackets that delimit a root, there are exactly
+two pieces of data: a word class (part of speech) abbreviation and a
+gloss (or some other representation of the root, such as an underlying
+form or protoform).
+
+(4)  Morpheme boundary symbols (such as hyphen) are not used in the \a
+field. Prefix and suffix glosses are separated from each other and the
+root gloss by spaces.
+
+(5)  In the \d field, only one morpheme boundary symbol is recognized;
+by default it is hyphen (-), but this can be changed with the \dsc
+field in the input text control file (see section 7.4.2).
+
+There are two places where you can tweak KTEXT in order to make it
+conform to these specifications: the lexicon file and the main control
+file. The easiest way to get angled brackets around roots is simply to
+include them in the glosses of all roots in the lexicon. (To be
+absolutely safe, the brackets should be padded by one space.) For
+example, here is the lexical entry for the Tagalog verb root tanim:
+
+tançm                 V_Root          "< V plant >"
+
+Inside the angled brackets of the root gloss are the word class
+abbreviation V and the gloss 'plant'.
+
+In a typical PC-KIMMO lexicon file, the glosses of affixes normally
+contain a morpheme boundary symbol; for example:
+
+pag-                  V_Prefix        "VR1-"
+
+where the - in the gloss VR1- indicates that it is a prefix. Such
+glosses will incorrectly leave morpheme boundary symbols in the \a
+field of the output word record. There are two ways to remove morpheme
+boundary symbols from the \a field. First, replace them with spaces in
+the lexicon file; for example:
+
+pag-                  V_Prefix        "VR1 "
+
+Second, leave them in the lexicon file but use a \ach field in the
+main control file to change them to spaces; for example:
+
+\ach  "-"  " "
+
+Your lexicon file may use more than one morpheme boundary symbol. For
+example, the Tagalog example uses hyphen for prefixes and plus sign
+for suffixes (the phonological rules require this distinction). But
+the \d field will only recognize one boundary symbol. This can be
+fixed by including a \dch field in the main control file that changes
+plus sign to hyphen:
+
+\dch  "+"  "-"
+
+See the Tagalog lexicon file and mail control file for more examples
+of changes such as these.
+
+
+9  CED: an editor for failures and ambiguities[8]
+
+  9.1  Overview of CED
+  9.2  Starting the CED editor
+       9.2.1  Giving CED an input file with the -i option
+       9.2.2  Giving CED an output file with the -o option
+       9.2.3  Changing CED's ambiguity marker with the -a option
+  9.3  Editing for text glossing
+  9.4  The editing process
+  9.5  Command summary
+       9.5.1  Major commands
+       9.5.2  Word-edit commands
+
+9.1  Overview of CED
+
+Sometimes KTEXT fails to analyze a word into morphemes. Such words are
+referred to as failures, and are flagged as such in the output. For
+example, tatanpa is flagged as a failure in the following:
+
+\a %0%tatanpa%
+
+In other cases, KTEXT produces multiple analyses for a given word.
+Such cases are referred to as ambiguities, and are flagged as such in
+the output. For example, the Quechua word aywamunchu produces the
+following output, indicating two possibilities:
+
+\a %2%< V1 *aywa > AFAR 3 NEG%< V1 *aywa > AFAR 3 YN?%
+
+Each failure or ambiguity begins with a percent sign (%) followed by
+an integer. This integer represents the number of analyses: 0 (zero)
+for a failure, 2 if there are two alternatives of an ambiguous word, 3
+if there are three alternatives, etc. Each alternative is terminated
+by a percent sign.
+
+If a complete and unambiguous morphological analysis of a text is
+needed, as would be the case for text glossing, then the analysis
+produced by KTEXT should be edited to deal with the failures and the
+ambiguities. CED  is an editing program designed specifically for
+dealing with only the flagged failures and ambiguities. (CED stands
+for CADA Editor, CADA being an acronym for Computer Assisted Dialect
+Adaptation.)  CED has various virtues:
+
+(1)  It protects the user from unwanted changes. It allows
+modification only of failures and ambiguities. Thus, CED is good for
+users who are not familiar with a more general editing program, with
+formatting conventions, etc. If needed, subsequent changes can be made
+with a general-purpose editor.
+
+(2)  It is easy to learn. Anyone should be able to use CED with 20
+minutes of orientation.
+
+(3)  It is safe for situations where electricity is unstable. It works
+as a single pass (from the beginning to the end of the file), writing
+the output as editing is done. To learn CED, skim the remainder of
+this chapter and then try the program. Don't be dismayed if you have
+trouble visualizing everything described here; you can always come
+back and read this after giving CED a try.
+
+9.2  Starting the CED editor
+
+CED is run by typing its name in response to the system prompt. After
+it loads, it prompts for an input file. Suppose that you respond with
+the filename xxxxxx.ana (followed, of course, by pressing the ENTER
+key), and that CED finds the file. (If it does not find it, CED
+requests the filename again.)  After finding the input file, CED asks
+for the name of an output file, proposing that it be named xxxxxx.CED
+(where xxxxxx is from the input filename). If you wish some other name
+(e.g., to write the output somewhere other than on the default
+device), you may type the filename after that prompt. If you are
+satisfied with CED's suggestion, simply respond by pressing the ENTER
+key. (Note that the ENTER key may be labeled RETURN on some
+keyboards.)
+
+Rather than wait for CED's prompting, you can designate either the
+input file or the output file (or both) in the command used to start
+CED. You can also designate a different ambiguity marker character to
+match the one given by an \ambig field in the text input control file.
+A command using all of these options would look like the following
+(user input is underlined):
+
+C> ced -i infile.ana -o outfil.ced -a @
+
+Each of these command line options is discussed below.
+
+9.2.1  Giving CED an input file with the -i option
+
+The name of the input file can be given as part of the command,
+following the -i option. If CED is given an input file in this way, it
+does not request an input filename. For example, the following two
+interactions are equivalent in starting CED (user input is
+underlined):
+
+C> ced
+CED (CADA Editor) version 2.0 (October 1988)
+File to be edited: mytext.ana
+
+or
+
+C> ced -i mytext.ana
+CED (CADA Editor) version 2.0 (October 1988)
+
+9.2.2  Giving CED an output file with the -o option
+
+The name of the output file can be given as part of the command,
+following the -o option. If CED is given an input file in this way, it
+does not request an output filename. For example, the following two
+interactions are equivalent in starting CED (user input is
+underlined):
+
+C> ced
+CED (CADA Editor) version 2.0 (October 1988)
+File to be edited: mytext.ana
+Name of output file: [mytext.ced] mytext.out
+
+or
+
+C> ced -o mytext.out
+CED (CADA Editor) version 2.0 (October 1988)
+File to be edited: mytext.ana
+
+If an output file is not given with the -o option, CED proposes a name
+based on the input filename, but asks for confirmation. If you want to
+use the output filename shown enclosed in brackets, simply respond to
+the prompt by pressing the ENTER key.
+
+9.2.3  Changing CED's ambiguity marker with the -a option
+
+KTEXT ordinarily flags failures and ambiguities in its output with a
+percent sign (%):
+
+\a %0%tatanpa%
+\a %2%< V1 *aywa > AFAR 3 NEG%< V1 *aywa > AFAR 3 YN?%
+
+However, this character can be changed, for example to the at sign
+(@), by putting the following line in the text input control file:
+
+\ambig  @
+
+In this case, output would look like the following:
+
+\a @0@tatanpa@
+\a @2@< V1 *aywa > AFAR 3 NEG@< V1 *aywa > AFAR 3 YN?@
+
+If CED were to be run on such an analysis without informing it that
+the flagging character is different, it would fail to recognize the
+failures and ambiguities.
+
+To cause CED to recognize a different flagging character, we must
+include the -a option, followed by the new flagging character, when
+the program is started. For example, to edit a text in which failures
+and ambiguities are flagged with @, CED would be initiated as follows
+(user input is underlined):
+
+C> ced -a @
+
+The -a option is compatible with the other command line options (-i
+and -o), and may either precede or follow them.
+
+In the examples given below, we will use % as the flagging character,
+since it is the default.
+
+9.3  Editing for text glossing
+
+An analysis file used for text glossing should include morpheme
+decomposition fields. Thus, every word has a pair of lines, one the
+analysis, the other the decomposition. If the analysis failed, the \a
+field contains the original word, and you must replace it with the
+correct analysis. Further, the \d field also contains the original
+word, and you must introduce hyphens (or some other separation
+character) between the morphemes.
+
+An analysis ambiguity looks like the following, where each analysis is
+paired with the corresponding decomposition:
+
+\a %2%< N0 thief > GOAL%< V2 steal > 1O 3%
+\d %2%suwa-man%suwa-ma-n%
+
+(Note that suwa-man corresponds to < N0 thief > GOAL, and suwa-ma-n to
+< V2 steal > 1O 3.)  For each analysis, there is a decomposition, so
+when you choose a particular analysis, CED automatically chooses the
+corresponding decomposition. This greatly simplifies the task of
+editing ambiguities.
+
+9.4  The editing process
+
+CED splits the screen into two windows. Text is displayed in the upper
+window, with a failure or ambiguity highlighted. Among the
+alternatives of an ambiguity, the current alternative is given special
+highlighting to distinguish it from the others. The flagging (%) does
+not appear in the display of the site being edited. The lower window
+contains the item to be edited, either a failure or the analysis
+selected from the alternatives of an ambiguity. Prompts and helps are
+also displayed in the bottom window.
+
+To edit an ambiguity, you select, delete, or modify the current
+alternative (the one that is highlighted). To select the current
+alternative, press the ENTER key (which may be labeled RETURN instead
+of ENTER), whereupon the other alternatives are discarded and the
+selected analysis appears in the lower part of the screen. The cursor
+appears after the last character. You may now modify the word, using
+the word-edit commands.
+
+When you are finished editing the word, press the ENTER key. CED then
+asks "Is this what you want?" You may approve it by pressing the ENTER
+key again. If, on the other hand, you wish to go back and make more
+changes, type n and then press the ENTER key. At this point all of the
+commands are available. For instance, if you would like to restore
+this edit site to its original form (with all the original
+alternatives) you may undo all modifications by typing u.
+
+Whenever only one alternative remains (whether this has been brought
+about by a selection or a series of deletions) the remaining
+alternative is displayed on the lower portion of the screen for
+editing and verification. Because failures have only one alternative,
+whenever CED encounters one, it is automatically displayed in the
+lower portion of the screen, whereupon you may modify it. There are
+two cases in which you could be finished at an edit site:
+
+(1)  You may wish to leave things as they are, to be corrected later;
+you indicate this by typing c (continue).
+
+If the cursor is in the lower window, you must first press the ENTER
+key. When CED asks  "Is this what you want?", type n and then press
+the ENTER key. Then you may give the c (continue) command to CED leave
+this edit as it is.
+
+(2)  You may be satisfied with the word as edited (of course you don't
+have to change anything) so you press the ENTER key twice, once to
+stop editing and once to verify that you are satisfied. In both cases
+the text is then updated to reflect any changes you have made. CED
+then moves on to the next site. CED removes the markers at an edit
+site whenever you (by various manipulations) arrive at the word you
+want and subsequently verify it. If you defer a decision concerning
+how a site should be modified, the markers are not removed so that you
+can edit these sites again with CED.
+
+If you are unable to finish editing a text, you can direct CED to pass
+the remainder of the input unchanged to the output file by typing q
+(quit). (If the cursor is in the lower window, you must first press
+the ENTER key and then respond with n to the query "Is this what you
+want?" to get the full list of command options.)  This does not undo
+any edits you have made previously. Subsequently, you may continue
+from where you left off by again editing the modified text with CED.
+In this case, the name of your input file probably ends with CED, and
+CED will suggest exactly the same name for the output. If you accept
+this (making the name of the output and input files identical) CED
+will complain and ask for another output file. So do one of two
+things: (1) rename the input file to something like xxxxxx.tem before
+you starting CED, or (2) when CED asks for the name of the output file
+(suggesting xxxxxx.ced) type a different name.
+
+9.5  Command summary
+
+CED has two levels of command, major commands and word-edit commands.
+The major commands involve actions at the level of an entire edit site
+or of the file, whereas word-edit commands involve modifications to
+particular word, carried out in the lower window. We now describe the
+commands available at these two levels.
+
+9.5.1  Major commands
+
+The major commands are single letters. CED does not wait for ENTER key
+to be pressed before processing a command; indeed, the ENTER key is a
+specific command. The commands are as follows:
+
+(1)  c (continue) leaves this set of alternatives as they are and goes
+on to the next edit site.
+
+(2)  d deletes the current alternative.
+
+(3)  e edits (i.e., allows modification to) the current alternative;
+the word-edit commands listed below (in section 9.5.2) become
+available.
+
+(4)  q quits, that is, terminates this edit session. All modifications
+previously made are retained in the output file. All subsequent
+editing sites are passed to the output unmodified (to be dealt with in
+a later editing session).
+
+(5)  u undoes any modifications made at this site, that is, it
+restores the edit site to the form it had in the input file.
+
+(6)  ? or h displays a help message describing each of these commands
+in the bottom window. If the window is too small to display the entire
+message, CED pauses after filling the window and waits for the ENTER
+key to be pressed before displaying more of the help message.
+
+(7)  ENTER selects the current alternative, deleting all others and
+putting the current alternative into the edit window. (This is the
+single key labeled ENTER or RETURN, not the string E n t e r!)  After
+any modifications and your approval, this alternative is put into the
+output text and the other alternatives are discarded.
+
+(8)  Space moves to the next alternative, making it the current
+alternative. (This is the space bar, not the string S p a c e!)  When
+at the last alternative, a space makes the first alternative into the
+current one. Any character which is not recognized as a command serves
+the same function.
+
+9.5.2  Word-edit commands
+
+The word-edit commands are described in the following list. (CTRL/X
+refers to the character generated by holding the CTRL key down while
+simultaneously typing x.)
+
+(1)  <- (the left arrow key) and CTRL/B move the cursor one character
+to the left. If the cursor is on the first character, it moves to the
+end of the word.
+
+(2)  -> (the right arrow key) and CTRL/F move the cursor one character
+to the right. If the cursor is at the end of the word, it moves to the
+first character of the word.
+
+(3)  DELETE, BACKSPACE, and CTRL/H delete the character to the left of
+the cursor.
+
+(4)  CTRL/U and CTRL/W delete the entire word being edited, allowing a
+completely new word to be entered.
+
+(5)  CTRL/R restores the original word, undoing any editing changes
+which you have made.
+
+(6)  ? displays a message in the bottom window describing each of
+these word-edit commands. If the window is too small to display the
+entire message, CED pauses after filling the window and waits for the
+ENTER key to be pressed before displaying more of the message.
+
+(7)  ENTER puts the word as it now appears into the output text
+(provided you subsequently verify that this is what you want).
+
+(8)  Any other character is inserted to the left of the cursor.
+
+
+NOTES
+
+1  The particular choice of field markers and the order of fields in a
+record is due to the fact that KTEXT uses the same text-handling
+routines as an existing program called AMPLE (Weber et al., 1988).
+This has the advantage that KTEXT's output is compatible with that
+program, but the disadvantage that the record structure is perhaps not
+consistent with terminology already established for PC-KIMMO. It
+should also be noted that the quasi-database design of KTEXT 's output
+is used by many other programs developed by the Summer Institute of
+Linguistics.
+
+2  Tagalog, also known now as Pilipino or Filipino, is a major
+language of the Philippines.
+
+3  IT (pronounced "eye-tee") is an interlinear text editor that
+maintains the vertical alignment of the interlinear lines of text and
+uses a lexicon to semi-automatically gloss the text. See Simons and
+Versaw (1991) and Simons and Thomson (1988).
+
+4  ITF was developed by the Academic Computing Department of the
+Summer Institute of Linguistics. It runs under MS-DOS, UNIX, and the
+Apple Macintosh.
+
+5  TEX  is a typesetting language developed by Donald Knuth (see
+Knuth, 1986).
+
+6  The plain text version of this documentation does not include
+figure 4, since it is an image of typeset output.
+
+7  This section is adapted from chapters 7, 8, and 9 of Weber et al.
+1988.
+
+8  The CED program is not available for Macintosh.
+
+
+REFERENCES
+
+Antworth, Evan L. 1990. PC-KIMMO: a two-level processor for 
+   morphological analysis. Occasional Publications in Academic 
+   Computing No. 16. Dallas, TX: Summer Institute of Linguistics.
+
+Bloomfield, Leonard. 1917. Tagalog texts with grammatical 
+   analysis. Urbana, IL: University of Illinois.
+
+Kew, Jonathan and Stephen R. McConnel. 1991. Formatting 
+   interlinear text. Occasional Publications in Academic Computing 
+   No. 17. Dallas, TX: Summer Institute of Linguistics.
+
+Knuth, Donald E. 1986. The TEXbook. Reading, MA: Addison Wesley 
+   Publishing Company.
+
+Simons, Gary F., and John Thomson. 1988. How to use IT: 
+   interlinear text processing on the Macintosh. Edmonds, WA: 
+   Linguist's Software.
+
+Simons, Gary F., and Larry Versaw. 1991. How to use IT: a guide to 
+   interlinear text processing, 3rd ed. Dallas, TX: Summer 
+   Institute of Linguistics.
+
+Weber, David J., H. Andrew Black, and Stephen R. McConnel. 1988. 
+   AMPLE: a tool for exploring morphology. Occasional Publications 
+   in Academic Computing No. 12. Dallas, TX: Summer Institute of 
+   Linguistics.

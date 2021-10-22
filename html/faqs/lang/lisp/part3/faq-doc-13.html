@@ -1,0 +1,62 @@
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/faqs/lang/lisp/part3/faq-doc-13.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 05:31:21 GMT -->
+<HEAD>
+<TITLE>FAQ: Lisp Frequently Asked Questions 3/7 [Monthly posting] - [3-12] When is it right to use EVAL?</TITLE>
+</HEAD>
+<BODY>
+<H1>[3-12] When is it right to use EVAL?</H1>
+<PRE>
+Hardly ever.  Any time you think you need to use EVAL, think hard about it.
+EVAL is useful when implementing a facility that provides an external
+interface to the Lisp interpreter.  For instance, many Lisp-based editors
+provide a command that prompts for a form and displays its value.
+Inexperienced macro writers often assume that they must explicitly EVAL the
+subforms that are supposed to be evaluated, but this is not so; the correct
+way to write such a macro is to have it expand into another form that has
+these subforms in places that will be evaluated by the normal evaluation
+rules.  Explicit use of EVAL in a macro is likely to result in one of two
+problems: the dreaded "double evaluation" problem, which may not show up
+during testing if the values of the expressions are self-evaluating
+constants (such as numbers); or evaluation at compile time rather than
+runtime.  For instance, if Lisp didn't have IF and one desired to write it,
+the following would be wrong:
+
+   (defmacro if (test then-form &#38;optional else-form)
+     ;; this evaluates all the subforms at compile time, and at runtime
+     ;; evaluates the results again.
+     `(cond (,(eval test) ,(eval then-form))
+            (t ,(eval else-form))))
+
+   (defmacro if (test then-form &#38;optional else-form)
+     ;; this double-evaluates at run time
+     `(cond ((eval ,test) (eval ,then-form))
+            (t (eval ,else-form)))
+
+This is correct:
+
+   (defmacro if (test then-form &#38;optional else-form)
+     `(cond (,test ,then-form)
+            (t ,else-form)))
+
+The following question (taken from an actual post) is typical of the
+kind of question asked by a programmer who is misusing EVAL:
+
+   I would like to be able to quote all the atoms except the first in a
+   list of atoms.  The purpose is to allow a function to be read in and
+   evaluated as if its arguments had been quoted.
+
+This is the wrong approach to solving the problem. Instead, he should
+APPLY the CAR of the form to the CDR of the form. Then quoting the
+rest of the form is unnecessary. But one wonders why he's trying to
+solve this problem in the first place, since the toplevel REP loop
+already involves a call to EVAL. One gets the feeling that if we knew
+more about what he's trying to accomplish, we'd be able to point out a
+more appropriate solution that uses neither EVAL nor APPLY.
+
+On the other hand, EVAL can sometimes be necessary when the only portable
+interface to an operation is a macro. 
+</PRE>
+<A NAME=up HREF="faq.html">Go Back Up</A><P>
+<A NAME=up HREF="faq-doc-12.html">Go To Previous</A><P>
+<A NAME=up HREF="faq-doc-14.html">Go To Next</A><P>
+</BODY>

@@ -1,0 +1,316 @@
+From tom@smart.bo.open.de Mon Mar  7 16:29:46 EST 1994
+Article: 8403 of comp.lang.scheme
+Xref: glinda.oz.cs.cmu.edu comp.lang.scheme:8403
+Path: honeydew.srv.cs.cmu.edu!rochester!cornell!batcomputer!caen!sdd.hp.com!vixen.cso.uiuc.edu!howland.reston.ans.net!pipex!sunic!EU.net!Germany.EU.net!ruhr.de!smart.bo.open.de!tom
+From: tom@smart.bo.open.de (Thomas Neumann)
+Newsgroups: comp.lang.scheme
+Subject: Re: Bigloo
+Date: 06 Mar 1994 12:12:18 GMT
+Organization: News at smart
+Lines: 298
+Distribution: world
+Message-ID: <TOM.94Mar6131218@smart.bo.open.de>
+References: <2l23k9$hki@news-rocq.inria.fr>
+NNTP-Posting-Host: smart.bo.open.de
+In-reply-to: serrano@savigny.inria.fr's message of 2 Mar 1994 13:16:57 GMT
+
+
+When Bigloo 1.5 was released in December 1993 I ported it to NeXTSTEP
+(verified for m68k only) and sent Manuel the resulting patches.
+
+Bigloo 1.6 has most of the required NeXT support, however, the most
+crucial and difficult to port part -- the garbage collector -- seems
+to be unmodified from the 1.5 release.
+
+So, for everybody who wants to compile the new Bigloo release on
+black NeXT hardware, here is the patch for 1.6
+
+
+*** bigloo1.6/lib/1.6/config.h	Tue Dec 21 08:12:52 1993
+--- bigloo1.6.NeXT/lib/1.6/config.h	Fri Dec 24 19:04:56 1993
+***************
+*** 14,17 ****
+--- 14,22 ----
+  #    define mach_type_known
+  # endif
++ # if defined(NeXT) && defined(m68k)
++ #    define M68K
++ #    define BSD
++ #    define mach_type_known
++ # endif
+  # if defined(hp9000s300)
+  #    define M68K
+***************
+*** 205,208 ****
+--- 210,219 ----
+  #	define HEURISTIC1	/* differs	*/
+  #   endif
++ #   ifdef NeXT
++ 	extern unsigned char * get_etext(void);
++ #       define OS_TYPE "NeXTSTEP"
++ #       define DATASTART ((ptr_t)get_etext())
++ #       define STACKBOTTOM 0x4000000
++ #   endif
+  #   ifdef HP
+  #	define OS_TYPE "HP"
+***************
+*** 269,273 ****
+  #   ifdef SUNOS4
+  #	define OS_TYPE "SUNOS4"
+! #       define DATASTART ((ptr_t)((((word) (&etext)) + 0xfff) & ~0xfff))
+  		/* On very old SPARCs this is too conservative. */
+  #   endif
+--- 280,294 ----
+  #   ifdef SUNOS4
+  #	define OS_TYPE "SUNOS4"
+! /*---------------------------------------------------------------------*/
+! /*    !!! WARNING !!! WARNING !!! WARNING !!! WARNING  !!! WARNING !!! */
+! /*    -------------------------------------------------------------    */
+! /*    Changed by Bernard Serpette (Bernard.Serpette@inria.fr) due      */
+! /*    to a bug of the sparc's linker.                                  */
+! /*    -------------------------------------------------------------    */
+! /* # define DATASTART ((ptr_t)((((word) (&etext)) + 0xfff) & ~0xfff))  */
+! /*---------------------------------------------------------------------*/
+!     extern char **environ;
+! #   define DATASTART ((ptr_t)(&environ))
+! /*---------------------------------------------------------------------*/
+  		/* On very old SPARCs this is too conservative. */
+  #   endif
+*** bigloo1.6/lib/1.6/gc_private.h	Tue Dec 21 08:12:52 1993
+--- bigloo1.6.NeXT/lib/1.6/gc_private.h	Fri Dec 24 19:09:37 1993
+***************
+*** 208,211 ****
+--- 208,214 ----
+  #   define BCOPY_EXISTS
+  # endif
++ # if defined(M68K) && defined(NeXT)
++ #   define BCOPY_EXISTS
++ # endif
+  
+  # ifndef BCOPY_EXISTS
+***************
+*** 228,238 ****
+                                      + HBLKSIZE-1)
+  #   else
+!       caddr_t sbrk();
+! #     ifdef __STDC__
+! #       define GET_MEM(bytes) HBLKPTR(sbrk((size_t)(bytes + HBLKSIZE)) \
+!   				    + HBLKSIZE-1)
+! #     else
+! #       define GET_MEM(bytes) HBLKPTR(sbrk((int)(bytes + HBLKSIZE)) \
+                                        + HBLKSIZE-1)
+  #     endif
+  #   endif
+--- 231,248 ----
+                                      + HBLKSIZE-1)
+  #   else
+! #     ifdef NeXT
+!         void * nx_alloc(size_t bytes);
+! #       define GET_MEM(bytes) HBLKPTR((ptr_t)nx_alloc((size_t)bytes + HBLKSIZE) \
+                                        + HBLKSIZE-1)
++ #     else
++ 
++         caddr_t sbrk();
++ #       ifdef __STDC__
++ #         define GET_MEM(bytes) HBLKPTR(sbrk((size_t)(bytes + HBLKSIZE)) \
++   		  		      + HBLKSIZE-1)
++ #       else
++ #         define GET_MEM(bytes) HBLKPTR(sbrk((int)(bytes + HBLKSIZE)) \
++                                         + HBLKSIZE-1)
++ #       endif
+  #     endif
+  #   endif
+*** bigloo1.6/runtime1.6/Gc/mach_dep.c	Tue Dec 21 08:13:37 1993
+--- bigloo1.6.NeXT/runtime1.6/Gc/mach_dep.c	Fri Dec 24 18:51:29 1993
+***************
+*** 28,32 ****
+  	  asm("pushl r6");	asm("calls $1,_GC_tl_mark");
+  #       endif
+! #       if defined(M68K) && defined(SUNOS)
+  	/*  M68K SUNOS - could be replaced by generic code */
+  	  /* a0, a1 and d1 are caller save          */
+--- 28,32 ----
+  	  asm("pushl r6");	asm("calls $1,_GC_tl_mark");
+  #       endif
+! #       if defined(M68K) && (defined(SUNOS) || defined(NeXT))
+  	/*  M68K SUNOS - could be replaced by generic code */
+  	  /* a0, a1 and d1 are caller save          */
+*** bigloo1.6/runtime1.6/Gc/os_dep.c	Tue Dec 21 08:13:37 1993
+--- bigloo1.6.NeXT/runtime1.6/Gc/os_dep.c	Fri Dec 24 18:58:22 1993
+***************
+*** 319,326 ****
+  void GC_register_data_segments()
+  {
+!     extern int end;
+   
+! #   ifndef PCR      
+        GC_add_roots_inner(DATASTART, (char *)(&end));
+  #   endif
+      /* Dynamic libraries are added at every collection, since they may  */
+--- 319,334 ----
+  void GC_register_data_segments()
+  {
+! #if defined(NeXT)
+!       extern char * get_end(void);
+! #else
+!       extern int end;
+! #endif
+   
+! #   ifndef PCR
+! #    if !defined(NeXT)
+        GC_add_roots_inner(DATASTART, (char *)(&end));
++ #    else
++       GC_add_roots_inner(DATASTART, get_end());
++ #    endif
+  #   endif
+      /* Dynamic libraries are added at every collection, since they may  */
+*** bigloo1.6/runtime1.6/Gc/real_malloc.c	Tue Dec 21 08:13:38 1993
+--- bigloo1.6.NeXT/runtime1.6/Gc/real_malloc.c	Fri Dec 24 18:54:17 1993
+***************
+*** 44,45 ****
+--- 44,59 ----
+  
+  # endif /* OS2 */
++ 
++ 
++ #ifdef NeXT
++ 
++ #include <stdlib.h>
++ #include <mach/mach.h>
++ 
++ void * nx_alloc(size_t s) {
++   vm_address_t adr;
++   return vm_allocate(task_self(), &adr, (vm_size_t)s,TRUE)
++     == KERN_SUCCESS ? (void *)adr : 0;
++ }
++ 
++ #endif				/* NeXT */
+*** bigloo1.6/runtime1.6/Gc/interface.c	Tue Dec 21 08:13:39 1993
+--- bigloo1.6.NeXT/runtime1.6/Gc/interface.c	Fri Dec 24 19:36:09 1993
+***************
+*** 24,27 ****
+--- 24,29 ----
+  
+  
++ #if !defined(NeXT)
++ 
+  /* This free routine is merely advisory -- it reduces the estimate of
+     storage that won't be reclaimed in the next collection, thus
+***************
+*** 35,38 ****
+--- 37,41 ----
+    GC_non_gc_bytes -= inc;
+  }
++ #endif				/* !defined(NeXT) */
+  
+  /* This free routine adjusts the collector estimates of space in use,
+***************
+*** 49,52 ****
+--- 52,57 ----
+  
+  
++ #if !defined(NeXT)
++ 
+  /* malloc and malloc_atomic are obvious substitutes for the C library
+     malloc.  Note that the storage so allocated is regarded as not likely
+***************
+*** 64,67 ****
+--- 69,74 ----
+    return result;
+  }
++ #endif				/* !defined(NeXT) */
++ 
+  
+  extern_ptr_t malloc_atomic(bytesize)
+***************
+*** 75,78 ****
+--- 82,88 ----
+  }
+  
++ 
++ #if !defined(NeXT)
++ 
+  extern_ptr_t realloc(old,size)
+  extern_ptr_t old;
+***************
+*** 84,86 ****
+    return(GC_realloc(old, size));
+  }
+! 
+--- 94,96 ----
+    return(GC_realloc(old, size));
+  }
+! #endif				/* !defined(NeXT) */
+*** bigloo1.6/runtime1.6/Gc/gc_private.h	Tue Dec 21 08:13:39 1993
+--- bigloo1.6.NeXT/runtime1.6/Gc/gc_private.h	Fri Dec 24 19:09:27 1993
+***************
+*** 208,211 ****
+--- 208,214 ----
+  #   define BCOPY_EXISTS
+  # endif
++ # if defined(M68K) && defined(NeXT)
++ #   define BCOPY_EXISTS
++ # endif
+  
+  # ifndef BCOPY_EXISTS
+***************
+*** 228,238 ****
+                                      + HBLKSIZE-1)
+  #   else
+!       caddr_t sbrk();
+! #     ifdef __STDC__
+! #       define GET_MEM(bytes) HBLKPTR(sbrk((size_t)(bytes + HBLKSIZE)) \
+!   				    + HBLKSIZE-1)
+! #     else
+! #       define GET_MEM(bytes) HBLKPTR(sbrk((int)(bytes + HBLKSIZE)) \
+                                        + HBLKSIZE-1)
+  #     endif
+  #   endif
+--- 231,248 ----
+                                      + HBLKSIZE-1)
+  #   else
+! #     ifdef NeXT
+!         void * nx_alloc(size_t bytes);
+! #       define GET_MEM(bytes) HBLKPTR((ptr_t)nx_alloc((size_t)bytes + HBLKSIZE) \
+                                        + HBLKSIZE-1)
++ #     else
++ 
++         caddr_t sbrk();
++ #       ifdef __STDC__
++ #         define GET_MEM(bytes) HBLKPTR(sbrk((size_t)(bytes + HBLKSIZE)) \
++   		  		      + HBLKSIZE-1)
++ #       else
++ #         define GET_MEM(bytes) HBLKPTR(sbrk((int)(bytes + HBLKSIZE)) \
++                                         + HBLKSIZE-1)
++ #       endif
+  #     endif
+  #   endif
+*** bigloo1.6/runtime1.6/Gc/config.h	Tue Dec 21 08:13:40 1993
+--- bigloo1.6.NeXT/runtime1.6/Gc/config.h	Fri Dec 24 18:40:11 1993
+***************
+*** 14,17 ****
+--- 14,22 ----
+  #    define mach_type_known
+  # endif
++ # if defined(NeXT) && defined(m68k)
++ #    define M68K
++ #    define BSD
++ #    define mach_type_known
++ # endif
+  # if defined(hp9000s300)
+  #    define M68K
+***************
+*** 204,207 ****
+--- 209,218 ----
+  #	define DATASTART ((ptr_t)((((word) (&etext)) + 0x1ffff) & ~0x1ffff))
+  #	define HEURISTIC1	/* differs	*/
++ #   endif
++ #   ifdef NeXT
++ 	extern unsigned char * get_etext(void);
++ #       define OS_TYPE "NeXTSTEP"
++ #       define DATASTART ((ptr_t)get_etext())
++ #       define STACKBOTTOM 0x4000000
+  #   endif
+  #   ifdef HP
+
+

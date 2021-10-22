@@ -1,0 +1,299 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node141.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:47:03 GMT -->
+<HEAD>
+<TITLE>14. Sequences</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Sequences">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3284 HREF="node142.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3282 HREF="clm.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3276 HREF="node140.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3286 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3287 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3285 HREF="node142.html"> Simple Sequence Functions</A>
+<B>Up:</B> <A NAME=tex2html3283 HREF="clm.html">Common Lisp the Language</A>
+<B> Previous:</B> <A NAME=tex2html3277 HREF="node140.html"> Character Control-Bit Functions</A>
+<HR> <P>
+<H1><A NAME=SECTION001800000000000000000>14. Sequences</A></H1>
+<P>
+<A NAME=KSEQUE>The</A>
+type <tt>sequence</tt> encompasses both lists and vectors (one-dimensional
+arrays).
+While these are different data structures with different structural
+properties leading to different algorithmic uses, they do have a common
+property: each contains an ordered set of elements.
+Note that <tt>nil</tt> is considered to be a sequence of length zero.
+<P>
+Some operations are useful on both lists and arrays
+because they deal with ordered sets of elements.  One may ask the number
+of elements, reverse the ordering, extract a subsequence, and so on.  For
+such purposes Common Lisp provides a set of generic functions on sequences.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+Note that this remark, predating the design of the Common Lisp Object System,
+uses the term ``generic'' in a generic sense, and not necessarily
+in the technical sense used by CLOS
+(see chapter <A HREF="node15.html#DTYPES">2</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<pre>
+elt          reverse        map           remove
+length       nreverse       some          remove-duplicates
+subseq       concatenate    every         delete
+copy-seq     position       notany        delete-duplicates
+fill         find           notevery      substitute
+replace      sort           reduce        nsubstitute
+count        merge          search        mismatch
+</pre>
+Some of these operations come in more than one version.
+Such versions are indicated by adding a suffix (or occasionally a prefix)
+to the basic name of the operation.
+In addition, many operations accept one or more optional keyword
+arguments that can modify the operation in various ways.
+<P>
+If the operation requires testing sequence elements according to
+some criterion, then the criterion may be specified in one of two ways.
+The basic operation accepts an item,
+and elements are tested for being <tt>eql</tt> to that item.
+(A test other than <tt>eql</tt> can be specified by the <tt>:test</tt>
+or <tt>:test-not</tt> keyword.  It is an error to use both
+of these keywords in the same call.)
+The variants formed by adding <tt>-if</tt> and <tt>-if-not</tt>
+to the basic operation name do not take an item,
+but instead a one-argument predicate,
+and elements are tested for satisfying or not satisfying the predicate.
+As an example,
+<P><pre>
+(remove <i>item</i> <i>sequence</i>)
+</pre><P>
+returns a copy of <i>sequence</i> from which all elements <tt>eql</tt> to <i>item</i>
+have been removed;
+<P><pre>
+(remove <i>item</i> <i>sequence</i> <tt>:test</tt> #'equal)
+</pre><P>
+returns a copy of <i>sequence</i> from which all elements <tt>equal</tt> to <i>item</i>
+have been removed;
+<P><pre>
+(remove-if #'numberp <i>sequence</i>)
+</pre><P>
+returns a copy of <i>sequence</i> from which all numbers have been removed.
+<P>
+If an operation tests elements of a sequence in any manner,
+the keyword argument <tt>:key</tt>, if not <tt>nil</tt>, should be a function
+of one argument that will extract from an element the part to be tested
+in place of the whole element.
+For example, the effect of the MacLisp expression
+<tt>(assq item seq)</tt> could be obtained by
+<P><pre>
+(find <i>item</i> <i>sequence</i> <tt>:test</tt> #'eq <tt>:key</tt> #'car)
+</pre><P>
+This searches for the first element of <i>sequence</i> whose <i>car</i> is <tt>eq</tt>
+to <i>item</i>.
+<p>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1988 (FUNCTION-TYPE) <A NAME=15237>&#160;</A>  to allow the <tt>:key</tt> function
+to be only of type <tt>symbol</tt> or <tt>function</tt>; a lambda-expression
+is no longer acceptable as a functional argument.  One must use the
+<tt>function</tt> special form or the abbreviation <tt>#'</tt> before
+a lambda-expression that appears as an  explicit argument form.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+For some operations it can be useful to specify the direction
+in which the sequence is conceptually processed.  In this case the basic
+operation normally processes the sequence in the forward direction,
+and processing in the reverse direction is indicated by a non-<tt>nil</tt>
+value for the keyword argument <tt>:from-end</tt>.  (The processing order
+specified by the <tt>:from-end</tt> is purely conceptual.  Depending on
+the object to be processed and on the implementation, the actual processing
+order may be different.  For this reason a user-supplied <i>test</i> function
+should be free of side effects.)
+<P>
+Many operations allow the specification of a subsequence to be operated
+upon.  Such operations have keyword arguments
+called <tt>:start</tt> and <tt>:end</tt>.  These arguments should be integer indices
+into the sequence, with <b><i>start</i><i>end</i></b>
+(it is an error if <b><i>start</i>&gt;<i>end</i></b>).  They indicate
+the subsequence starting with and <i>including</i> element <i>start</i>
+and up to but <i>excluding</i> element <i>end</i>.  The length of the subsequence
+is therefore <b><i>end</i>-<i>start</i></b>.  If <i>start</i> is omitted,
+it defaults to zero; and if <i>end</i> is omitted or <tt>nil</tt>, it defaults to
+the length of the sequence.
+Therefore if both <i>start</i> and <i>end</i> are omitted, the entire sequence
+is processed by default.
+For the most part, subsequence specification
+is permitted purely for the sake of efficiency;
+one could simply call <tt>subseq</tt> instead to extract the subsequence
+before operating on it.  Note, however, that operations that
+calculate indices
+return indices into the original sequence, not into the subsequence:
+<P><pre>
+(position #\b &quot;foobar&quot; <tt>:start</tt> 2 <tt>:end</tt> 5) => 3 
+(position #\b (subseq &quot;foobar&quot; 2 5)) => 1
+</pre><P>
+If two sequences are involved, then
+the keyword arguments
+<tt>:start1</tt>, <tt>:end1</tt>, <tt>:start2</tt>, and <tt>:end2</tt> are used to
+specify separate subsequences for each sequence.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1988 (SUBSEQ-OUT-OF-BOUNDS) <A NAME=15277>&#160;</A> 
+(and further clarification was voted in January 1989
+(RANGE-OF-START-AND-END-PARAMETERS) <A NAME=15278>&#160;</A> )
+to specify that these rules apply not
+only to all built-in functions that have keyword parameters named
+<tt>:start</tt>, <tt>:start1</tt>, <tt>:start2</tt>, <tt>:end</tt>, <tt>:end1</tt>,
+or <tt>:end2</tt> but also to functions such as <tt>subseq</tt>
+that take required or optional parameters that are documented
+as being named <i>start</i> or <i>end</i>.
+<UL><LI> A ``start'' argument must always be a non-negative integer and
+defaults to zero if not supplied; it is not permissible to pass <tt>nil</tt>
+as a ``start'' argument.<p>
+<LI> An ``end'' argument must be either a
+non-negative integer or <tt>nil</tt> (which indicates the end of the
+sequence) and defaults to <tt>nil</tt>
+if not supplied; therefore supplying <tt>nil</tt> is equivalent to
+not supplying such an argument.<p>
+<LI> If the ``end'' argument is an integer, it must be no greater than the
+active length of the corresponding sequence
+(as returned by the function <tt>length</tt>).<p>
+<LI> The default value for the ``end'' argument is the active length
+of the corresponding sequence.<p>
+<LI> The ``start'' value (after defaulting, if necessary) must not be greater than the
+corresponding ``end'' value (after defaulting, if necessary).<p>
+</UL>
+This may be summarized as follows.
+Let <i>x</i> be the sequence within which indices are to be considered.  Let <i>s</i> be
+the ``start'' argument for that sequence of any standard function,
+whether explicitly specified or defaulted, through omission, to
+zero.  Let <i>e</i> be the ``end'' argument for that sequence
+of any standard function, whether explicitly specified or defaulted, through
+omission or an explicitly passed <tt>nil</tt> value, to the active length of <i>x</i>, as
+returned by <tt>length</tt>.  Then it is an error if the test
+<tt>(&lt;= 0 <i>s</i> <i>e</i> (length <i>x</i>))</tt>
+is not true.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+For some functions, notably <tt>remove</tt> and <tt>delete</tt>, the keyword argument
+<tt>:count</tt> is used to specify how many occurrences of the item should
+be affected.  If this is <tt>nil</tt> or is not supplied, all matching items are
+affected.
+<P>
+In the following function descriptions, an element <i>x</i> of a sequence
+``satisfies the test'' if any of the following holds:
+<UL><LI>
+A basic function was called,
+<i>testfn</i> was specified by the keyword <tt>:test</tt>, and
+<tt>(funcall <i>testfn</i> <i>item</i> (<i>keyfn</i> <i>x</i>))</tt> is true.
+<P>
+<LI>
+A basic function was called,
+<i>testfn</i> was specified by the keyword <tt>:test-not</tt>, and
+<tt>(funcall <i>testfn</i> <i>item</i> (<i>keyfn</i> <i>x</i>))</tt> is false.
+<P>
+<LI>
+An <tt>-if</tt> function was called, and
+<tt>(funcall <i>predicate</i> (<i>keyfn</i> <i>x</i>))</tt> is true.
+<P>
+<LI>
+An <tt>-if-not</tt> function was called, and
+<tt>(funcall <i>predicate</i> (<i>keyfn</i> <i>x</i>))</tt> is false.
+</UL>
+In each case <i>keyfn</i> is the
+value of the <tt>:key</tt> keyword argument (the default being the identity
+function).  See, for example, <tt>remove</tt>.
+<P>
+In the following function descriptions,
+two elements <i>x</i> and <i>y</i> taken from sequences ``match'' if
+either of the following holds:
+<UL><LI>
+<i>testfn</i> was specified by the keyword <tt>:test</tt>, and
+<tt>(funcall <i>testfn</i> (<i>keyfn</i> <i>x</i>) (<i>keyfn</i> <i>y</i>))</tt> is true.
+<P>
+<LI>
+<i>testfn</i> was specified by the keyword <tt>:test-not</tt>, and
+<tt>(funcall <i>testfn</i> (<i>keyfn</i> <i>x</i>) (<i>keyfn</i> <i>y</i>))</tt> is false.
+</UL>
+See, for example, <tt>search</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1988 (FUNCTION-TYPE) <A NAME=15355>&#160;</A>  to allow the <i>testfn</i>
+or <tt>predicate</tt>
+to be only of type <tt>symbol</tt> or <tt>function</tt>; a lambda-expression
+is no longer acceptable as a functional argument.  One must use the
+<tt>function</tt> special form or the abbreviation <tt>#'</tt> before
+a lambda-expression that appears as an  explicit argument form.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+You may depend on the order in which arguments
+are given to <i>testfn</i>; this permits the use of non-commutative
+test functions in a predictable manner.
+The order of the arguments to <i>testfn</i> corresponds
+to the order in which those arguments (or the sequences containing
+those arguments)
+were given to the sequence function in question.
+If a sequence function gives two elements from the same
+sequence argument to <i>testfn</i>, they are given in the same order in
+which they appear in the sequence.
+<P>
+Whenever a sequence function must construct and return
+a new vector, it always returns a <i>simple</i>
+vector (see section <A HREF="node29.html#ARRAYTYPESECTION">2.5</A>).
+Similarly, any strings constructed will be simple strings.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(TEST-NOT-IF-NOT) <A NAME=15369>&#160;</A> 
+to <i>deprecate</i> the use of <tt>:test-not</tt> keyword arguments
+and <tt>-if-not</tt> functions. This means that these features are very
+likely to be retained in the forthcoming standard but are regarded as
+candidates for removal in a future revision of the ANSI standard.
+X3J13 also voted in January 1989
+(FUNCTION-COMPOSITION) <A NAME=15373>&#160;</A> 
+to add the <tt>complement</tt> function, intended to reduce or eliminate the
+need for these deprecated features.  Time will tell.  I note that
+many features in Fortran have been deprecated but very few indeed
+have actually been removed or altered incompatibly.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>complement <i>fn</i></tt><P>Returns a function whose value is the same as that of <tt>not</tt>
+applied to the result of applying the function <i>fn</i> to the same
+arguments.  One could define <tt>complement</tt> as follows:
+<P><pre>
+(defun complement (fn) 
+  #'(lambda (&amp;rest arguments) 
+      (not (apply fn arguments))))
+</pre><P>
+<P>
+One intended use of <tt>complement</tt> is to supplant the use of
+<tt>:test-not</tt> arguments and <tt>-if-not</tt> functions.
+<P><pre>
+(remove-if-not #'virtuous senators) == 
+   (remove-if (complement #'virtuous) senators) 
+
+(remove-duplicates telephone-book 
+                   :test-not #'mismatch) == 
+   (remove-duplicates telephone-book 
+                      :test (complement #'mismatch))
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<HR>
+<UL> 
+<LI> <A NAME=tex2html3288 HREF="node142.html#SECTION001810000000000000000"> Simple Sequence Functions</A>
+<LI> <A NAME=tex2html3289 HREF="node143.html#SECTION001820000000000000000"> Concatenating, Mapping, and Reducing Sequences</A>
+<LI> <A NAME=tex2html3290 HREF="node144.html#SECTION001830000000000000000"> Modifying Sequences</A>
+<LI> <A NAME=tex2html3291 HREF="node145.html#SECTION001840000000000000000"> Searching Sequences for Items</A>
+<LI> <A NAME=tex2html3292 HREF="node146.html#SECTION001850000000000000000"> Sorting and Merging</A>
+</UL>
+<BR> <HR><A NAME=tex2html3284 HREF="node142.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3282 HREF="clm.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3276 HREF="node140.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3286 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3287 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3285 HREF="node142.html"> Simple Sequence Functions</A>
+<B>Up:</B> <A NAME=tex2html3283 HREF="clm.html">Common Lisp the Language</A>
+<B> Previous:</B> <A NAME=tex2html3277 HREF="node140.html"> Character Control-Bit Functions</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

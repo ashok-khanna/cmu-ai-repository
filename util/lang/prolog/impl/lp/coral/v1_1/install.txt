@@ -1,0 +1,251 @@
+CORAL is an experimental logic-programming language implemented using 
+bottom-up techniques. This document describes how to install and run CORAL.
+We have successfully installed CORAL on DECStations, HP-700 workstations, 
+and SUN 4 and SPARC workstations.
+
+The current release of CORAL contains three separate tar files :
+
+   coral.x.nobin.tar.Z     :: contains source code, but no binaries
+   coral.x.mipsbin.tar.Z   :: contains MIPS binaries
+   coral.x.sun4bin.tar.Z   :: contains SUN4 binaries
+   coral.x.hpbin.tar.Z	   :: contains HP binaries
+
+The source code is compatible with g++ and with AT&T CC.
+In case you run into problems with CORAL, send mail to coral@cs.wisc.edu.
+
+This document contains the following sections :
+
+        1) Installing CORAL
+        2) Using Binaries
+        3) Changing Default Configurations
+        4) Using EXODUS for Persistence
+        5) Options in Makefiles
+        6) Space Requirements
+        7) Compiling CORAL
+        8) Running Test Scripts
+        9) Using EXPLAIN
+       10) Other Software Needed
+
+If the binaries are to be installed, see sections 1, 2, 8 and 9.
+For installing CORAL using the source code, see all sections except 2.
+
+Installing CORAL
+----------------
+
+The first thing to do is to get access to the CORAL system code. If
+you are reading this, it is most probable that you already do have
+the code too. However, just in case you bought this installation document
+in its bestselling paperback edition from your local bookstore :-),
+you should know that CORAL is available by anonymous ftp from
+ftp.cs.wisc.edu.
+
+The file that you ftp over is a 'tar' file called coral.x.yyy.tar.Z.
+To set up CORAL on your machine, you need to store the tar file in an 
+appropriate directory, and then do the following :
+
+     ``zcat coral.xx.tar.Z | tar xvf -''.
+
+     (Alternatively, ``uncompress coral.xx.tar'', followed by 
+     ``tar xvf coral.xx.tar''.)
+
+Now a whole directory system should have been created with the root
+of the system called `coral'. If your tar file contained the CORAL src
+code, all the directories listed below will have been created :
+
+	coral
+	coral/bin
+	coral/doc
+	coral/explain
+	coral/EXAMPLES
+	coral/help
+	coral/includes
+	coral/interface
+	coral/magic
+	coral/src
+
+
+The directory `coral' is the root of the CORAL system, and there
+should be an environment variable called CORALROOT which has the value
+of this root directory. For example, CORALROOT=/usr/coral
+At this stage, you should add this to your environment using `setenv',
+and also make the change to your .cshrc file so that it gets done
+automatically in the future. Also, (CORALROOT)/bin should be added
+to your PATH variable. This is very important, since all the CORAL
+executables reside in the CORAL/bin directory or have links in it.
+Also, the test scripts to be run use csh, and so will read the .cshrc
+file.
+
+There are a couple of startup files in the (CORALROOT) directory that
+are important. One is .coralrc, which is read and processed initially
+by the CORAL interpreter. We recommend that you put in your favorite
+CORAL alias definitions in the .coralrc file. The other file is
+.sm_config which is used to configure the EXODUS storage manager.
+Both these files should be moved to your HOME directory.
+
+Using Binaries
+-----------------------------
+
+If you do not wish to recompile CORAL, and would simply like to use the
+binaries in the release, here's what you need to do :
+
+   cd to the (CORALROOT)
+   edit the file 'makefile' and ensure that CORALBIN is set
+     to CORALROOT/bin/SUN4, CORALROOT/bin/MIPS or  CORALROOT/bin/HP,
+     depending on the type of machine you are working on.
+   type `make'.
+
+This installs the binaries, and CORAL is ready to use. After this
+you can ignore the rest of the installation document, and look only
+at the section on running test scripts.
+
+
+Changing default configurations
+-------------------------------
+
+The default configuration of the CORAL system is controlled by a set
+of default definitions in the file (CORALROOT)/includes/config.h. It is
+remotely possible that you might want to change certain parameters
+before compiling. However, we recommend that before you attempt to
+do so, you undertand the use of the defaults in the code, and the
+effects of modifying them. It should not be necessary to modify any
+of these values unless you intend to extend the system to some
+significant degree. In any case, most of these defaults can be changed
+from the CORAL prompt, and commands to change them can be included in
+the startup .coralrc file. Once you have CORAL up and running, you can
+type 'help(defaults).' to get information on how to change the default
+values.
+
+Using EXODUS for persistence
+----------------------------
+
+At this stage, you should be aware that CORAL can be used with or
+without persistent relations. The conditional compilation can be
+controlled by setting some flags in the makefiles (see next subsection).
+The persistence is built on top of the EXODUS storage manager, which
+is a separate piece of software, also available from UW-Madison
+at ftp.cs.wisc.edu. However it is your responsibility to obtain
+and install EXODUS in the (CORALROOT)/persist/exodus directory.
+Once it is set up, this directory should contain the following files :
+
+	sm_client.h
+	lib_smclient.a
+	formatdisk
+	formatvol
+	formatlog
+	sm_server
+	diskrw
+
+The first time around, you will need to use formatdisk and formatlog
+to initialize your disk file and log file used by CORAL. After that,
+you need to run sm_server, which is the EXODUS Storage Manager.
+You could try using `start-server' to run sm_server : this is a 
+script of ours that tries to set some of the defaults needed. However,
+for this part of the installation, and for the use of the .sm_config
+file, we recommend that you refer to the EXODUS Installation Manual
+that is part of its ftp package. If the Storage Manager is up and
+running, the CORAL interpreter will automatically connect to it,
+provided it has been compiled to support persistent relations.
+The binary versions of CORAL are compiled _without_ the persistence
+option !! If you need to use persistence, you will have to obtain
+the CORAL sources and recompile.
+
+Options in Makefiles
+--------------------
+
+In order to specify options to any makefiles, you only need to
+modify (CORALROOT)/make_include. This file is included in all
+the other makefiles.
+
+The (CORALROOT)/make_include file contains comments explaining
+the use of every flag and makefile variable. One important point
+to note is that CORAL can be compiled with or without persistence.
+You should also indicate where you have installed the Flex scanner
+by setting the make variable SCANNER.
+
+Space Requirements
+------------------
+
+The sizes of the three versions of the tar files when uncompressed
+and untarred is :
+
+  sources only   :  ~15.5 M
+  MIPS binaries  :  ~12 M
+  SUN4 binaries  :  ~10 M
+  HP binaries	 :  ??
+
+The following paragraph applies only for the version with the source 
+files. When you start compilation using the source files, the entire
+system can grow to around 40 M, if compiled without the -g
+flag (as is the default), and can grow to 70M if compiled with
+the -g flag. However, much of this space is occupied by .o
+files than can be deleted if space is a problem. Also, the
+executables can be stripped to reduce space utilization.
+The size of the coral executable is around 1.15M when compiled
+with the debug flag. If the coral executable is stripped,
+incremental loading is not possible (refer to the user manual
+on this one). All these figures refer to compilation on the
+DECstation 5000. The figures on a SUN4 machine are slightly lower.
+Note that these figures do not take into account the space
+required for the Explain tool, which is based on Interviews, and
+could take upto 5M without the -g flag. 
+
+Compiling CORAL
+---------------
+
+Once you have got to this point, all that remains is to install the
+system. To do this, cd to the (CORALROOT), and type `make install'.
+This will start a compilation of the entire CORAL system (which
+will take quite a while : approx. 40 minutes on a DECStation 5000).
+When it completes, you have CORAL compiled and ready.
+
+Running test scripts
+--------------------
+
+At this stage, we recommend you run the test suites that sit in
+the (CORALROOT)/REGRESSION directory. These are run by typing the commands:
+
+	cd (CORALROOT)/REGRESSION
+	(cd accept1.tst; test_suite)
+	(cd accept2.tst; test_suite)
+
+This might generate some warning
+messages, but there should be no error messages. The entire `test_suite'
+should run in a few minutes.
+
+If you run into any problems in reaching this point, send mail to
+coral@cs.wisc.edu, and we'll try to fix it asap. Otherwise, the CORAL
+manual and overview documents
+should carry you on from here.
+
+Using EXPLAIN
+-------------
+
+This release of CORAL is accompanied by an 'Explanation Tool'
+that resides in the (CORALROOT)/explain directory. This
+tool allows one to graphically visualize the execution of a
+CORAL program. It is based on InterViews which is available by
+anonymous ftp from interviews.stanford.edu. There are
+independent installation instructions for it in the file
+(CORALROOT)/explain/Installation. There is also a README file
+in (CORALROOT)/explain/ that contains further information on
+the Explain tool.
+
+
+Other Software Needed
+---------------------
+
+If you require the use of persistent data, you will need to get
+the Exodus Storage Manager, which is freely available from ftp.cs.wisc.edu.
+
+1) g++ and Flex v2.4.6 are available by anonymous ftp from prep.ai.mit.edu
+
+2) you will also need nawk, which is a variant of awk to process testscripts
+and table data. If you do not have nawk, make a link to awk in yr coral/bin
+directory and call it nawk.
+
+3) Most of the CORAL scripts use /bin/csh.
+
+We hope you enjoy using CORAL; your feedback would be appreciated.
+If you extend CORAL, and want to make your changes available to the
+world, get in touch with Raghu Ramakrishnan.
+

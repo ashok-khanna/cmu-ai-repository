@@ -1,0 +1,2069 @@
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of shell archive."
+# Contents:  README glim.lsp glim.tex bradleyterry.lsp
+# Wrapped by luke@nokomis.stat.umn.edu on Fri Jan 11 10:39:07 1991
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'README' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'README'\"
+else
+echo shar: Extracting \"'README'\" \(943 characters\)
+sed "s/^X//" >'README' <<'END_OF_FILE'
+XThis shar file contains a simple set of tools for fitting generalized
+Xlinear models in xlispstat, along with some documentation and a file
+Xwith the Bradley-Terry example from the documentation. The files included
+Xare
+X
+X	README			this file
+X	glim.lsp		generalized linear model code
+X	glim.tex		LaTeX documentation
+X	bradleyterry.lsp	Bradley-Terry example
+X
+XTo use the system you can load it with the load command. You can also
+Xmake it available by placing glim.lsp in the directory or folder
+Xcontaining the files loaded on startup and adding the lines
+X
+X(autoload normalreg-model "glim")
+X(autoload poissonreg-model "glim")
+X(autoload loglinreg-model "glim")
+X(autoload binomialreg-model "glim")
+X(autoload logitreg-model "glim")
+X(autoload probitreg-model "glim")
+X(autoload gammareg-model "glim")
+X(autoload indicators "glim")
+X(autoload cross-terms "glim")
+X(autoload level-names "glim")
+X(autoload cross-names "glim")
+X
+Xto the end of the file autoload.lsp.
+END_OF_FILE
+if test 943 -ne `wc -c <'README'`; then
+    echo shar: \"'README'\" unpacked with wrong size!
+fi
+# end of 'README'
+fi
+if test -f 'glim.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'glim.lsp'\"
+else
+echo shar: Extracting \"'glim.lsp'\" \(24471 characters\)
+sed "s/^X//" >'glim.lsp' <<'END_OF_FILE'
+X;;;;
+X;;;;
+X;;;;                  A Simple GLIM Implementation
+X;;;;
+X;;;;
+X
+X(provide "glim")
+X
+X;;;;
+X;;;;                         Link Prototypes
+X;;;;
+X;;;;
+X;;;; Links are objects responding to three messages:
+X;;;;
+X;;;;     :eta     takes a set of mean values and returns the linear
+X;;;;              predictor values
+X;;;;     :means   takes a set of linear predictor values and returns
+X;;;;              the mean values (the inverse of :eta)
+X;;;;     :derivs  takes a set of mean values and returns the values of
+X;;;;              the derivatives of the linear predictors at the mean
+X;;;;              values
+X;;;;
+X;;;; The arguments should be sequences. The glim-link-proto prototype
+X;;;; implements an identity link. Links for binomial errors are defined
+X;;;; for means in the unit interval [0, 1], i. e. for n = 1 trials.
+X;;;;
+X
+X(defproto glim-link-proto)
+X
+X(defmeth glim-link-proto :eta (mu)
+X"Method args: (mu)
+XReturns linear predictor values at MU."
+X  mu)
+X
+X(defmeth glim-link-proto :means (eta)
+X"Method args: (eta)
+XReturns mean values for linear predictor ETA."
+X  eta)
+X
+X(defmeth glim-link-proto :derivs (mu)
+X"Method args: (mu)
+XReturns d(eta)/d(mu) values at MU."
+X  (repeat 1 (length mu)))
+X
+X(defmeth glim-link-proto :print (&optional (stream t))
+X  (format stream "#<Glim Link Object: ~s>" (slot-value 'proto-name)))
+X
+X(defmeth glim-link-proto :save ()
+X  (let ((proto (slot-value 'proto-name)))
+X    (if (eq self (eval proto)) proto `(send ,proto :new))))
+X
+X;;;;
+X;;;; Identity Link Prototype
+X;;;;
+X
+X(defproto identity-link () () glim-link-proto)
+X
+X;;;;
+X;;;; Log Link Prototype
+X;;;;
+X
+X(defproto log-link () () glim-link-proto)
+X
+X(defmeth log-link :eta (mu) (log mu))
+X(defmeth log-link :means (eta) (exp eta))
+X(defmeth log-link :derivs (mu) (/ mu))
+X
+X;;;;
+X;;;; Inverse-link-prototype
+X;;;;
+X
+X(defproto inverse-link () () glim-link-proto)
+X
+X(defmeth inverse-link :eta (mu) (/ mu))
+X(defmeth inverse-link :means (eta) (/ eta))
+X(defmeth inverse-link :derivs (mu) (- (/ (^ mu 2))))
+X
+X;;;;
+X;;;; Square Root Link
+X;;;;
+X
+X(defproto sqrt-link () () glim-link-proto)
+X
+X(defmeth sqrt-link :eta (mu) (sqrt mu))
+X(defmeth sqrt-link :means (eta) (^ eta 2))
+X(defmeth sqrt-link :derivs (mu) (/ 0.5 (sqrt mu)))
+X
+X;;;;
+X;;;; Power Link Prototype
+X;;;;
+X
+X(defproto power-link-proto '(power) () glim-link-proto)
+X
+X(defmeth power-link-proto :isnew (power) (setf (slot-value 'power) power))
+X(defmeth power-link-proto :power () (slot-value 'power))
+X
+X(defmeth power-link-proto :print (&optional (stream t))
+X  (format stream "#<Glim Link Object: Power Link (~s)>" (send self :power)))
+X
+X(defmeth power-link-proto :save ()
+X  `(send power-link-proto :new ,(send self :power)))
+X
+X(defmeth power-link-proto :eta (mu) (^ mu (send self :power)))
+X(defmeth power-link-proto :means (eta) (^ eta (/ (slot-value 'power))))
+X(defmeth power-link-proto :derivs (mu)
+X  (let ((p (slot-value 'power)))
+X    (* p (^ mu (- p 1)))))
+X
+X;;;;
+X;;;; Logit Link Prototype
+X;;;;
+X
+X(defproto logit-link () () glim-link-proto)
+X
+X(defmeth logit-link :eta (p) (log (/ p (- 1 p))))
+X(defmeth logit-link :means (eta)
+X  (let ((exp-eta (exp eta)))
+X    (/ exp-eta (+ 1 exp-eta))))
+X(defmeth logit-link :derivs (p) (+ (/ p) (/ (- 1 p))))
+X
+X;;;;
+X;;;; Probit Link Prototype
+X;;;;
+X
+X(defproto probit-link () () glim-link-proto)
+X
+X(defmeth probit-link :eta (p) (normal-quant p))
+X(defmeth probit-link :means (eta) (normal-cdf eta))
+X(defmeth probit-link :derivs (p) (/ 1 (normal-dens (normal-quant p))))
+X
+X;;;;
+X;;;; Complimentary Log-Log Link Prototype
+X;;;;
+X
+X(defproto cloglog-link () () glim-link-proto)
+X
+X(defmeth cloglog-link :eta (p) (log (- (log (- 1 p)))))
+X(defmeth cloglog-link :means (eta) (- 1 (exp (- (exp eta)))))
+X(defmeth cloglog-link :derivs (p)
+X  (let ((q (- 1 p)))
+X    (/ -1 (log q) q)))
+X
+X;;;;
+X;;;;
+X;;;;                The General GLIM Prototype
+X;;;;         (Uses Normal Errors and an Identity Link)
+X;;;;
+X;;;;
+X
+X(defproto glim-proto 
+X  '(yvar link offset pweights scale est-scale
+X         epsilon epsilon-dev count-limit verbose recycle
+X         eta deviances)
+X  '() 
+X  regression-model-proto)
+X
+X;;;;
+X;;;; Slot Accessors
+X;;;;
+X
+X(defmeth glim-proto :yvar (&optional (new nil set))
+X"Message args: (&optional new)
+XSets or returns dependent variable."
+X  (when set
+X        (setf (slot-value 'yvar) new)
+X        (send self :needs-computing t))
+X  (slot-value 'yvar))
+X
+X(defmeth glim-proto :link (&optional (new nil set))
+X"Message args: (&optional new)
+XSets or returns link object."
+X  (when set
+X        (setf (slot-value 'link) new)
+X        (send self :needs-computing t))
+X  (slot-value 'link))
+X
+X(defmeth glim-proto :offset (&optional (new nil set))
+X"Message args: (&optional (new nil set))
+XSets or returns offset values."
+X  (when set
+X        (setf (slot-value 'offset) new)
+X        (send self :needs-computing t))
+X  (slot-value 'offset))
+X
+X(defmeth glim-proto :pweights (&optional (new nil set))
+X"Message args: (&optional (new nil set))
+XSets or returns prior weights."
+X  (when set
+X        (setf (slot-value 'pweights) new)
+X        (send self :needs-computing t))
+X  (slot-value 'pweights))
+X
+X;; changing the scale does not require recomputing the estimates
+X(defmeth glim-proto :scale (&optional (new nil set))
+X"Message args: (&optional (new nil set))
+XSets or returns value of scale parameter."
+X  (if set (setf (slot-value 'scale) new))
+X  (slot-value 'scale))
+X
+X(defmeth glim-proto :estimate-scale (&optional (val nil set))
+X"Message args: (&optional (val nil set))
+XSets or returns value of ESTIMATE-SCALE option."
+X  (if set (setf (slot-value 'est-scale) val))
+X  (slot-value 'est-scale))
+X
+X(defmeth glim-proto :epsilon (&optional new)
+X"Message args: (&optional new)
+XSets or returns tolerance for relative change in coefficients."
+X  (if new (setf (slot-value 'epsilon) new))
+X  (slot-value 'epsilon))
+X
+X(defmeth glim-proto :epsilon-dev (&optional new)
+X"Message args: (&optional new)
+XSets or returns tolerance for change in deviance."
+X  (if new (setf (slot-value 'epsilon-dev) new))
+X  (slot-value 'epsilon-dev))
+X
+X(defmeth glim-proto :count-limit (&optional new)
+X"Message args: (&optional new)
+XSets or returns maximum number of itrations."
+X  (if new (setf (slot-value 'count-limit) new))
+X  (slot-value 'count-limit))
+X
+X(defmeth glim-proto :recycle (&optional (new nil set))
+X"Message args: (&optional new)
+XSets or returns recycle option. If option is not NIL, current values
+Xare used as initial values by :COMPUTE method."
+X  (when set
+X        (setf (slot-value 'recycle) new)
+X  (slot-value 'recycle)))
+X
+X(defmeth glim-proto :verbose (&optional (val nil set))
+X"Message args: (&optional (val nil set))
+XSets or returns VERBOSE option. Iteration info is printed if option
+Xis not NIL."
+X  (if set (setf (slot-value 'verbose) val))
+X  (slot-value 'verbose))
+X
+X(defmeth glim-proto :eta ()
+X"Message args: ()
+XReturns linear predictor values for durrent fit."
+X  (slot-value 'eta))
+X
+X(defmeth glim-proto :set-eta (&optional val)
+X  (if val
+X      (setf (slot-value 'eta) val)
+X      (setf (slot-value 'eta)
+X            (+ (send self :offset) (send self :fit-values)))))
+X
+X(defmeth glim-proto :deviances ()
+X"Message args: ()
+XReturns deviances for durrent fit."
+X  (slot-value 'deviances))
+X
+X(defmeth glim-proto :set-deviances ()
+X  (setf (slot-value 'deviances) 
+X        (send self :fit-deviances (send self :fit-means))))
+X
+X;;;;
+X;;;; Overrides for Regression Methods
+X;;;;
+X
+X;; A variant of this method should work for any object whose slot values
+X;; have valid printed representations.
+X(defmeth glim-proto :save ()
+X  (let* ((proto (slot-value 'proto-name))
+X	 (slots (remove 'link (send self :own-slots)))
+X	 (values (mapcar #'slot-value slots)))
+X    `(let ((object (make-object ,proto))
+X	   (slots ',slots)
+X	   (values ',values))
+X       (flet ((add-slot (s v) (send object :add-slot s v)))
+X	 (mapcar #'add-slot slots values)
+X	 (add-slot 'link ,(send (send self :link) :save)))
+X       object)))
+X
+X(defmeth glim-proto :sigma-hat () (sqrt (send self :scale)))
+X
+X;; This override is only used to modify the documentation string.
+X(defmeth glim-proto :fit-values ()
+X"Message args: ()
+XReturns Xb, the linear predictor values without the offset.
+XThe :fit-means method returns fitted means for the current estimates."
+X  (call-next-method))
+X
+X;; this should be merged with the regression-model method
+X(defmeth glim-proto :x (&optional x)
+X  (if x
+X      (let ((x (cond
+X                ((matrixp x) x)
+X                ((vectorp x) (list x))
+X                ((and (consp x) (numberp (car x))) (list x))
+X                (t x))))
+X        (call-next-method (if (matrixp x) x (apply #'bind-columns x)))))
+X  (call-next-method))
+X
+X(defmeth glim-proto :raw-residuals () 
+X"Message args: ()
+XReturns the raw residuals for a model."
+X  (- (send self :yvar) (send self :fit-means)))
+X
+X;; This override is needed because regression-model-proto defines its
+X;; residuals in terms of :raw-residuals.
+X(defmeth regression-model-proto :residuals ()
+X"Message args: ()
+XReturns the Pearson residuals."
+X  (let ((raw-residuals (- (send self :y) (send self :fit-values)))
+X        (weights (send self :weights)))
+X    (if weights (* (sqrt weights) raw-residuals) raw-residuals)))
+X
+X;;;;
+X;;;; Computing methods
+X;;;;
+X
+X(defmeth glim-proto :compute ()
+X  (let* ((epsilon (send self :epsilon))
+X         (epsilon-dev (send self :epsilon-dev))
+X         (maxcount (send self :count-limit))
+X         (low-lim (* 2 (/ machine-epsilon epsilon)))
+X         (verbose (send self :verbose)))
+X    (unless (and (send self :eta) (send self :recycle))
+X            (send self :initialize-search))
+X    (send self :compute-step)
+X    (do ((count 1 (+ count 1))
+X         (beta 0 (send self :coef-estimates))
+X         (last-beta -1 beta)
+X         (dev  0 (send self :deviance))
+X         (last-dev  -1 dev))
+X        ((or (> count maxcount) 
+X             (< (max (abs (/ (- beta last-beta)
+X                             (pmax (abs last-beta) low-lim))))
+X                epsilon)
+X             (< (abs (- dev last-dev)) epsilon-dev)))
+X        (if verbose 
+X            (format t "Iteration ~d: deviance = ~a~%" 
+X                    count (send self :deviance)))
+X        (send self :compute-step))))
+X
+X(defmeth glim-proto :compute-step ()
+X"Args: ()
+XExecutes one iteratively reweighted least squares step."
+X  (let* ((yvar (send self :yvar))
+X         (offset (send self :offset))
+X         (eta (send self :eta))
+X         (mu (send self :fit-means eta))
+X         (d-eta (send self :fit-link-derivs mu))
+X         (z (- (+ eta (* (- yvar mu) d-eta)) offset))
+X         (v (send self :fit-variances mu))
+X         (w-inv (* d-eta d-eta v))
+X         (pw (send self :pweights)))
+X    (send self :y z)
+X    (send self :weights (if pw (/ pw w-inv) (/ w-inv)))
+X    (call-method regression-model-proto :compute)
+X    (send self :set-eta)
+X    (send self :set-deviances)
+X    (if (send self :estimate-scale) 
+X        (send self :scale (send self :fit-scale)))))
+X
+X(defmeth glim-proto :deviance () 
+X"Message args: ()
+XReturns deviance for included cases."
+X  (sum (if-else (send self :included) (send self :deviances) 0)))
+X
+X(defmeth glim-proto :mean-deviance ()
+X"Message args: ()
+XReturns mean deviance for included cases, adjusted for degrees of
+Xfreedom."
+X  (/ (send self :deviance) (send self :df)))
+X
+X(defmeth glim-proto :initialize-search (&optional eta)
+X  (send self :set-eta
+X	(if eta eta (send (send self :link) :eta (send self :initial-means))))
+X  (send self :needs-computing t))
+X
+X(defmeth glim-proto :fit-means (&optional (eta (send self :eta)))
+X"Message args: (&optional (eta (send self :eta)))
+XRetruns mean values for current or supplied ETA."
+X  (send (send self :link) :means eta))
+X
+X(defmeth glim-proto :fit-link-derivs (mu)
+X"Message args: ()
+XReturns link derivative values at MU."
+X  (send (send self :link) :derivs mu))
+X
+X(defmeth glim-proto :display ()
+X"Message args: ()
+XPrints the IRWLS regression summary. Variables not used in the fit are
+Xmarked as aliased."
+X  (let ((coefs (coerce (send self :coef-estimates) 'list))
+X        (se-s (send self :coef-standard-errors))
+X        (x (send self :x))
+X        (p-names (send self :predictor-names)))
+X    (if (send self :weights) 
+X        (format t "~%Weighted Least Squares Estimates:~2%")
+X        (format t "~%Least Squares Estimates:~2%"))
+X    (when (send self :intercept)
+X          (format t "Constant               ~10g   ~A~%"
+X                  (car coefs) (list (car se-s)))
+X          (setf coefs (cdr coefs))
+X          (setf se-s (cdr se-s)))
+X    (dotimes (i (array-dimension x 1)) 
+X             (cond 
+X               ((member i (send self :basis))
+X                (format t "~22a ~10g   ~A~%"
+X                        (select p-names i) (car coefs) (list (car se-s)))
+X                (setf coefs (cdr coefs) se-s (cdr se-s)))
+X               (t (format t "~22a    aliased~%" (select p-names i)))))
+X    (format t "~%")
+X    (if (send self :estimate-scale)
+X        (format t "Scale Estimate:        ~10g~%" (send self :scale))
+X        (format t "Scale taken as:        ~10g~%" (send self :scale)))
+X    (format t "Deviance:              ~10g~%" (send self :deviance))
+X    (format t "Number of cases:       ~10d~%" (send self :num-cases))
+X    (if (/= (send self :num-cases) (send self :num-included))
+X        (format t "Number of cases used:  ~10d~%" (send self :num-included)))
+X    (format t "Degrees of freedom:    ~10d~%" (send self :df))
+X    (format t "~%")))
+X
+X;;;;
+X;;;; Error-Dependent Methods (Normal Errors)
+X;;;;
+X
+X(defmeth glim-proto :initial-means ()
+X"Message args: ()
+XReturns initial means estimate for starting the iteration."
+X  (send self :yvar))
+X
+X(defmeth glim-proto :fit-variances (mu)
+X"Message args: (mu)
+XReturns variance function values at MU."
+X  (repeat 1 (length mu)))
+X
+X(defmeth glim-proto :fit-deviances (mu)
+X"Message args: (mu)
+XReturns deviance values at MU."
+X  (let ((raw-dev (^ (- (send self :yvar) mu) 2))
+X                  (pw (send self :pweights)))
+X       (if pw (* pw raw-dev) raw-dev)))
+X
+X(defmeth glim-proto :fit-scale ()
+X"Message args: ()
+XReturns estimate of scale parameter."
+X  (send self :mean-deviance))
+X
+X;;;;
+X;;;; Initial values for the prototype
+X;;;;
+X
+X(send glim-proto :scale 1.0)
+X(send glim-proto :offset 0.0)
+X(send glim-proto :link identity-link)
+X(send glim-proto :estimate-scale t)
+X(send glim-proto :epsilon .000001)
+X(send glim-proto :epsilon-dev .001)
+X(send glim-proto :count-limit 30)
+X(send glim-proto :verbose t)
+X
+X;;;;
+X;;;; :ISNEW method
+X;;;;
+X
+X(defmeth glim-proto :isnew (&key x 
+X                                 y
+X				 link
+X                                 (offset 0)
+X                                 (intercept t)
+X                                 included
+X                                 pweights
+X                                 (print (and x y))
+X                                 (verbose t)
+X                                 predictor-names
+X                                 response-name
+X                                 (recycle nil)
+X                                 case-labels)
+X  (send self :x x)
+X  (send self :y y)
+X  (send self :yvar y)
+X  (if link (send self :link link))
+X  (send self :offset offset)
+X  (send self :intercept intercept)
+X  (send self :pweights pweights)
+X  (send self :recycle recycle)
+X  (send self :verbose verbose)
+X  (if included (send self :included included))
+X  (if predictor-names (send self :predictor-names predictor-names))
+X  (if response-name (send self :response-name response-name))
+X  (if (or y case-labels) (send self :case-labels case-labels)) ; needs fixing
+X  (if print (send self :display)))
+X
+X;;;;
+X;;;; Some Additional Residual Methods
+X;;;;
+X
+X(defmeth glim-proto :chi-residuals ()
+X"Message args: ()
+XReturns the components of Pearson's chi-squared residuals."
+X  (send self :residuals))
+X
+X(defmeth glim-proto :standardized-chi-residuals ()
+X"Message args: ()
+XReturns the components of Standardized Pearson Residuals (Williams, 1987)."
+X  (send self :studentized-residuals))
+X
+X(defmeth glim-proto :deviance-residuals ()
+X"Message args: ()
+XReturns the components of deviance residuals for non binomial models."
+X  (let* ((dev (sqrt (send self :deviances)))
+X         (sign (if-else (< (send self :yvar) (send self :fit-means)) -1 1)))
+X    (* sign dev)))
+X
+X(defmeth glim-proto :standardized-deviance-residuals ()
+X"Message args: ()
+XReturns the standardized deviance residuals, (Davison and Tsai, 1989)."
+X  (let* ((dev (send self :deviance-residuals))
+X         (inc (send self :included))
+X         (h (send self :leverages)))
+X    (if-else inc
+X             (/ dev (sqrt (* (send self :scale) (- 1 h))))
+X             (/ dev (sqrt (* (send self :scale) (+ 1 h)))))))
+X
+X(defmeth glim-proto :g2-residuals ()
+X"Message args: ()
+XReturns  a weighted combination of the standardized deviance and chi
+Xresiduals, (Davison and Tsai, 1989)."
+X  (let* ((dev (send self :standardized-deviance-residuals))
+X         (chi (send self :standardized-chi-residuals))
+X         (inc (send self :included))
+X         (h (send self :leverages))
+X         (sign (if-else (< dev 0) -1 1)))
+X    (* sign (sqrt (+ (* (1- h) (^ dev 2))
+X                     (*   h    (^ chi 2)))))))
+X
+X;;;;
+X;;;;
+X;;;;                 Normal Regression Model Prototype
+X;;;;
+X;;;;
+X
+X(defproto normalreg-proto () () glim-proto)
+X
+X;;;;
+X;;;; Normal Model Constructor Function
+X;;;;
+X
+X(defun normalreg-model (x y &rest args)
+X"Args: (x y &rest args)
+XReturns a normal regression model. Accepts :LINK, :OFFSET and :VERBOSE
+Xkeywords in addition to the keywords accepted by regression-model."
+X  (apply #'send normalreg-proto :new :x x :y y args))
+X
+X;;;;
+X;;;;
+X;;;;             Poisson Regression Model Prototype
+X;;;;
+X;;;;
+X
+X(defproto poissonreg-proto () () glim-proto)
+X
+X;;;;
+X;;;; Error-Dependent Methods (Poisson Errors)
+X;;;;
+X
+X(defmeth poissonreg-proto :initial-means () (pmax (send self :yvar) 0.5))
+X
+X(defmeth poissonreg-proto :fit-variances (mu) mu)
+X
+X(defmeth poissonreg-proto :fit-deviances (mu)
+X  (flet ((log+ (x) (log (if-else (< 0 x) x 1)))) ; to prevent log of zero
+X    (let* ((y (send self :yvar))
+X           (raw-dev (* 2 (- (* y (log+ (/ y mu))) (- y mu))))
+X           (pw (send self :pweights)))
+X      (if pw (* pw raw-dev) raw-dev))))
+X
+X;;;;
+X;;;; Initial values for the prototype
+X;;;;
+X
+X(send poissonreg-proto :estimate-scale nil)
+X(send poissonreg-proto :link log-link)
+X
+X;;;;
+X;;;; Poisson Model Constructor Functions
+X;;;;
+X
+X(defun poissonreg-model (x y &rest args)
+X"Args: (x y &rest args)
+XReturns a Poisson regression model. Accepts :LINK, :OFFSET and :VERBOSE
+Xkeywords in addition to the keywords accepted by regression-model."
+X  (apply #'send poissonreg-proto :new :x x :y y args))
+X
+X(defun loglinreg-model (x y &rest args)
+X"Args: (x y &rest args)
+XReturns a Poisson regression model with a log link. Accepts :OFFSET and
+X:VERBOSE keywords in addition to the keywords accepted by regression-model."
+X  (apply #'send poissonreg-proto :new :x x :y y :link log-link args))
+X
+X;;;;
+X;;;;
+X;;;;             Binomial Regression Model Prototype
+X;;;;
+X;;;;
+X
+X(defproto binomialreg-proto '(trials) () glim-proto)
+X
+X;;;;
+X;;;; Slot Accessor
+X;;;;
+X
+X(defmeth binomialreg-proto :trials (&optional new)
+X"Message args: ()
+XSets or retruns number of trials for each observation."
+X  (when new
+X        (setf (slot-value 'trials) new)
+X        (send self :needs-computing t))
+X  (slot-value 'trials))
+X
+X;;;;
+X;;;; Overrides for link-related methods to incorporate trials
+X;;;;
+X
+X(defmeth binomialreg-proto :fit-means (&optional (eta (send self :eta)))
+X  (let ((n (send self :trials))
+X	(p (call-next-method eta)))
+X    (* n p)))
+X
+X(defmeth  binomialreg-proto :fit-link-derivs (mu)
+X  (let* ((n (send self :trials))
+X	 (d (call-next-method (/ mu n))))
+X    (/ d n)))
+X
+X(defmeth binomialreg-proto :initialize-search (&optional eta)
+X  (call-next-method 
+X   (if eta eta (send (send self :link) :eta (send self :initial-probs)))))
+X
+X;;;;
+X;;;; Error-Dependent Methods (Binomial Errors)
+X;;;;
+X
+X(defmeth binomialreg-proto :initial-probs ()
+X  (let* ((n (send self :trials))
+X	 (p (/ (pmax (pmin (send self :yvar) (- n 0.5)) 0.5) n)))
+X    p))
+X
+X(defmeth binomialreg-proto :initial-means ()
+X  (* (send self :trials) (send self :initial-probs)))
+X
+X(defmeth binomialreg-proto :fit-variances (mu)
+X  (let* ((n (send self :trials))
+X         (p (/ mu n)))
+X    (* n p (- 1 p))))
+X
+X(defmeth binomialreg-proto :fit-deviances (mu)
+X  (flet ((log+ (x) (log (if-else (< 0 x) x 1)))) ; to prevent log of zero
+X    (let* ((n (send self :trials))
+X           (y (send self :yvar))
+X           (n-y (- n y))
+X           (n-mu (- n mu))
+X           (pw (send self :pweights))
+X           (raw-dev (* 2 (+ (* y (log+ (/ y mu))) 
+X                            (* n-y (log+ (/ n-y n-mu)))))))
+X      (if pw (* pw raw-dev) raw-dev))))
+X
+X;;;;
+X;;;; Other Methods
+X;;;;
+X
+X(defmeth binomialreg-proto :fit-probabilities ()
+X"Message args: ()
+XReturns the fitted probabilities for the model."
+X  (/ (send seld :fit-means) (send self :trials)))
+X
+X;;;;
+X;;;; :ISNEW method
+X;;;;
+X
+X(defmeth binomialreg-proto :isnew (&rest args &key trials)
+X  (send self :trials trials)
+X  (apply #'call-next-method args))
+X
+X;;;;
+X;;;; Initial values for the prototype
+X;;;;
+X
+X(send binomialreg-proto :estimate-scale nil)
+X(send binomialreg-proto :link logit-link)
+X
+X;;;;
+X;;;; Binomial Model Constructor Functions
+X;;;;
+X
+X(defun binomialreg-model (x y n &rest args)
+X"Args: (x y n &rest args)
+XReturns a binomial regression model. Accepts :LINK, :OFFSET and :VERBOSE
+Xkeywords in addition to the keywords accepted by regression-model."
+X  (apply #'send binomialreg-proto :new :x x :y y :trials n args))
+X
+X(defun logitreg-model (x y n &rest args)
+X"Args: (x y n &rest args)
+XReturns a logistic regression model (binomial regression model with logit
+Xlink). Accepts :OFFSET and :VERBOSE keywords in addition to the keywords
+Xaccepted by regression-model."
+X  (apply #'send binomialreg-proto :new 
+X	 :x x :y y :trials n :link logit-link args))
+X
+X(defun probitreg-model (x y n &rest args)
+X"Args: (x y n &rest args)
+XReturns a probit regression model (binomial regression model with probit
+Xlink). Accepts :OFFSET and :VERBOSE keywords in addition to the keywords
+Xaccepted by regression-model."
+X  (apply #'send binomialreg-proto :new
+X	 :x x :y y :trials n :link probit-link args))
+X
+X;;;;
+X;;;;
+X;;;;               Gamma Regression Model Prototype
+X;;;;
+X;;;;
+X
+X(defproto gammareg-proto () () glim-proto)
+X
+X;;;;
+X;;;; Error-Dependent Methods
+X;;;;
+X
+X(defmeth gammareg-proto :initial-means () (pmax (send self :yvar) 0.5))
+X
+X(defmeth gammareg-proto :fit-variances (mu) (^ mu 2))
+X
+X(defmeth gammareg-proto :fit-deviances (mu)
+X  (let* ((y (send self :yvar))
+X	 (pw (send self :pweights))
+X         (raw-dev (* 2 (+ (- (log (/ y mu))) (/ (- y mu) mu)))))
+X    (if pw (* raw-dev pw) raw-dev)))
+X
+X;;;;
+X;;;; Initial values for the prototype
+X;;;;
+X
+X(send gammareg-proto :link inverse-link)
+X
+X;;;;
+X;;;; Gamma Model Constructor Function
+X;;;;
+X
+X(defun gammareg-model (x y &rest args)
+X"Args: (x y &rest args)
+XReturns a Gamma regression model. Accepts :LINK, :OFFSET and :VERBOSE
+Xkeywords in addition to the keywords accepted by regression-model."
+X  (apply #'send gammareg-proto :new :x x :y y args))
+X
+X;;;;
+X;;;;
+X;;;;                Some Simple Design Matrix Tools
+X;;;;
+X;;;;
+X
+X(defun indicators (x &key (drop-first t) (test #'eql))
+X"Args: (x &key (drop-first t) (test #'eql))
+XReturns a list of indicators sequences for the levels of X. TEST is
+Xused to check equality of levels. If DROP-FIRST is true, the indicator
+Xfor the first level is dropped."
+X  (let ((levels (remove-duplicates (coerce x 'list))))
+X    (mapcar #'(lambda (lev) (if-else (map-elements test lev x) 1 0))
+X            (if drop-first (rest levels) levels))))
+X
+X(defun cross-terms (x &rest args)
+X"Args: (x &rest args)
+XArguments should be lists. Returns list of cross products, with the first
+Xargument list varying slowest."
+X  (case (length args)
+X    (0 (error "too few arguments"))
+X    (1 (let ((y (first args)))
+X         (apply #'append 
+X                (mapcar #'(lambda (a) (mapcar #'(lambda (b) (* a b)) y)) x))))
+X    (t (cross-terms x (apply #'cross-terms args)))))
+X
+X(defun level-names (x &key (prefix "") (drop-first t))
+X"Args: (x &key (prefix "") (drop-first t))
+XConstructs name strings using unique levels in X and PREFIX."
+X  (let ((levels (remove-duplicates (coerce x 'list))))
+X    (mapcar #'(lambda (x) (format nil "~a(~a)" prefix x))
+X            (if drop-first (rest levels) levels))))
+X
+X(defun cross-names (x &rest args)
+X"Args: (x &rest args)
+XArguments should be lists. Constructs cross products of names, separated
+Xby dots. First index varies slowest."
+X  (flet ((paste (x y) (format nil "~a.~a" x y)))
+X    (case (length args)
+X      (0 (error "too few arguments"))
+X      (1 (let ((y (first args)))
+X           (apply #'append
+X                  (mapcar #'(lambda (a) (mapcar #'(lambda (b) (paste a b)) y))
+X                          x))))
+X      (t (cross-names x (apply #'cross-names args))))))
+END_OF_FILE
+if test 24471 -ne `wc -c <'glim.lsp'`; then
+    echo shar: \"'glim.lsp'\" unpacked with wrong size!
+fi
+# end of 'glim.lsp'
+fi
+if test -f 'glim.tex' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'glim.tex'\"
+else
+echo shar: Extracting \"'glim.tex'\" \(40435 characters\)
+sed "s/^X//" >'glim.tex' <<'END_OF_FILE'
+X\documentstyle{article}
+X
+X\newcommand{\refitem}[1]{%
+X  \begin{list}%
+X        {}%
+X        {\setlength{\leftmargin}{.25in}\setlength{\itemindent}{-.25in}}
+X  \item #1%
+X  \end{list}}
+X
+X\setlength{\textwidth}{6in}
+X\setlength{\textheight}{8.75in}
+X\setlength{\topmargin}{-0.25in}
+X\setlength{\oddsidemargin}{0.25in}
+X
+X% This command enables hyphenation if \tt mode by changed \hyphencharacter
+X% in the 10 point typewriter font. To work in other point sizes it would
+X% have to be redefined. It may be Bator to just make the change globally 
+X% and have it apply to anything that is set in \tt mode
+X\newcommand{\dcode}[1]{{\tt \hyphenchar\tentt="2D #1\hyphenchar\tentt=-1}}
+X
+X\newcommand{\param}[1]{$\langle${\em #1\/}$\rangle$}
+X\newcommand{\protoimage}[1]{\begin{picture}(100,20)\put(0,0){\makebox(100,20){\tt #1}}\put(50,10){\oval(100,20)}\end{picture}}
+X\newcommand{\wprotoimage}[1]{\begin{picture}(120,20)\put(0,0){\makebox(120,20){\tt #1}}\put(60,10){\oval(120,20)}\end{picture}}
+X
+X\title{Generalized Linear Models in Lisp-Stat}
+X\author{Luke Tierney}
+X
+X\begin{document}
+X\maketitle
+X
+X\section{Introduction}
+XThis note outlines a simple system for fitting generalized linear
+Xmodels in Lisp-Stat. Three standard models are implemented:
+X\begin{itemize}
+X\item Poisson regression models
+X\item Binomial regression models
+X\item Gamma regression models
+X\end{itemize}
+XThe model prototypes inherit from the linear regression model
+Xprototype. By default, each model uses the canonical link for its
+Xerror structure, but alternate link structures can be specified.
+X
+XThe next section outlines the basic use of the generalized linear
+Xmodel objects. The third section describes a few functions for
+Xhandling categorical independent variables. The fourth section gives
+Xfurther details on the structure of the model prototypes, and
+Xdescribes how to define new models and link structures. The final
+Xsection illustrates several ways of fitting more specialized models,
+Xusing the Bradley-Terry model as an example.
+X
+X\section{Basic Use of the Model Objects}
+XThree functions are available for constructing generalized linear
+Xmodel objects.  These functions are called as
+X\begin{flushleft}\tt
+X(poissonreg-model \param{x} \param{y} [\param{keyword arguments ...}])\\
+X(binomialreg-model \param{x} \param{y} \param{n} [\param{keyword arguments ...}])\\
+X(gammareg-model \param{x} \param{y} \param{keyword arguments ...})
+X\end{flushleft}
+XThe \param{x} and \param{y} arguments are as for the
+X\dcode{regression-model} function. The sample size parameter \param{n}
+Xfor binomial models can be either an integer or a sequence of integers
+Xthe same length as the response vector. All optional keyword
+Xarguments accepted by the \dcode{regression-model} function are
+Xaccepted by these functions as well. Four additional keywords are
+Xavailable:
+X\dcode{:link}, \dcode{:offset}, \dcode{:verbose}, and \dcode{:pweights}.
+XThe keyword \dcode{:link} can be used to specify an alternate link
+Xstructure. Available link structures include
+X\begin{center}
+X\begin{tabular}{llll}
+X\tt identity-link & \tt log-link    & \tt inverse-link & \tt sqrt-link\\
+X\tt logit-link    & \tt probit-link & \tt cloglog-link
+X\end{tabular}
+X\end{center}
+XBy default, each model uses its canonical link structure.  The
+X\dcode{:offset} keyword can be used to provide an offset value, and
+Xthe keyword \dcode{:verbose} can be given the value \dcode{nil} to
+Xsuppress printing of iteration information. A prior weight vector
+Xshould be specified with the \dcode{:pweights} keyword rather than the
+X\dcode{:weights} keyword.
+X
+XAs an example, we can examine a data set that records the number of
+Xmonths prior to an interview when individuals remember a stressful
+Xevent (originally from Haberman, \cite[p. 2]{JKL}):
+X\begin{verbatim}
+X> (def months-before (iseq 1 18))
+XMONTHS-BEFORE
+X> (def event-counts '(15 11 14 17 5 11 10 4 8 10 7 9 11 3 6 1 1 4))
+XEVENTS-RECALLED
+X\end{verbatim}
+XThe data are multinomial, and we can fit a log-linear Poisson model to
+Xsee if there is any time trend:
+X\begin{verbatim}
+X> (def m (poissonreg-model months-before event-counts))
+XIteration 1: deviance = 26.3164
+XIteration 2: deviance = 24.5804
+XIteration 3: deviance = 24.5704
+XIteration 4: deviance = 24.5704
+X
+XWeighted Least Squares Estimates:
+X
+XConstant                  2.80316   (0.148162)
+XVariable 0             -0.0837691   (0.0167996)
+X
+XScale taken as:                 1
+XDeviance:                 24.5704
+XNumber of cases:               18
+XDegrees of freedom:            16
+X\end{verbatim}
+X
+XResiduals for the fit can be obtained using the \dcode{:residuals}
+Xmessage:
+X\begin{verbatim}
+X> (send m :residuals)
+X(-0.0439191 -0.790305 ...)
+X\end{verbatim}
+XA residual plot can be obtained using
+X\begin{verbatim}
+X(send m :plot-residuals)
+X\end{verbatim}
+XThe \dcode{:fit-values} message returns $X\beta$, the linear predictor
+Xwithout any offset. The \dcode{:fit-means} message returns fitted mean
+Xresponse values. Thus the expression
+X\begin{verbatim}
+X(let ((p (plot-points months-before event-counts)))
+X  (send p :add-lines months-before (send m :fit-means)))
+X\end{verbatim}
+Xconstructs a plot of raw counts and fitted means against time.
+X
+XTo illustrate fitting binomial models, we can use the leukemia survival
+Xdata of Feigl and Zelen \cite[Section 2.8.3]{LS} with the survival
+Xtime converted to a one-year survival indicator:
+X\begin{verbatim}
+X> (def surv-1 (if-else (> times-pos 52) 1 0))
+XSURV-1
+X> surv-1
+X(1 1 1 1 0 1 1 0 0 1 1 0 0 0 0 0 1)
+X\end{verbatim}
+XThe dependent variable is the base 10 logarithm of the white blood
+Xcell counts divided by 10,000:
+X\begin{verbatim}
+X> transformed-wbc-pos
+X(-1.46968 -2.59027 -0.84397 -1.34707 -0.510826 0.0487902 0 0.530628 -0.616186
+X -0.356675 -0.0618754 1.16315 1.25276 2.30259 2.30259 1.64866 2.30259)
+X\end{verbatim}
+XA binomial model for these data can be constructed by
+X\begin{verbatim}
+X> (def lk (binomialreg-model transformed-wbc-pos surv-1 1))
+XIteration 1: deviance = 18.2935
+XIteration 2: deviance = 18.0789
+XIteration 3: deviance = 18.0761
+XIteration 4: deviance = 18.0761
+X
+XWeighted Least Squares Estimates:
+X
+XConstant                 0.372897   (0.590934)
+XVariable 0              -0.985803   (0.508426)
+X
+XScale taken as:                 1
+XDeviance:                 18.0761
+XNumber of cases:               17
+XDegrees of freedom:            15
+X\end{verbatim}
+XThis model uses the logit link, the canonical link for the binomial
+Xdistribution. As an alternative, the expression
+X\begin{verbatim}
+X(binomialreg-model transformed-wbc-pos surv-1 1 :link probit-link)
+X\end{verbatim}
+Xreturns a model using a probit link.
+X
+XThe \dcode{:cooks-distances} message helps to highlight the last
+Xobservation for possible further examination:
+X\begin{verbatim}
+X> (send lk :cooks-distances)
+X(0.0142046 0.00403243 0.021907 0.0157153 0.149394 0.0359723 0.0346383
+X 0.0450994 0.174799 0.0279114 0.0331333 0.0347883 0.033664 0.0170441 
+X 0.0170441 0.0280411 0.757332)
+X\end{verbatim}
+XThis observation also stands out in the plot produced by
+X\begin{verbatim}
+X(send lk :plot-bayes-residuals)
+X\end{verbatim}
+X
+X\section{Tools for Categorical Variables}
+XFour functions are provided to help construct indicator vectors for
+Xcategorical variables. As an illustration, a data set used by Bishop,
+XFienberg, and Holland examines the relationship between occupational
+Xclassifications of fathers and sons. The classes are
+X\begin{center}
+X\begin{tabular}{|c|l|}
+X\hline
+XLabel & Description\\
+X\hline
+XA     & Professional, High Administrative\\
+XS     & Managerial, Executive, High Supervisory\\
+XI     & Low Inspectional, Supervisory\\
+XN     & Routine Nonmanual, Skilled Manual\\
+XU     & Semi- and Unskilled Manual\\
+X\hline
+X\end{tabular}
+X\end{center}
+XThe counts are given by
+X\begin{center}
+X\begin{tabular}{|c|rrrrr|}
+X\hline
+X       & \multicolumn{5}{c|}{Son}\\
+X\hline
+XFather &  A &   S &   I &   N &   U \\
+X\hline
+X A     & 50 &  45 &   8 &  18 &   8 \\
+X S     & 28 & 174 &  84 & 154 &  55 \\
+X I     & 11 &  78 & 110 & 223 &  96 \\
+X N     & 14 & 150 & 185 & 714 & 447 \\
+X U     &  3 &  42 &  72 & 320 & 411 \\
+X\hline
+X\end{tabular}
+X\end{center}
+X
+XWe can set up the occupation codes as
+X\begin{verbatim}
+X(def occupation '(a s i n u))
+X\end{verbatim}
+Xand construct the son's and father's code vectors for entering the
+Xdata row by row as
+X\begin{verbatim}
+X(def son (repeat occupation 5))
+X(def father (repeat occupation (repeat 5 5)))
+X\end{verbatim}
+XThe counts can then be entered as
+X\begin{verbatim}
+X(def counts '(50  45   8  18   8 
+X              28 174  84 154  55 
+X              11  78 110 223  96
+X              14 150 185 714 447
+X               3  42  72 320 411))
+X\end{verbatim}
+X
+XTo fit an additive log-linear model, we need to construct level
+Xindicators.  This can be done using the function \dcode{indicators}:
+X\begin{verbatim}
+X> (indicators son)
+X((0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0)
+X (0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0)
+X (0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0)
+X (0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1))
+X\end{verbatim}
+XThe result is a list of indicator variables for the second through the fifth
+Xlevels of the variable \dcode{son}. By default, the first level is dropped.
+XTo obtain indicators for all five levels, we can supply the \dcode{:drop-first}
+Xkeyword with value \dcode{nil}:
+X\begin{verbatim}
+X> (indicators son :drop-first nil)
+X((1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0)
+X (0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0)
+X (0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0)
+X (0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0)
+X (0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 1))
+X\end{verbatim}
+X
+XTo produce a readable summary of the fit, we also need some labels:
+X\begin{verbatim}
+X> (level-names son :prefix 'son)
+X("SON(S)" "SON(I)" "SON(N)" "SON(U)")
+X\end{verbatim}
+XBy default, this function also drops the first level. This can again be
+Xchanged by supplying the \dcode{:drop-first} keyword argument as
+X\dcode{nil}:
+X\begin{verbatim}
+X> (level-names son :prefix 'son :drop-first nil)
+X("SON(A)" "SON(S)" "SON(I)" "SON(N)" "SON(U)")
+X\end{verbatim}
+XThe value of the \dcode{:prefix} keyword can be any Lisp expression.
+XFor example, instead of the symbol \dcode{son} we can use the string
+X\dcode{"Son"}:
+X\begin{verbatim}
+X> (level-names son :prefix "Son")
+X("Son(S)" "Son(I)" "Son(N)" "Son(U)")
+X\end{verbatim}
+X
+XUsing indicator variables and level labels, we can now fit an additive
+Xmodel as
+X\begin{verbatim}
+X> (def mob-add
+X       (poissonreg-model
+X        (append (indicators son) (indicators father)) counts
+X        :predictor-names (append (level-names son :prefix 'son)
+X                                 (level-names father :prefix 'father))))
+X
+XIteration 1: deviance = 1007.97
+XIteration 2: deviance = 807.484
+XIteration 3: deviance = 792.389
+XIteration 4: deviance = 792.19
+XIteration 5: deviance = 792.19
+X
+XWeighted Least Squares Estimates:
+X
+XConstant                  1.36273   (0.130001)
+XSON(S)                    1.52892   (0.10714)
+XSON(I)                    1.46561   (0.107762)
+XSON(N)                    2.60129   (0.100667)
+XSON(U)                    2.26117   (0.102065)
+XFATHER(S)                 1.34475   (0.0988541)
+XFATHER(I)                 1.39016   (0.0983994)
+XFATHER(N)                 2.46005   (0.0917289)
+XFATHER(U)                 1.88307   (0.0945049)
+X
+XScale taken as:                 1
+XDeviance:                  792.19
+XNumber of cases:               25
+XDegrees of freedom:            16
+X\end{verbatim}
+XExamining the residuals using  
+X\begin{verbatim}
+X(send mob-add :plot-residuals)
+X\end{verbatim}
+Xshows that the first cell is an outlier -- the model does not fit this
+Xcell well.
+X
+XTo fit a saturated model to these data, we need the cross products of
+Xthe indicator variables and also a corresponding set of labels. The
+Xindicators are produced with the \dcode{cross-terms} function
+X\begin{verbatim}
+X> (cross-terms (indicators son) (indicators father))
+X((0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0)
+X (0 0 0 0 0 0 0 0 0 0 0 1 0 0 0 0 0 0 0 0 0 0 0 0 0)
+X ...)
+X\end{verbatim}
+Xand the names with the \dcode{cross-names} function:
+X\begin{verbatim}
+X> (cross-names (level-names son :prefix 'son)
+X               (level-names father :prefix 'father))
+X("SON(S).FATHER(S)" "SON(S).FATHER(I)" ...)
+X\end{verbatim}
+XThe saturated model can now be fit by
+X\begin{verbatim}
+X> (let ((s (indicators son))
+X        (f (indicators father))
+X        (sn (level-names son :prefix 'son))
+X        (fn (level-names father :prefix 'father)))
+X    (def mob-sat
+X         (poissonreg-model (append s f (cross-terms s f)) counts 
+X                           :predictor-names
+X                           (append sn fn (cross-names sn fn)))))
+X
+XIteration 1: deviance = 5.06262e-14
+XIteration 2: deviance = 2.44249e-15
+X
+XWeighted Least Squares Estimates:
+X
+XConstant                  3.91202   (0.141421)
+XSON(S)                  -0.105361   (0.20548)
+XSON(I)                   -1.83258   (0.380789)
+XSON(N)                   -1.02165   (0.274874)
+XSON(U)                   -1.83258   (0.380789)
+XFATHER(S)               -0.579818   (0.236039)
+XFATHER(I)                -1.51413   (0.33303)
+XFATHER(N)                -1.27297   (0.302372)
+XFATHER(U)                -2.81341   (0.594418)
+XSON(S).FATHER(S)          1.93221   (0.289281)
+XSON(S).FATHER(I)          2.06417   (0.382036)
+XSON(S).FATHER(N)          2.47694   (0.346868)
+XSON(S).FATHER(U)          2.74442   (0.631953)
+XSON(I).FATHER(S)          2.93119   (0.438884)
+XSON(I).FATHER(I)          4.13517   (0.494975)
+XSON(I).FATHER(N)          4.41388   (0.470993)
+XSON(I).FATHER(U)          5.01064   (0.701586)
+XSON(N).FATHER(S)           2.7264   (0.343167)
+XSON(N).FATHER(I)          4.03093   (0.41346)
+XSON(N).FATHER(N)          4.95348   (0.385207)
+XSON(N).FATHER(U)          5.69136   (0.641883)
+XSON(U).FATHER(S)          2.50771   (0.445978)
+XSON(U).FATHER(I)          3.99903   (0.496312)
+XSON(U).FATHER(N)          5.29608   (0.467617)
+XSON(U).FATHER(U)          6.75256   (0.693373)
+X
+XScale taken as:                 1
+XDeviance:              3.37508e-14
+XNumber of cases:               25
+XDegrees of freedom:             0
+X\end{verbatim}
+X
+X\section{Structure of the Generalized Linear Model System}
+X\subsection{Model Prototypes}
+XThe model objects are organized into several prototypes, with the
+Xgeneral prototype \dcode{glim-proto} inheriting from
+X\dcode{regression-model-proto}, the prototype for normal linear
+Xregression models. The inheritance tree is shown in Figure
+X\ref{GLIMTree}.
+X\begin{figure}
+X\begin{center}
+X\begin{picture}(400,160)
+X\put(140,140){\wprotoimage{regression-model-proto}}
+X\put(150,70){\protoimage{glim-proto}}
+X\put(0,0){\protoimage{poissonreg-proto}}
+X\put(150,0){\protoimage{binomialreg-proto}}
+X\put(300,0){\protoimage{gammareg-proto}}
+X\put(200,140){\line(0,-1){50}}
+X\put(200,70){\line(-3,-1){150}}
+X\put(200,70){\line(3,-1){150}}
+X\put(200,70){\line(0,-1){50}}
+X\end{picture}
+X\end{center}
+X\caption{Hierarchy of generalized linear model prototypes.}
+X\label{GLIMTree}
+X\end{figure}
+XThis inheritance captures the reasoning by analogy to the linear case
+Xthat is the basis for many ideas in the analysis of generalized linear
+Xmodels. The fitting strategy uses iteratively reweighted least squares
+Xby changing the weight vector in the model and repeatedly calling the
+Xlinear regression \dcode{:compute} method.
+X
+XConvergence of the iterations is determined by comparing the relative
+Xchange in the coefficients and the change in the deviance to cutoff
+Xvalues. The iteration terminates if either change falls below the
+Xcorresponding cutoffs. The cutoffs are set and retrieved by the
+X\dcode{:epsilon} and \dcode{:epsilon-dev} methods. The default values
+Xare given by
+X\begin{verbatim}
+X> (send glim-proto :epsilon)
+X1e-06
+X> (send glim-proto :epsilon-dev)
+X0.001
+X\end{verbatim}
+XA limit is also imposed on the number of iterations. The limit is set
+Xand retrieved by the \dcode{:count-limit} message. The default value
+Xis given by
+X\begin{verbatim}
+X> (send glim-proto :count-limit)
+X30
+X\end{verbatim}
+X
+XThe analogy captured in the inheritance of the \dcode{glim-proto}
+Xprototype from the normal linear regression prototype is based
+Xprimarily on the computational process, not the modeling process. As a
+Xresult, several accessor methods inherited from the linear regression
+Xobject refer to analogous components of the computational process,
+Xrather than analogous components of the model. Two examples are the
+Xmessages \dcode{:weights} and \dcode{:y}. The weight vector in the
+Xobject returned by \dcode{:weights} is the final set of weights
+Xobtained in the fit; prior weights can be set and retrieved with the
+X\dcode{:pweights} message. The value returned by the \dcode{:y}
+Xmessage is the artificial dependent variable
+X\begin{displaymath}
+Xz = \eta + (y - \mu) \frac{d\eta}{d\mu}
+X\end{displaymath}
+Xconstructed in the iteration; the actual dependent variable can be
+Xobtained and changed with the \dcode{:yvar} message.
+X
+XThe message \dcode{:eta} returns the current linear predictor values,
+Xincluding any offset. The \dcode{:offset} message sets and retrieves
+Xthe offset value. For binomial models, the \dcode{:trials} message
+Xsets and retrieves the number of trials for each observation.
+X
+XThe scale factor is set and retrieved with the \dcode{:scale} message.
+XSome models permit the estimation of a scale parameter. For these
+Xmodels, the fitting system uses the \dcode{:fit-scale} message to
+Xobtain a new scale value. The message \dcode{:estimate-scale}
+Xdetermines and sets whether the scale parameter is to be estimated or
+Xnot.
+X
+XDeviances of individual observations, the total deviance, and the mean
+Xdeviance are returned by the messages \dcode{:deviances},
+X\dcode{:deviance} and \dcode{:mean-deviance}, respectively. The
+X\dcode{:deviance} and \dcode{:mean-deviance} methods adjusts for
+Xomitted observations, and the denominator for the mean deviance is
+Xadjusted for the degrees of freedom available.
+X
+XMost inherited methods for residuals, standard errors, etc., should
+Xmake sense at least as approximations. For example, residuals returned
+Xby the inherited \dcode{:residuals} message correspond to the Pearson
+Xresiduals for generalized linear models. Other forms of residuals are
+Xreturned by the messages \dcode{:chi-residuals},
+X\dcode{:deviance-residuals}, \dcode{:g2-residuals},
+X\dcode{:raw-residuals}, \dcode{:standardized-chi-residuals}, and
+X\dcode{:standardized-deviance-residuals}.
+X
+X\subsection{Error Structures}
+XThe error structure of a generalized linear model affects four methods
+Xand two slots The methods are called as
+X\begin{flushleft}\tt
+X(send \param{m} :initial-means)\\
+X(send \param{m} :fit-variances \param{mu})\\
+X(send \param{m} :fit-deviances  \param{mu})\\
+X(send \param{m} :fit-scale)
+X\end{flushleft}
+XThe \dcode{:initial-means} method should return an initial estimate of
+Xthe means for the iterative search. The default method simply returns
+Xthe dependent variable, but for some models this may need to be
+Xadjusted to move the initial estimate away from a boundary. For
+Xexample, the method for the Poisson regression model can be defined as
+X\begin{verbatim}
+X(defmeth poissonreg-proto :initial-means () (pmax (send self :yvar) 0.5))
+X\end{verbatim}
+Xwhich insures that initial mean estimates are at least 0.5.
+X
+XThe \dcode{:fit-variances} \dcode{:fit-deviances} methods return the
+Xvalues on the variance and deviance functions for a specified vector
+Xof means. For the Poisson regression model, these methods can be
+Xdefined as
+X\begin{verbatim}
+X(defmeth poissonreg-proto :fit-variances (mu) mu)
+X\end{verbatim}
+Xand
+X\begin{verbatim}
+X(defmeth poissonreg-proto :fit-deviances (mu)
+X  (flet ((log+ (x) (log (if-else (< 0 x) x 1))))
+X    (let* ((y (send self :yvar))
+X           (raw-dev (* 2 (- (* y (log+ (/ y mu))) (- y mu))))
+X           (pw (send self :pweights)))
+X      (if pw (* pw raw-dev) raw-dev))))
+X\end{verbatim}
+XThe local function \dcode{log+} is used to avoid taking the logarithm
+Xof zero.
+X
+XThe final message, \dcode{:fit-scale}, is only used by the
+X\dcode{:display} method. The default method returns the mean deviance.
+X
+XThe two slots related to the error structure are
+X\dcode{estimate-scale} and \dcode{link}. If the \dcode{estimate-scale}
+Xslot is not \dcode{nil}, then a scale estimate is computed and printed
+Xby the \dcode{:dislay} method. The \dcode{link} slot holds the link
+Xobject used by the model. The Poisson model does not have a scale
+Xparameter, and the canonical link is the logit link. These defaults can
+Xbe set by the expressions
+X\begin{verbatim}
+X(send poissonreg-proto :estimate-scale nil)
+X(send poissonreg-proto :link log-link)
+X\end{verbatim}
+X
+XThe \dcode{glim-proto} prototype itself uses normal errors and an
+Xidentity link. Other error structures can be implemented by
+Xconstructing a new prototype and defining appropriate methods and
+Xdefault slot values.
+X
+X\subsection{Link Structures}
+XThe link function $g$ for a generalized linear model relates the
+Xlinear predictor $\eta$ to the mean response $\mu$ by
+X\begin{displaymath}
+X\eta = g(\mu).
+X\end{displaymath}
+XLinks are implemented as objects.
+XTable \ref{Links} lists the pre-defined link functions, along with
+Xthe expressions used to return link objects.
+X\begin{table}
+X\caption{Link Functions and Expression for Obtaining Link Objects}
+X\label{Links}
+X\begin{center}
+X\begin{tabular}{lccl}
+X\hline
+XLink & Formula & Domain & Expression\\
+X\hline
+XIdentity    & $\mu$      & $(-\infty, \infty)$ & \tt identity-link \\
+XLogarithm   & $\log \mu$ & $(0, \infty)$     & \tt log-link\\
+XInverse     & $ 1/\mu$   & $(0, \infty)$ & \tt inverse-link\\
+XSquare Root & $\sqrt{\mu}$ & $(0, \infty)$ & \tt sqrt-link\\
+XLogit       & $\log\frac{\mu}{1-\mu}$ & $[0,1]$ & \tt logit-link\\
+XProbit      & $\Phi^{-1}(\mu)$ & $[0,1]$ & \tt probit-link\\
+XCompl. log-log & $\log(-\log(1-\mu))$ & $[0,1]$ & \tt cloglog-link\\
+XPower       & $\mu^{k}$ & $(0, \infty)$ & \tt (send power-link-proto :new \param{k})\\
+X\hline
+X\end{tabular}
+X\end{center}
+X\end{table}
+XWith one exception, the pre-defined links require no parameters.
+XThese link objects can therefore be shared among models. The exception
+Xis the power link. Links for binomial models are defined for $n = 1$
+Xtrials and assume $0 < \mu < 1$.
+X
+XLink objects inherit from the \dcode{glim-link-proto} prototype.  The
+X\dcode{log-link} object, for example, is constructed by
+X\begin{verbatim}
+X(defproto log-link () () glim-link-proto)
+X\end{verbatim}
+XSince this prototype can be used directly in model objects, the
+Xconvention of having prototype names end in \dcode{-proto} is not
+Xused. The \dcode{glim-link-proto} prototype provides a \dcode{:print}
+Xmethod that should work for most link functions. The \dcode{log-link}
+Xobject prints as
+X\begin{verbatim}
+X> log-link
+X#<Glim Link Object: LOG-LINK>
+X\end{verbatim}
+X
+XThe \dcode{glim-proto} computing methods assume that a link object
+Xresponds to three messages:
+X\begin{flushleft}\tt
+X(send \param{link} :eta \param{mu})\\
+X(send \param{link} :means \param{eta})\\
+X(send \param{link} :derivs \param{mu})
+X\end{flushleft}
+XThe \dcode{:eta} method returns a sequence of linear predictor values
+Xfor a particular mean sequence. The \dcode{:means} method is the
+Xinverse of \dcode{:eta}: it returns mean values for specified values
+Xof the linear predictor. The \dcode{:derivs} method returns the values of
+X\begin{displaymath}
+X\frac{d\eta}{d\mu}
+X\end{displaymath}
+Xat the specified mean values. As an example, for the \dcode{log-link}
+Xobject these three methods are defined as
+X\begin{verbatim}
+X(defmeth log-link :eta (mu) (log mu))
+X(defmeth log-link :means (eta) (exp eta))
+X(defmeth log-link :derivs (mu) (/ mu))
+X\end{verbatim}
+X
+XAlternative link structures can be constructed by setting up a new
+Xprototype and defining appropriate \dcode{:eta}, \dcode{:means}, and
+X\dcode{:derivs} methods. Parametric link families can be implemented by
+Xproviding one or more slots for holding the parameters. The power link
+Xis an example of a parametric link family. The power link prototype
+Xis defined as
+X\begin{verbatim}
+X(defproto power-link-proto '(power) () glim-link-proto)
+X\end{verbatim}
+XThe slot \dcode{power} holds the power exponent. An accessor method
+Xis defined by
+X\begin{verbatim}
+X(defmeth power-link-proto :power () (slot-value 'power))
+X\end{verbatim}
+Xand the \dcode{:isnew} initialization method is defined to require a
+Xpower argument:
+X\begin{verbatim}
+X(defmeth power-link-proto :isnew (power) (setf (slot-value 'power) power))
+X\end{verbatim}
+XThus a power link for a particular exponent, say the exponent 2, can
+Xbe constructed using the expression
+X\begin{verbatim}
+X(send power-link-proto :new 2)
+X\end{verbatim}
+X
+XTo complete the power link prototype, we need to define the three
+Xrequired methods. They are defined as
+X\begin{verbatim}
+X(defmeth power-link-proto :eta (mu) (^ mu (send self :power)))
+X\end{verbatim}
+X\begin{verbatim}
+X(defmeth power-link-proto :means (eta) (^ eta (/ (slot-value 'power))))
+X\end{verbatim}
+Xand
+X\begin{verbatim}
+X(defmeth power-link-proto :derivs (mu)
+X  (let ((p (slot-value 'power)))
+X    (* p (^ mu (- p 1)))))
+X\end{verbatim}
+XThe definition of the \dcode{:means} method could be improved to allow
+Xnegative arguments when the power is an odd integer. Finally, the
+X\dcode{:print} method is redefined to reflect the value of the
+Xexponent:
+X\begin{verbatim}
+X(defmeth power-link-proto :print (&optional (stream t))
+X  (format stream ``#<Glim Link Object: Power Link (~s)>'' (send self :power)))
+X\end{verbatim}
+XThus a square link prints as
+X\begin{verbatim}
+X> (send power-link-proto :new 2)
+X#<Glim Link Object: Power Link (2)>
+X\end{verbatim}
+X
+X\section{Fitting a Bradley-Terry Model}
+XMany models used in categorical data analysis can be viewed as
+Xspecial cases of generalized linear models. One example is the
+XBradley-Terry model for paired comparisons. The Bradley-Terry model
+Xdeals with a situation in which $n$ individuals or items are compared
+Xto one another in paired contests.  The model assumes there are
+Xpositive quantities $\pi_{1}, \ldots, \pi_{n}$, which can be assumed
+Xto sum to one, such that
+X\begin{displaymath}
+XP\{\mbox{$i$ beats $j$}\} = \frac{\pi_{i}}{\pi_{i} + \pi_{j}}.
+X\end{displaymath}
+XIf the competitions are assumed to be mutually independent, then the
+Xprobability $p_{ij} = P\{\mbox{$i$ beats $j$}\}$ satisfies the logit
+Xmodel
+X\begin{displaymath}
+X\log\frac{p_{ij}}{1-p_{ij}} = \phi_{i} - \phi_{j}
+X\end{displaymath}
+Xwith $\phi_{i} = \log \pi_{i}$. This model can be fit to a particular
+Xset of data by setting up an appropriate design matrix and response
+Xvector for a binomial regression model. For a single data set this can
+Xbe done from scratch. Alternatively, it is possible to construct
+Xfunctions or prototypes that allow the data to be specified in a more
+Xconvenient form. Furthermore, there are certain specific questions
+Xthat can be asked for a Bradley-Terry model, such as what is the
+Xestimated value of $P\{\mbox{$i$ beats $j$}\}$? In the object-oriented
+Xframework, it is very natural to attach methods for answering such
+Xquestions to individual models or to a model prototype.
+X
+XTo illustrate these ideas, we can fit a Bradley-Terry model to the
+Xresults for the eastern division of the American league for the 1987
+Xbaseball season \cite{Agresti}. Table \ref{WinsLosses} gives the results
+Xof the games within this division.
+X\begin{table}
+X\caption{Results of 1987 Season for American League Baseball Teams}
+X\label{WinsLosses}
+X\begin{center}
+X\begin{tabular}{lccccccc}
+X\hline
+XWinning & \multicolumn{7}{c}{Losing Team}\\
+X\cline{2-8}
+XTeam & Milwaukee & Detroit & Toronto & New York & Boston &
+XCleveland & Baltimore\\
+X\hline
+XMilwaukee & -  & 7  & 9  & 7  &  7  & 9 & 11\\
+XDetroit   & 6  & -  & 7  & 5  & 11  & 9 &  9\\
+XToronto   & 4  & 6  & -  & 7  &  7  & 8 & 12\\
+XNew York  & 6  & 8  & 6  & -  &  6  & 7 & 10\\
+XBoston    & 6  & 2  & 6  & 7  &  -  & 7 & 12\\
+XCleveland & 4  & 4  & 5  & 6  &  6  & - &  6\\
+XBaltimore & 2  & 4  & 1  & 3  &  1  & 7 &  -\\
+X\hline
+X\end{tabular}
+X\end{center}
+X\end{table}
+X
+XThe simplest way to enter this data is as a list, working through the
+Xtable one row at a time:
+X\begin{verbatim}
+X(def wins-losses '( -  7  9  7  7  9 11
+X                    6  -  7  5 11  9  9
+X                    4  6  -  7  7  8 12
+X                    6  8  6  -  6  7 10
+X                    6  2  6  7  -  7 12
+X                    4  4  5  6  6  -  6
+X                    2  4  1  3  1  7  -))
+X\end{verbatim}
+XThe choice of the symbol \dcode{-} for the diagonal entries is
+Xarbitrary; any other Lisp item could be used. The team names will also
+Xbe useful as labels:
+X\begin{verbatim}
+X(def teams '("Milwaukee" "Detroit" "Toronto" "New York"
+X             "Boston" "Cleveland" "Baltimore"))
+X\end{verbatim}
+X
+XTo set up a model, we need to extract the wins and losses from the
+X\dcode{wins-losses} list. The expression
+X\begin{verbatim}
+X(let ((i (iseq 1 6)))
+X  (def low-i (apply #'append (+ (* 7 i) (mapcar #'iseq i)))))
+X\end{verbatim}
+Xconstructs a list of the indices of the elements in the lower
+Xtriangle:
+X\begin{verbatim}
+X> low-i
+X(7 14 15 21 22 23 28 29 30 31 35 36 37 38 39 42 43 44 45 46 47)
+X\end{verbatim}
+XThe wins can now be extracted from the \dcode{wins-losses} list using
+X\begin{verbatim}
+X> (select wins-losses low-i)
+X(6 4 6 6 8 6 6 2 6 7 4 4 5 6 6 2 4 1 3 1 7)
+X\end{verbatim}
+XSince we need to extract the lower triangle from a number of lists, we
+Xcan define a function to do this as
+X\begin{verbatim}
+X(defun lower (x) (select x low-i))
+X\end{verbatim}
+XUsing this function, we can calculate the wins and save them in a
+Xvariable \dcode{wins}:
+X\begin{verbatim}
+X(def wins (lower wins-losses))
+X\end{verbatim}
+X
+XTo extract the losses, we need to form the list of the entries for the
+Xtranspose of our table.  The function \dcode{split-list} can be used
+Xto return a list of lists of the contents of the rows of the original
+Xtable.  The \dcode{transpose} function transposes this list of lists,
+Xand the \dcode{append} function can be applied to the result to
+Xcombine the lists of lists for the transpose into a single list:
+X\begin{verbatim}
+X(def losses-wins (apply #'append (transpose (split-list wins-losses 7))))
+X\end{verbatim}
+XThe losses are then obtained by
+X\begin{verbatim}
+X(def losses (lower losses-wins))
+X\end{verbatim}
+XEither \dcode{wins} or \dcode{losses} can be used as the response for
+Xa binomial model, with the trials given by
+X\begin{verbatim}
+X(+ wins losses)
+X\end{verbatim}
+X
+XWhen fitting the Bradley-Terry model as a binomial regression model
+Xwith a logit link, the model has no intercept and the columns of the
+Xdesign matrix are the differences of the row and column indicators for
+Xthe table of results.  Since the rows of this matrix sum to zero if
+Xall row and column levels are used, we can delete one of the levels,
+Xsay the first one. Lists of row and column indicators are set up by
+Xthe expressions
+X\begin{verbatim}
+X(def rows (mapcar #'lower (indicators (repeat (iseq 7) (repeat 7 7)))))
+X(def cols (mapcar #'lower (indicators (repeat (iseq 7) 7))))
+X\end{verbatim}
+XThe function \dcode{indicators} drops the first level in constructing
+Xits indicators. The function \dcode{mapcar} applies \dcode{lower} to
+Xeach element of the indicators list and returns a list of the results.
+XUsing these two variables, the expression
+X\begin{verbatim}
+X(- rows cols)
+X\end{verbatim}
+Xconstructs a list of the columns of the design matrix.
+X
+XWe can now construct a model object for this data set:
+X\begin{verbatim}
+X> (def wl (binomialreg-model (- rows cols)
+X                             wins
+X                             (+ wins losses)
+X                             :intercept nil
+X                             :predictor-names (rest teams)))
+XIteration 1: deviance = 16.1873
+XIteration 2: deviance = 15.7371
+X
+XWeighted Least Squares Estimates:
+X
+XDetroit                 -0.144948   (0.311056)
+XToronto                 -0.286871   (0.310207)
+XNew York                -0.333738   (0.310126)
+XBoston                  -0.473658   (0.310452)
+XCleveland               -0.897502   (0.316504)
+XBaltimore                -1.58134   (0.342819)
+X
+XScale taken as:                 1
+XDeviance:                 15.7365
+XNumber of cases:               21
+XDegrees of freedom:            15
+X\end{verbatim}
+X
+XTo fit to a Bradley-Terry model to other data sets, we can repeat this
+Xprocess.  As an alternative, we can incorporate the steps used here
+Xinto a function:
+X\begin{verbatim}
+X(defun bradley-terry-model (counts &key labels)
+X  (let* ((n (round (sqrt (length counts))))
+X         (i (iseq 1 (- n 1)))
+X         (low-i (apply #'append (+ (* n i) (mapcar #'iseq i))))
+X         (p-names (if labels
+X                      (rest labels) 
+X                      (level-names (iseq n) :prefix "Choice"))))
+X    (labels ((tr (x)
+X               (apply #'append (transpose (split-list (coerce x 'list) n))))
+X             (lower (x) (select x low-i))
+X             (low-indicators (x) (mapcar #'lower (indicators x))))
+X      (let ((wins (lower counts))
+X            (losses (lower (tr counts)))
+X            (rows (low-indicators (repeat (iseq n) (repeat n n))))
+X            (cols (low-indicators (repeat (iseq n) n))))
+X        (binomialreg-model (- rows cols)
+X                           wins 
+X                           (+ wins losses)
+X                           :intercept nil
+X                           :predictor-names p-names)))))
+X\end{verbatim}
+XThis function defines the function \dcode{lower} as a local function.
+XThe local function \dcode{tr} calculates the list of the elements in
+Xthe transposed table, and the function \dcode{low-indicators} produces
+Xindicators for the lower triangular portion of a categorical variable.
+XThe \dcode{bradley-terry-model} function allows the labels for the
+Xcontestants to be specified as a keyword argument. If this argument is
+Xomitted, reasonable default labels are constructed. Using this
+Xfunction, we can construct our model object as
+X\begin{verbatim}
+X(def wl (bradley-terry-model wins-losses :labels teams))
+X\end{verbatim}
+X
+XThe definition of this function could be improved to allow some of the
+Xkeyword arguments accepted by \dcode{binomialreg-model}.
+X
+XUsing the fit model object, we can estimate the probability of Boston
+X$(i = 4)$ defeating New York $(j = 3)$:
+X\begin{verbatim}
+X> (let* ((phi (cons 0 (send wl :coef-estimates)))
+X         (exp-logit (exp (- (select phi 3) (select phi 4)))))
+X    (/ exp-logit (+ 1 exp-logit)))
+X0.534923
+X\end{verbatim}
+XTo be able to easily calculate such an estimate for any pairing, we can
+Xgive our model object a method for the \dcode{:success-prob} message
+Xthat takes two indices as arguments:
+X\begin{verbatim}
+X(defmeth wl :success-prob (i j)
+X  (let* ((phi (cons 0 (send self :coef-estimates)))
+X         (exp-logit (exp (- (select phi i) (select phi j)))))
+X    (/ exp-logit (+ 1 exp-logit))))
+X\end{verbatim}
+XThen
+X\begin{verbatim}
+X> (send wl :success-prob 4 3)
+X0.465077
+X\end{verbatim}
+X
+XIf we want this method to be available for other data sets, we can
+Xconstruct a Bradley-Terry model prototype by
+X\begin{verbatim}
+X(defproto bradley-terry-proto () () binomialreg-proto)
+X\end{verbatim}
+Xand add the \dcode{:success-prob} method to this prototype:
+X\begin{verbatim}
+X(defmeth bradley-terry-proto :success-prob (i j)
+X  (let* ((phi (cons 0 (send self :coef-estimates)))
+X         (exp-logit (exp (- (select phi i) (select phi j)))))
+X    (/ exp-logit (+ 1 exp-logit))))
+X\end{verbatim}
+XIf we modify the \dcode{bradley-terry-model} function to use this prototype
+Xby defining the function as
+X\begin{verbatim}
+X(defun bradley-terry-model (counts &key labels)
+X  (let* ((n (round (sqrt (length counts))))
+X         (i (iseq 1 (- n 1)))
+X         (low-i (apply #'append (+ (* n i) (mapcar #'iseq i))))
+X         (p-names (if labels
+X                      (rest labels) 
+X                      (level-names (iseq n) :prefix "Choice"))))
+X    (labels ((tr (x)
+X               (apply #'append (transpose (split-list (coerce x 'list) n))))
+X             (lower (x) (select x low-i))
+X             (low-indicators (x) (mapcar #'lower (indicators x))))
+X      (let ((wins (lower counts))
+X            (losses (lower (tr counts)))
+X            (rows (low-indicators (repeat (iseq n) (repeat n n))))
+X            (cols (low-indicators (repeat (iseq n) n))))
+X        (send bradley-terry-proto :new
+X              :x (- rows cols)
+X              :y wins
+X              :trials (+ wins losses)
+X              :intercept nil
+X              :predictor-names p-names)))))
+X\end{verbatim}
+Xthen the \dcode{:success-prob} metod is available immediately for a
+Xmodel constructed using this function:
+X\begin{verbatim}
+X> (def wl (bradley-terry-model wins-losses :labels teams))
+XIteration 1: deviance = 16.1873
+XIteration 2: deviance = 15.7371
+X...
+X> (send wl :success-prob 4 3)
+X0.465077
+X\end{verbatim}
+X
+XThe \dcode{:success-prob} method can be improved in a number of ways.
+XAs one example, we might want to be able to obtain standard errors in
+Xaddition to estimates. A convenient way to provide for this
+Xpossibility is to have our method take an optional argument. If this
+Xargument is \dcode{nil}, the default, then the method just returns the
+Xestimate. If the argument is not \dcode{nil}, then the method returns
+Xa list of the estimate and its standard error. 
+X
+XTo calculate the standard error, it is easier to start with the logit
+Xof the probability, since the logit is a linear function of the model
+Xcoefficients. The method defined as
+X\begin{verbatim}
+X(defmeth bradley-terry-proto :success-logit (i j &optional stdev)
+X  (let ((coefs (send self :coef-estimates)))
+X    (flet ((lincomb (i j)
+X             (let ((v (repeat 0 (length coefs))))
+X               (if (/= 0 i) (setf (select v (- i 1)) 1))
+X               (if (/= 0 j) (setf (select v (- j 1)) -1))
+X               v)))
+X      (let* ((v (lincomb i j))
+X             (logit (inner-product v coefs))
+X             (var (if stdev (matmult v (send self :xtxinv) v))))
+X        (if stdev (list logit (sqrt var)) logit)))))
+X\end{verbatim}
+Xreturns the estimate or a list of the estimate and approximate
+Xstandard error of the logit:
+X\begin{verbatim}
+X> (send wl :success-logit 4 3)
+X-0.13992
+X> (send wl :success-logit 4 3 t)
+X(-0.13992 0.305583)
+X\end{verbatim}
+XThe logit is calculated as a linear combination of the coefficients; a
+Xlist representing the linear combination vector is constructed by the
+Xlocal function \dcode{lincomb}.
+X
+XStandard errors for success probabilities can now be computed form
+Xthe results of \dcode{:success-logit} using the delta method:
+X\begin{verbatim}
+X(defmeth bradley-terry-proto :success-prob (i j &optional stdev)
+X  (let* ((success-logit (send self :success-logit i j stdev))
+X         (exp-logit (exp (if stdev (first success-logit) success-logit)))
+X         (p (/ exp-logit (+ 1 exp-logit)))
+X         (s (if stdev (* p (- 1 p) (second success-logit)))))
+X    (if stdev (list p s) p)))
+X\end{verbatim}
+XFor our example, the results are
+X\begin{verbatim}
+X> (send wl :success-prob 4 3)
+X0.465077
+X> (send wl :success-prob 4 3 t)
+X(0.465077 0.0760231)
+X\end{verbatim}
+X
+XThese methods can be improved further by allowing them to accept
+Xsequences of indices instead of only individual indices.
+X
+X\section*{Acknowledgements}
+XI would like to thank Sandy Weisberg for many helpful comments and
+Xsuggestions, and for providing the code for the glim residuals
+Xmethods.
+X
+X%\section*{Notes}
+X%On the DECstations you can load the generalized linear model
+X%prototypes with the expression
+X%\begin{verbatim}
+X%(load-example "glim")
+X%\end{verbatim}
+X%This code seems to work reasonably on the examples I have tried, but
+X%it is not yet thoroughly debugged.
+X
+X\begin{thebibliography}{99}
+X\bibitem{Agresti}
+X{\sc Agresti, A.} (1990), {\em Categorical Data Analysis}, New York,
+XNY: Wiley.
+X
+X\bibitem{JKL}
+X{\sc Lindsey, J. K.} (1989), {\em The Analysis of Categorical Data
+XUsing GLIM}, Springer Lecture Notes in Statistics No.  56, New York,
+XNY: Springer.
+X
+X\bibitem{GLIM}
+X{\sc McCullagh, P. and Nelder, J. A.} (1989), {\em Generalized Linear
+XModels}, second edition, London: Chapman and Hall.
+X
+X\bibitem{LS}
+X{\sc Tierney, L.} (1990), {\em Lisp-Stat: An Object-Oriented
+XEnvironment for Statistical Computing and Dynamic Graphics}, New York,
+XNY: Wiley.
+X\end{thebibliography}
+X\end{document}
+X
+X
+X
+X
+X\begin{table}
+X\caption{Wins/Losses by Home and Away Team, 1987}
+X\begin{tabular}{lccccccc}
+X\hline
+XHome & \multicolumn{7}{c}{Away Team}\\
+X\cline{2-8}
+XTeam & Milwaukee & Detroit & Toronto & New York & Boston &
+XCleveland & Baltimore\\
+X\hline
+XMilwaukee &  -  & 4-3 & 4-2 & 4-3 & 6-1 & 4-2 & 6-0\\
+XDetroit   & 3-3 &  -  & 4-2 & 4-3 & 6-0 & 6-1 & 4-3\\
+XToronto   & 2-5 & 4-3 &  -  & 2-4 & 4-3 & 4-2 & 6-0\\
+XNew York  & 3-3 & 5-1 & 2-5 &  -  & 4-3 & 4-2 & 6-1\\
+XBoston    & 5-1 & 2-5 & 3-3 & 4-2 &  -  & 5-2 & 6-0\\
+XCleveland & 2-5 & 3-3 & 3-4 & 4-3 & 4-2 & -   & 2-4\\
+XBaltimore & 2-5 & 1-5 & 1-6 & 2-4 & 1-6 & 3-4 &  - \\
+X\hline
+X\end{tabular}
+X\end{table}
+END_OF_FILE
+if test 40435 -ne `wc -c <'glim.tex'`; then
+    echo shar: \"'glim.tex'\" unpacked with wrong size!
+fi
+# end of 'glim.tex'
+fi
+if test -f 'bradleyterry.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bradleyterry.lsp'\"
+else
+echo shar: Extracting \"'bradleyterry.lsp'\" \(4918 characters\)
+sed "s/^X//" >'bradleyterry.lsp' <<'END_OF_FILE'
+X;;;;
+X;;;;                  Fitting a Bradley-Terry Model with the
+X;;;;                          Lisp-Stat GLIM System
+X
+X(require "glim")
+X
+X;;;
+X;;; Function for fitting the model as a binomial regression model
+X;;;
+X
+X(defun bradley-terry-model (counts &key labels)
+X  (let* ((n (round (sqrt (length counts))))
+X         (i (iseq 1 (- n 1)))
+X         (low-i (apply #'append (+ (* n i) (mapcar #'iseq i))))
+X         (p-names (if labels
+X                      (rest labels) 
+X                      (level-names (iseq n) :prefix "Choice"))))
+X    (labels ((tr (x)
+X               (apply #'append (transpose (split-list (coerce x 'list) n))))
+X             (lower (x) (select x low-i))
+X             (low-indicators (x) (mapcar #'lower (indicators x))))
+X      (let ((wins (lower counts))
+X            (losses (lower (tr counts)))
+X            (rows (low-indicators (repeat (iseq n) (repeat n n))))
+X            (cols (low-indicators (repeat (iseq n) n))))
+X        (binomialreg-model (- rows cols)
+X                           wins 
+X                           (+ wins losses)
+X                           :intercept nil
+X                           :predictor-names p-names)))))
+X
+X;;;;
+X;;;;
+X;;;; Bradley-Terry Model Prototype
+X;;;;
+X;;;;
+X
+X(defproto bradley-terry-proto () () binomialreg-proto)
+X
+X;;;
+X;;; Constructor Function
+X;;;
+X
+X(defun bradley-terry-model (counts &key labels)
+X  (let* ((n (round (sqrt (length counts))))
+X         (i (iseq 1 (- n 1)))
+X         (low-i (apply #'append (+ (* n i) (mapcar #'iseq i))))
+X         (p-names (if labels
+X                      (rest labels) 
+X                      (level-names (iseq n) :prefix "Choice"))))
+X    (labels ((tr (x)
+X               (apply #'append (transpose (split-list (coerce x 'list) n))))
+X             (lower (x) (select x low-i))
+X             (low-indicators (x) (mapcar #'lower (indicators x))))
+X      (let ((wins (lower counts))
+X            (losses (lower (tr counts)))
+X            (rows (low-indicators (repeat (iseq n) (repeat n n))))
+X            (cols (low-indicators (repeat (iseq n) n))))
+X        (send bradley-terry-proto :new
+X              :x (- rows cols)
+X              :y wins
+X              :trials (+ wins losses)
+X              :intercept nil
+X              :predictor-names p-names)))))
+X
+X;;;;
+X;;;; Methods for Estimating Success Probabilities
+X;;;;
+X
+X;;;
+X;;; Simplest version of :SUCCESS-PROB
+X;;;
+X(defmeth bradley-terry-proto :success-prob (i j)
+X  (let* ((phi (cons 0 (send self :coef-estimates)))
+X         (exp-logit (exp (- (select phi i) (select phi j)))))
+X    (/ exp-logit (+ 1 exp-logit))))
+X
+X;;;
+X;;; Version with standard errors based on :SUCCESS-LOGIT
+X;;;
+X(defmeth bradley-terry-proto :success-prob (i j &optional stdev)
+X  (let* ((success-logit (send self :success-logit i j stdev))
+X         (exp-logit (exp (if stdev (first success-logit) success-logit)))
+X         (p (/ exp-logit (+ 1 exp-logit)))
+X         (s (if stdev (* p (- 1 p) (second success-logit)))))
+X    (if stdev (list p s) p)))
+X
+X;;;
+X;;; Non-vectorized version of :SUCCESS-LOGIT
+X;;;
+X(defmeth bradley-terry-proto :success-logit (i j &optional stdev)
+X  (let ((coefs (send self :coef-estimates)))
+X    (flet ((lincomb (i j)
+X             (let ((v (repeat 0 (length coefs))))
+X               (if (/= 0 i) (setf (select v (- i 1)) 1))
+X               (if (/= 0 j) (setf (select v (- j 1)) -1))
+X               v)))
+X      (let* ((v (lincomb i j))
+X             (logit (inner-product v coefs))
+X             (var (if stdev (matmult v (send self :xtxinv) v))))
+X        (if stdev (list logit (sqrt var)) logit)))))
+X
+X;;;
+X;;; Vectorized version of :SUCCESS-LOGIT
+X;;;
+X(defmeth bradley-terry-proto :success-logit (i j &optional stdev)
+X  (let ((coefs (send self :coef-estimates)))
+X    (flet ((lincomb (i j)
+X             (let ((v (repeat 0 (length coefs))))
+X               (if (/= 0 i) (setf (select v (- i 1)) 1))
+X               (if (/= 0 j) (setf (select v (- j 1)) -1))
+X               v))
+X           (matrix-or-list (x)
+X             (let ((x (coerce x 'list)))
+X               (if (numberp (first x)) x (apply #'bind-rows x))))
+X           (apply-sum (x)
+X             (if (matrixp x) (mapcar #'sum (row-list x)) (apply #'sum x))))
+X      (let* ((v (matrix-or-list (map-elements #'lincomb i j)))
+X             (xtxinv (if stdev (send self :xtxinv)))
+X             (logit (matmult v coefs))
+X             (var (if stdev (apply-sum (* (matmult v xtxinv) v)))))
+X        (if stdev (list logit (sqrt var)) logit)))))
+X
+X;;;
+X;;; Baseball Data Example from Agresti
+X;;;
+X
+X#|
+X(def wins-losses '( -  7  9  7  7  9 11
+X                    6  -  7  5 11  9  9
+X                    4  6  -  7  7  8 12
+X                    6  8  6  -  6  7 10
+X                    6  2  6  7  -  7 12
+X                    4  4  5  6  6  -  6
+X                    2  4  1  3  1  7  -))
+X
+X(def teams '("Milwaukee" "Detroit" "Toronto" "New York"
+X             "Boston" "Cleveland" "Baltimore"))
+X
+X(def wl (bradley-terry-model wins-losses :labels teams))
+X(send wl :success-prob 4 3)
+X|#
+END_OF_FILE
+if test 4918 -ne `wc -c <'bradleyterry.lsp'`; then
+    echo shar: \"'bradleyterry.lsp'\" unpacked with wrong size!
+fi
+# end of 'bradleyterry.lsp'
+fi
+echo shar: End of shell archive.
+exit 0

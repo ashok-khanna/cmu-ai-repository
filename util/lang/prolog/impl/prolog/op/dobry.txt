@@ -1,0 +1,478 @@
+
+Received: from ashe.cs.tcd.ie by cs.tcd.ie (PMDF #12050) id
+ <01GL39HKYNEO9BVR5R@cs.tcd.ie>; Thu, 11 Jun 1992 13:48 GMT
+Received: by ashe.cs.tcd.ie (5.57/Ultrix3.0-C) id AA14680; Thu,
+ 11 Jun 92 13:50:05 +0100
+Received: from scorpio.ecrc.de by ecrc.de with SMTP id AA17725 (5.65c/IDA-1.4.4
+ for <brady@cs.tcd.ie>); Thu, 11 Jun 1992 14:49:51 +0200
+Received: from janus6.ecrc by scorpio.ecrc.de (4.1/SMI-3.2) id AA15740; Thu,
+ 11 Jun 92 14:49:49 +0200
+Received: by janus6.ecrc (4.1/SMI-4.1) id AA03886; Thu, 11 Jun 92 14:49:47 +0200
+Date: Thu, 11 Jun 92 14:49:49 +0200
+From: Jacques Noye <Jacques.Noye@ecrc.de>
+Subject: Re: Machine readable standard benchmarks?
+To: brady@cs.tcd.ie (Brady Michael)
+Message-Id: <9206111249.AA15740@scorpio.ecrc.de>
+X-Envelope-To: brady@ashe.cs.tcd.ie
+
+Here it is, I hope (I think I have left the code untouched, but I am not 100%
+sure). It comes from Tep Dobry when he was at UCB.
+
+By the way, these benchmarks are somehow outdated. Do you know about the
+benchmark
+suite used for assessing the BAM and the Aquarius Prolog Compiler? It is
+available by anonymous FTP from UCB. The suite of F. Pereira (published
+on the net in 86 or 87) is also quite interesting (it tries to test
+specific operations,
+unification, indexing, backtracking...).
+
+-- Jacques NOYE
+
+
+
+From: (Tep Dobry) Tep%ucbdali@Berkeley 
+Subject: The Berkeley PLM Benchmarks
+Date:    Wednesday, May 22 1985
+
+     At the Warren Abstract Machine Workshop a few weeks ago
+I  was  asked to publish the set of benchmarks programs I've
+been  using  on  my  simulator  for  the   Berkeley   Prolog
+Machine(PLM).  I've  finally got them all collected together
+in Prolog form (CProlog) and have sent them to  the  Digest.
+They're  really  too  big  to just publish in the Digest, so
+they are being set up in a directory in the PROLOG directory
+at  SU-SCORE.  There are 11 files with a total of 400 lines.
+Since our machine is based on compiled Prolog, the top level
+queries  are  also  compiled  in, generally as the predicate
+main/0.
+
+     The benchmarks were primarily chosen to exercise all of
+the  features of the PLM, not for any complexity of program-
+ming. About half of them come from Warren's thesis, and  the
+others  we've  added here.  Our original performance figures
+were based on simulations of hand compiled versions of these
+benchmarks.   We are currently looking for larger, more com-
+plex benchmarks to run on the hardware when it is available.
+So  I'd  be  interested  seeing large benchmarks sent to the
+Digest.
+
+-- Tep Dobry (TEP@Berkeley)
+
+
+%	concat (con1, con6)
+%	These two tests are simple examples of the concat predicate
+%	con1 is determinate, con6 is non-determinate getting all 6 answers
+
+con1 :- concat([a,b,c],[d,e],X),  % con1
+	write(X),nl.
+con6 :- concat(X,Y,[a,b,c,d,e]),  % con6
+	write(X),nl,
+	write(Y),nl,nl,
+	fail.
+
+concat([],L,L).
+concat([X|L1],L2,[X|L3]) :- concat(L1,L2,L3).
+
+
+%	differen (times10,divide10,log10,ops8)
+%	These 4 examples are from Warren's thesis
+
+diff :-
+	times10(I1),
+	d(I1,x,D1),
+	write(D1), nl,
+	divide10(I2),
+	d(I2,x,D2),
+	write(D2), nl,
+	log10(I3),
+	d(I3,x,D3),
+	write(D3), nl,
+	ops8(I4),
+	d(I4,x,D4),
+	write(D4), nl.
+
+d(U+V,X,DU+DV) :- !, d(U,X,DU), d(V,X,DV).
+d(U-V,X,DU-DV) :- !, d(U,X,DU), d(V,X,DV).
+d(U*V,X,DU*V+U*DV) :- !, d(U,X,DU), d(V,X,DV).
+d(U/V,X,(DU*V-U*DV)/(^(V,2))) :- !, d(U,X,DU), d(V,X,DV).
+d(^(U,N),X,DU*N*(^(U,N1))) :- !, integer(N), N1 is N - 1, d(U,X,DU).
+d(-U,X,-DU) :- !, d(U,X,DU).
+d(exp(U),X,exp(U)*DU) :- !, d(U,X,DU).
+d(log(U),X,DU/U) :- !, d(U,X,DU).
+d(X,X,1).	% There is a cut in Warren's program! -- Jacques
+d(C,X,0).
+
+times10( ((((((((x*x)*x)*x)*x)*x)*x)*x)*x)*x ).
+divide10( ((((((((x/x)/x)/x)/x)/x)/x)/x)/x)/x ).
+log10( log(log(log(log(log(log(log(log(log(log(x)))))))))) ).
+ops8( (x+1)*((^(x,2)+2)*(^(x,3)+3)) ).
+
+
+
+%	towers of hanoi ( hanoi ) for 8 disks
+
+hanoi :- hanoi(8).
+
+hanoi(N) :- move(N,left,center,right).
+
+move(0,_,_,_) :- !.
+move(N,A,B,C) :- M is N-1, move(M,A,C,B), inform(A,B), move(M,C,B,A).
+
+inform(A,B) :- write([move,disk,from,A,to,B]), nl, fail.
+inform(_,_).
+
+
+% Main program to do branch and bound NAND gate designs.
+% Optimized for 2-input NAND gates and 3 input variables.
+% A. Despain, Feb 84.
+% In this case, design a 2-1 MUX (ckt2)
+
+main :- set_bound(32000), update_circuit([],0), r(0, [0,0,1,1,0,1,0,1]).
+
+run(Depth, Table, Circuit, Cost, Depth) :- search(Depth, Table),
+					   circuit(Circuit),
+                                           Circuit\==[],
+                                           cost_bound(Cost),!.
+run(Depth, Table, Circuit, Cost, Delay) :- D is Depth + 1,
+    run(D, Table, Circuit, Cost, Delay),!.
+
+search(Depth, Table) :- t(Depth, Circuit, Table, 0, Cost_out),
+			update_circuit(Circuit,Cost_out),
+			update_bound(Cost_out).
+
+% Input signals are free and terminate the search.
+t(_, 0 , [0,1,0,1,0,1,0,1],C,C).
+t(_, 1 , [0,0,1,1,0,0,1,1],C,C).
+t(_, 2 , [0,0,0,0,1,1,1,1],C,C).
+t(_,i0 , [1,0,1,0,1,0,1,0],C,C).
+t(_,i1 , [1,1,0,0,1,1,0,0],C,C).
+t(_,i2 , [1,1,1,1,0,0,0,0],C,C).
+
+% Inverters are free in this model.
+t(Depth, [i,Z], Table, Cin, Cout) :- Depth > 0,
+				 D is Depth -1,
+				 sint(Table, Itable),
+				 t(D, Z, Itable, Cin, Cout).
+
+% Main NAND gate clause.
+t(Depth, [n,Y,Z], Table, Cin, Cout) :- Depth > 0,
+				 D is Depth -1,
+				 update_cost(Cin,1,C2),
+				 ngate(Table, A, B),
+				 t(D,Y,A,C2,C3),
+				 t(D,Z,B,C3,Cout).
+
+% Inverter signal transformation.
+%sint([H1,..T1],[H2,..T2]) :- inv(H1, H2), sint(T1, T2).
+sint([],[]).
+sint([X,..T1],[_,..T2]) :- var(X), sint(T1, T2),!.
+sint([0,..T1],[1,..T2]) :- sint(T1, T2).
+sint([1,..T1],[0,..T2]) :- sint(T1, T2).
+
+% Optimized gate signal transformation.
+ngate([], [], []).
+tgate([], [], []).
+ngate([X,..T0], [_,..T1], [_,..T2]) :- var(X), !, ngate(T0, T1, T2).
+ngate([X,..T0], [1,..T1], [1,..T2]) :- X==0, ngate(T0, T1, T2).
+ngate([X,..T0], [_,..T1], [0,..T2]) :- X==1, tgate(T0, T1, T2).
+tgate([X,..T0], [_,..T1], [_,..T2]) :- var(X), !, tgate(T0, T1, T2).
+tgate([X,..T0], [1,..T1], [1,..T2]) :- X==0, tgate(T0, T1, T2).
+tgate([X,..T0], [_,..T1], [0,..T2]) :- X==1, tgate(T0, T1, T2).
+tgate([X,..T0], [0,..T1], [_,..T2]) :- X==1, tgate(T0, T1, T2).
+
+
+r(Depth,Table) :- run(0, Table, L, C, D),
+                  Depth =< D,
+	          nl, write([minimum,cost,circuit,of,the,shortest,delay]),
+	          nl, write([  circuit,=,L]),
+	          nl, write([  cost,is,C,gates]),
+	          nl, write([  delay,is,D,gate,times]),nl,!.
+r(Depth,Table) :- run(Depth, Table, L, C, D),
+	          nl, write([lowest,cost,circuit,for,a,given,delay]),
+	          nl, write([  circuit,=,L]),
+	          nl, write([  cost,is,C,gates]),
+	          nl, write([  delay,is,D,gate,times]),nl.
+
+%Utility procedures
+
+min(X,Y,X) :- X < Y , ! .
+min(X,Y,Y).
+
+update_cost(Cost_in, Cost, Cost_out) :- Cost_out is Cost_in + Cost,
+					cost_bound(B),
+					Cost_out < B, ! .
+
+cost_bound(32000).
+
+set_bound(X) :- retract((cost_bound(_))),
+		assert((cost_bound(X))), ! .
+
+update_bound(X) :- retract((cost_bound(Y))),
+		   min(X,Y,Z),
+		   assert((cost_bound(Z))), ! .
+
+update_circuit(Circuit,Cost) :- cost_bound(X),
+				Cost < X ,
+				retract((circuit(_))),
+				assert((circuit(Circuit))),!.
+update_circuit(Circuit,Cost).
+
+circuit([]).
+
+
+%  Hofstader's mu math (mutest) proving muiiu
+%	from Godel Escher Bach
+
+mu :- theorem(5,[m,u,i,i,u]).
+
+rules(S, R) :- rule3(S,R).
+rules(S, R) :- rule4(S,R).
+rules(S, R) :- rule1(S,R).
+rules(S, R) :- rule2(S,R).
+
+rule1(S,R) :-
+	append(X, [i], S),
+	append(X, [i,u], R).
+
+rule2([m | T], [m | R]) :- append(T, T, R).
+
+rule3([], -) :- fail.
+rule3(R, T) :-
+	append([i,i,i], S, R),
+	append([u], S, T).
+rule3([H | T], [H | R]) :- rule3(T, R).
+
+rule4([], -) :- fail.
+rule4(R, T) :- append([u, u], T, R).
+rule4([H | T], [H | R]) :- rule4(T, R).
+
+theorem(Depth, [m, i]).
+theorem(Depth, []) :- fail.
+
+theorem(Depth, R) :-
+	Depth > 0,
+	D is Depth - 1,
+	theorem(D, S),
+	rules(S, R).
+
+append([], X, X).
+append([A | B], X, [A | B1]) :-
+	!,
+	append(B, X, B1).
+
+
+%	naive reverse (nrev1)
+%	from Warren's thesis
+
+nrev1 :-
+	list30(L),
+	nreverse(L,X),
+	write(X), nl.
+
+nreverse([X|L0],L) :- nreverse(L0,L1), concatenate(L1,[X],L).
+nreverse([],[]).
+
+concatenate([X|L1],L2,[X|L3]) :- concatenate(L1,L2,L3).
+concatenate([],L,L).
+
+list30([1,2,3,4,5,6,7,8,9,10,11,12,
+	13,14,15,16,17,18,19,20,21,
+	22,23,24,25,26,27,28,29,30]).
+
+
+%	the queens on a chessboard problem (queens) for 4x4 board
+
+queens :-  run(4,X), fail.
+
+size(4).
+int(1).
+int(2).
+int(3).
+int(4).
+
+run(Size, Soln) :- get_solutions(Size, Soln), inform(Soln).
+
+get_solutions(Board_size, Soln) :- solve(Board_size, [], Soln).
+
+%	newsquare generates legal positions for next queen
+
+newsquare([], square(1, X)) :- int(X).
+newsquare([square(I, J) | Rest], square(X, Y)) :-
+	X is I + 1,
+	int(Y),
+	not(threatened(I, J, X, Y)),
+	safe(X, Y, Rest).
+
+
+%	safe checks whether square(X, Y) is threatened by any
+%	existing queens
+
+safe(X, Y, []).
+safe(X, Y, [square(I, J) | L]) :-
+	not(threatened(I, J, X, Y)),
+	safe(X, Y, L).
+
+
+%	threatened checks whether squares (I, J) and (X, Y)
+%	threaten each other
+
+threatened(I, J, X, Y) :-
+	(I = X),
+	!.
+threatened(I, J, X, Y) :-
+	(J = Y),
+	!.
+threatened(I, J, X, Y) :-
+	(U is I - J),
+	(V is X - Y),
+	(U = V),
+	!.
+threatened(I, J, X, Y) :-
+	(U is I + J),
+	(V is X + Y),
+	(U = V),
+	!.
+
+
+%	solve accumulates the positions of occupied squares
+
+solve(Bs, [square(Bs, Y) | L], [square(Bs, Y) | L]) :- size(Bs).
+solve(Board_size, Initial, Final) :-
+	newsquare(Initial, Next),
+	solve(Board_size, [Next | Initial], Final).
+
+inform([]) :- nl,nl.
+inform([M | L]) :- write(M), nl, inform(L).
+
+%	query
+%	from Warren's thesis
+
+query :-
+	query(X),
+	write(X), nl,
+	fail.
+
+query([C1,D1,C2,D2]) :- 
+	density(C1,D1), 
+	density(C2,D2),
+	D1 > D2,
+	T1 is 20*D1,
+	T2 is 21*D2,
+	T1 < T2.
+
+density(C,D) :- pop(C,P), area(C,A), D is (P*100)//A.
+
+pop(china,	8250).	area(china,	3380).
+pop(india,	5863).	area(india,	1139).
+pop(ussr,	2521).	area(ussr,	8708).
+pop(usa,	2119).	area(usa,	3609).
+pop(indonesia,	1276).	area(indonesia,	570).
+pop(japan,	1097).	area(japan,	148).
+pop(brazil,	1042).	area(brazil,	3288).
+pop(bangladesh,	750).	area(bangladesh,55).
+pop(pakistan,	682).	area(pakistan,	311).
+pop(w_germany,	620).	area(w_germany,	96).
+pop(nigeria,	613).	area(nigeria,	373).
+pop(mexico,	581).	area(mexico,	764).
+pop(uk,		559).	area(uk,	86).
+pop(italy,	554).	area(italy,	116).
+pop(france,	525).	area(france,	213).
+pop(phillipines,415).	area(phillipines,90).
+pop(thailand,	410).	area(thailand,	200).
+pop(turkey,	383).	area(turkey,	296).
+pop(egypt,	364).	area(egypt,	386).
+pop(spain,	352).	area(spain,	190).
+pop(poland,	337).	area(poland,	121).
+pop(s_korea,	335).	area(s_korea,	37).
+pop(iran,	320).	area(iran,	628).
+pop(ethiopia,	272).	area(ethiopia,	350).
+pop(argentina,	251).	area(argentina,	1080).
+
+
+%	quicksort (qs4) on 50 items
+%	from Warren's thesis
+
+qs4 :-
+	list50(L),
+	qsort(L,X,[]),
+	write(X), nl.
+
+qsort([X|L],R,R0) :-
+	partition(L,X,L1,L2),
+	qsort(L2,R1,R0),
+	qsort(L1,R,[X|R1]).
+qsort([],R,R).
+
+partition([X|L],Y,[X|L1],L2) :-
+	X<Y, !,
+	partition(L,Y,L1,L2).
+partition([X|L],Y,L1,[X|L2]) :-
+	partition(L,Y,L1,L2).
+partition([],_,[],[]).
+
+list50([27,74,17,33,94,18,46,83,65,2,
+	32,53,28,85,99,47,28,82,6,11,
+	55,29,39,81,90,37,10,0,66,51,
+	7,21,85,27,31,63,75,4,95,99,
+	11,28,61,74,18,92,40,53,59,8]).
+
+
+
+%	serialize (palin25)
+%	from Warren's thesis
+
+palin25 :-
+	palin25(P),
+	serialize(P,X),
+	write(X),nl.
+
+serialize(L,R) :-
+	pairlists(L,R,A),
+	arrange(A,T),
+	numbered(T,1,N).
+
+pairlists([X|L], [Y|R], [pair(X,Y)|A]) :- pairlists(L,R,A).
+pairlists([], [], []).
+
+arrange([X|L], tree(T1, X, T2)) :-
+	split(L, X, L1, L2),
+	arrange(L1, T1),
+	arrange(L2, T2).
+arrange([], void).
+
+split([X|L], X, L1, L2) :- !, split(L, X, L1, L2).
+split([X|L], Y, [X|L1], L2) :- before(X,Y), !, split(L,Y,L1,L2).
+split([X|L], Y, L1, [X|L2]) :- before(Y,X), !, split(L,Y,L1,L2).
+split([], _, [], []).
+
+before(pair(X1,Y1), pair(X2,Y2)) :- X1 < X2.
+
+numbered(tree(T1, pair(X,N1), T2), N0, N) :-
+	numbered(T1, N0, N1),
+	is(N2,N1,+,1),
+	numbered(T2,N2,N).
+numbered(_,N,N).
+
+palin25("ABLE WAS I ERE I SAW ELBA").
+
+
+% The sieve of Eratosthenes, from Clocksin & Mellish (pri2)
+%	finding the prime numbers up to 98.	
+
+sieve :- primes(98, X), write(X), nl.
+
+primes(Limit, Ps) :- integers(2, Limit, Is), sift(Is, Ps).
+
+integers(Low, High, [Low | Rest]) :- 
+	Low =< High, !,
+	M is Low+1,
+	integers(M, High, Rest).
+integers(_,_,[]).
+
+sift([],[]).
+sift([I | Is], [I | Ps]) :- remove(I,Is,New), sift(New, Ps).
+
+remove(P,[],[]).
+remove(P,[I | Is], [I | Nis]) :- not(0 is I mod P), !, remove(P,Is,Nis).
+remove(P,[I | Is], Nis) :- 0 is I mod P, !, remove(P,Is,Nis).
+

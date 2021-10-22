@@ -1,0 +1,396 @@
+Hinweise fuer die Arbeit mit dem Apply-EuLisp-Compiler
+======================================================
+
+
+1. Allgemeines
+--------------
+
+Die zugrundeliegende Sprachbeschreibung fuer den Apply-EuLisp-Compiler 
+ist "Programming Language Eulisp Version 0.99" (nachfolgend mit EL0.99
+abgekuerzt). Implementiert wurde der groesste Teil von Level-0, die
+Einschraenkungen sind in Abschnitt 3 beschrieben.
+
+ 
+Ausser der im Kapitel 9 von EL0.99 definierten Modulsyntax, bei der   
+die einzelnen Modul-Direktiven (import, syntax, expose, export) als 
+Schluesselwoerter genutzt werden, wird aus Kompatibilitaetgruenden 
+auch weiterhin die alte Form aus 0.75 als top-level-listen unterstuetzt. 
+Wenn ein Modul diese nutzt, so wird beim Laden der Filename mit dem 
+Zusatz [old style] versehen. Z.B.:
+
+;.loading module /home/saturn/imohr/Lisp/ApplyModules/xxx.am[old style]  
+
+Sowohl die Namen der Module als auch die darin enthaltenen Klassen, 
+Funktionen, Makros und Spezialformen sind der Sprachbeschreibung zu 
+entnehmen, so dass eine Beschreibung hier nicht notwendig ist. 
+
+Der Modul-Name (d.h. der auf defmodule folgende Name) und der 
+Filename des Modules muessen identisch sein; die Extension muss 
+.am sein.
+
+
+2. Voraussetzungen
+------------------
+
+Voraussetzungen zur Nutzung des Apply-EuLisp-Compiler sind:
+
+Hardware:
+Sun SPARC-Architektur (Sun4m, Sun4c)
+
+Software:
+Franz Allegro Common Lisp 4.1
+(fuer andere Lisp-Systeme sind evtl. Anpassungsarbeiten erforderlich)
+GNU unzip
+GNU-C-Compiler gcc 2.2 oder spaeteres Release
+
+
+
+3. Folgende Einschraenkungen sind zu beachten:
+----------------------------------------------
+
+3.1. Es sind noch nicht verfuegbar:
+
+-  generic-lambda;
+-  unwind-protect;
+-  Parallelverarbeitung (Module lock und thread);
+
+3.2. Es sind noch nicht vollstaendig:
+
+- deep-copy: Methode fuer Klasse <vector> fehlt;
+- converter: Methoden fuer die Klassen <table> und <number> fehlen;
+- format: die Direktiven ~e, ~f und ~g sind noch nicht verfuegbar;
+- Makros koennen nur eingeschraenkt genutzt werden (siehe unten);
+- scan: ist nicht implementiert, es kann die Funktion read verwendet 
+  werden.
+
+3.3. Bekannte Probleme:
+
+1. Zur Compile-Zeit (beim Einlesen der .am-Module) werden Zeichen
+innerhalb von Symbolnamen generell in Grossbuchstaben ueberfuehrt.
+Wenn Symbolnamen zur Laufzeit eingelesen werden (read), so wird
+zwischen Gross- und Kleinschreibung unterschieden.
+Innerhalb von Strings wird Gross/Kleinschreibung beruecksichtigt.
+
+2. Konstanten vom Typ <double-float> koennen z.Z. nicht 
+benutzt werden. Gleitkomma-Zahlen koennen jedoch dynamisch erzeugt 
+werden: 
+(defmodule ...
+   (import (double-float ... 
+           (only (%double-float) tail) 
+           (only (make-dble) double-float-i))
+    syntax ...)
+   (deflocal double (make-dble #%d-2.3))
+   (deflocal double (make-dble #%d15.6))
+
+   ...
+)
+Man beachte hierbei, dass zusaetzlich je eine Bindung aus den Modulen tail 
+bzw. double-float-i importiert werden muessen. Die Zahlen werden als TAIL-
+Literale notiert.
+
+3. Abschnitt 9.4 in EL0.99:
+Der Modul selbst kann nicht in einer expose-Direktive angegeben
+werden.
+
+4. Abschnitt 9.5 in EL0.99: 
+Syntaximporte von Spezialformen und Standardmakros werden
+noch nicht unterstuetzt. Sie werden z.Z. speziell behandelt.
+
+5. Numerische Fehler lassen sich zwar mit with-handler abfangen aber nicht
+fortsetzen. 
+
+6. Eine unendliche Rekursion, bei der der rekursive Aufruf auf dem 
+top-level-Niveau innerhalb der Funktion steht, wird falsch 
+uebersetzt:
+(defun loop () ... (loop))
+
+In allen anderen Faellen wird richtiger Code erzeugt:
+(defun loop ()
+  (if ... (progn ... (loop))
+          (progn ... (loop))))
+
+7. Der Doppelpunkt ":" darf innerhalb von Symbolnamen nicht verwendet 
+werden.
+
+8. Die Funktion newline ist fehlerhaft.
+ 
+9. tables koennen z.Z. nicht benutzt werden.
+
+10 evenp arbeitet nicht korrekt.
+
+
+3.4. Makros
+
+Makros sind bisher nur eingeschraenkt verwendbar. Es existiert auch noch keine
+portable Moeglichkeit Makros zu definieren, da die aktuelle Definition von
+EuLisp noch nichts ueber die Semantik und den Sprachumfang von Makros aussagt. 
+
+In 'defmacro' koennen folgende Sprachelemente von EuLisp (Level 0) benutzt
+werden:  
+
+Objekte: Listen, Symbole, Zahlen, Zeichen
+
+Syntax: Quasiquote (` , ,@)
+        Aufrufe einfacher Funktionen (nicht von generischen)
+        konstante globale lexikale Bindungen
+        setq
+        progn
+        if
+        let und let*
+
+Funktionen: car, cdr, list, null, cons, append
+            eq
+            +
+
+            und alle mit 'defun' definierten Funktionen, 
+            die auf diese aufbauen
+
+
+4. Arbeit mit dem Apply-EuLisp-Compiler
+---------------------------------------
+
+Die gesamte Funktionalitaet des EuLisp-Compilers ist in dem Modul 
+eulisp-level-0 enthalten. Wird der Modul eulisp-level-0 importiert, 
+so werden von diesem alle zum Eulisp level 0 gehoerenden 
+Basismodule importiert und alle zugehoerigen Spezialformen, 
+Klassen, Funktionen und Makros aus den einzelnen zum
+Level 0 gehoerenden Modulen exportiert.
+
+In den import- und export Spezifikationen sind dann folgende 
+Angaben zu machen:
+
+(defmodule test-module
+  (
+   import (eulisp-level-0
+           nutzer-module)
+
+   syntax (eulisp-level-0
+           nutzer-syntax-module)
+
+   export (fkt1 fkt2 ...)
+
+   expose (...)
+   )
+
+  ...)
+
+Benoetigt ein Nutzer nicht die gesamte Funktionalitaet, so kann er 
+in seiner Importliste die einzelnen Module angeben, die seiner 
+gewuenschten Funktionalitaet entsprechen. Dies ist z.B. sinnvoll, 
+um Lade-Zeit fuer die Module zu sparen.
+
+Wird nicht die gesamte Funktionalitaet von EuLisp Level 0 
+gewuenscht, so muessen ausser den gewuenschten Basismodulen 
+zusaetzlich die Module tail und eulisp-kernel sowohl in der 
+import- als auch in der syntax-Direktive angegeben werden.
+(Beim Einladen vom Modul eulisp-level-0 sind diese Importe 
+automatisch mit enthalten).
+
+
+5. Der Aufruf des Apply-EuLisp-Compiler
+---------------------------------------
+
+Es sind zwei Environment Variablen zu setzen:
+
+APPLYROOT    - zeigt zum Directory vom Apply-EuLisp-Compiler
+
+ACL          - enthaelt den Pfad, um Franz Allegro 4.1 zu starten
+
+Der Aufruf des Apply-EuLisp-Compilers geschieht von Unix aus:
+
+compile.apply test-module
+ 
+
+Danach erscheinen auf dem Bildschirm folgende Ausgaben:
+
+Apply: (compile-application ^test-module) on host  saturn
+
+(Aufruf des Apply-EuLisp-Compiler auf dem Host Saturn)
+
+/export/home/saturn/xxx/Lisp
+
+(Ausschrift des Arbeitsdirektories)
+ 
+Allegro CL 4.1 [SPARC; R1] (6/10/93 8:50)
+Copyright (C) 1985-1992, Franz Inc., Berkeley, CA, USA.  All Rights Reserved.
+;; Optimization settings: safety 1, space 1, speed 3, debug 2
+;; For a complete description of all compiler switches given the current
+;; optimization settings evaluate (EXPLAIN-COMPILER-SETTINGS).
+USER(1): 
+
+(Start des Lisp-Systems)
+
+--- resetting the compiler ---
+
+(Der Compiler wird initialisiert)
+
+--- loading basic modules ---
+....
+
+(alle zugehoerigen Basismodule werden geladen)
+
+--- loading application modules ---
+
+;loading module xy
+
+(die zugehoerigen Nutzermodule werden geladen)
+
+--- marking all exported bindings ---
+
+(die zu exportierenden Bindungen der einzelnen Module 
+werden markiert)
+
+--- computing discriminating functions --
+
+(die Diskriminationsfunktionen der generischen Funktionen 
+werden berechnet)
+
+--- converting to MZS ---
+
+(es erfolgt die Umwandlung in die maschinennahe Zwischensprache)
+
+SsssssssSSS
+
+(s bedeutet, dass die Seiteneffektanalyse fuer einzelne 
+Funktionen gemacht wird,
+S zeigt die Zusammenfassung dieser Analyseergebnisse)
+
+****iii*****ii***i**i***i**i*i**...b...........b..b
+
+(jeder Stern bzw. Punkt gibt die Behandlung einer Funktion an; 
+i bedeutet, dass in-line gemacht wird;
+b bedeutet, dass die Typen innerhalb der Typinferenz fuer 
+die einzelnen Funktionen ausbalanciert werden)
+
+--- collecting static instances ---
+
+(alle statischen Daten werden eingesammelt)
+
+--- converting MZS to LZS ---
+
+(es erfolgt die Umwandlung von der maschinennahen Zwischensprache 
+in die Lisp-nahe Zwischensprache)
+
+--- generating C-code ---
+
+************************
+
+(fuer jede generierte C-Funktion wird ein Stern ausgedruckt)
+
+--- end of compilation ---
+
+Total number of analysed function calls: 3539
+Total number of joined function call descriptors: 14 (0.40 %)
+
+Total number of inferred function type schemes: 380
+Total number of joined type scheme descriptors: 82 (21.58 %)
+
+Total number of inferred classes: 8405
+
+"end of compilation"
+
+("end of compilation" zeigt die erfolgreiche Abarbeitung der 
+Funktion compile-application an)
+
+USER (2): EOF ; Auto-exit
+
+(Verlassen des Lisp-Systems)
+
+Nach der Erzeugung des .c und .inst Files durch den 
+Apply-EuLisp-Compiler erfolgt die  Compilation und das Linken 
+der C-Quellen mit Hilfe des GNU-C-Compilers:
+
+Apply: successful compilation of test-module to C
+Apply: test-module.c was created
+gcc -o test-module -O2 -fwritable-strings -I 
+       /home/saturn/wheick/Lisp/ApplyC test-module.c 
+       $APPLYROOT/ApplyC/apply.a -lm
+
+Dabei koennen sowohl beim Compiler- als auch beim Link-Lauf 
+Warnungen auftreten, die keine Auswirkung auf die Lauffaehigkeit 
+des erzeugen Programmes haben.
+ 
+Der Aufruf des fertigen Programmes geschieht mit
+
+test-module
+
+
+6. Beispiele
+------------
+
+In dem Modul tm-tak wird die Funktion tak definiert und exportiert.
+Durch den Import von eulisp-level-0 steht die volle Funktionalitaet 
+des Level 0 von Eulisp zur Verfuegung (obwohl diese nicht genutzt 
+wird).
+
+Das zugehoerige File, in dem der Modul tm-tak steht, muss den Namen 
+tm-tak.am haben.
+
+(defmodule tm-tak       ;Definition des Moduls tm-tak
+
+  (
+   import (eulisp-level-0)                         
+
+   syntax (eulisp-level-0)     
+    
+   export (tak)         ;export der funktion tak aus dem Modul tm-tak
+   )
+
+  (defun tak (x y z)
+    (if (null (< y x))
+      z
+      (tak (tak (- x 1) y z)
+           (tak (- y 1) z x)
+           (tak (- z 1) x y))))
+
+  (print (tak 18 12 6)) ; Aufruf der Funktion tak und
+                        ; Druck des Ergebnisses
+
+  )                     ; Modulende
+
+
+Das naechste Beispiel zeigt den Anschluss einer C-Funktion 
+(printf) mit Hilfe der in tail verfuegbaren Form 
+%declare-external-function mit Angabe der zugehoerigen Typen 
+und ihre Verwendung innerhalb einer EuLisp-Funktion (my-c-print).
+Dabei wird die oben definierte Funktion tak aus dem Modul tm-tak
+benutzt. Hier werden nur die Module importiert, die auch wirklich
+benoetigt werden
+
+Das zugehoerige File muss den Namen test-tak.am haben.
+
+(defmodule test-tak  ;Definition des Moduls test-tak
+  
+  (
+   import (tail                    
+           eulisp-kernel 
+           tm-tak)           ;Nutzer import
+   
+   syntax (tail
+           eulisp-kernel)   
+   )
+  
+  (%declare-external-function 
+   (printf-int %signed-word-integer) ; Name und Ergebnistyp
+   ((strng %string)                  ; 1. Arg Name und Typ
+    (int %signed-word-integer))      ; 2. Arg Name und Typ
+   language c                        ; die verwendete Sprache ist C
+   external-name |printf|)           ; dort hat die Funktion 
+                                     ; den Namen printf
+
+  
+  (defun my-c-print (i)
+    (printf-int 
+     (%literal %string ()                             
+              ;%literal erzeugt den fuer printf
+              ;benoetigten String
+               "\n Ergebnis von (tak 18 12 6): %d ")  
+     (make-swi i))                                    
+              ;make-swi erzeugt aus einer
+              ;Lisp-Zahl eine Zahl fuer C
+    ())
+  
+
+  (my-c-print (tak 18 12 6))  ; Aufruf 
+  
+  )                  ;Modulende

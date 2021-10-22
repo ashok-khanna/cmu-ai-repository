@@ -1,0 +1,1000 @@
+; -*- Mode: Scheme; Syntax: Scheme; Package: SCHEME; -*-
+
+; Scheme semantics, by Will Clinger, March 1986
+; Updated by Jonathan Rees, April 1986 and January 1987
+
+; This code appears with somewhat different lexical conventions in
+; the Revised^3 Report on the Algorithmic Language Scheme.
+
+; JAR's changes:
+;   - Changed the character singlequote, used in some identifiers, to
+;     at-sign.  (E.g. kappa' -> kappa@.)
+;   - Flushed dummy definition of character?
+;   - Introduced the constant *undefined*.
+;   - #!true -> #t, #!false -> #f, #!null -> '()
+;   - Flushed question marks from =, <, etc.
+;   - Changed ((rec loop (lambda ...)) ...) to (let loop (...) ...)
+;   - Changed CERROR to ERROR
+
+; ---- Abstract syntax ----
+
+(define (constant? x)
+    (or (and (pair? x) (eq? (car x) 'quote))
+        (and (not (pair? x))
+             (not (symbol? x)))))
+ 
+(define identifier? symbol?)
+ 
+(define (call? x)
+    (and (pair? x)
+         (not (memq (car x)
+                    '(lambda if cond and or case let let* letrec rec
+                      set! begin sequence do delay)))))
+ 
+(define (lambda? x)
+    (and (pair? x)
+         (eq? (car x) 'lambda)))
+ 
+(define (if? x)
+    (and (pair? x)
+         (eq? (car x) 'if)))
+ 
+(define (set? x)
+    (and (pair? x)
+         (eq? (car x) 'set!)))
+ 
+(define (begin? x)
+    (and (pair? x)
+         (eq? (car x) 'begin)))
+ 
+(define rator car)              ; call
+(define rands cdr)
+ 
+(define bvl cadr)               ; lambda
+(define (command-body x)
+    (reverse (cdr (reverse (cddr x)))))
+(define (result-body x)
+    (car (reverse x)))
+(define (rest-arg? bvl)
+    (cond ((null? bvl) #f)
+          ((pair? bvl) (rest-arg? (cdr bvl)))
+          (else #t)))
+(define (required-args bvl)
+    (cond ((null? bvl) bvl)
+          ((pair? bvl)
+           (cons (car bvl) (required-args (cdr bvl))))
+          (else '())))
+(define (rest-arg bvl)
+    (if (pair? bvl)
+        (rest-arg (cdr bvl))
+        bvl))
+ 
+(define test-part cadr)         ; if
+(define then-part caddr)
+(define else-part cadddr)
+(define (two-armed? x)
+    (= (length x) 3))
+(define (three-armed? x)
+    (= (length x) 4))
+ 
+(define lhs cadr)               ; set!
+(define rhs caddr)
+ 
+(define (command-part x)        ; begin
+    (reverse (cdr (reverse (cdr x)))))
+(define (result-part x)
+    (car (reverse x)))
+
+; Domain Equations
+;
+; alpha /       L                               locations/denoted values
+; nu /          N                               natural numbers
+;               T = {false, true}               truth values
+;               Q                               symbols
+;               H                               characters
+;               R                               numbers
+;               EP = L x L                      pairs
+;               EV = L*                         vectors
+;               ES = L*                         strings
+; phi /         F = L x (E* --> K --> C)        procedures
+; epsilon /     E = {false, true, null, undefined, unspecified}
+;                           + Q + H + R + EP + EV + ES + F
+;                                               expressed/stored values
+; sigma /       S = L --> (V x T)               stores
+; rho /         U = Ide --> L                   environments
+; theta /       C = S --> A                     command continuations
+; kappa /       K = E* --> C                    expression continuations
+;               A                               answers
+;               X                               errors
+ 
+(define (in? x tag) (eq? (vector-ref x 0) tag))
+ 
+(define (inject x tag) (vector tag x))
+ 
+(define (project x tag)
+    (if (eq? (vector-ref x 0) tag)
+        (vector-ref x 1)
+        (error "Domain type error" x tag)))
+ 
+; Some individual domain elements
+ 
+(define *false* (inject 'false 'MISC))
+(define *true* (inject 'true 'MISC))
+(define *null* (inject 'null 'MISC))
+(define *undefined* (inject 'undefined 'MISC))
+(define *unspecified* (inject 'unspecified 'MISC))
+ 
+ 
+; Semantic Functions
+;
+; K  : Con --> E
+; E  : Exp --> U --> K --> C
+; E* : Exp* --> U --> K --> C
+; C  : Com* --> U --> C --> C
+
+(define (K-eval x)
+    (let ((x (if (pair? x) (cadr x) x)))
+      (cond ((symbol? x) (inject x 'Q))
+            ((char? x) (inject x 'H))
+            ((number? x) (inject x 'R))
+            ((eq? x #f) *false*)
+            ((eq? x #t) *true*)
+            ; pre-empted by #f in MacScheme; use (list) instead.
+            ((eq? x '()) *null*)
+            ; quoted pairs are allocated by the reader
+            ((in? x 'EP) x)
+            ; quoted vectors are allocated by the reader
+            ((in? x 'EV) x)
+            ; constant strings are allocated by the reader
+            ((in? x 'ES) x)
+            (else (error "Weird constant" x)))))
+ 
+(define (E-eval exp)
+    (cond ((constant? exp)
+           (lambda (rho)
+                   (lambda (kappa)
+                           ((send (K-eval exp)) kappa))))
+          ((identifier? exp)
+           (E-identifier exp))
+          ((call? exp)
+           (E-call exp))
+          ((and (lambda? exp) (not (rest-arg? (bvl exp))))
+           (E-lambda-norest exp))
+          ((and (lambda? exp) (rest-arg? (bvl exp)))
+           (E-lambda-rest exp))
+          ((and (if? exp) (two-armed? exp))
+           (E-if2 exp))
+          ((and (if? exp) (three-armed? exp))
+           (E-if3 exp))
+          ((set? exp)
+           (E-set exp))
+          ((begin? exp)
+           (E-begin exp))
+          (else (error "Unrecognized expression" exp))))
+ 
+(define (((E-identifier I) rho) kappa)
+    ((hold ((lookup rho) I))
+     (single
+       (lambda (epsilon)
+	 (if (equal? epsilon *undefined*)
+	     (wrong "undefined variable")
+	     ((send epsilon) kappa))))))
+
+; The order of evaluation within a call is unspecified.
+; We mimic that here by allowing arbitrary permutations permute
+; and unpermute, which must be inverses.  This still rules out parallel
+; evaluation and requires that the order of evaluation be constant throughout
+; a program (for any given number of arguments), but it is a closer
+; approximation to the intended semantics than a left-to-right
+; evaluation would be.
+
+(define (E-call exp)
+  (let ((xx (E*-eval (permute exp))))
+    (lambda (rho)
+      (lambda (kappa)
+        ((xx rho)
+         (lambda (epsilon*)
+           (let ((epsilon* (unpermute epsilon*)))
+             (((applicate (car epsilon*))
+	       (cdr epsilon*))
+	      kappa))))))))
+ 
+(define (E-lambda-norest exp)
+  (let ((I* (required-args (bvl exp)))
+        (C* (command-body exp))
+        (E0 (result-body exp)))
+    (let ((x1 (C-eval C*))
+          (x0 (E-eval E0)))
+      (lambda (rho)
+        (lambda (kappa)
+          (lambda (sigma)
+            (if (in? (new sigma) 'L)
+                (((send (inject
+                          (list
+                            (project (new sigma) 'L)
+                            (lambda (epsilon*)
+                              (lambda (kappa@)
+                                (if (= (length epsilon*)
+                                       (length I*))
+                                    ((tievals
+                                       (lambda (alpha*)
+                                         (let ((rho@ (((extends rho)
+                                                       I*)
+                                                      alpha*)))
+                                           ((x1 rho@)
+                                            ((x0 rho@)
+                                             kappa@)))))
+                                     epsilon*)
+                                    (wrong "wrong number of arguments")))))
+                          'F))
+                  kappa)
+                 (((update (project (new sigma) 'L))
+                   *unspecified*)
+                  sigma))
+                ((wrong "out of memory") sigma))))))))
+ 
+(define (E-lambda-rest exp)
+  (let ((I* (required-args (bvl exp)))
+        (I@ (rest-arg (bvl exp)))
+        (C* (command-body exp))
+        (E0 (result-body exp)))
+    (let ((x1 (C-eval C*))
+          (x0 (E-eval E0)))
+      (lambda (rho)
+        (lambda (kappa)
+          (lambda (sigma)
+            (if (in? (new sigma) 'L)
+                (((send (inject
+                          (list
+                            (project (new sigma) 'L)
+                            (lambda (epsilon*)
+                              (lambda (kappa@)
+                                (if (>= (length epsilon*)
+                                        (length I*))
+                                    (((tievalsrest
+                                       (lambda (alpha*)
+                                         (let ((rho@ (((extends rho)
+                                                       (append I* (list I@)))
+                                                      alpha*)))
+                                           ((x1 rho@)
+                                            ((x0 rho@)
+                                             kappa@)))))
+                                      epsilon*)
+                                     (length I*))
+                                    (wrong "too few arguments")))))
+                          'F))
+                  kappa)
+                 (((update (project (new sigma) 'L))
+                   *unspecified*)
+                  sigma))
+                ((wrong "out of memory") sigma))))))))
+ 
+(define (E-if2 exp)
+  (let ((E0 (test-part exp))
+        (E1 (then-part exp)))
+    (let ((x0 (E-eval E0))
+          (x1 (E-eval E1)))
+      (lambda (rho)
+        (lambda (kappa)
+          ((x0 rho)
+           (single
+             (lambda (epsilon)
+               (if (truish epsilon)
+                   ((x1 rho) kappa)
+                   ((send *unspecified*) kappa))))))))))
+
+ 
+(define (E-if3 exp)
+  (let ((E0 (test-part exp))
+        (E1 (then-part exp))
+        (E2 (else-part exp)))
+    (let ((x0 (E-eval E0))
+          (x1 (E-eval E1))
+          (x2 (E-eval E2)))
+      (lambda (rho)
+        (lambda (kappa)
+          ((x0 rho)
+           (single
+             (lambda (epsilon)
+               (if (truish epsilon)
+                   ((x1 rho) kappa)
+                   ((x2 rho) kappa))))))))))
+ 
+(define (E-set exp)
+  (let ((I (lhs exp))
+        (E (rhs exp)))
+    (let ((x (E-eval E)))
+      (lambda (rho)
+        (lambda (kappa)
+          ((x rho)
+           (single
+             (lambda (epsilon)
+               (((assign ((lookup rho) I))
+                 epsilon)
+                ((send *unspecified*)
+                 kappa))))))))))
+ 
+(define (E-begin exp)
+  (let ((C* (command-part exp))
+        (E0 (result-part exp)))
+    (let ((x1 (C-eval C*))
+          (x0 (E-eval E0)))
+      (lambda (rho)
+        (lambda (kappa)
+          ((x1 rho)
+           ((x0 rho)
+            kappa)))))))
+ 
+(define (E*-eval E*)
+  (if (null? E*)
+      (lambda (rho)
+        (lambda (kappa)
+          (kappa '())))
+      (let ((E0 (car E*))
+            (E* (cdr E*)))
+        (let ((x0 (E-eval E0))
+              (x1 (E*-eval E*)))
+          (lambda (rho)
+            (lambda (kappa)
+              ((x0 rho)
+               (single
+                 (lambda (epsilon0)
+                   ((x1 rho)
+                    (lambda (epsilon*)
+                      (kappa (cons epsilon0 epsilon*)))))))))))))
+ 
+(define (C-eval C*)
+  (if (null? C*)
+      (lambda (rho)
+        (lambda (theta)
+          theta))
+      (let ((C0 (car C*))
+            (C* (cdr C*)))
+        (let ((x0 (E-eval C0))
+              (x1 (C-eval C*)))
+          (lambda (rho)
+            (lambda (theta)
+              ((x0 rho)
+               (lambda (epsilon*)
+                 ((x1 rho)
+                  theta)))))))))
+
+; ----- Auxiliary Functions -----
+;
+; lookup        : U --> Ide --> L
+; extends       : U --> Ide* --> L* --> U
+; wrong         : X --> C
+; send          : E --> K --> C
+; single        : (E --> C) --> K
+; new           : S --> (L + {error})
+; news          : N --> S --> (L* + {error})
+; newsloop      : N --> S --> L* --> (L* + {error})
+; hold          : L --> K --> C
+; assign        : L --> E --> C --> C
+; update        : L --> E --> S --> S
+; tievals       : (L* --> C) --> E* --> C
+; tievalsrest   : (L* --> C) --> E* --> N --> C
+; list          : E* --> K --> C
+; cons          : E* --> K --> C
+; applicate     : E --> E* --> K --> C
+; truish        : E --> T
+; permute       : Exp* --> Exp*
+; unpermute     : E* --> E*
+ 
+(define ((lookup rho) I) (rho I))
+ 
+(define (((extends rho) I*) alpha*)
+  (if (null? I*)
+      rho
+      (((extends (%extend rho (car I*) (car alpha*)))
+        (cdr I*))
+       (cdr alpha*))))
+ 
+(define (%extend f x y)
+  (lambda (x@)
+    (if (eq? x x@)
+        y
+        (f x@))))
+ 
+; wrong is implementation-dependent, so ignore the following.
+ 
+(define ((wrong msg) sigma)
+  (display msg)
+  (newline)
+  (dump-core sigma))
+
+(define (dump-core sigma)
+  (let loop ((alpha 0))
+    (let ((x (sigma alpha)))
+      (if (cadr x)			; if in use
+	  (begin
+	   (write alpha)
+	   (display ": ")
+	   (write (car x))
+	   (newline)
+	   (loop (1+ alpha)))))))
+ 
+(define ((send epsilon) kappa)
+  (kappa (list epsilon)))
+ 
+; The following could easily be changed to ignore extra return values
+; as in Common Lisp.
+ 
+(define ((single psi) epsilon*)
+  (if (= (length epsilon*) 1)
+      (psi (car epsilon*))
+      (wrong "wrong number of return values")))
+ 
+; The storage allocator (new) is implementation-dependent.
+ 
+(define *memorysize* 1000)
+ 
+(define (new sigma)
+  (let loop ((alpha 0))
+    (cond ((> alpha *memorysize*) 'error)
+	  ((not (cadr (sigma alpha)))
+	   (inject alpha 'L))
+	  (else (loop (1+ alpha))))))
+ 
+(define ((news nu) sigma)
+  (newsloop nu sigma '()))
+ 
+(define (newsloop nu sigma alpha*)
+  (cond ((zero? nu) alpha*)
+        ((in? (new sigma) 'L)
+         (newsloop (-1+ nu)
+                   (((update (project (new sigma) 'L))
+                     *unspecified*)
+                    sigma)
+                   (cons (project (new sigma) 'L) alpha*)))
+        (else 'error)))
+ 
+(define (((hold alpha) kappa) sigma)
+  (((send (car (sigma alpha)))
+    kappa)
+   sigma))
+ 
+(define ((((assign alpha) epsilon) theta) sigma)
+  (theta (((update alpha)
+           epsilon)
+          sigma)))
+ 
+(define (((update alpha) epsilon) sigma)
+  (%extend sigma
+           alpha
+           (list epsilon #t)))
+ 
+(define (((tievals psi) epsilon*) sigma)
+  (if (= (length epsilon*) 0)
+      ((psi '()) sigma)
+      (if (in? (new sigma) 'L)
+          (((tievals (lambda (alpha*)
+                       (psi (cons (project (new sigma) 'L) alpha*))))
+            (cdr epsilon*))
+           (((update (project (new sigma) 'L))
+             (car epsilon*))
+            sigma))
+          ((wrong "out of memory") sigma))))
+ 
+(define (((tievalsrest psi) epsilon*) nu)
+  ((*list* (dropfirst epsilon* nu))
+   (single
+     (lambda (epsilon)
+       ((tievals psi)
+        (append (takefirst epsilon* nu)
+                (list epsilon)))))))
+ 
+(define (dropfirst l n)
+  (if (zero? n)
+      l
+      (dropfirst (cdr l) (- n 1))))
+ 
+(define (takefirst l n)
+  (if (zero? n)
+      '()
+      (cons (car l) (takefirst (cdr l) (- n 1)))))
+ 
+(define ((*list* epsilon*) kappa)
+  (if (zero? (length epsilon*))
+      ((send *null*) kappa)
+      ((*list* (cdr epsilon*))
+       (single
+         (lambda (epsilon)
+           ((*cons* (list (car epsilon*) epsilon))
+            kappa))))))
+ 
+(define ((*cons* epsilon*) kappa)
+  (if (= (length epsilon*) 2)
+      (lambda (sigma)
+        (if (in? (new sigma) 'L)
+            ((lambda (sigma@)
+               (if (in? (new sigma@) 'L)
+                   (((send (inject (list (project (new sigma) 'L)
+                                         (project (new sigma@) 'L))
+                                   'EP))
+                     kappa)
+                    (((update (project (new sigma@) 'L))
+                      (cadr epsilon*))
+                     sigma@))
+                   ((wrong "out of memory") sigma@)))
+             (((update (project (new sigma) 'L))
+               (car epsilon*))
+              sigma))
+            ((wrong "out of memory") sigma)))
+      (wrong "wrong number of arguments")))
+ 
+(define (((applicate epsilon) epsilon*) kappa)
+  (if (in? epsilon 'F)
+      (((cadr (project epsilon 'F)) epsilon*) kappa)
+      (wrong "bad procedure")))
+ 
+(define (truish epsilon)
+  (if (in? epsilon 'MISC)
+      (if (eq? (project epsilon 'MISC) (project *false* 'MISC))
+          #f
+          (not (eq? (project epsilon 'MISC) (project *null* 'MISC))))
+      #t))
+
+; Implementation-dependent
+; permute and unpermute must be inverse permutations.
+
+(define (permute exp*) exp*)
+(define (unpermute epsilon*) epsilon*)
+
+; ----- Primitive procedures -----
+
+(define ((*zero?* epsilon*) kappa)
+  (if (= (length epsilon*) 1)
+      (let ((epsilon (car epsilon*)))
+        (if (in? epsilon 'R)
+            ((send (if (zero? (project epsilon 'R))
+                       *true*
+                       *false*))
+             kappa)
+            (wrong "non-numeric argument to zero?")))
+      (wrong "wrong number of arguments")))
+
+(define ((*<* epsilon*) kappa)
+  (if (= (length epsilon*) 2)
+      (let ((epsilon1 (car epsilon*))
+            (epsilon2 (cadr epsilon*)))
+        (if (in? epsilon1 'R)
+            (if (in? epsilon2 'R)
+                ((send (if (<? (project epsilon1 'R)
+                               (project epsilon2 'R))
+                           *true*
+                           *false*))
+                 kappa)
+                (wrong "non-numeric second argument to <"))
+            (wrong "non-numeric first argument to <")))
+      (wrong "wrong number of arguments")))
+
+; +, -, and * restricted to two arguments for testing purposes.
+ 
+(define ((*+* epsilon*) kappa)
+  (if (= (length epsilon*) 2)
+      (let ((epsilon1 (car epsilon*))
+            (epsilon2 (cadr epsilon*)))
+        (if (in? epsilon1 'R)
+            (if (in? epsilon2 'R)
+                ((send (inject (+ (project epsilon1 'R)
+                                  (project epsilon2 'R))
+                               'R))
+                 kappa)
+                (wrong "non-numeric second argument to +"))
+            (wrong "non-numeric first argument to +")))
+      (wrong "wrong number of arguments")))
+ 
+(define ((*-* epsilon*) kappa)
+  (if (= (length epsilon*) 2)
+      (let ((epsilon1 (car epsilon*))
+            (epsilon2 (cadr epsilon*)))
+        (if (in? epsilon1 'R)
+            (if (in? epsilon2 'R)
+                ((send (inject (- (project epsilon1 'R)
+                                  (project epsilon2 'R))
+                               'R))
+                 kappa)
+                (wrong "non-numeric second argument to -"))
+            (wrong "non-numeric first argument to -")))
+      (wrong "wrong number of arguments")))
+ 
+(define ((*** epsilon*) kappa)
+  (if (= (length epsilon*) 2)
+      (let ((epsilon1 (car epsilon*))
+            (epsilon2 (cadr epsilon*)))
+        (if (in? epsilon1 'R)
+            (if (in? epsilon2 'R)
+                ((send (inject (* (project epsilon1 'R)
+                                  (project epsilon2 'R))
+                               'R))
+                 kappa)
+                (wrong "non-numeric second argument to *"))
+            (wrong "non-numeric first argument to *")))
+      (wrong "wrong number of arguments")))
+ 
+; car cdr null? eq? set-car!
+
+(define ((*car* epsilon*) kappa)
+  (if (= (length epsilon*) 1)
+      (let ((epsilon1 (car epsilon*)))
+        (if (in? epsilon1 'EP)
+            ((hold (car (project epsilon1 'EP)))
+             kappa)
+            (wrong "bad argument to car")))
+      (wrong "wrong number of arguments")))
+
+(define ((*cdr* epsilon*) kappa)
+  (if (= (length epsilon*) 1)
+      (let ((epsilon1 (car epsilon*)))
+        (if (in? epsilon1 'EP)
+            ((hold (cadr (project epsilon1 'EP)))
+             kappa)
+            (wrong "bad argument to cdr")))
+      (wrong "wrong number of arguments")))
+
+(define ((*set-car!* epsilon*) kappa)
+  (if (= (length epsilon*) 2)
+      (let ((epsilon1 (car epsilon*))
+            (epsilon2 (cadr epsilon*)))
+        (if (in? epsilon1 'EP)
+            (((assign (car (project epsilon1 'EP)))
+              epsilon2)
+             ((send *unspecified*) kappa))
+            (wrong "bad argument to set-car!")))
+      (wrong "wrong number of arguments")))
+
+(define ((*set-cdr!* epsilon*) kappa)
+  (if (= (length epsilon*) 2)
+      (let ((epsilon1 (car epsilon*))
+            (epsilon2 (cadr epsilon*)))
+        (if (in? epsilon1 'EP)
+            (((assign (cadr (project epsilon1 'EP)))
+              epsilon2)
+             ((send *unspecified*) kappa))
+            (wrong "bad argument to set-cdr!")))
+      (wrong "wrong number of arguments")))
+
+(define ((*null?* epsilon*) kappa)
+  (if (= (length epsilon*) 1)
+      (let ((epsilon1 (car epsilon*)))
+        (if (in? epsilon1 'MISC)
+            (if (eq? (project epsilon1 'MISC) 'null)
+                ((send *true*) kappa)
+                ((send *false*) kappa))
+            ((send *false*) kappa)))
+      (wrong "wrong number of arguments")))
+
+(define ((*eq?* epsilon*) kappa)
+  (if (= (length epsilon*) 2)
+      (let ((epsilon1 (car epsilon*))
+            (epsilon2 (cadr epsilon*)))
+        (cond ((and (in? epsilon1 'MISC) (in? epsilon2 'MISC))
+               ((send (if (eq? (project epsilon1 'MISC)
+                               (project epsilon1 'MISC))
+                          *true*
+                          *false*))
+                kappa))
+              ((and (in? epsilon1 'Q) (in? epsilon2 'Q))
+               ((send (if (eq? (project epsilon1 'Q)
+                               (project epsilon2 'Q))
+                          *true*
+                          *false*))
+                kappa))
+              ; Implementation-dependent?
+              ((and (in? epsilon1 'H) (in? epsilon2 'H))
+               ((send (if (char=? (project epsilon1 'H)
+                                  (project epsilon2 'H))
+                          *true*
+                          *false*))
+                kappa))
+              ; Implementation-dependent.
+              ; Most implementations will tag numbers with locations.
+              ((and (in? epsilon1 'R) (in? epsilon2 'R))
+               ((send (if (= (project epsilon1 'R)
+                             (project epsilon2 'R))
+                          *true*
+                          *false*))
+                kappa))
+              ; The domain structure allows distinct pairs to share
+              ; structure, though that can never happen through use
+              ; of the standard Scheme procedures.  Should we rule
+              ; out procedures that can cause distinct pairs to share
+              ; structure?
+              ((and (in? epsilon1 'EP) (in? epsilon2 'EP))
+               ((send (let ((pair1 (project epsilon1 'EP))
+                            (pair2 (project epsilon2 'EP)))
+                        (if (and (eq? (car pair1) (car pair2))
+                                 (eq? (cadr pair1) (cadr pair2)))
+                            *true*
+                            *false*)))
+                kappa))
+              ; The domain structure allows distinct vectors to share
+              ; structure, as in Common Lisp.  Should that be outlawed?
+              ((and (in? epsilon1 'EV) (in? epsilon2 'EV))
+               ((send (if (and (= (length (project epsilon1 'EV))
+                                  (length (project epsilon2 'EV)))
+                               (let loop ((v1 (project epsilon1 'EV))
+					  (v2 (project epsilon2 'EV)))
+				 (cond ((null? v1) #t)
+				       ((eq? (car v1) (car v2))
+					(loop (cdr v1) (cdr v2)))
+				       (else #f))))
+                          *true*
+                          *false*))
+                kappa))
+              ; The domain structure allows distinct strings to share
+              ; structure (as in Common Lisp?).  Should that be outlawed?
+              ((and (in? epsilon1 'ES) (in? epsilon2 'ES))
+               ((send (if (and (= (length (project epsilon1 'ES))
+                                  (length (project epsilon2 'ES)))
+                               (let loop ((v1 (project epsilon1 'ES))
+					  (v2 (project epsilon2 'ES)))
+				 (cond ((null? v1) #t)
+				       ((eq? (car v1) (car v2))
+					(loop (cdr v1) (cdr v2)))
+				       (else #f))))
+                          *true*
+                          *false*))
+                kappa))
+              ; Pointer comparison for procedures, yuk.
+              ((and (in? epsilon1 'F) (in? epsilon2 'F))
+               ((send (if (eq? (car (project epsilon1 'F))
+                               (car (project epsilon2 'F)))
+                          *true*
+                          *false*))
+                kappa))
+              (else ((send *false*) kappa))))
+      (wrong "wrong number of arguments")))
+
+; apply restricted to two arguments.
+
+(define ((*apply* epsilon*) kappa)
+  (if (= (length epsilon*) 2)
+      (let ((epsilon1 (car epsilon*))
+            (epsilon2 (cadr epsilon*)))
+        (if (in? epsilon1 'F)
+            ((*valueslist* (list epsilon2))
+	     (lambda (epsilon*)
+               (((applicate epsilon1)
+		 epsilon*)
+		kappa)))
+            (wrong "bad procedure argument to apply")))
+      (wrong "wrong number of arguments")))
+
+; Though procedures that return multiple values cannot be defined using
+; the mechanisms in RRRS, the following shows how they can be accomodated
+; within this semantics.  The name VALUES-LIST is taken from Common Lisp.
+
+(define ((*valueslist* epsilon*) kappa)
+  (if (= (length epsilon*) 1)
+      (let ((epsilon (car epsilon*)))
+	(if (in? epsilon 'EP)
+	    ((*cdr* (list epsilon))
+	     (lambda (epsilon*)
+               ((*valueslist* epsilon*)
+		(lambda (epsilon*)
+                  ((*car* (list epsilon))
+		   (single
+                     (lambda (epsilon)
+                       (kappa (cons epsilon epsilon*)))))))))
+	    (if (in? epsilon 'MISC)
+		(if (eq? (project epsilon 'MISC) 'null)
+		    (kappa '())
+		    (wrong "improper list argument to values-list"))
+		(wrong "improper list argument to values-list"))))
+      (wrong "wrong number of arguments")))
+
+; The semantics of call-with-current-continuation would be much simpler
+; if procedures did not have to be tagged by locations.
+
+(define ((*call/cc* epsilon*) kappa)
+  (if (= (length epsilon*) 1)
+      (let ((epsilon (car epsilon*)))
+        (if (in? epsilon 'F)
+	    (lambda (sigma)			; yuk
+              (if (in? (new sigma) 'L)
+		  ((((applicate epsilon)
+		     (list (inject (list (project (new sigma) 'L)
+					 (lambda (epsilon*)
+					   (lambda (kappa@)
+					     (kappa epsilon*))))
+				   'F)))
+		    kappa)
+		   (((update (project (new sigma) 'L))
+		     *unspecified*)
+		    sigma))
+		  ((wrong "out of memory") sigma)))
+	    (wrong
+	      "bad procedure argument to call-with-current-continuation")))
+      (wrong "wrong number of arguments")))
+
+; Initial environments, stores, continuations, for testing.
+
+; To avoid special treatment for a "top-level" environment, the
+; semantics assumes that all variables are bound to something.
+; For testing, however, I'm only going to use x1, x2, ... as my
+; global variables.
+ 
+(define *rho_init*
+  '((x1 -1)
+    (x2 -2)
+    (x3 -3)
+    (x4 -4)
+    (x5 -5)
+    (x6 -6)
+    (x7 -7)
+    (x8 -8)
+    (x9 -9)
+    (zero? -10)
+    (<? -11)
+    (+ -12)
+    (- -13)
+    (* -14)
+    (cons -15)
+    (car -16)
+    (cdr -17)
+    (set-car! -18)
+    (set-cdr! -19)
+    (list -20)
+    (null? -21)
+    (eq? -22)
+    (apply -23)
+    (call-with-current-continuation -24)))
+
+; Note that the location tags normally won't be the same as the
+; locations in which the procedures are stored.
+
+(define *sigma_init*
+  `((-10 ,(inject (list -10 *zero?*) 'F))
+    (-11 ,(inject (list -11 *<*) 'F))
+    (-12 ,(inject (list -12 *+*) 'F))
+    (-13 ,(inject (list -13 *-*) 'F))
+    (-14 ,(inject (list -14 ***) 'F))
+    (-15 ,(inject (list -15 *cons*) 'F))
+    (-16 ,(inject (list -16 *car*) 'F))
+    (-17 ,(inject (list -17 *cdr*) 'F))
+    (-18 ,(inject (list -18 *set-car!*) 'F))
+    (-19 ,(inject (list -19 *set-cdr!*) 'F))
+    (-20 ,(inject (list -20 *list*) 'F))
+    (-21 ,(inject (list -21 *null?*) 'F))
+    (-22 ,(inject (list -22 *eq?*) 'F))
+    (-23 ,(inject (list -23 *apply*) 'F))
+    (-24 ,(inject (list -24 *call/cc*) 'F))))
+    
+ 
+(define rho_init
+  (lambda (I)
+    (let ((entry (assq I *rho_init*)))
+      (if entry
+          (cadr entry)
+          (call-with-current-continuation
+            (lambda (k)
+              (set! *continue* k)
+              (error "Variable not bound in rho_init" I)))))))
+ 
+(define sigma_init
+  (lambda (alpha)
+    (let ((entry (assq alpha *sigma_init*)))
+      (if entry
+          (list (cadr entry) #t)
+          (list *unspecified*
+                (if (negative? alpha)
+                    #t
+                    #f))))))
+ 
+(define kappa_init
+  (lambda (epsilon*)
+    (lambda (sigma)
+      (set! *store* sigma)       ; a side effect for testing purposes
+      epsilon*)))
+
+; Some code to simplify testing.
+
+(define x)             ; in U --> K --> C
+(define y)             ; in K --> C
+(define z)             ; in C
+(define w)             ; expressed value result
+(define *store*        ; store result, side effected by kappa_init
+  sigma_init)          ; for convenience in testing.
+
+(define (run exp)
+  (set! x (E-eval exp))
+  (set! y (x rho_init))
+  (set! z (y kappa_init))
+  (set! w (z *store*))
+  w)
+
+; ----- Examples -----
+
+(define examples
+  '(
+
+    ;; length
+
+    (set! x1 (list 1 2 3 4 5 6 7 8 9 10))
+
+    (set! x2
+	  (lambda (l)
+	    (if (null? l) 0 (+ 1 (x2 (cdr l))))))
+
+    (x2 x1)
+
+    ;; memq
+
+    (set! x3 (list 'a 'b 'c 'd))
+
+    (car (cdr x3))
+
+    (set! x4
+	  (lambda (x l)
+	    (if (null? l)
+		#f
+		(if (eq? x (car l))
+		    #t
+		    (x4 x (cdr l))))))
+
+    (x4 'e x3)
+    (x4 'b x3)
+    (set-cdr! x3 (list))
+    (x4 'b x3)
+
+    ;; factorial
+
+    ((lambda (fact)
+       (set! fact
+	     (lambda (n)
+	       (if (zero? n)
+		   1
+		   (* n (fact (- n 1))))))
+       (fact 10))
+     0)
+
+    ;; iota
+
+    (set! x5
+	  (lambda (n)
+	    ((lambda (loop)
+	       (set! loop
+		     (lambda (n l)
+		       (if (zero? n)
+			   l
+			   (loop (- n 1) (cons n l)))))
+	       (loop n (list)))
+	     0)))
+
+    (set! x6 (x5 10))
+    (car (cdr (cdr x6)))
+    (x2 x6)
+
+    ;; apply
+
+    (apply + (list 3 4))
+
+    ;; call-with-current-continuation
+
+    (+ (+ 3
+	  (call-with-current-continuation
+	   (lambda (k1)
+	     (set! x7 k1)
+	     4)))
+       (* (call-with-current-continuation
+	   (lambda (k2)
+	     (set! x8 k2)
+	     5))
+	  6))
+
+    (x8 10)
+    (x7 1)
+    (x8 10)
+    (x7 1)
+    ))
+
+(define (test)
+  (for-each (lambda (exp)
+	      (write exp)
+	      (newline)
+	      (write (run exp))
+	      (newline)
+	      (newline))
+	    examples))

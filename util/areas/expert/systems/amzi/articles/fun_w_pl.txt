@@ -1,0 +1,627 @@
+	 
+     ,_O<  Amzi! inc.    40 Samuel Prescott Dr.   >O_,
+     ( )                   Stow, MA 01775, USA     ( )
+ ~~~~~~~~~--------------------------------------~~~~~~~~~~~
+  tel 508/897-7332   amzi@world.std.com   fax 508/897-2784
+
+
+Technical Note:  PROFUN
+
+Exploring Prolog 
+Adventures, Objects, Animals, and Taxes 
+ 
+(This article was originally published in PC AI magazine, Volume 7, Number 
+5 September/October 1993.  The magazine can be reached at PC AI, 3310 West 
+Bell Rd., Suite 119, Phoenix AZ, USA 85023 Tel (602) 971-1869, FAX: (602) 
+971-2321.  It is an introduction to the language that attempts to bring out 
+the practical benefits of the technical features of the language 
+(unification, backtracking), rather than approaching it from a theoretical 
+point of view.  The various sections marked ----- Side Box ----- appeared, 
+surprisingly, as side boxes in the magazine layout of the article.) 
+ 
+While I have since written a number of "useful" Prolog programs, I was 
+first drawn to Prolog while I was in the middle of writing, for fun, an 
+adventure game in 'C' on my first "personal" computer.  I had started my 
+'C' program by building the basic tools needed for the game, which included 
+a dynamic database to record the changing state of the game, and the 
+ability to search for symbolic patterns in the state that indicated some 
+action needed to be taken.  The action was usually represented by a message 
+to the user and a change of state of the game. 
+ 
+----- Side Box ----- 
+Adventure Games, are games in which the developer creates a simulation of 
+an environment, real or fanciful, that the user explores, usually with some 
+objective in mind.  It is generally full of puzzles that need to be solved 
+in order to achieve the objective. 
+------------------ 
+ 
+As I was writing the utility functions for my game, I happened to go to a 
+Boston Computer Society meeting where the speaker was discussing Prolog.  I 
+learned that all of the tools I was building were already integral 
+components of the Prolog language. 
+ 
+Prolog has built-in dynamic memory allocation for storing the state of the 
+game that was better than mine because it had an extremely flexible way of 
+representing the data.  It has a built-in pattern-matching capability 
+(unification) that was more general and flexible than the pattern-matcher I 
+was implementing, and it had a built-in search mechanism (backtracking).  
+Further, the dynamic memory allocation didn't just store facts, but stored 
+rules as well, so the "data" could embody its own intelligence. 
+ 
+Because of all of this procedural power built into the language, the code 
+the programmer writes looks much more declarative.  An application, such as 
+my adventure game, winds up being reduced to an elegant set of logical 
+declarations describing what the program does.  (Developers often claim up 
+to a 10-fold reduction in code size going to Prolog.  See for example the 
+PCAI article on KnowledgeWare's use of Prolog in the May/June 1993 issue.)  
+For me, this was truly a fun way to program, capturing the essence of the 
+joy of programming—building logical structures that perform interesting 
+tasks. 
+ 
+While in retrospect, the power of Prolog for writing adventure games might 
+be obvious, think of how many other applications contain elements of 
+remembering program state, searching for pattern matches in that state and 
+taking conditional actions based on them.  Further, how many of us think of 
+our programs in logical terms, declaratively at first, and then spend the 
+time translating that into procedural code? 
+ 
+Because of the ubiquitousness of these conditions in applications, Prolog 
+has the potential for making almost any application more fun to write than 
+it would be in a conventional procedural language.  The following sections 
+look at a number of simple applications, showing how the built-in pattern 
+matching (unification), search (backtracking), and dynamic memory 
+allocation make for elegant expressions of applications in a logically 
+pleasing, declarative fashion. 
+ 
+The applications described are an adventure game, a part of an object-
+oriented program shell, a game based on a decision tree, and taxes (yes, 
+even taxes are fun in Prolog). 
+ 
+Adventure Game 
+ 
+This is a skeleton adventure game in which the object is to go from the 
+house, across the yard, to the duck pen to fetch a duck egg, being careful 
+not to let the fox get any of the ducks. 
+ 
+ 
++----------------------------------+ 
+|                woods   (fox)     | 
+|----------------------------------| 
+|duck pen  |                       | 
+| (ducks)  |    yard               | 
+| (egg)    \                       | 
+|----------+           +-----------+ 
+|                      | house     | 
+|                      |           | 
+|                      |  (you)    | 
++----------------------------------+ 
+ 
+To begin with we use the dynamic database to define the initial state of 
+the game.  To do this we simply state the various bits of information using 
+Prolog structures and rules.  This is, in many senses, the essence of the 
+design, for it defines the structure of the state that the rest of the 
+program will manipulate. 
+ 
+location(egg, duck_pen). 
+location(ducks, duck_pen). 
+location(fox, woods). 
+location(you, house). 
+ 
+nextto(duck_pen, yard, closed). 
+nextto(yard, house, open). 
+nextto(yard, woods, open). 
+ 
+connect(X, Y) :- nextto(X, Y, open). 
+connect(X, Y) :- nextto(Y, X, open). 
+ 
+----- Side Box ---- 
+Prolog Jargon - location, nextto and connect are called predicates.  
+Because location takes two arguments, it is said to have an arity of 2 and 
+is described as location/2.  Similarly we've defined nextto/3 and 
+connect/2.  Each of the four statements ending in '.' for location/2 are 
+called clauses, so the location/2 predicate has four clauses.  nextto/3 
+has three clauses and connect/2 has two clauses.  The clauses of location/2 
+and nextto/3 are called facts; they are simple assertions of truth.  The 
+two clauses of connect/2 are called rules because they are conditional as 
+indicated by the neck symbol ':-' which can be read as the word 'if.' 
+ 
+The arguments of the predicates are either atoms, symbols to be matched 
+identified by an initial lower case letter, variables that can match other 
+symbols, identified by an initial upper case letter or strings which are 
+enclosed in $'s.  Unlike most other languages, variables in Prolog cannot 
+be assigned values, instead they take on values as the result of 
+unification. 
+-------------------- 
+ 
+The Prolog statements defining location and nextto should be pretty 
+obvious.  The third predicate, connect is an example of a rule used as 
+data.  Two places are connected if they are either nextto(X, Y, open) or 
+nextto(Y, X, open)  In other words, you can get from X to Y or from Y to 
+X if X is next to Y and open.  The upper case X and Y are variables used in 
+unification. 
+ 
+The definition of connect illustrates both unification and backtracking 
+search.  The specification of nextto(X, Y, open) in the first rule of 
+connect serves as a pattern to be matched against the clauses of nextto/3.  
+Depending on the values of X and Y, the backtracking search will continue 
+to try clauses until one is found that matches the pattern. 
+ 
+----- Side Box ----- 
+One of the major advantages of Prolog is code can be tested almost 
+immediately after being written.  In this case, assume the source code file 
+is called 'ducks.pro'.  The code is then loaded and tested in a Prolog 
+interpreter as follows.  (The -> symbol means there might be more answers, 
+the ';' is the user requesting another answer.) 
+	?- consult('ducks.pro'). 
+	yes 
+	?- connect(yard, woods). 
+	yes 
+	?- connect(woods, yard). 
+	yes 
+	?- connect(yard, X). 
+	X = house ->; 
+	X = woods ->; 
+	X = duck_pen -> 
+-------------------- 
+ 
+To implement just the code we've written so far in some other language 
+would require defining the data structures for the state, deciding whether 
+to store them in pre-allocated or dynamically allocated memory, and writing 
+a procedure to implement connect that walked the state information and 
+used some pattern-matching code.  While these types of programming 
+challenges are fun as well, the resulting code would be visually dominated 
+by the search and match routines with the result that the logic of the 
+application would be hidden, much as the logic of a simple mathematical 
+equation is hidden when it is coded in assembler. 
+ 
+Now that the basic state is defined, the commands that manipulate the state 
+can be added.  The fundamental operation in an adventure game is moving 
+about, so we first implement a goto command that will move you from where 
+you are to where you want to be, if you can get there. 
+ 
+----- Side Box ----- 
+Prolog Jargon - The goto/1 predicate has two clauses.  Both are rules, with 
+a head before the neck symbol and a body after it.  The body of the first 
+goto/1 clause is composed of seven goals (separated by commas).  Each of 
+the goals is treated as a Prolog query, if the goal succeeds, then 
+execution proceeds to the next goal, if a goal fails, then execution 
+backtracks to the previous goal and tries to find another solution.  A 
+goal with a variable in it succeeds by binding the variable to whatever 
+value is necessary for the goal to succeed, so in this case location(you, 
+L) will bind L to wherever you happen to be at the time, initially the 
+house. 
+-------------------- 
+ 
+goto(X) :- 
+  location(you, L),  
+  connect(L, X),  
+  retract( location(you, L) ),  
+  assert( location(you, X) ),  
+  write($ You are in the $), write(X), nl. 
+goto(X) :- 
+  write($ You can't get there from here. $), nl. 
+ 
+When we give Prolog the goal goto(X), where X might be one of the places 
+in the game, such as the duck_pen, Prolog does a search for us. First it 
+tries the first goto clause.  It will succeed if the location of you is 
+some place, L, and L connects to the place you want to go to, X.  If 
+connect fails, then the first clause of goto fails and the second clause 
+is executed instead, writing its message to the user. 
+ 
+The assert and retract statements are built into Prolog (as are the write 
+and nl (newline) predicates.)  They are used to dynamically modify the 
+database, so that, in this case, location(you.. now reflects your new 
+location. 
+ 
+(This ability of Prolog to dynamically define itself is a powerful 
+capability considered by some to be dangerous.  To avoid the danger, the 
+same code can be written by storing all of the state information in one 
+large Prolog variable so that the application never needs to use assert and 
+retract to modify its state, but my background is database and I find the 
+approach presented more readable and, well, logical.) 
+ 
+Other commands are similar, open(gate) and close(gate) change the state 
+of nextto between the duck_pen and the yard.  The '_' is what's called the 
+anonymous variable, used for arguments whose values are not of interest at 
+the time.  It's use here causes the retract statements to say, in effect, 
+retract the old nextto clause no matter whether it was open or closed. 
+ 
+open(gate) :- 
+  retract( nextto(duck_pen, yard, _ ) ),  
+  assert( nextto(duck_pen, yard, open ) ). 
+ 
+close(gate) :- 
+  retract( nextto(duck_pen, yard, _) ),  
+  assert( nextto(duck_pen, yard, closed) ). 
+ 
+chase(ducks) has the affect of putting the ducks back in their pen, but it 
+only works if you are in the yard with the ducks.  take(X) removes a 
+thing's location clause and replaces it with a you_have clause, thereby 
+putting it in your possession.  (Strings are represented in some Prologs by 
+being bracketed by $ symbols.) 
+ 
+chase(ducks) :- 
+  location(ducks, yard),  
+  location(you, yard),  
+  retract( location(ducks, yard) ),  
+  assert( location(ducks, duck_pen) ),  
+  write($ The ducks are back in their pen. $), nl. 
+chase(ducks) :- 
+  write($ No ducks here. $), nl. 
+ 
+take(X) :- 
+  location(you, L),  
+  retract( location(X, L) ),  
+  assert( you_have(X) ),  
+  write($ You now have the $), write(X), nl. 
+take(X) :- 
+  write($ There is no $), write(X), write($ here.$), nl. 
+ 
+The fun part of any adventure game is the various side effects, or demons.  
+Here are two for this game.  If you enter the duck pen, and the gate is 
+open, then the ducks will go into the yard, and, the fox is in the woods 
+waiting for the ducks to be accessible and unguarded. 
+ 
+ducks :- 
+  location(ducks, duck_pen),  
+  location(you, duck_pen),  
+  connect(duck_pen, yard),  
+  retract( location(ducks, duck_pen) ),  
+  assert( location(ducks, yard) ),  
+  write($ The ducks have run into the yard. $), nl. 
+ducks. 
+ 
+fox :- 
+  location(ducks, yard),  
+  location(you, house),  
+  write($ The fox has taken a duck. $), nl. 
+fox. 
+ 
+The main control loop is handled with a predicate that uses recursion to 
+execute over and over again, until the end state is reached.  The first go 
+tests the end condition, and the second reads and executes a command, tries 
+the demons and then does it all over again. 
+ 
+go :- done. 
+go :- 
+  write($>> $),  
+  read(X),  
+  call(X),  
+  ducks,  
+  fox,  
+  go. 
+ 
+done :- 
+  location(you, house),  
+  you_have(egg),  
+  write($ Thanks for getting the egg. $), nl. 
+ 
+To run this program, simply consult it into a Prolog interpreter and type 
+'go'. 
+ 
+It works like this: 
+ 
+?- go. 
+ 
+>> goto(yard). 
+ You are in the yard 
+>> goto(duck_pen). 
+ You can't get there from here.  
+>> open(gate). 
+>> goto(duck_pen). 
+ You are in the duck_pen 
+ The ducks have run into the yard.  
+>> take(egg). 
+ You now have the egg.  
+>> goto(yard). 
+ You are in the yard 
+>> goto(house). 
+ You are in the house 
+ The fox has taken a duck.  
+ Thanks for getting the egg.  
+ 
+?- 
+ 
+This is just the skeletal prototype that can easily be enhanced to include 
+more flowing English for descriptions of what's happening and for accepting 
+commands.  In a Prolog that supports graphics, the I/O could manipulate 
+graphic images instead of words. 
+ 
+But, no matter how its enhanced, the code for the game will continue to 
+look like a concise logical specification of the game.  This is in contrast 
+to a more conventional procedural application that scatters the basic logic 
+of the application amongst the mechanics of how it gets executed. 
+ 
+Object-Oriented Programming 
+ 
+Prolog was originally designed for natural language work, and is excellent 
+for that, but it is also ideal for experimenting with different ideas for 
+computer languages.  For example, Prolog can be used to implement an 
+object-oriented programming extension to itself. 
+ 
+Here are a few lines of code that implement polymorphism much better than 
+C++ does.  (Polymorphism is the ability of different types of objects to 
+respond to the same message.) 
+ 
+----- Side Box ----- 
+Prolog Jargon - Lists in Prolog are represented with [] brackets, such as 
+[one, two, three].  A list can be considered to be composed of two parts, 
+the first element, or head, and the list of remaining elements, or tail.  
+This is represented by the notation [H | T] where the '|' separates the 
+head and tail. 
+-------------------- 
+ 
+We need to introduce Prolog lists to implement it, (See side box) and one 
+of the classic list utilities, member, that finds members of a list.  It 
+says, X is a member of list whose head is X.  Failing, this, X is a member 
+of a list if it's a member of the tail of the list. 
+ 
+member(X, [X|_]). 
+member(X, [_|Z]) :- member(X, Z). 
+ 
+To implement polymorphism we will write a predicate, oo_send/2 which sends 
+a message to an object.  For an example we will define classes of objects 
+corresponding to geometric shapes, and methods for each shape to compute 
+it's area and perimeter.  To do this we first need to define structures to 
+represent the classes. 
+ 
+Here are two class definitions for rectangles and circles. 
+ 
+oo_class( rectangle(H, W),  
+          methods([ ( area(A) :- A is H * W ),  
+                    ( perimeter(P) :- P is 2 * (H + W) ) 
+                  ]) ). 
+oo_class( circle(R),  
+          methods([ ( area(A) :- A is pi * R * R ),  
+                    ( perimeter(P) :- 2 * pi * R ) 
+                  ]) ). 
+ 
+Given the design of the class structures, oo_send/2 becomes simple to 
+implement.  It has three goals which perform the operations: 
+ 
+	- find the class for the object and its list of methods,  
+	- find the method which matches the message, and 
+	- call the method. 
+ 
+This is, of course, just a logical specification of what oo_send should do 
+and corresponds very closely to the code itself. 
+ 
+oo_send(Obj, Mess) :- 
+  oo_class(Obj, methods(Ms)),  
+  member((Mess :- Meth), Ms),  
+  call(Meth). 
+ 
+The reason the code is so close to the logical specification, is that the 
+programming tasks of searching for the right class and the right method in 
+that class are taken care of by Prolog's backtracking search and 
+unification.  All that's left is the logic. 
+ 
+Note how powerful unification is in this example.  The variable Ms becomes 
+unified with the whole complex list of methods for the given object, and, 
+despite being passed to member, the relationship between all the logical 
+variables is preserved so the right answer winds up in the variable used in 
+the message.     
+ 
+To illustrate how this works, we create a list of different shapes and 
+write a test predicate that sends the message area(A) to each of the shapes 
+on the list. 
+ 
+shapes([rectangle(2, 3), circle(10), rectangle(4, 5), circle(4)]). 
+ 
+go :- 
+  shapes(L),  
+  member(S, L),  
+  oo_send(S, area(A)),  
+  write($Area of $), write(S), write($ = $), write(A), nl,  
+  fail. 
+go. 
+ 
+The test predicate, go, uses member to find each of the members of the 
+list.  It does this by calling member with a variable, S, as the first 
+argument.  On the first call to member, S is unified with the first 
+element of the list.  The next goal sends that element the same message 
+area(A).  The fail goal initiates backtracking which causes member to 
+unify S with the next element of the list, which also then gets the area(A) 
+message sent to it.  This continues until there are no more members of the 
+list. 
+ 
+For each shape, the area will be different and the method actually used to 
+compute it will be different, but the message stays the same.  This is 
+polymorphism. 
+ 
+Here are the results of running the test program. 
+ 
+?- go. 
+ 
+Area of rectangle(2, 3) = 6 
+Area of circle(10) = 314.159 
+Area of rectangle(4, 5) = 20 
+Area of circle(4) = 50.2655 
+ 
+yes 
+?-  
+ 
+This simple example can be expanded to include multiple inheritance, 
+flavors, persistent objects and any thing else you might desire in an OOP 
+system.  As with the adventure game example, the code will continue to look 
+like a logical specification of an OOP system. 
+ 
+Animals 
+ 
+There is a game called animals that uses expanding tree structures to try 
+to guess what animal you were thinking of.  If it guesses wrong it asks you 
+what animal you are thinking of and for a question to identify it.  Thus 
+the decision tree grows and the program gets "smarter." 
+ 
+The example starts with a simple tree with two branches, each pointing to a 
+different animal.  A question is used to distinguish between them. 
+ 
+                  / yes - mouse 
+Does it have fur? 
+                  \ no - lizard 
+ 
+ 
+If the program guesses wrong, then the answer animal is replaced with a new 
+subtree, having two branches and a question as shown in the figure. 
+ 
+                                        / yes - dog 
+                  / yes - Does it bark? 
+Does it have fur?                       \ no - mouse 
+                  \ no - lizard 
+ 
+This application is trivial in Prolog using the power of unification in 
+which variables can be bound to complex structures which can contain other 
+variables, which might in turn be unified with still other structures.  
+This is how the tree grows. 
+ 
+First, how the program works.  A sample dialog looks like: 
+ 
+?- go. 
+Does it have fur? yes 
+Is it a mouse? no 
+What animal were you thinking of?  
+dog 
+What is a yes/no question that distinguishes them? 
+Does it bark? 
+For a dog the answer is: yes 
+Play again? yes 
+Does it have fur? yes 
+Does it bark? yes 
+Is it a dog? yes 
+Play again? no 
+yes 
+?- 
+ 
+Here is all the code to implement animals in Prolog.    The nodes of the 
+tree are represented by the pattern, Animal - Tree.  If Tree is a variable, 
+then the node is an end node and the program guesses the animal.  If Tree 
+is a tree, then it is used to ask more questions.  When the program guesses 
+wrong, then it prompts for information used to build another subtree.  That 
+subtree is unified with the variable Tree at the current node and the 
+program loops again, all the wiser. 
+ 
+% The starting tree 
+init(root - tree(mouse - X, $Does it have fur?$, lizard - Y)). 
+ 
+% The main program loop 
+go:- 
+  init(T),  
+  loop($yes$, T). 
+ 
+loop($no$, _). 
+loop($yes$, T):- 
+  identify(T),  
+  nl, write($Play again? $),  
+  read_string(Ans), nl,  
+  loop(Ans, T). 
+ 
+% When the end of a branch is reached, try to guess the animal 
+identify(Animal - X):- 
+  var(X),  
+  nl, write($Is it a $), write(Animal), write($? $),  
+  read_string(Ans), nl,  
+  process(Ans, Animal, X). 
+% Walks the tree asking about the attributes of the animal 
+identify(_ - tree(YES, Q, NO)):- 
+  nl, write(Q), tab(1), read_string(Ans), nl,  
+  (Ans = $yes$, identify(YES); identify(NO)). 
+ 
+% Do nothing if the guess is correct 
+process($yes$, _, _). 
+% Adds a new subtree if the guess is wrong 
+process($no$, Animal, X):- 
+  nl, write($What animal were you thinking of? $),  
+  nl, read_string(Ans), nl, nl,  
+  write($What is a yes/no question that distinguishes them?$), nl,  
+  read_string(Q), nl,  
+  nl, write($For a $), write(Ans), write($ the answer is: $),  
+  read_string(YN), nl,  
+  (YN = $yes$, X = tree(Ans-Y, Q, Animal-Z); 
+               X = tree(Animal-Y, Q, Ans-Z)). 
+ 
+----- Side Box ----- 
+Prolog jargon - the ';' indicates an 'or' in a list of goals, as opposed to 
+the more common ', ' which indicates an 'and.'  The percent sign % is used 
+to denote comments. 
+-------------------- 
+ 
+In this case it is unification and recursion that make this an elegant and 
+simple expression of the code to implement the animals decision tree game. 
+ 
+Taxes 
+ 
+I don't know about you, but I've never really enjoyed figuring out my 
+taxes, that is, until the year I decided to write my own tax program in 
+Prolog.  The challenge shifted from getting all the right numbers in the 
+right boxes, to putting together a logical structure that would do it for 
+me. 
+ 
+To illustrate the idea, consider the following simplified tax form, 1040F 
+(F for fantasy, if it were only so simple and cheap.) 
+ 
+line 1  wages                        |   | 
+line 2  tax - enter 5% of line 1     |   | 
+line 3  withheld                     |   | 
+line 4  refund (line 3 - line 2)     |   | 
+ 
+Each line of the tax form can be represented as a clause of the predicate 
+line.  The line predicate has four arguments: the form name, the line 
+number, a description, and a value.  The  clauses for each line refer to 
+the database of raw data and to each other as necessary.  Given this, here 
+is a Prolog program to compute taxes for form 1040F.  (Remember, terms 
+beginning  with upper case are variables.) 
+ 
+tax:- 
+  line('1040F', 4, refund, X),  
+  write('They owe you: '), write(X), nl. 
+ 
+line('1040F', 1, wages, X) :- wages(X). 
+line('1040F', 2, tax, X) :- 
+  line('1040F', 1, _, WAGES),  
+  X is 0.05 * WAGES. 
+line('1040F', 3, withheld, X) :- withheld(X). 
+line('1040F', 4, refund, X) :- 
+  line('1040F', 2, _, TAX),  
+  line('1040F', 3, _, WITHHELD),  
+  X is WITHHELD - TAX. 
+ 
+wages(30000). 
+ 
+withheld(2000). 
+ 
+In this program, tax is the top level predicate which is called in a query 
+to start the program.  In true business like fashion, it immediately asks 
+for the bottom line.  The rule for line 4 calls rules for line 3 and 2, 
+which call other line rules etc.  This program accesses data from the 
+predicates wages and withheld. 
+ 
+Backtracking search causes Prolog to automatically use all the necessary 
+data and subsidiary lines to compute the bottom line.  The program is very 
+declarative in its nature, mimicking almost precisely the actual tax form.  
+All of the procedurality required to perform the computation is handled 
+automatically by Prolog. 
+ 
+Here's what it looks like when you run this simple program: 
+ 
+?- tax. 
+They owe you: 500 
+yes 
+?- 
+ 
+This basic scheme can be applied to the entire tax form,  however, there 
+are a few changes that might be made, such as adding a way of 'remembering' 
+the values of various lines so they don't have to be recomputed and can 
+also be used in a final report.  This is a relatively simple change that 
+doesn't affect the readability of the program. 
+ 
+Conclusion 
+ 
+In these few examples we've seen how the unique features of Prolog,  
+dynamic memory allocation, unification and backtracking, make it a language 
+whose code appears much cleaner, simpler, and "logical."  The net result is 
+a language that is, quite simply, a lot of fun to use. 
+ 
+_________________________________________________________________________ 
+ 
+ 
+

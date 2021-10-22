@@ -1,0 +1,33 @@
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/faqs/lang/lisp/part5/faq-doc-4.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 05:31:23 GMT -->
+<HEAD>
+<TITLE>FAQ: Object-oriented Programming in Lisp 5/7 [Monthly posting] - [5-3] How can I list all the CLOS instances in a class?</TITLE>
+</HEAD>
+<BODY>
+<H1>[5-3] How can I list all the CLOS instances in a class?</H1>
+<PRE>
+There is no built-in way to enumerate the instances of a class.  If you are
+only interested in listing the instances of classes that you have defined,
+it is not very difficult to implement it as part of your class definition.
+Add a shared slot, e.g. ALL-INSTANCES, with an initial value of NIL, to the
+class definition.  Then write an after-method on INITIALIZE-INSTANCE for
+this class, which pushes the instance being initialized onto ALL-INSTANCES.
+Note that this must be done separately for each class that wants to maintain
+such a list; it can't be encapsulated in a mixin class, because all its
+dependent classes would share the same ALL-INSTANCES slot.  A compromise
+would be to use a mixin to define the INITIALIZE-INSTANCE after-method (and
+any other general-purpose methods that use the slot), but not the shared
+slot; it would be up to the descendant classes to define the slot at the
+level of the class hierarchy that is appropriate. You could also try
+defining the classes that need instance-recording as instances of a
+metaclass that holds the instance registry on the class object. The
+recording behavior could then be built-in to an after method on
+initialize-instance for the root class of the metaclass, or even
+allocate-instance. To allow for garbage collection of old instances,
+you will also need to define a generic function to remove the recorded
+instances from the list of instances.
+</PRE>
+<A NAME=up HREF="faq.html">Go Back Up</A><P>
+<A NAME=up HREF="faq-doc-3.html">Go To Previous</A><P>
+<A NAME=up HREF="faq-doc-5.html">Go To Next</A><P>
+</BODY>

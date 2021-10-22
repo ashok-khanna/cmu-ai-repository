@@ -1,0 +1,104 @@
+To: rrrs-authors@ai.mit.edu
+Subject: non-generic arithmetic
+
+=> PROPOSAL
+
+Several people (including myself) have in the past asked for a
+standardization of non-generic arithmetic procedures. Several
+implementations provide such procedures already, and it would be
+useful to standardize them by adding them as a non-essential feature
+to the standard, or at least by agreeing informally to a common naming
+scheme.
+
+=> RATIONALE
+
+The reasons why people want to use such procedures are two-fold: (1)
+efficiency (many compilers simply aren't smart enough to optimize the
+Scheme number system), and (2) a different view of arithmetic (in
+which, say, there are "real" functions that only take real arguments
+and return real values and flag errors if they get an argument of the
+wrong type or cannot represent the result as a real number).
+
+=> GOALS
+
+I think such procedures
+
+ * should be defined such that applying the procedures to an
+   object of the wrong type (e.g., "(flonum-sin 1)") results
+   in an error (*)
+
+ * should be "arithmetically safe", i.e., overflows and other
+   arithmetic errors should be detected
+
+ * should have names that allow people to use them conveniently and
+   regularly in their code
+
+=> PORTABLE IMPLEMENTATIONS
+
+A reasonably portable implementation might define "flonum-+" in terms
+of type-checks, coercions, and the "+" function. Such an
+implementation would allow code written in terms of the non-generic
+primitives to be executed on implementations that do not support
+non-generic arithmetic.
+
+Of course, I would hope that many compilers actually try to do a
+better job at generating code for such procedures.
+
+=> NAMING
+
+Prefix schemes are commonly used for naming arithmetic operations of
+the kind proposed here. That is, the name of a non-generic arithmetic
+function is derived by putting a prefix in front of the name of the
+corresponding generic function.
+
+People would use these operations primarily with fixnums and flonums;
+hence, the prefixes for those functions should be short:
+
+    DATATYPE	PREFIX
+
+    fixnum	x or i (as in fi[x]num or f[i]xnum)
+    flonum	f
+
+    rational	rational
+    integer	integer
+    real	real
+    complex	complex
+
+For functions that begin with a non-alphanumeric letter, the prefix is
+used directly. For other functions, it is separated by a "-" from the
+name of the corresponding generic procedure.
+
+Examples:
+
+	f+
+	x*
+	f-sin
+	rational+
+	rational-quotient
+	complex-sin
+
+=> STANDARD
+
+I'm not sufficiently familiar with a lot of Scheme dialects to make a
+more concrete proposal, and I'm not well-versed in writing sections
+for the Scheme standard, so I hope that somebody else can pick this up
+from here.
+
+Of course, some care must be taken to say what is meant by "fixnum"
+and "flonum" and how that relates to the rest of the number system in
+Scheme. In particular, it should be made clear that this proposal in
+no way constitutes a recommendation to implement "fixnum" and "flonum"
+types, but merely suggests a naming convention if such types are
+already present in the implementation (as they are, in many
+implementations).
+
+					Thomas.
+
+(*) I think it is a bad idea to allow implementations not to flag an
+error for something like "(flonum-sin 1)", since it makes it very
+difficult to track down unportable constructs on implementations that,
+say, silently convert the integer 1 to a floating point number. I
+have encountered such problems frequently when trying to port Lisp
+code that had type declarations in it that were never actually checked
+by the implementation that the code was developed on.
+

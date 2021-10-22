@@ -1,0 +1,108 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node82.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:32:30 GMT -->
+<HEAD>
+<TITLE>7.4. Simple Sequencing</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Simple Sequencing">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2548 HREF="node83.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2546 HREF="node76.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2540 HREF="node81.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2550 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2551 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2549 HREF="node83.html"> Establishing New Variable </A>
+<B>Up:</B> <A NAME=tex2html2547 HREF="node76.html"> Control Structure</A>
+<B> Previous:</B> <A NAME=tex2html2541 HREF="node81.html"> Function Invocation</A>
+<HR> <P>
+<H1><A NAME=SECTION001140000000000000000>7.4. Simple Sequencing</A></H1>
+<P>
+Each of the constructs in this section simply evaluates all the
+argument forms in order.  They differ only in what results
+are returned.
+<P>
+<BR><b>[Special Form]</b><BR>
+<tt>progn</tt> <tt>{<i>form</i>}*</tt><P>The <tt>progn</tt> construct takes a number of forms and evaluates
+them sequentially, in order, from left to right.  The values of all
+the forms but the last are discarded; whatever the last form returns
+is returned by the <tt>progn</tt> form.
+One says that all the forms but the last are evaluated for <i>effect</i>,
+because their execution is useful only for the side effects caused,
+but the last form is executed for <i>value</i>.
+<P>
+<tt>progn</tt> is the primitive control structure construct for ``compound
+statements,'' such as <b>begin</b>-<b>end</b> blocks in
+Algol-like languages.
+Many Lisp constructs are ``implicit <tt>progn</tt>'' forms:
+as part of their syntax each allows many forms to be written
+that are to be evaluated sequentially, discarding the results
+of all forms but the last and returning the results of the last form.
+<P>
+If the last form of the <tt>progn</tt> returns multiple values, then those
+multiple values are returned by the <tt>progn</tt> form.  If there are no forms
+for the <tt>progn</tt>, then the result is <tt>nil</tt>.  These rules generally hold for
+implicit <tt>progn</tt> forms as well.
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>prog1</tt> <tt><i>first</i></tt> <tt>{<i>form</i>}*</tt><P><tt>prog1</tt> is similar to <tt>progn</tt>, but it returns the value of
+its <i>first</i> form.  All the argument forms are executed sequentially;
+the value of the first form is saved while all the others are executed
+and is then returned.
+<P>
+<tt>prog1</tt> is most commonly used to evaluate an expression with side
+effects and to return a value that must be computed <i>before</i> the side
+effects happen.
+For example:
+<P><pre>
+(prog1 (car x) (rplaca x 'foo))
+</pre><P>
+alters the <i>car</i> of <tt>x</tt> to be <tt>foo</tt> and returns the old <i>car</i>
+of <tt>x</tt>.
+<P>
+<tt>prog1</tt> always returns a single value, even if the first form
+tries to return multiple values.
+As a consequence,
+<tt>(prog1 <i>x</i>)</tt> and <tt>(progn <i>x</i>)</tt> may behave differently
+if <i>x</i> can produce multiple values.  See <tt>multiple-value-prog1</tt>.
+A point of style:
+although <tt>prog1</tt> can be used to force exactly a single value to
+be returned, it is conventional to use the
+function <tt>values</tt> for this purpose.
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>prog2</tt> <tt><i>first</i></tt> <tt><i>second</i></tt> <tt>{<i>form</i>}*</tt>
+<P><tt>prog2</tt> is similar to <tt>prog1</tt>, but it returns the value of
+its <i>second</i> form.  All the argument forms are executed sequentially;
+the value of the second form
+is saved while all the other forms are executed and is then returned.
+<tt>prog2</tt> is provided mostly for historical compatibility.
+<P><pre>
+(prog2 <i>a</i> <i>b</i> <i>c</i> ... <i>z</i>) == (progn <i>a</i> (prog1 <i>b</i> <i>c</i> ... <i>z</i>))
+</pre><P>
+Occasionally it is desirable to perform one side effect, then a value-producing
+operation, then another side effect.  In such a peculiar case, <tt>prog2</tt>
+is fairly perspicuous.
+For example:
+<P><pre>
+(prog2 (open-a-file) (process-the-file) (close-the-file)) 
+                     ;value is that of <tt>process-the-file</tt>
+</pre><P>
+<P>
+<tt>prog2</tt>, like <tt>prog1</tt>,
+always returns a single value, even if the second form
+tries to return multiple values.  As a consequence of this,
+<tt>(prog2 <i>x</i> <i>y</i>)</tt> and <tt>(progn <i>x</i> <i>y</i>)</tt> may behave differently
+if <i>y</i> can produce multiple values.
+<P>
+<BR> <HR><A NAME=tex2html2548 HREF="node83.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2546 HREF="node76.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2540 HREF="node81.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2550 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2551 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2549 HREF="node83.html"> Establishing New Variable </A>
+<B>Up:</B> <A NAME=tex2html2547 HREF="node76.html"> Control Structure</A>
+<B> Previous:</B> <A NAME=tex2html2541 HREF="node81.html"> Function Invocation</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

@@ -1,0 +1,397 @@
+; MICRO SAM - Chez Scheme 3.9
+;
+; Micro version of the script applier SAM [Cullingford, 78].  A direct 
+; translation of the version in Inside Computer Understanding [Schank 
+; and Riesbeck, 81].  To try it, use (process-story kite-story).
+;***********************************************************************
+
+; Globals -
+;  *data-base*, the pointer to the data base, which simply a list of
+;     events.
+;  *current-script*, the script currently active.  It is a statement
+;     with the script name as the predicate, and the script variables and
+;     their bindings as the arguments.
+;  *possible-next-events*, a list of the events in *current-script*
+;     that have not been seen yet.
+
+; PROCESS-STORY
+;---------------------------------------------------------------------------
+; PROCESS-STORY takes a list of CDs and hands each one to PROCESS-CD, 
+; which is the main function.  At the end of the story, the current
+; script is added to the date base and the data base is printed.
+;
+(define process-story 
+   (lambda (story)
+      (clear-scripts)
+      (process-story* story)
+      (printf "~%Story done--- final script header ~%  ")
+      (pretty-print *current-script*)
+      (add-cd *current-script*)
+      (printf "~%Database contains: ~%")
+      (pretty-print *data-base*)))
+
+(define process-story*
+   (lambda (story)
+      (cond
+         [(null? story) '()]
+         [else
+           (let ([cd (car story)])
+             (printf "~%Input is:~%  ")
+             (pretty-print cd)
+             (process-cd cd)
+             (process-story* (cdr story)))])))
+
+
+; PROCESS-CD
+;---------------------------------------------------------------------------
+; PROCESS-CD takes one CD of the story at a time.  Either a statement
+; is predicted by the current script or it is in the data base or it
+; suggests a new script.
+;
+(define process-cd 
+   (lambda (cd)
+      (or
+        (integrate-cd-into-script cd)
+        (suggest-new-script cd)
+        (begin 
+          (printf "~%Adding unlinked event ~%  ")
+          (pretty-print cd)
+          (printf "~%to data base~%")
+          (add-cd cd)))))
+
+
+
+; CLEAR-SCRIPTS
+;---------------------------------------------------------------------------
+; CLEAR-SCRIPTS resets the following globals:
+
+;  *data-base*, the pointer to the data base, which simply a list of
+;     events.
+;  *current-script*, the script currently active.  It is a statement
+;     with the script name as the predicate, and the script variables and
+;     their bindings as the arguments.
+;  *possible-next-events*, a list of the events in *current-script*
+;     that have not been seen yet.
+;
+(define clear-scripts
+   (lambda ()
+      (set! *data-base* '())
+      (set! *current-script* '())
+      (set! *possible-next-events* '())))
+
+(define add-cd
+   (lambda (cd)
+      (set! *data-base* (append *data-base* (list cd)))
+      cd))
+
+
+; INTEGRATE-CD-INTO-SCRIPT
+;---------------------------------------------------------------------------
+; INTEGRATE-CD-INTO-SCRIPT looks for the first event in 
+; *possible-next-events* that matches the statement.  If none is found,
+; it updates the data base.
+;
+(define integrate-cd-into-script
+   (lambda (cd)
+      (integrate-cd-into-script* cd *possible-next-events*)))
+
+(define integrate-cd-into-script*
+   (lambda (cd events)
+      (if (null? events)
+	  #f
+          (let* ([event (car events)]
+                 [new-bindings (match event cd *current-script*)])
+             (if (null? new-bindings)
+                 (integrate-cd-into-script* cd (cdr events))
+                 (begin 
+                    (set! *current-script* new-bindings)
+                    (printf "~%Matches~%")
+                    (pretty-print event)
+                    (printf "~%")
+                    (add-script-info event)
+                    #t))))))
+
+
+; ADD-SCRIPT-INFO
+;---------------------------------------------------------------------------
+; ADD-SCRIPT-INFO is given an event in a script (the one that matched
+; the input in INTEGRATE-CD-INTO-SCRIPT).  Each script event up through
+; _position_ is instantiated and added to the data base.
+;
+(define add-script-info
+   (lambda (position)
+      (cond
+         [(null? *possible-next-events*) '()]
+         [else
+          (let* ([event (car *possible-next-events*)]
+                 [new-event (instantiate event *current-script*)])
+            (set! *possible-next-events* (cdr *possible-next-events*))
+            (printf "~%Adding script CD~%  ")
+            (pretty-print new-event)
+            (printf "~%")
+            (add-cd new-event)
+            (if (not (equal? position event))
+                (add-script-info position)
+                '()))])))
+
+
+; SUGGEST-NEW-SCRIPT
+;---------------------------------------------------------------------------
+; SUGGEST-NEW-SCRIPT takes a CD form, adds it to the data base, and checks
+; the predicates of the form and its subforms until a link to a script is
+; found (if any).  Thus in (PTRANS (ACTOR (PERSON)) (OBJECT (PERSON))
+; (TO (STORE))) the first script found is under STORE.
+; If there was a previous script, add it to the data base before 
+; switching to another script, but do not instantiate any events that were
+; left in *POSSIBLE-NEXT-EVENTS*.
+;
+(define suggest-new-script 
+   (lambda (cd)
+      (let ([new-script (find-script cd)])
+        (cond
+           [(null? new-script) '()]
+           [else
+            (if (not (null? *current-script*)) 
+                (add-cd *current-script*))
+            (set! *current-script* (list new-script))
+            (set! *possible-next-events* (events:script new-script))
+            (integrate-cd-into-script cd)]))))
+
+
+; FIND-SCRIPT
+;---------------------------------------------------------------------------
+; FIND-SCRIPT retrieves a script associated with the given CD form.
+;
+(define find-script
+   (lambda (cd)
+      (cond
+        [(atom? cd)
+         (associated-script cd)]
+        [(not (null? (associated-script (header:cd cd))))
+         (associated-script (header:cd cd))]
+        [else
+         (find-script-from-roles (roles:cd cd))])))
+
+
+(define find-script-from-roles
+   (lambda (role-pairs)
+      (cond
+         [(null? role-pairs) '()]
+         [else
+          (let ([role-script (find-script (filler:pair (car role-pairs)))])
+             (if (null? role-script)
+                 (find-script-from-roles (cdr role-pairs))
+                 role-script))])))
+
+
+ 
+     
+; DATA STRUCTURES AND ACCESS FUNCTIONS
+;--------------------------------------------------------------------------
+; A story is a list of CDs.  A CD is a predicate (PTRANS, PERSON, etc.)
+; plus zero or more (role filler) pairs.  Here is a story in CDs:
+
+(set! kite-story
+   '(;Jack went to the store.
+     (PTRANS (ACTOR (PERSON (NAME JACK)))
+             (OBJECT (PERSON (NAME JACK)))
+             (TO (STORE)))
+     ;He got a kite.
+     (ATRANS (OBJECT (KITE))
+             (TO (PERSON)))
+     ;He went home.
+     (PTRANS (ACTOR (PERSON)) 
+             (OBJECT (PERSON))
+             (TO (HOUSE)))))
+
+
+; CDs are lists with a header and pairs of (role-name filler).
+
+(define header:cd
+   (lambda (cd) (car cd)))
+
+(define roles:cd
+   (lambda (cd) (cdr cd)))
+
+(define filler:pair
+   (lambda (role-pair) (cadr role-pair)))
+
+(define (role:pair role-pair)
+   (car role-pair))
+
+(define (filler:role role cd)
+   (let ([assoc-pair (assoc role (roles:cd cd))])
+      (if assoc-pair
+          (cadr assoc-pair)
+          '())))
+
+
+; Variables have the form (*var* name)
+
+(define (is-var? x)
+   (and (pair? x) (eq? (car x) '*var*)))
+
+(define (name:var x)
+   (cadr x))
+
+; Scripts are lists of the form (script-name event-list).
+
+(define events:script
+   (lambda (script)
+     (cadr (assoc script *scripts*))))
+
+(set! *scripts*
+      '((shopping
+          ((PTRANS (ACTOR (*var* SHOPPER))
+                   (OBJECT (*var* SHOPPER))
+                   (TO (*var* STORE)))
+           (PTRANS (ACTOR (*var* SHOPPER))
+                   (OBJECT (*var* BOUGHT))
+                   (TO (*var* SHOPPER)))
+           (ATRANS (ACTOR (*var* STORE))
+                   (OBJECT (*var* BOUGHT))
+                   (FROM (*var* STORE))
+                   (TO (*var* SHOPPER)))
+           (ATRANS (ACTOR (*var* SHOPPER))
+                   (OBJECT (MONEY)) 
+                   (FROM (*var* SHOPPER))
+                   (TO (*var* STORE)))
+           (PTRANS (ACTOR (*var* SHOPPER))
+                   (OBJECT (*var* SHOPPER))
+                   (FROM (*var* STORE))
+                   (TO (*var* ELSEWHERE)))))))
+
+; Some predictates have associated scripts.  For example, the SHOPPING
+; script is associated with STORE.  
+
+(set! script-assns '((store shopping)))
+
+(define (associated-script predicate)
+   (let ([assoc-pair (assoc predicate script-assns)])
+      (if assoc-pair
+          (cadr assoc-pair)
+          '())))
+
+
+; Initialize the data base
+                       
+(clear-scripts)      
+
+
+; PATTERN MATCHER
+;---------------------------------------------------------------------------
+
+; MATCH takes three (predicate role-pair) forms as arguments:
+; 1. a CD pattern which may contain variables
+; 2. a CD constant which has no variables
+; 3. a binding form which specifies any bindings that the variables in the 
+;    pattern already have.  The predicate of the binding form doesn't matter,
+;    so T is used.
+;    For convenience, MATCH also takes '() as a binding form and converts
+;    it to (T), which is a binding form with no variables bound. 
+; MATCH returns NIL only if the match failed.  A match that succeeds but
+; which involved no variables returns '(T).
+; 
+; For example, if the arguments were
+;  pattern = (PTRANS (ACTOR (*VAR* SHOPPER)) (TO (*VAR* STORE))
+;  constant = (PTRANS (ACTOR (PERSON)) (TO (STORE)))
+;  binding = ((SHOPPER (PERSON) (STORE (STORE))))
+; then the variables in the pattern are SHOPPER and STORE, and the 
+; binding form says that these are bound to PERSON and STORE.
+; The pattern matches the constant if the predicates are equal and if
+; all the roles in the pattern are matched by roles in the constant.
+; A variable matches if its binding matches; roles in the constant that
+; are not in the pattern are ignored.
+
+; MATCH returns either NIL if the match failed, or an updated binding
+; form that includes any new bindings made.
+
+; A NIL constant always matches.  This means that the constant 
+; (PERSON (NAME (JACK))) matches (PERSON), even though the NAME is
+; missing.
+
+(define match
+   (lambda (pat const bindings)
+      (let ([binding-form
+               (if (null? bindings)
+                   (list #t)
+                   bindings)])
+        (cond
+           [(or (null? const)
+                (equal? pat const))
+            binding-form]
+           [(is-var? pat)
+            (match-var pat const binding-form)]
+           [(or (atom? const)
+                (atom? pat))
+            '()]
+           [(equal? (header:cd pat) (header:cd const))
+            (match-args (roles:cd pat) const binding-form)]
+           [else
+            '()]))))
+
+; MATCH-ARGS
+;---------------------------------------------------------------------------
+; MATCH-ARGS takes a list of role pairs (a role pair has the form
+; (role filler), a constant CD form, and a binding form.  It goes
+; through the list of pairs and matches each pair against the 
+; corresponding role pair in the constant form--- all of these must
+; match.
+
+(define match-args
+   (lambda (pat-args const binding-form)
+      (cond
+         [(null? pat-args)
+          binding-form]
+         [else
+          (let* ([pat-arg-val (filler:pair (car pat-args))]
+                 [const-val (filler:role (role:pair (car pat-args)) const)]
+                 [binding-form (match pat-arg-val
+                                      const-val
+                                      binding-form)])
+             (if (null? binding-form)
+                 '()
+                 (match-args (cdr pat-args) const binding-form)))])))
+
+
+; MATCH-VAR
+;---------------------------------------------------------------------------
+; MATCH-VAR takes a variable, a constant, and a binding form.  If the
+; variable has a binding then the binding must match the constant---
+; otherwise the binding form is updated to bind the variable to the
+; constant.
+
+(define match-var 
+   (lambda (pat const binding-form)
+      (let ([var-value (filler:role (name:var pat) binding-form)])
+        (cond
+           [(not (null? var-value))
+            (match var-value const binding-form)]
+           [else
+            (append binding-form (list (list (name:var pat) const)))]))))
+                       
+         
+
+; INSTANTIATE
+;---------------------------------------------------------------------------
+(define instantiate 
+   (lambda (cd-form bindings)
+      (cond
+         [(atom? cd-form)
+          cd-form]
+         [(is-var? cd-form)
+          (instantiate (filler:role (name:var cd-form) bindings)
+                       bindings)]
+         [else
+          (cons (header:cd cd-form)
+                (accumulate-role-instantiations (roles:cd cd-form) bindings))])))
+
+(define accumulate-role-instantiations 
+   (lambda (role-pairs bindings)
+      (cond
+         [(null? role-pairs) '()]
+         [else
+           (cons (list (role:pair (car role-pairs)) 
+                       (instantiate (filler:pair (car role-pairs)) bindings))
+                 (accumulate-role-instantiations (cdr role-pairs) bindings))])))
+                   

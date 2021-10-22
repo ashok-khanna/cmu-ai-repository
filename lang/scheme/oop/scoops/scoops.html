@@ -1,0 +1,48 @@
+From ists!helios.physics.utoronto.ca!news-server.csri.toronto.edu!rpi!zaphod.mps.ohio-state.edu!samsung!munnari.oz.au!goanna!ok Tue Apr 30 21:48:16 EDT 1991
+Article 2328 of comp.lang.scheme:
+Path: yunexus!ists!helios.physics.utoronto.ca!news-server.csri.toronto.edu!rpi!zaphod.mps.ohio-state.edu!samsung!munnari.oz.au!goanna!ok
+>From: ok@goanna.cs.rmit.oz.au (Richard A. O'Keefe)
+Newsgroups: comp.lang.scheme
+Subject: Scoops bug
+Message-ID: <5429@goanna.cs.rmit.oz.au>
+Date: 29 Apr 91 02:31:03 GMT
+Article-I.D.: goanna.5429
+Posted: Sun Apr 28 22:31:03 1991
+Organization: Comp Sci, RMIT, Melbourne, Australia
+Lines: 33
+
+The Scoops function MAKE-INSTANCE gets muddled when the *value* of
+one instvar is EQ? to the *name* of another.  Example:
+	(define-class buggy
+	    (instvars a b)
+	    (options inittable-variables))
+	(compile-class buggy)
+	(define-method (example ->list) ()
+	    (list 'a a 'b b))
+	(send (make-instance 'a 'b 'b 'c) ->list)
+yields the answer
+	(A B B B)
+instead of the correct answer
+	(A B B C)
+
+This error exists both in TI PC Scheme 3.x and the version of scoops
+I picked up from Oz's repository.  The problem is that the initialiser
+function is looking for instvars among the actual parameters by using
+memq, something like this:
+	(let ( ...
+		(instvar (cond ((memq 'instvar args) => cadr)
+			       (else --use the default--)))
+		...) ...)
+It should instead use oddmemq, where
+	(define (oddmemq obj list)
+	    (cond ((not (pair? list)) #f)
+		  ((not (pair? (cdr list))) #f)
+		  ((eq? obj (car list)) list)
+		  (else (oddmemq obj (cddr list)) )))
+
+
+-- 
+Bad things happen periodically, and they're going to happen to somebody.
+Why not you?					-- John Allen Paulos.
+
+

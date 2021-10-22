@@ -1,0 +1,323 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node128.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:30:55 GMT -->
+<HEAD>
+<TITLE>12.5.2. Trigonometric and Related Functions</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Trigonometric and Related Functions">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3129 HREF="node129.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3127 HREF="node126.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3121 HREF="node127.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3131 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3132 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3130 HREF="node129.html"> Branch CutsPrincipal </A>
+<B>Up:</B> <A NAME=tex2html3128 HREF="node126.html"> Irrational and Transcendental </A>
+<B> Previous:</B> <A NAME=tex2html3122 HREF="node127.html"> Exponential and Logarithmic </A>
+<HR> <P>
+<H2><A NAME=SECTION001652000000000000000>12.5.2. Trigonometric and Related Functions</A></H2>
+<P>
+Some of the functions in this section, such as <tt>abs</tt>
+and <tt>signum</tt>, are apparently unrelated
+to trigonometric functions when considered as functions of
+real numbers only.  The way in which they are extended to
+operate on complex numbers makes the trigonometric connection clear.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>abs <i>number</i></tt><P>Returns the absolute value of the argument.  For a non-complex number <i>x</i>,
+<P><pre>
+(abs <i>x</i>) == (if (minusp <i>x</i>) (- <i>x</i>) <i>x</i>)
+</pre><P>
+and the result is always of the same type as the argument.
+<P>
+For a complex number <i>z</i>, the absolute value may be computed as
+<P><pre>
+(sqrt (+ (expt (realpart <i>z</i>) 2) (expt (imagpart <i>z</i>) 2)))
+</pre><P>
+<P>
+<hr>
+<b>Implementation note:</b> The careful implementor will not use this formula directly
+for all complex numbers
+but will instead handle very large or very small components specially
+to avoid intermediate overflow or underflow.
+<hr>
+<P>
+For example:
+<P><pre>
+(abs #c(3.0 -4.0)) => 5.0
+</pre><P>
+The result of <tt>(abs #c(3 4))</tt> may be either <tt>5</tt> or <tt>5.0</tt>,
+depending on the implementation.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>phase <i>number</i></tt><P>The phase of a number is the angle part of its polar representation
+as a complex number.  That is,
+<P><pre>
+(phase <i>z</i>) == (atan (imagpart <i>z</i>) (realpart <i>z</i>))
+</pre><P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+The result is in radians, in the range <b>-pi</b> (exclusive)
+to <b>+pi</b> (inclusive).  The phase of a positive non-complex number
+is zero; that of a negative non-complex number is <b>pi</b>.
+The phase of zero is arbitrarily defined to be zero.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(IEEE-ATAN-BRANCH-CUT) <A NAME=11946>&#160;</A> 
+to specify certain floating-point behavior when minus zero is supported;
+<tt>phase</tt> is still defined in terms of <tt>atan</tt> as above,
+but thanks to a change in <tt>atan</tt> the range of <tt>phase</tt>
+becomes <b>-pi</b> <i>inclusive</i> to <b>+pi</b> inclusive.  The value <b>-</b>
+results from an argument
+whose real part is negative and whose imaginary
+part is minus zero.  The <tt>phase</tt> function therefore has a branch cut
+along the negative real axis.  The phase of +0+0<i>i</i> is +0, of +0-0<i>i</i> is -0,
+of -0+0<i>i</i> is +<b>pi</b>, and of -0-0<i>i</i> is -<b>pi</b>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+If the argument is a complex floating-point number, the result
+is a floating-point number of the same type as the components of
+the argument.
+If the argument is a floating-point number, the result is a
+floating-point number of the same type.
+If the argument is a rational number or complex rational number, the result
+is a single-format floating-point number.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>signum <i>number</i></tt><P>By definition,
+<P><pre>
+(signum <i>x</i>) == (if (zerop <i>x</i>) <i>x</i> (/ <i>x</i> (abs <i>x</i>)))
+</pre><P>
+For a rational number, <tt>signum</tt> will return one of <tt>-1</tt>, <tt>0</tt>, or <tt>1</tt>
+according to whether the number is negative, zero, or positive.
+For a floating-point number, the result will be a floating-point number
+of the same format whose value is -1, 0, or 1.
+For a complex number <i>z</i>, <tt>(signum <i>z</i>)</tt> is a complex number of
+the same phase but with unit magnitude, unless <i>z</i> is a complex zero,
+in which case the result is <i>z</i>.
+For example:
+<P><pre>
+(signum 0) => 0 
+(signum -3.7L5) => -1.0L0 
+(signum 4/5) => 1 
+(signum #C(7.5 10.0)) => #C(0.6 0.8) 
+(signum #C(0.0 -14.7)) => #C(0.0 -1.0)
+</pre><P>
+For non-complex rational numbers, <tt>signum</tt> is a rational function,
+but it may be irrational for complex arguments.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>sin <i>radians</i> <BR></tt><tt>cos <i>radians</i> <BR></tt><tt>tan <i>radians</i></tt><P><tt>sin</tt> returns the sine of the argument, <tt>cos</tt> the cosine,
+and <tt>tan</tt> the tangent.  The argument is in radians.
+The argument may be complex.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>cis <i>radians</i></tt><P>This computes <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap40831.gif">.
+The name <tt>cis</tt> means ``cos + <i>i</i> sin,'' because
+<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap40832.gif">.
+The argument is in
+radians and may be any non-complex number.  The result is a complex
+number whose real part is the cosine of the argument and whose imaginary
+part is the sine.  Put another way, the result is a complex number whose
+phase is the equal to the argument (mod 2)
+and whose magnitude is unity.
+<P>
+<hr>
+<b>Implementation note:</b> Often it is cheaper to calculate the sine and cosine
+of a single angle together than to perform two disjoint calculations.
+<hr>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>asin <i>number</i> <BR></tt><tt>acos <i>number</i></tt><P><tt>asin</tt> returns the arc sine of the argument, and <tt>acos</tt> the arc cosine.
+The result is in radians.  The argument may be complex.
+<P>
+The arc sine and arc cosine functions may be defined mathematically for
+an argument <i>z</i> as follows:
+<PRE><TT> 
+Arc sine		<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap40833.gif"> 
+
+Arc cosine		<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap40834.gif">
+<P>
+</TT></PRE>
+Note that the result of <tt>asin</tt> or <tt>acos</tt> may be
+complex even if the argument is not complex; this occurs
+when the absolute value of the argument is greater than 1.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+Kahan [<A HREF="node368.html#KAHANCOMPLEXFNS">25</A>] suggests for <tt>acos</tt> the
+defining formula
+<PRE><TT> 
+Arc cosine		<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap40835.gif">
+<P>
+</TT></PRE>
+or even the much simpler <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap40836.gif">.  Both equations are mathematically
+equivalent to the formula shown above.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<hr>
+<b>Implementation note:</b> These formulae are mathematically correct, assuming
+completely accurate computation.  They may be terrible methods for
+floating-point computation.  Implementors should consult a good text on
+numerical analysis.  The formulae given above are not necessarily
+the simplest ones for real-valued computations, either; they are chosen
+to define the branch cuts in desirable ways for the complex case.
+<hr>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>atan <i>y</i> &amp;optional <i>x</i></tt><P>An arc tangent is calculated and the result is returned in radians.
+<P>
+With two arguments <i>y</i> and <i>x</i>, neither argument may be complex.
+The result is the arc tangent of the quantity <i>y/x</i>.
+The signs of <i>y</i> and <i>x</i> are used to derive quadrant
+information; moreover, <i>x</i> may be zero provided
+<i>y</i> is not zero.  The value of <tt>atan</tt> is always between
+<b>-pi</b> (exclusive) and <b>+pi</b> (inclusive).
+The following table details various special cases.
+<P>
+<P><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tabular12036.gif"><P>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(IEEE-ATAN-BRANCH-CUT) <A NAME=12073>&#160;</A> 
+to specify certain floating-point behavior when minus zero is supported.
+When there is a minus zero, the preceding table must be modified slightly:
+<P>
+<P><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tabular12075.gif"><P>
+<P>
+Note that the case <b><i>y</i>=0,<i>x</i>=0</b> is an error in the absence of minus zero,
+but the four cases <b><i>y</i>=0,<i>x</i>=0</b> are defined in the presence of minus zero.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+With only one argument <i>y</i>, the argument may be complex.
+The result is the arc tangent of <i>y</i>, which may be defined by
+the following formula:
+<PRE>
+Arc tangent		<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap40837.gif">
+</PRE>
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<hr>
+<b>Implementation note:</b> This formula is mathematically correct, assuming
+completely accurate computation.  It may be a terrible method for
+floating-point computation.  Implementors should consult a good text on
+numerical analysis.  The formula given above is not necessarily
+the simplest one for real-valued computations, either; it is chosen
+to define the branch cuts in desirable ways for the complex case.
+<hr>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(COMPLEX-ATAN-BRANCH-CUT) <A NAME=12141>&#160;</A> 
+to replace the preceding formula with the formula
+<PRE>
+                        log(1+<i>iy</i>) - log(1-<i>iy</i>)
+Arc tangent		---------------------
+                                  2<i>i</i>
+</PRE>
+This change alters the direction of continuity for the
+branch cuts, which alters the result returned by <tt>atan</tt>
+only for arguments on the imaginary axis that
+are of magnitude greater than 1.
+See section <A HREF="node129.html#BRANCHCUTSSECTION">12.5.3</A> for further details.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+For a non-complex argument <i>y</i>, the result is non-complex and lies between
+<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41199.gif"> and <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41251.gif"> (both exclusive).
+<P>
+<hr>
+<b>Compatibility note:</b> MacLisp has a function called <tt>atan</tt> whose
+range is from 0 to <b>2</b>.  Almost every other programming language
+(ANSI Fortran, IBM PL/1, Interlisp) has a two-argument arc tangent
+function with range <b>-pi</b> to <b>+pi</b>.
+Lisp Machine Lisp provides two two-argument
+arc tangent functions, <tt>atan</tt> (compatible with MacLisp)
+and <tt>atan2</tt> (compatible with all others).
+<P>
+Common Lisp makes two-argument <tt>atan</tt> the standard one
+with range <b>-pi</b> to <b>+pi</b>.  Observe that this makes
+the one-argument and two-argument versions of <tt>atan</tt> compatible
+in the sense that the branch cuts do not fall in different places.
+The Interlisp one-argument function <tt>arctan</tt> has a range
+from 0 to <b>pi</b>, while nearly every other programming language
+provides the range <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41199.gif"> to <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41251.gif"> for
+one-argument arc tangent!
+Nevertheless, since Interlisp uses the standard two-argument
+version of arc tangent, its branch cuts are inconsistent anyway.
+<hr>
+<P>
+<BR><b>[Constant]</b><BR>
+<tt>pi</tt><P>This global variable has as its value the best possible approximation to
+<b>pi</b> in <i>long</i> floating-point format.
+For example:
+<P><pre>
+(defun sind (x)     ;The argument is in degrees 
+  (sin (* x (/ (float pi x) 180))))
+</pre><P>
+An approximation to <b>pi</b> in some other precision can
+be obtained by writing <tt>(float pi <i>x</i>)</tt>, where <i>x</i> is a
+floating-point number of the desired precision,
+or by writing <tt>(coerce pi <i>type</i>)</tt>, where <i>type</i> is the
+name of the desired type, such as <tt>short-float</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>sinh <i>number</i> <BR></tt><tt>cosh <i>number</i> <BR></tt><tt>tanh <i>number</i> <BR></tt><tt>asinh <i>number</i> <BR></tt><tt>acosh <i>number</i> <BR></tt><tt>atanh <i>number</i></tt>
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+These functions compute the hyperbolic sine, cosine, tangent,
+arc sine, arc cosine, and arc tangent functions, which are mathematically
+defined for an argument <i>z</i> as follows:
+<PRE>
+Hyperbolic sine            <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap40839.gif">
+Hyperbolic cosine          <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap40840.gif">
+Hyperbolic tangent         <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap40841.gif"> 
+Hyperbolic arc sine        <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap40842.gif"> 
+Hyperbolic arc cosine      <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap40843.gif"> 
+Hyperbolic arc tangent     <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap40844.gif">    <b>WRONG!</b>
+</PRE>
+<img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+WARNING!  <i>The formula shown above for hyperbolic arc tangent is incorrect.</i>
+It is not a matter of incorrect branch cuts; it simply does not compute anything
+like a hyperbolic arc tangent.  This unfortunate error in the first edition
+was the result of mistranscribing a (correct) APL formula from Penfield's paper
+[<A HREF="node368.html#APLBRANCHCUTS">36</A>].  The formula should have been transcribed as
+<PRE><TT> 
+Hyperbolic arc tangent	  <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap40845.gif">
+<P>
+</TT></PRE>
+A proposal was submitted to X3J13 in September 1989 to replace the
+formulae for <tt>acosh</tt> and <tt>atanh</tt>.
+See section <A HREF="node129.html#BRANCHCUTSSECTION">12.5.3</A> for further discussion.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+Note that the result of <tt>acosh</tt> may be
+complex even if the argument is not complex; this occurs
+when the argument is less than 1.
+Also, the result of <tt>atanh</tt> may be
+complex even if the argument is not complex; this occurs
+when the absolute value of the argument is greater than 1.
+<P>
+<hr>
+<b>Implementation note:</b> These formulae are mathematically correct, assuming
+completely accurate computation.  They may be terrible methods for
+floating-point computation.  Implementors should consult a good text on
+numerical analysis.  The formulae given above are not necessarily
+the simplest ones for real-valued computations, either; they are chosen
+to define the branch cuts in desirable ways for the complex case.
+<hr>
+<P>
+<BR> <HR><A NAME=tex2html3129 HREF="node129.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3127 HREF="node126.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3121 HREF="node127.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3131 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3132 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3130 HREF="node129.html"> Branch CutsPrincipal </A>
+<B>Up:</B> <A NAME=tex2html3128 HREF="node126.html"> Irrational and Transcendental </A>
+<B> Previous:</B> <A NAME=tex2html3122 HREF="node127.html"> Exponential and Logarithmic </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

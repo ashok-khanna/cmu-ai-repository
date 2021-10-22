@@ -1,0 +1,808 @@
+;;; ****************************************************************
+;;; Top-Level Listener and Command Interpreter *********************
+;;; ****************************************************************
+;;;
+;;; This file implements a few general purpose support routines for "top
+;;; level" interaction in Lisp. The function Top-Level implements a lisp
+;;; listener and command interpreter similar in behavior to the alias
+;;; command feature in Franz or the command prompt in Symbolics'
+;;; Genera. Top-level is completely generic. You create your own
+;;; interpreters or applications by defining new command tables. A sample
+;;; application called TL is provided that implements an interpreter that
+;;; supports a few commands for general lisp interaction, such as Package,
+;;; Cload, Macroexpand etc. The function Ask-User is a general purpose
+;;; user-query facility.  The function Edit-Object supports interactive
+;;; clos object editing by dynamically defining a command table apropriate
+;;; to the object and invoking a Top-Level loop to implement editing
+;;; commands.  tl.lisp has been tested in MCL 2.0, Franz 3.1/ 4.1 (SGI,
+;;; NeXT), and AKCL 615 (NeXT).
+;;;
+;;; TL is part of the Common Music (CM) music composition language, but is
+;;; generic enough and portable enough to be of use in other applications.
+;;; CM itself is available by anonymous ftp from ccrma-ftp.stanford.edu
+;;; [36.49.0.93] and ftp.zkm.de [192.101.28.17] in the files pub/cm.tar.Z.
+;;; For further information, send email to Rick Taube, <hkt@zkm.de> or
+;;; <hkt@ccrma.stanford.edu>.
+
+
+#+cltl2 (defpackage :tl #+mcl (:use :common-lisp))
+
+(in-package :tl)
+
+#-cltl2 (require ':loop)
+
+;;;
+;;; Fixup error handling differences
+;;;
+
+#+(and excl (not cltl2)) 
+(import '(excl::with-simple-restart excl::find-restart excl::invoke-restart))	    
+
+#+kcl
+(progn
+  (defun find-restart (x) (and system::*break-level* x))
+  (defun invoke-restart (x) (throw x nil))
+  (defmacro with-simple-restart (options &body body)
+    `(catch ',(car options) ,@ body)))
+
+#+mcl
+(eval-when (load eval)
+  ;; make Command-. return to our Top-Level. 
+  ;; there is probably a right way to do this...
+  (ccl:advise ccl::interactive-abort
+              (if (find-restart ':top-level-return) 
+                (invoke-restart (find-restart ':top-level-return)))
+              :when :before :name :abort-under-top-level))
+
+(export '(top-level tl defcommand find-command top-level-quit top-level-help
+          *top-level-prompt* *top-level-colon-mode* *top-level-commands*
+          show-documentation next-whitespace-start next-token-start
+          string-forms string-tokens nullstringp trim-line
+          ask-user))
+
+#+(or clos pcl mcl)
+(eval-when (compile load eval)
+  (let ((package #+pcl :PCL #+clos :CLOS #+MCL :CCL) ; was #+MCL :COMMON-LISP
+        (names '("DEFGENERIC" "DEFMETHOD" "PRINT-OBJECT" "STANDARD-OBJECT"
+                 "SLOT-DEFINITION-NAME" #-MCL "CLASS-SLOTS" "CLASS-OF" 
+                 "SLOT-BOUNDP" "SLOT-VALUE" "SLOT-MAKUNBOUND")))
+    (import (mapcar #'(lambda (s) (find-symbol s package)) names))
+    #+MCL(defun class-slots (class) (ccl:class-instance-slots class))
+    (export '(edit-object))))
+
+(defparameter *top-level-commands* nil)
+(defparameter *top-level-prompt* "> ")
+(defparameter *top-level-colon-mode* nil)
+#+mcl (defvar *top-level-stack* nil)
+
+;;;
+;;; Defcommand installs a command into a command table given a command name,
+;;; command function (symbol or function object), optional short help string,
+;;; optional command table and help file, ie:
+;;; (defcommand "HI" #'(lambda (s) (format t "hi: ~a~%" s) "Say hello.")
+;;;
+
+(defstruct (command (:type list)) name function help help-file)
+
+(defmacro defcommand (name function &optional (help "No help avaiable.")
+					      (table '*top-level-commands*)
+                                    &key help-file)
+  (let ((old (gensym))
+ 	(tbl (gensym)))
+   `(eval-when (load eval)
+      (let ((,tbl ,table))
+        (let ((,old (find ,name ,tbl :test #'string-equal :key #'car)))
+          (when ,old 
+            (setf ,tbl (remove ,old ,tbl :test #'eq))))
+        (push (make-command :name ,name 
+                            :function ,(if (symbolp function)
+                                           `(quote ,function)
+                                         function)
+                            :help ,help 
+                            :help-file ,(if (eq help-file t) name help-file))
+              ,tbl)
+        (setf ,table (sort ,tbl #'string-lessp :key #'car))
+        t))))
+
+;;;
+;;; A few useful parsing rountines
+;;;
+
+(defun nullstringp (string)
+  (string= string ""))
+
+(defun trim-line (stream &optional (bag '(#\space #\tab)))
+  (let ((line (read-line stream)))
+    (string-trim bag line)))
+
+(defun string-forms (string &optional (start 0) end)
+  (let (form)
+    (loop do (multiple-value-setq (form start)
+               (read-from-string  string nil ':string-forms-eof 
+                                  :start start :end end))
+          until (eq form ':string-forms-eof) 
+          collect form)))
+
+(defun string-tokens (string &optional (delimiters '(#\Space)))
+  (loop with len = (length string)
+        for beg = 0 then (1+ end) until (> beg len)
+        for end = (or (position-if #'(lambda (char) (member char delimiters))
+                                   string :start beg)
+                      len)
+        unless (= beg end)
+        collect (subseq string beg end)))
+
+(defun next-whitespace-start (string &key (start 0) end from-end)
+  (position-if #'(lambda (x) (or (char= x #\Space) (char= x #\Tab)))
+               string :start start :end end :from-end from-end))
+
+(defun next-token-start (string &key (start 0) end from-end)
+  (position-if-not #'(lambda (x) (or (char= x #\Space) (char= x #\Tab)))
+                   string :start start :end end :from-end from-end))
+
+;;;
+;;; Top-Level is a read/eval/print and command dispatch loop. Standard 
+;;; dispatching macro forms, such as ( # ' and so on are read via READ, 
+;;; and are taken as forms to evaluate.  Input that does not start with a
+;;; dispatching form is read via READ-LINE and processed as a (possible) 
+;;; command.  The first character in a command line may or must be a colon
+;;; depending on the value of *top-level-colon-mode*, which is normally nil. 
+;;; Since a nil value means that it is not possible to distinguish between
+;;; a line of input that is a mistyped command name and a line of input that
+;;; is a symbol we want to evaluate, we steal Symbolics' convention of
+;;; preceding a single symbol to evaluate by a comma:
+;;; > ,foo
+;;; The symbol FOO has no value.
+;;; > foo
+;;; "FOO" is not a command.
+;;;
+
+(defun top-level (&key (stream *standard-output*)
+                       (commands *top-level-commands*)
+                       (prompt *top-level-prompt*)
+                       (banner nil bp)
+                       (colon-mode *top-level-colon-mode*))
+
+  (let ((*standard-output* stream)
+        (*top-level-commands* commands) 
+        (*top-level-colon-mode* colon-mode)
+        (*top-level-prompt* prompt)
+	input type)
+
+    (clear-input stream)
+    (if banner 
+        (format stream banner)
+      (unless bp (print-default-banner)))
+    #+mcl                                   ; update mcl's package display
+    (progn 
+      (ccl:set-window-package ccl:*top-listener* 
+                              (package-name *package*))
+      (ccl:mini-buffer-update ccl:*top-listener*))
+    (with-simple-restart (:top-level-exit "Exit Top-Level.")
+      (catch :top-level-quit
+        (loop do
+          (with-simple-restart (:top-level-return "Return to Top-Level.")
+            (print-prompt stream)
+            #+mcl                       ; yield cycles during idle
+            (progn  
+              (setf ccl:*idle* t)
+              (loop until (or (listen stream) 
+                              (setf input (ccl:get-next-queued-form)))
+                    do (ccl:event-dispatch t))
+              (setf ccl:*idle* nil)
+              (if input 
+                (progn 
+                  (fresh-line stream)
+                  (eval input) 
+                  (setf type ':empty))
+                (progn 
+                  (multiple-value-setq (input type) 
+                    (read-input stream commands))
+                  (fresh-line stream))))   ; may complete sans newline
+            #-mcl
+            (multiple-value-setq (input type) 
+              (read-input stream commands))
+            (ecase type
+              (:FORM        
+               ;; eval lisp forms, but check for simple typos first.
+               (loop while input
+                     for f = (pop input)
+                     do
+                     (if (and (symbolp f) (not (boundp f)))
+                       (format stream "The symbol ~S has no value.~%" f)
+                       (let ((values (multiple-value-list (eval f))))
+                         (setf +++ ++ ++ + + f)
+                         (setf *** ** ** * * (car values))
+                         (dolist (v values) (pprint v stream))
+                         (terpri stream)))
+                     ;; print top level prompt between each evaled form
+                     (when input (print-prompt stream))))
+              (:COMMAND
+               (funcall (second (first input)) (second input)))
+              (:ERROR
+               (format t input))     
+              (:EMPTY nil))))))
+    (values)))
+
+
+;;;
+;;; These basic top-level Help and Quit command functions are exported.
+;;;
+
+(defun top-level-help (str)
+  (declare  (ignore str))
+  (fresh-line t)
+  (loop for c in *top-level-commands*
+        for n = (print-cmd-name c nil)
+        collect n into names
+        maximize (length n) into tab
+        finally 
+        (loop for nam in names
+              for cmd in *top-level-commands*
+              do
+              (format t "~A~VT~A~%" nam (+ 1 tab 8) (third cmd)))))
+
+(defun top-level-quit (str)
+  (declare (ignore str))
+  (throw :top-level-quit t))
+
+;;;
+;;; show-documentation displays long documention help. Help text is kept
+;;; in the file specified by pathname and printed to stream.  Topic is a string
+;;; that is looked up in the documentation file.  One or more topics are
+;;; stored in the file using a simple record format where the beginning of
+;;; each topic is delimited by the line:
+;;; TOPIC <name>
+;;; and the end of the topic help is delimited by the line:
+;;; ENDTOPIC
+;;; see help-cmd in stella/stella.lisp for an example of using long help.
+;;;
+
+(defun show-documentation (topic pathname &key (stream t) (indent 0))
+  (declare (optimize (speed 3)(safety 0)))
+  (unless (stringp topic) (setf topic (string topic)))
+  (with-open-file (f pathname)
+    (let (line flag)
+      (loop doing (setf line (read-line f nil ':eof))
+            until (or (eq line ':eof)
+                      (and (string-equal (the string line) "TOPIC" 
+		                         :end1 (min 5 (length 
+					                (the string line))))
+                           (string-equal (the string line) (the string topic) 
+	                                 :start1 (next-token-start 
+				                    line :start 6))
+                           (setf flag t))))
+      (when flag
+        (loop do (setf line (read-line f nil ':eof))
+              until (or (eq line ':eof) 
+                        (string-equal (the string line) "ENDTOPIC"
+			              :end1 (min 8 (length 
+				                     (the string line)))))
+              do (dotimes (i indent) (write-char #\Space stream))
+                 (write-line (the string line) stream)))
+      flag)))
+
+(defun print-default-banner ()
+  (let ((help (or (find-command "?" *top-level-commands*)
+                  (find-command "HELP" *top-level-commands*))))
+    (when help
+      (format t "~%Type ~A for help.~%" (print-cmd-name help nil)))))
+
+(defun print-cmd-name (cmd stream)
+  (let ((name (car cmd)))
+    (if *top-level-colon-mode* 
+        (format stream ":~A" name)
+      (format stream "~A" name))))
+
+;;;
+;;; Prompts can be strings, functions, or structures with their own
+;;; print function. This fn would show the current package as the prompt:
+;;; #'(lambda (s) (format s "~%~A: " (package-name *package*))))
+;;;
+
+(defun print-prompt (stream)
+  (if (stringp *top-level-prompt*)
+      (format stream "~%~A" *top-level-prompt*)
+    (if (functionp *top-level-prompt*)
+        (funcall *top-level-prompt* stream)
+       (format stream "~%~S" *top-level-prompt*))))
+
+(defun read-character? (char)
+  (if (char= char #\,)                  ; we handle comma char ourselves.
+      nil
+    #+excl (not (eq (get-macro-character char) #'excl::read-token))
+    #-excl (get-macro-character char)))
+
+(defun string-constantp (string) 
+  ;; yuck!
+  (let (value)
+    (and (every #'(lambda (x)
+                    (or (alphanumericp x)
+                        (not (member x '(#\space #\( #\) #\tab #\, 
+                                         #\' #\" #\; #\` #\return)
+                                     :test #'char=))))
+                string)
+         (constantp (setf value (read-from-string string)))
+         value)))
+
+(defun read-input (&optional (stream t) commands)
+  (if (char= (peek-char nil stream nil 'eof nil) #\newline)
+      (progn (read-char stream) (values nil :empty))
+    (if (read-character? (peek-char t stream nil ':eof nil))
+        (let ((form (read stream nil ':eof nil)))
+          #+mcl (when (and (listen stream)  ; mcl may leave crlf in stream.
+                           (char= (peek-char nil stream)
+                                  #\newline))
+                  (read-char stream))
+          (values (list form) ':form))
+      (let* ((str (read-line stream nil ':eof nil))
+             (len (length str)))
+        (if (= len 0)
+            (values nil ':empty)
+          (if (char= (elt str 0) #\,)              ; comma is explicit eval
+              (values (string-forms str 1) ':form)
+            (multiple-value-bind (cmd arg bad)
+                (find-command str commands 0 len *top-level-colon-mode*)
+              (if cmd 
+                  (values (list cmd (subseq str arg len)) ':command)
+                (if bad
+                    (values 
+                      (format nil 
+                              "\"~:@(~A~)\" matches more than one command.~%" 
+                              (subseq str 0 arg))
+                      ':error)
+                  (let ((const? (string-constantp str)))
+                    (if const?
+                        (values (list const?) ':form)
+                      (values (format nil "\"~:@(~A~)\" is not a command."
+                                      (subseq str 0 arg))
+                              ':error))))))))))))
+
+(defun find-command (str commands &optional (start 0) length colon-mode)
+  (unless length (setf length (length str)))
+  (if (char= (elt str start) #\:)
+      (incf start)
+    (when colon-mode 
+      (return-from find-command 
+                   (values nil 
+	                   (next-whitespace-start str :start start :end length)
+	                   nil))))
+  (let* ((end (or (next-whitespace-start str :start start :end length)
+                 length))
+         (arg (if (< end length)
+                (next-token-start str :start end)
+                length)) 
+         pos match)
+    (dolist (c commands)
+      (setf pos (mismatch str (car c) :start1 start :end1 end 
+                          :test #'char-equal))
+      (if (not pos)
+        (return-from find-command (values c arg nil))
+        (when (= pos end)
+          (push c match))))
+    (if (= (length match) 1)
+      (values (car match) arg nil)
+      (values nil end match))))
+
+;;;
+;;; Tl is an interpreter that implements a few useful lisp commands for a 
+;;; common activities such as file compliation, macroexpansion, etc.
+;;; To start tl, use the (tl:tl) function, or the :tl command if you are
+;;; in Franz Allegro Common Lisp.  To resume from error breaks, use the
+;;; :tl break command if in AKCL and either the :tl or :continue commands
+;;; if in Franz.  In MCL, select Continue from the break menu options or use
+;;; COMMAND-.  Calling (tl:tl) under a break will throw back to tl's loop 
+;;; in any lisp implementation. 
+;;;
+
+;;; make :tl a Franz command and in akcl a break command for resuming from
+;;; errors. (unfortunately, it does not appear in the break help listing.)
+
+#+excl  (top-level:alias ("tl" 1) () (tl))
+#+kcl  (setf (get :tl 'system::break-command) 'tl)
+
+(defparameter *lisp-commands* nil "Command table for TL interpreter.")
+
+(defcommand "ARGS" args "Print function arguments." *lisp-commands*)
+(defcommand "CLOAD" cload "Compile/Load a file." *lisp-commands*)
+(defcommand "CF" cf "Compile a file." *lisp-commands*)
+(defcommand "CC" cc "Compile code." *lisp-commands*)
+(defcommand "LD" ld "Load a file." *lisp-commands*)
+(defcommand "PACKAGE" pkg "Switch lisp packages." *lisp-commands*)
+(defcommand "?" top-level-help "Show this help." *lisp-commands*)
+(defcommand "QUIT" top-level-quit "Quit Top-Level." *lisp-commands*)
+(defcommand "MACROEXPAND" ma "Macro expand form." *lisp-commands*)
+
+;;;
+;;; Tl is just a wrapper for top-level that passes a command table which
+;;; implement lisp commands ala Franz lisp.  In MCL its slightly more
+;;; complicated  because we must set Lisp's top level function to our
+;;; function, and restore the former one when we quit.
+;;;
+
+(defun #-mcl tl #+mcl tl-aux ()
+  (let ((*top-level-commands* *lisp-commands*))
+    (let ((tl (find-restart ':top-level-return)))
+      (if tl (invoke-restart tl)
+        (top-level)))))
+
+#+mcl
+(progn
+  (defun tl ()
+    (push (ccl:%set-toplevel 
+           #'(lambda () 
+               (unwind-protect 
+                 (tl-aux) 
+                 (ccl:%set-toplevel 
+                  (pop *top-level-stack*)))))
+          *top-level-stack*)
+    (ccl:toplevel)))
+
+
+(defun pkg (&optional pkg)
+  (if (or (null pkg) (nullstringp pkg))
+      (format t "The current package is ~A.~%" (package-name *package*))
+    (let* ((name (read-from-string pkg))
+           (pkg? (find-package name)))
+      (if pkg?
+          (progn
+            (setf *package* pkg?)
+            ;; inform top listener window in mcl.
+            #+mcl (progn
+                    (ccl:set-window-package ccl:*top-listener*
+                                            (package-name pkg?))
+                    (ccl:mini-buffer-update ccl:*top-listener*))
+            (format t "Package set to ~A.~%" (package-name *package*)))
+         (format t "No package named ~A.~%" pkg)))))
+
+(defun args (fn)
+  (let ((sym (if (stringp fn) (read-from-string fn) fn)))
+    (if (and (symbolp sym) (fboundp sym))
+        #+akcl (lisp:help sym)
+	#-akcl (let* ((argl #+mcl  (ccl:arglist sym)
+                            #+excl (excl:arglist sym))
+                      (args (if argl (princ-to-string argl) "()")))
+                 (format t "~S: ~A~%" sym args))
+      (format t "~S is not a lisp function.~%" sym))))
+
+(defun cload (file &key (source-type "lisp")
+                        (binary-type #+kcl "o" #-kcl "fasl"))
+  ;; mcl logical pathnames have bug
+  #+mcl (setf file (translate-logical-pathname (namestring file)))
+  ;; kcl pathnames have pathname caching bug
+  #+kcl (setf file (namestring file))
+  (let ((source (make-pathname :defaults file 
+                               :type (or (pathname-type file)
+			                 source-type)))
+        (binary (make-pathname :defaults file :type binary-type))
+	(compiled? nil)
+	(loaded? nil))
+    ;; apparently kcl also needs its working directory set or it can't
+    ;; find its .o file!
+  (if (probe-file source)
+      (progn
+        (setf source (truename source))
+        (when (or (not (probe-file binary))
+                  (< (file-write-date binary)
+                     (file-write-date source)))
+          (compile-file source :output-file binary)
+	  (setf compiled? source)))
+    (warn "Source file ~A not found." (namestring source)))
+  (if (probe-file binary)
+      (progn (setf binary (truename binary))
+             (load binary) ; :verbose T
+	     (setf loaded? binary))
+      (warn "Binary file ~A not found." (namestring binary)))
+  (values loaded? compiled?)))
+
+(defun cf (file)
+  #+mcl (setf file (translate-logical-pathname (namestring file)))
+  (unless (pathname-type file)
+    (let ((source (make-pathname :defaults file :type "lisp")))
+      (when (probe-file source)
+        (setf file source))))
+  (if (probe-file file)
+      (progn 
+        (compile-file file))
+    (progn (warn "File ~A not found." (namestring file)) nil)))
+
+(defun cc (&optional spec)
+  (if (or (null spec) (nullstringp spec))
+      (setf spec *)
+    (when (stringp spec)
+      (setf spec (read-from-string spec))))
+  (when (and (symbolp spec) (fboundp spec) )
+     (unless (compiled-function-p (symbol-function spec))
+       (format t ";;; Compiling ~A~&" spec)
+       (compile spec))))
+
+(defun ld (file)
+  #+mcl (setf file (translate-logical-pathname (namestring file)))
+  (unless (pathname-type file)
+    (let ((source (make-pathname :defaults file :type "lisp"))
+          (binary (make-pathname :defaults file :type #+kcl "o" 
+	                                              #-kcl "fasl")))
+      (if (probe-file binary)
+        (setf file binary)
+        (if (probe-file source)
+          (setf file source)))
+      (when (and (probe-file binary)
+                 (probe-file source)
+                 (< (file-write-date binary)
+                    (file-write-date source)))
+        (warn "Loading binary ~S but source is newer."
+              (namestring (truename binary))))))
+  (if (probe-file file)
+      (progn 
+             (load file) ; :verbose T
+	     file)
+    (progn (warn "File ~A not found." (namestring file))
+           nil)))
+
+(defun ma (input)
+  (let ((form (read-from-string input)))
+    (if (not form)
+        nil
+      (progn (pprint (setf form (macroexpand form)))
+             (terpri)
+             form))))
+
+;;;
+;;; Ask-User is a general function that supports user querying.
+;;; Its got a trillion keyword arguments and I expect that most people
+;;; will do what I do -- create wrapper functions that implement specific 
+;;; query operations based on ask-user, ie. ask-file, ask-number, 
+;;; ask-type-or-token, etc. Look in stella/ask.lisp for examples.
+;;;
+
+(defun ask-user (&key (stream *standard-input*) (prompt "> ")
+		       dont-read (input "") predicate predicate-is-filter
+		       default (default-value nil dvp) default-prompt
+		       (default-input-match "") check-default
+		       (null-ok nil nullokp) junk-allowed
+		       (error nil errorp) (help nil helpp)
+		       abort-ok (abort-token '^) (abort-value ':aborted)
+		       (help-token '?))
+  (when (null input) (setf input ""))
+  (when default
+    (unless dvp (setf default-value default))
+    (unless default-prompt 
+      (setf default-prompt (format nil "(<cr>=~A)" default-value))))
+  (unless nullokp (setf null-ok default))
+  (unless (or error errorp) (setf error "~s is not valid input.~%"))
+  (unless (or help helpp) 
+    (setf help (format nil "No help available.~@[ Type ~A to abort~].~%" 
+                       (and abort-ok abort-token))))
+  (when help-token (setf help-token (string help-token)))
+  (when abort-token (setf abort-token (string abort-token)))
+  (let ((more t) (first t)(pos 0) (len 0) value check)
+    (loop while more
+          do
+	  (setf value nil)
+	  (when (nullstringp input)
+            (when (or (not first) (eq null-ok :ask))	    
+	      (format stream "~a~@[~a ~]" prompt default-prompt)
+	      (setf input (trim-line stream))))
+	  (setf len (length input))    
+	  (if (or (nullstringp input)
+	          (string-equal input default-input-match))
+	      (if default
+	          (setf value default-value more nil 
+		        check check-default pos len)
+	        (if null-ok (setf value nil more nil) (setf check nil)))
+	     (setf check t))
+	  (when check
+	    (unless value
+	      (if dont-read 
+	          (setf value input pos len)
+                (multiple-value-setq (value pos) (read-from-string input))))
+            (if (and abort-ok (string-equal input abort-token))
+                (setf more nil value abort-value input ""  pos 0 len 0)
+	      (if (and help (string-equal input help-token))
+                  (progn 
+		    (if (stringp help)
+			(format stream help)
+		      (funcall help stream))
+	 	    (setf input ""))
+		(if predicate
+                    (multiple-value-bind (? ??) (funcall predicate value)
+		      (if (or ? ??)
+		          (progn (setf more nil)
+			         (when predicate-is-filter (setf value ?)))
+		        (progn (when error 
+			         (if (stringp error)
+			             (format stream error value)
+				   (funcall error value stream)))
+			       (setf input "" pos 0 len 0)
+			       (when (eq value default) 
+			         (setf default nil null-ok nil more t
+				       default-prompt nil 
+				       default-input-match "")))))
+	          (setf more nil))))
+	      (unless (or (= pos len) junk-allowed)
+		(format stream "~a contains extra junk.~%" input)
+		(setf input "" more t)))
+	  (setf first nil))
+    (values value input pos)))
+
+;;;
+;;; Edit-Object supports interactive slot editing using a top-level command 
+;;; shell whose command table is constructed dynamically from slot
+;;; definitions of the instance to edit. By default, commands will be made 
+;;; for all the slots of the object. To specify a subset, pass either the 
+;;; list of slot names to allow using the :slots keyword argument, or 
+;;; else the list of slot names to block (ignore) by using the :ignore-slots
+;;; argument. Any slot that is editable may have its command behavior 
+;;; specified or customized by supplying a specification in the optional 
+;;; slot  command specification list passed in the :slot-commands argument.
+;;; A slot that does not have an associated entry in this list will receive
+;;; one automatically by the system.  Each entry in the :slot-commands list
+;;; is of the form: (slot &key command printer parser help command-name)
+;;; where the name of the slot is required and the the rest of the
+;;; keyword arguments are optional. If :parser is supplied, it becomes
+;;; the edit input value parsing function for the system supplied command
+;;; function.  The :parser function takes a single value, the user's
+;;; input string, and must return either nil (failure) or the value it 
+;;; parsed from the input string. If :printer is supplied, the system
+;;; command function will use this whenever it prints the value of the slot.
+;;; If :command is specified, it overrides the system command building
+;;; altogether and everything (printing, parsing, setting slot values, etc.)
+;;; must then be handled by this function. If a :command function is supplied,
+;;; it is passed three values: the object, the slot being set, and
+;;; the edit input string.  The :command-name argument may be used to specify
+;;; a command name different than the actual name of the slot.
+;;; In addition to :slot-commands, the :help-command, :quit-command and
+;;; :show-command arguments provide command specs for basic functionality,
+;;; and by default appear in the command table as: Help, Quit and Show.
+;;; The Help and Quit commands are obvious and behave exactly as their
+;;; counterparts in the basic tl interpreter; Show prints a specified
+;;; set of slots (or all the slots if no argument is given) and their
+;;; and values in a formatted table.
+;;;
+
+#+(or pcl clos MCL)
+(progn
+
+(defgeneric edit-object (object &key stream prompt))
+
+(defmethod edit-object ((object standard-object)
+                        &key (stream *standard-output*) (prompt "Edit: ") 
+                             (help-command '?) (quit-command 'quit) 
+                             (show-command 'show)
+                             (object-printer #'print-object)
+                             (slots t) (ignore-slots nil) 
+                             slot-commands (command-sorter #'string-lessp))
+  (let ((slot-names (mapcar #'slot-definition-name 
+                      (class-slots (class-of object))))
+        (commands '()))
+    (when (and (functionp slots)
+               (or (fboundp slots) (not (symbolp slots))))
+      (setf slots (funcall slots object)))
+    (unless (or (eq slots t) (eq slots ':all))
+      (setf slot-names
+        (loop for name in slot-names
+              when (find name slots) collect name)))
+    (when ignore-slots
+      (when (and (functionp ignore-slots)
+                 (or (not (symbolp ignore-slots)) (fboundp ignore-slots)))
+        (setf ignore-slots (funcall ignore-slots object)))
+      (if (or (eq ignore-slots t) (eq ignore-slots ':all))
+          (setf slot-names nil)
+        (setf slot-names 
+          (loop for name in slot-names
+                unless (find name ignore-slots) collect name))))
+
+    ;; build the command table out from the union of slot-names, commands
+    ;; passed in, and help, quit, and show. an entry in slot-commands
+    ;; overrides any is occurance in slot-names.
+    (flet ((make-edit-cmd (slot &key (parser #'parse-input-value)
+                                (printer #'print-slot-and-value)
+                                (help "Set value of named slot.")
+                                command command-name)
+             (list (string (or command-name slot))
+                   (make-edit-fn object slot command parser printer stream)
+                   help)))
+      (setf commands
+        (loop for slot in slot-names
+              for entry = (or (find slot slot-commands :key #'car) slot)
+              if (consp entry) 
+              collect (apply #'make-edit-cmd entry)
+              else collect (make-edit-cmd entry)))
+      ;; add quit help and show commands
+      (push (if (atom quit-command)
+                (list (string quit-command) #'top-level-quit "Quit Edit.")
+              (apply #'make-edit-cmd quit-command))
+            commands)
+      (push (if (atom help-command)
+                (list (string help-command) #'top-level-help 
+                      "Show this help.")
+              (apply #'make-edit-cmd help-command))
+            commands)
+      (push (if (atom show-command)
+                (list (string show-command)
+                      #'(lambda (s)
+                          (let ((slots (string-forms s)))
+                            (if slots
+                                (dolist (s slots)
+                                  (unless (find s slot-names)
+                                    (format
+                                      t "~&~A is not a legal slot name.~%" s)
+                                    (setf slots nil)))                               
+                              (setf slots slot-names))
+                            (when slots
+                              (print-slots object :slots slots))))
+                      "Show slots and values.")
+              (apply #'make-edit-cmd show-command))
+            commands))
+
+    ;; sort the command table
+    (setf commands (sort commands command-sorter :key #'car))
+
+    ;; call the edit loop
+    (format stream "~&Editing ")
+    (funcall object-printer object stream)
+    (top-level :prompt prompt :stream stream :commands commands)))
+
+(defun parse-input-value (string)
+  ;; default command processer selectively evaluates user input.
+  ;; constants and bound vars are evaled, as are lists with fboundp
+  ;; first element. anything else is immediate data.
+  (let ((form (read-from-string string)))
+    (if (constantp form) (values (eval form) t)
+      (if (symbolp form)
+          (if (boundp form) (values (eval form) t) (values form t))
+        (if (consp form)
+            (if (and (symbolp (car form)) (fboundp (car form)))
+                (values (eval form) t)
+               (values form t))
+           (values form t))))))
+
+(defun make-edit-fn (instance slot-name command parser printer stream)
+  ;; create a closure to implement the command for a specified slot.
+  ;; if user specified a command function, pass the instance slot
+  ;; string input to it. otherwise build the basic edit command
+  (if command
+      #'(lambda (input) (funcall command instance slot-name input))        
+    #'(lambda (input) 
+        (let (value)
+          (when (string= input "")
+            (funcall printer instance slot-name stream))
+          (setf value
+            (ask-user :prompt "New value: "
+                      :stream t :dont-read t :predicate parser
+                      :input input :default 'unchanged
+                      :default-prompt "(<cr>=Unchanged) "
+                      :predicate-is-filter t :null-ok ':ask :abort-ok t))
+          (unless (and (symbolp value)
+                       (or (eq value ':aborted)
+                           (string-equal (symbol-name value) "UNCHANGED")))
+            (if (and (symbolp value)
+                     (string-equal (symbol-name value) "UNSET"))
+                (slot-makunbound instance slot-name)
+              (setf (slot-value instance slot-name) value))
+            (funcall printer instance slot-name stream))))))
+
+(defun print-slot-and-value (instance slot-name stream)
+  (let ((bound? (slot-boundp instance slot-name))
+        (value ':unset))
+    (format stream "~&The value of ~A is " slot-name)
+    (when bound? (setf value (slot-value instance slot-name)))
+    (format stream "~:[~(~A~)~;~S~]~%" bound? value)))
+ 
+(defun print-slots (instance &key (stream t) slots)
+  (loop for slot in (or slots (mapcar #'slot-definition-name
+                                      (class-slots (class-of instance))))
+        maximize (length (string slot)) into lengths
+        collect slot into show
+        finally 
+        (loop for slot in show 
+              do
+          (if (slot-boundp instance slot)
+              (format stream "~&~A~VT~S~%" slot (+ lengths 9)
+                      (slot-value instance slot))
+            (format stream "~&~A~VT-unset-~%" slot (+ lengths 9))))))
+
+) ;#+(or pcl clos mcl)
+
+
+;;; *EOF*

@@ -1,0 +1,834 @@
+#Date: Mon, 21 Jan 91 15:07:27 -0600
+#From: Rob Elliott <rce10845@uxa.cso.uiuc.edu>
+#
+#! /bin/sh
+# This is a shell archive, meaning:
+# 1. Remove everything above the #! /bin/sh line.
+# 2. Save the resulting text in a file.
+# 3. Execute the file with /bin/sh (not csh) to create the files:
+#	README
+#	Makefile
+#	sit.h
+#	sit.c
+#	updcrc.c
+#	macbinfilt.c
+# This archive created: Tue Dec  6 07:45:06 1988
+# By:	Roger L. Long (bytebug@dhw68k.cts.com)
+#
+export PATH; PATH=/bin:$PATH
+echo shar: extracting "'README'" '(1209 characters)'
+if test -f 'README'
+then
+	echo shar: will not over-write existing file "'README'"
+else
+sed 's/^X//' << \SHAR_EOF > 'README'
+XThis shar file contains the source to "sit" a UNIX utility which produces
+XStuffit archives for downloading to the mac.  As a bonus I've also included
+X"macbinfilt", a filter which takes articles from comp.binaries.mac, puts the
+Xparts in the correct order, and throws out all the "noise" lines.
+X
+XTo use the sit code you need the getopt(3) library routine and the compress(1)
+Xutility, both of which most everyone seems to have by now.
+X
+XThere is not much original code here: everything is reverse engineered from
+Xthe unsit utility by Alan Weber.  The updcrc.c file is exactly the same file
+Xfrom the unsit package.
+X
+XI've tested the code on both BSD and SYSV machines. Both machines were big
+Xendian so byte order problems may still be lurking.
+X
+XWhen you transfer archives to your mac be sure to use "binary" mode.  In 
+Xorder for Suffit to recognize your downloaded file it must have a type of
+X"SIT!".  If your communication program doesn't allow you to specify the type
+Xyou'll need to ResEdit it in.  It should be quite simple to modify sit.c
+Xto put a MacBinary header on the archive.
+X
+XAs with everything in the modern world: use at your own risk.
+X
+X--Tom Bereiter
+X  ..!{rutgers,ames}!cs.utexas.edu!halley!rolex!twb
+SHAR_EOF
+if test 1209 -ne "`wc -c < 'README'`"
+then
+	echo shar: error transmitting "'README'" '(should have been 1209 characters)'
+fi
+fi # end of overwriting check
+echo shar: extracting "'Makefile'" '(67 characters)'
+if test -f 'Makefile'
+then
+	echo shar: will not over-write existing file "'Makefile'"
+else
+sed 's/^X//' << \SHAR_EOF > 'Makefile'
+Xall:	sit macbinfilt
+X
+Xsit:	sit.o updcrc.o
+X	cc -o sit sit.o updcrc.o
+SHAR_EOF
+if test 67 -ne "`wc -c < 'Makefile'`"
+then
+	echo shar: error transmitting "'Makefile'" '(should have been 67 characters)'
+fi
+fi # end of overwriting check
+echo shar: extracting "'sit.h'" '(1834 characters)'
+if test -f 'sit.h'
+then
+	echo shar: will not over-write existing file "'sit.h'"
+else
+sed 's/^X//' << \SHAR_EOF > 'sit.h'
+X
+X/* sit.h: contains declarations for SIT headers */
+X
+Xtypedef struct sitHdr {		/* 22 bytes */
+X	u_char	sig1[4];		/* = 'SIT!' -- for verification */
+X	u_char	numFiles[2];	/* number of files in archive */
+X	u_char	arcLen[4];		/* length of entire archive incl. */
+X	u_char	sig2[4];		/* = 'rLau' -- for verification */
+X	u_char	version;		/* version number */
+X	char reserved[7];
+X};
+X
+Xtypedef struct fileHdr {	/* 112 bytes */
+X	u_char	compRMethod;		/* rsrc fork compression method */
+X	u_char	compDMethod;		/* data fork compression method */
+X	u_char	fName[64];			/* a STR63 */
+X	char	fType[4];			/* file type */
+X	char	fCreator[4];		/* creator... */
+X	char	FndrFlags[2];		/* copy of Finder flags */
+X	char	cDate[4];			/* creation date */
+X	char	mDate[4];			/* !restored-compat w/backup prgms */
+X	u_char	rLen[4];			/* decom rsrc length */
+X	u_char	dLen[4];			/* decomp data length */
+X	u_char	cRLen[4];			/* compressed lengths */
+X	u_char	cDLen[4];
+X	u_char	rsrcCRC[2];			/* crc of rsrc fork */
+X	u_char	dataCRC[2];			/* crc of data fork */
+X	char	reserved[6];
+X	u_char	hdrCRC[2];			/* crc of file header */
+X};
+X
+X/* file format is:
+X	sitArchiveHdr
+X		file1Hdr
+X			file1RsrcFork
+X			file1DataFork
+X		file2Hdr
+X			file2RsrcFork
+X			file2DataFork
+X		.
+X		.
+X		.
+X		fileNHdr
+X			fileNRsrcFork
+X			fileNDataFork
+X*/
+X
+X
+X
+X/* compression methods */
+X#define noComp	0	/* just read each byte and write it to archive */
+X#define repComp 1	/* RLE compression */
+X#define lpzComp 2	/* LZW compression */
+X#define hufComp 3	/* Huffman compression */
+X
+X/* all other numbers are reserved */
+X
+X/*
+X * the format of a *.info file made by xbin
+X */
+Xstruct infohdr {
+X	char	res0;
+X	char	name[64];	/*  2 (a str 63) */
+X	char	type[4];	/* 65 */
+X	char	creator[4];	/* 69 */
+X	char	flag[2];	/* 73 */
+X	char	res1[8];
+X	char	dlen[4];	/* 83 */
+X	char	rlen[4];	/* 87 */
+X	char	ctime[4];	/* 91 */
+X	char	mtime[4];	/* 95 */
+X};
+SHAR_EOF
+if test 1834 -ne "`wc -c < 'sit.h'`"
+then
+	echo shar: error transmitting "'sit.h'" '(should have been 1834 characters)'
+fi
+fi # end of overwriting check
+echo shar: extracting "'sit.c'" '(6063 characters)'
+if test -f 'sit.c'
+then
+	echo shar: will not over-write existing file "'sit.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'sit.c'
+X/*
+X * sit - Stuffit for UNIX
+X *  Puts unix data files into stuffit archive suitable for downloading
+X *	to a Mac.  Automatically processes files output from xbin.
+X *
+X *  Reverse engineered from unsit by Allan G. Weber, which was based on
+X *  macput, which was based on ...
+X *  Just like unsit this uses the host's version of compress to do the work.
+X *
+X * Examples:
+X *   1) take collection of UNIX text files and make them LSC text files 
+X *	when uncompressed on the mac:
+X *	   sit -u -T TEXT -C KAHL file ...
+X *   2) Process output from xbin:
+X *	   xbin file1	 (produces FileOne.{info,rsrc,data})
+X *	   sit file1
+X *
+X *  Tom Bereiter
+X *	..!{rutgers,ames}!cs.utexas.edu!halley!rolex!twb
+X */
+X#define BSD
+X
+X#include <sys/types.h>
+X#include <sys/stat.h>
+X#include <stdio.h>
+X#include "sit.h"
+X#ifdef BSD
+X#include <sys/time.h>
+X#include <sys/timeb.h>
+X#else
+X#include <time.h>
+Xextern long timezone;
+X#endif
+X
+X#ifndef min
+X#define min(a,b) ((a)<(b)?(a):(b))
+X#endif
+X
+X/* Mac time of 00:00:00 GMT, Jan 1, 1970 */
+X#define TIMEDIFF 0x7c25b080
+X
+Xstruct sitHdr sh;
+Xstruct fileHdr fh;
+X
+Xchar buf[BUFSIZ];
+Xchar *defoutfile = "archive.html";
+Xint ofd;
+Xushort crc;
+Xint clen;
+Xint rmfiles;
+Xint	unixf;
+Xchar *Creator, *Type;
+X
+Xusage() { fprintf(stderr,"Usage: sit file\n"); }
+Xextern char *optarg;
+Xextern int optind;
+X
+Xmain(argc,argv) char **argv; {
+X	int i,n;
+X	int total, nfiles;
+X	int c;
+X
+X    while ((c=getopt(argc, argv, "ro:uC:T:")) != EOF)
+X	switch (c) {
+X		case 'r':
+X			rmfiles++;	/* remove files when done */
+X			break;
+X		case 'o':		/* specify output file */
+X			defoutfile = optarg;
+X			break;
+X		case 'u':		/* unix file -- change '\n' to '\r' */
+X			unixf++;
+X			break;
+X		case 'C':		/* set Mac creator */
+X			Creator = optarg;
+X			break;
+X		case 'T':		/* set Mac file type */
+X			Type = optarg;
+X			break;
+X		case '?':
+X			usage();
+X			exit(1);
+X	}
+X
+X	if ((ofd=creat(defoutfile,0644))<0) {
+X		perror(defoutfile);
+X		exit(1);
+X	}
+X	/* empty header, will seek back and fill in later */
+X	write(ofd,&sh,sizeof sh);
+X
+X	for (i=optind; i<argc; i++) {
+X		n = put_file(argv[i]);
+X		if (n) {
+X			total += n;
+X			nfiles++;
+X		}
+X	}
+X	lseek(ofd,0,0);
+X
+X	total += sizeof(sh);
+X	/* header header */
+X    strncpy(sh.sig1,"SIT!",4);
+X    cp2(nfiles,sh.numFiles);
+X    cp4(total,sh.arcLen);
+X    strncpy(sh.sig2,"rLau",4);
+X    sh.version = 1;
+X
+X	write(ofd,&sh,sizeof sh);
+X}
+X
+Xput_file(name)
+Xchar name[];
+X{
+X	struct stat st;
+X	struct infohdr ih;
+X	int i,n,fd;
+X	long fpos1, fpos2;
+X	char nbuf[256], *p;
+X	int fork=0;
+X	long tdiff;
+X	struct tm *tp;
+X#ifdef BSD
+X	struct timeb tbuf;
+X#else
+X	long bs;
+X#endif
+X
+X	fpos1 = lseek(ofd,0,1); /* remember where we are */
+X	/* write empty header, will seek back and fill in later */
+X	bzero(&fh,sizeof fh);
+X	write(ofd,&fh,sizeof fh);
+X
+X	/* look for resource fork */
+X	strcpy(nbuf,name);
+X	strcat(nbuf,".rsrc");
+X	if (stat(nbuf,&st)>=0 && st.st_size) {	/* resource fork exists */
+X		dofork(nbuf);
+X		cp4(st.st_size,fh.rLen);
+X		cp4(clen,fh.cRLen);
+X		cp2(crc,fh.rsrcCRC);
+X		fh.compRMethod = lpzComp;
+X		fork++;
+X	}
+X	if (rmfiles) unlink(nbuf);	/* ignore errors */
+X
+X	/* look for data fork */
+X	st.st_size = 0;
+X	strcpy(nbuf,name);
+X	if (stat(nbuf,&st)<0) {		/* first try plain name */
+X		strcat(nbuf,".data");
+X		stat(nbuf,&st);
+X	}
+X	if (st.st_size) {		/* data fork exists */
+X		dofork(nbuf);
+X		cp4(st.st_size,fh.dLen);
+X		cp4(clen,fh.cDLen);
+X		cp2(crc,fh.dataCRC);
+X		fh.compDMethod = lpzComp;
+X		fork++;
+X	}
+X	if (fork == 0) {
+X		fprintf(stderr,"%s: no data or resource files\n",name);
+X		return 0;
+X	}
+X	if (rmfiles) unlink(nbuf);	/* ignore errors */
+X
+X	/* look for .info file */
+X	strcpy(nbuf,name);
+X	strcat(nbuf,".info");
+X	if ((fd=open(nbuf,0))>=0 && read(fd,&ih,sizeof(ih))==sizeof(ih)) {
+X		strncpy(fh.fName, ih.name,64);
+X		strncpy(fh.fType, ih.type, 4);
+X		strncpy(fh.fCreator, ih.creator, 4);
+X		strncpy(fh.FndrFlags, ih.flag, 2);
+X		strncpy(fh.cDate, ih.ctime, 4);
+X		strncpy(fh.mDate, ih.mtime, 4);
+X	}
+X	else {	/* no info file so fake it */
+X		strncpy(&fh.fName[1], name,63); fh.fName[0] = min(strlen(name),63);
+X		/* default to LSC text file */
+X		strncpy(fh.fType, Type ? Type : "TEXT", 4);
+X		strncpy(fh.fCreator, Creator ? Creator : "KAHL", 4);
+X		/* convert unix file time to mac time format */
+X#ifdef BSD
+X		ftime(&tbuf);
+X		tp = localtime(&tbuf.time);
+X		tdiff = TIMEDIFF - tbuf.timezone * 60;
+X		if (tp->tm_isdst)
+X			tdiff += 60 * 60;
+X#else
+X		/* I hope this is right! -andy */
+X		time(&bs);
+X		tp = localtime(&bs);
+X		tdiff = TIMEDIFF - timezone;
+X		if (tp->tm_isdst)
+X			tdiff += 60 * 60;
+X#endif
+X		cp4(st.st_ctime + tdiff, fh.cDate);
+X		cp4(st.st_mtime + tdiff, fh.mDate);
+X	}
+X	close(fd);
+X	if (rmfiles) unlink(nbuf);	/* ignore errors */
+X
+X	crc = updcrc(0,&fh,(sizeof fh)-2);
+X	cp2(crc, fh.hdrCRC);
+X
+X	fpos2 = lseek(ofd,0,1);		/* remember where we are */
+X	lseek(ofd,fpos1,0);				/* seek back over file(s) and header */
+X	write(ofd,&fh,sizeof fh);		/* write back header */
+X	fpos2=lseek(ofd,fpos2,0);				/* seek forward file */
+X
+X	return (fpos2 - fpos1);
+X}
+X	
+Xdofork(name)
+Xchar name[];
+X{
+X	FILE *fs;
+X	int n, fd, ufd;
+X	char *p;
+X
+X	if ((fd=open(name,0))<0) {
+X		perror(name);
+X		return 0;
+X	}   
+X	if (unixf)		/* build conversion file */
+X		if ((ufd=creat("sit+temp",0644))<0) {
+X			perror("sit+temp");
+X			return 0;
+X		}   
+X	/* do crc of file: */
+X	crc = 0;
+X	while ((n=read(fd,buf,BUFSIZ))>0) {
+X		if (unixf) {	/* convert '\n' to '\r' */
+X			for (p=buf; p<&buf[n]; p++)
+X				if (*p == '\n') *p = '\r';
+X			write(ufd,buf,n);
+X		}
+X		crc = updcrc(crc,buf,n);
+X	}
+X	close(fd);
+X	/*
+X	 * open pipe to compress file
+X	 *   If a unix file ('\n' -> '\r' conversion) 'sit+temp' will be a new copy
+X	 *   with the conversion done.	Otherwise, 'sit+temp' is just a link to 
+X	 *   the input file.
+X	 */
+X	if (unixf)
+X		close(ufd);
+X	else link(name,"sit+temp");
+X	fs = popen("compress -c -n -b 14 sit+temp","r");
+X	if (fs == NULL) {
+X		perror(name);
+X		return 0;
+X	}
+X	/* write out compressed file */
+X	clen = 0;
+X	while ((n=fread(buf,1,BUFSIZ,fs))>0) {
+X		write(ofd,buf,n);
+X		clen += n;
+X	}
+X	pclose(fs);
+X	unlink("sit+temp");
+X}
+X
+Xcp2(x,dest)
+Xunsigned short x;
+Xchar dest[];
+X{
+X	dest[0] = x>>8;
+X	dest[1] = x;
+X}
+X
+Xcp4(x,dest)
+Xunsigned long x;
+Xchar dest[];
+X{
+X	dest[0] = x>>24;
+X	dest[1] = x>>16;
+X	dest[2] = x>>8;
+X	dest[3] = x;
+X}
+SHAR_EOF
+if test 6063 -ne "`wc -c < 'sit.c'`"
+then
+	echo shar: error transmitting "'sit.c'" '(should have been 6063 characters)'
+fi
+fi # end of overwriting check
+echo shar: extracting "'updcrc.c'" '(5848 characters)'
+if test -f 'updcrc.c'
+then
+	echo shar: will not over-write existing file "'updcrc.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'updcrc.c'
+X/* updcrc(3), crc(1) - calculate crc polynomials
+X *
+X * Calculate, intelligently, the CRC of a dataset incrementally given a 
+X * buffer full at a time.
+X * 
+X * Usage:
+X * 	newcrc = updcrc( oldcrc, bufadr, buflen )
+X * 		unsigned int oldcrc, buflen;
+X * 		char *bufadr;
+X *
+X * Compiling with -DTEST creates a program to print the CRC of stdin to stdout.
+X * Compile with -DMAKETAB to print values for crctab to stdout.  If you change
+X *	the CRC polynomial parameters, be sure to do this and change
+X *	crctab's initial value.
+X *
+X * Notes:
+X *  Regards the data stream as an integer whose MSB is the MSB of the first
+X *  byte recieved.  This number is 'divided' (using xor instead of subtraction)
+X *  by the crc-polynomial P.
+X *  XMODEM does things a little differently, essentially treating the LSB of
+X * the first data byte as the MSB of the integer. Define SWAPPED to make
+X * things behave in this manner.
+X *
+X * Author:	Mark G. Mendel, 7/86
+X *		UUCP: ihnp4!umn-cs!hyper!mark, GEnie: mgm
+X */
+X
+X/* The CRC polynomial.
+X * These 4 values define the crc-polynomial.
+X * If you change them, you must change crctab[]'s initial value to what is
+X * printed by initcrctab() [see 'compile with -DMAKETAB' above].
+X */
+X    /* Value used by:	    		CITT	XMODEM	ARC  	*/
+X#define	P	 0xA001	 /* the poly:	0x1021	0x1021	A001	*/
+X#define INIT_CRC 0L	 /* init value:	-1	0	0	*/
+X#define SWAPPED		 /* bit order:	undef	defined	defined */
+X#define W	16	 /* bits in CRC:16	16	16	*/
+X
+X    /* data type that holds a W-bit unsigned integer */
+X#if W <= 16
+X#  define WTYPE	unsigned short
+X#else
+X#  define WTYPE   unsigned long
+X#endif
+X
+X    /* the number of bits per char: don't change it. */
+X#define B	8
+X
+Xstatic WTYPE crctab[1<<B] = /* as calculated by initcrctab() */ {
+X0x0,  0xc0c1,  0xc181,  0x140,  0xc301,  0x3c0,  0x280,  0xc241,
+X0xc601,  0x6c0,  0x780,  0xc741,  0x500,  0xc5c1,  0xc481,  0x440,
+X0xcc01,  0xcc0,  0xd80,  0xcd41,  0xf00,  0xcfc1,  0xce81,  0xe40,
+X0xa00,  0xcac1,  0xcb81,  0xb40,  0xc901,  0x9c0,  0x880,  0xc841,
+X0xd801,  0x18c0,  0x1980,  0xd941,  0x1b00,  0xdbc1,  0xda81,  0x1a40,
+X0x1e00,  0xdec1,  0xdf81,  0x1f40,  0xdd01,  0x1dc0,  0x1c80,  0xdc41,
+X0x1400,  0xd4c1,  0xd581,  0x1540,  0xd701,  0x17c0,  0x1680,  0xd641,
+X0xd201,  0x12c0,  0x1380,  0xd341,  0x1100,  0xd1c1,  0xd081,  0x1040,
+X0xf001,  0x30c0,  0x3180,  0xf141,  0x3300,  0xf3c1,  0xf281,  0x3240,
+X0x3600,  0xf6c1,  0xf781,  0x3740,  0xf501,  0x35c0,  0x3480,  0xf441,
+X0x3c00,  0xfcc1,  0xfd81,  0x3d40,  0xff01,  0x3fc0,  0x3e80,  0xfe41,
+X0xfa01,  0x3ac0,  0x3b80,  0xfb41,  0x3900,  0xf9c1,  0xf881,  0x3840,
+X0x2800,  0xe8c1,  0xe981,  0x2940,  0xeb01,  0x2bc0,  0x2a80,  0xea41,
+X0xee01,  0x2ec0,  0x2f80,  0xef41,  0x2d00,  0xedc1,  0xec81,  0x2c40,
+X0xe401,  0x24c0,  0x2580,  0xe541,  0x2700,  0xe7c1,  0xe681,  0x2640,
+X0x2200,  0xe2c1,  0xe381,  0x2340,  0xe101,  0x21c0,  0x2080,  0xe041,
+X0xa001,  0x60c0,  0x6180,  0xa141,  0x6300,  0xa3c1,  0xa281,  0x6240,
+X0x6600,  0xa6c1,  0xa781,  0x6740,  0xa501,  0x65c0,  0x6480,  0xa441,
+X0x6c00,  0xacc1,  0xad81,  0x6d40,  0xaf01,  0x6fc0,  0x6e80,  0xae41,
+X0xaa01,  0x6ac0,  0x6b80,  0xab41,  0x6900,  0xa9c1,  0xa881,  0x6840,
+X0x7800,  0xb8c1,  0xb981,  0x7940,  0xbb01,  0x7bc0,  0x7a80,  0xba41,
+X0xbe01,  0x7ec0,  0x7f80,  0xbf41,  0x7d00,  0xbdc1,  0xbc81,  0x7c40,
+X0xb401,  0x74c0,  0x7580,  0xb541,  0x7700,  0xb7c1,  0xb681,  0x7640,
+X0x7200,  0xb2c1,  0xb381,  0x7340,  0xb101,  0x71c0,  0x7080,  0xb041,
+X0x5000,  0x90c1,  0x9181,  0x5140,  0x9301,  0x53c0,  0x5280,  0x9241,
+X0x9601,  0x56c0,  0x5780,  0x9741,  0x5500,  0x95c1,  0x9481,  0x5440,
+X0x9c01,  0x5cc0,  0x5d80,  0x9d41,  0x5f00,  0x9fc1,  0x9e81,  0x5e40,
+X0x5a00,  0x9ac1,  0x9b81,  0x5b40,  0x9901,  0x59c0,  0x5880,  0x9841,
+X0x8801,  0x48c0,  0x4980,  0x8941,  0x4b00,  0x8bc1,  0x8a81,  0x4a40,
+X0x4e00,  0x8ec1,  0x8f81,  0x4f40,  0x8d01,  0x4dc0,  0x4c80,  0x8c41,
+X0x4400,  0x84c1,  0x8581,  0x4540,  0x8701,  0x47c0,  0x4680,  0x8641,
+X0x8201,  0x42c0,  0x4380,  0x8341,  0x4100,  0x81c1,  0x8081,  0x4040,
+X} ;
+X
+XWTYPE
+Xupdcrc( icrc, icp, icnt )
+X    WTYPE icrc;
+X    unsigned char *icp;
+X    int icnt;
+X{
+X    register WTYPE crc = icrc;
+X    register unsigned char *cp = icp;
+X    register int cnt = icnt;
+X
+X    while( cnt-- ) {
+X#ifndef SWAPPED
+X	crc = (crc<<B) ^ crctab[(crc>>(W-B)) ^ *cp++];
+X#else
+X	crc = (crc>>B) ^ crctab[(crc & ((1<<B)-1)) ^ *cp++]; 
+X#endif SWAPPED
+X    }
+X
+X    return( crc );
+X}
+X
+X#ifdef MAKETAB
+X
+X#include <stdio.h>
+Xmain()
+X{
+X    initcrctab();
+X}
+X
+Xinitcrctab()
+X{
+X    register  int b, i;
+X    WTYPE v;
+X
+X    
+X    for( b = 0; b <= (1<<B)-1; ++b ) {
+X#ifndef SWAPPED
+X	for( v = b<<(W-B), i = B; --i >= 0; )
+X	    v = v & ((WTYPE)1<<(W-1)) ? (v<<1)^P : v<<1;
+X#else
+X	for( v = b, i = B; --i >= 0; )
+X	    v = v & 1 ? (v>>1)^P : v>>1;
+X#endif	    
+X	crctab[b] = v;
+X
+X	printf( "0x%lx,", v & ((1L<<W)-1L));
+X	if( (b&7) == 7 )
+X	    printf("\n" );
+X	else
+X	    printf("  ");
+X    }
+X}
+X#endif
+X
+X#ifdef TEST
+X
+X#include <stdio.h>
+X#include <fcntl.h>
+X
+X#define MAXBUF	4096
+X
+X
+X
+Xmain( ac, av )
+X    int ac; char **av;
+X{
+X    int fd;
+X    int nr;
+X    int i;
+X    char buf[MAXBUF];
+X    WTYPE crc, crc2;
+X
+X    fd = 0;
+X    if( ac > 1 )
+X	if( (fd = open( av[1], O_RDONLY )) < 0 ) {
+X	    perror( av[1] );
+X	    exit( -1 );
+X	}
+X    crc = crc2 = INIT_CRC;
+X
+X    while( (nr = read( fd, buf, MAXBUF )) > 0 ) {
+X	crc = updcrc( crc, buf, nr );
+X    }
+X
+X    if( nr != 0 )
+X	perror( "reading" );
+X    else {
+X	printf( "%lx\n", crc );
+X    }
+X
+X#ifdef MAGICCHECK
+X    /* tack one's complement of crc onto data stream, and
+X       continue crc calculation.  Should get a constant (magic number)
+X       dependent only on P, not the data.
+X     */
+X    crc2 = crc ^ -1L;
+X    for( nr = W-B; nr >= 0; nr -= B ) {
+X	buf[0] = (crc2 >> nr);
+X	crc = updcrc(crc, buf, 1);
+X    }
+X
+X    /* crc should now equal magic */
+X    buf[0] = buf[1] = buf[2] = buf[3] = 0;
+X    printf( "magic test: %lx =?= %lx\n", crc, updcrc(-1, buf, W/B));
+X#endif MAGICCHECK
+X}
+X
+X#endif
+SHAR_EOF
+if test 5848 -ne "`wc -c < 'updcrc.c'`"
+then
+	echo shar: error transmitting "'updcrc.c'" '(should have been 5848 characters)'
+fi
+fi # end of overwriting check
+echo shar: extracting "'macbinfilt.c'" '(3638 characters)'
+if test -f 'macbinfilt.c'
+then
+	echo shar: will not over-write existing file "'macbinfilt.c'"
+else
+sed 's/^X//' << \SHAR_EOF > 'macbinfilt.c'
+X/*
+X * macbinfilt -- filters usenet articles from comp.binaries.mac into a form
+X *  suitable for xbin to decode.  Will rearange parts of file if they are not
+X *  in order.  Strips out all extraneous lines.
+X *  Does all of this by making many bold assumtions--but it's worked so far.
+X *
+X *  Only works on one article at a time.  All files on the input line are
+X *  considered parts of the same article.
+X *
+X *  If you have the sysV regualar expression routines (regcmp, regex) then
+X *  define HAVE_REGCMP for a more robust pattern match.
+X *
+X *  --Tom Bereiter
+X *    ..!{rutgers,ames}!cs.utexas.edu!halley!rolex!twb
+X */
+X#include <stdio.h>
+X
+Xint cur_part,part,divert_part;
+Xint max_part;
+X#define IBUFSZ	512
+Xchar ibuf[IBUFSZ];
+Xchar pname[80];
+XFILE *ofs=stdout;
+XFILE *saveofs;
+XFILE *parts[100];
+X
+X#ifdef HAVE_REGCMP
+X#define EXP ".*[Pp][Aa][Rr][Tt][ \t]*([0-9]+)$0[ \t]*[Oo][Ff][ \t]*([0-9]+)$1"
+X#else
+X#define EXP "part %d of %d"
+X#endif
+Xchar *exp;
+X
+Xmain(argc,argv) char **argv[]; {
+X	FILE *fs;
+X	int i,rc=0;
+X
+X#ifdef HAVE_REGCMP
+X	exp = (char *)regcmp(EXP,0);
+X#else
+X	exp = EXP;
+X#endif
+X
+X	fputs("(This file must be converted with BinHex 4.0)\n\n",ofs);
+X
+X	if (argc == 1)
+X		filter(stdin);
+X	else while (--argc) {
+X		if ((fs=fopen(*++argv,"r"))==NULL) {
+X			perror(*argv); exit(-1); }
+X		filter(fs);
+X		fclose(fs);
+X	}
+X	/* add any remaining parts */
+X	for (i=cur_part+1; i<=max_part; i++)
+X		if (parts[i])
+X			putpart(i);
+X		else {
+X			fprintf(stderr,"Missing part %d\n",i);
+X			rc = -1;
+X		}
+X	exit(rc);
+X}
+X
+X/* valid xbin chars + '\n' and '\r' */
+X#define	Btst(i) (bmap[i>>3] & (1<<(i&07)))
+Xchar bmap[]={0x00,0x24,0x00,0x00,0xfe,0x3f,0x7f,0x07,
+X			 0xff,0x7f,0x7f,0x0f,0x7f,0x3f,0x07,0x00};
+X
+X/* filter out extraneous lines and look for lines of the form:
+X *    part n of m
+X * A line is considered valid if it has only valid xbin characters and is
+X * either greater than 60 characters or ends in a ':'
+X */
+X
+Xfilter(fs) FILE *fs; {
+X	register char *p,*inp;
+X
+Xreget:
+X	while ((inp=fgets(ibuf,IBUFSZ,fs))) {
+X		for (p=inp; *p; p++)
+X			if (Btst(*p) == 0) {	/* invalid character */
+X				checkparts(inp);
+X				goto reget;
+X			}
+X		if (p-inp > 60 || inp[(p-inp)-2]==':')	/* arbitrary max or end */
+X			fputs(ibuf,ofs);
+X	}
+X	if (divert_part)	/* diversion in progress */
+X		end_oseq();
+X}
+X
+Xcheckparts(str) char *str; {
+X	char *p;
+X	char num0[40], num1[40];
+X
+X#ifdef HAVE_REGEXP
+X	if (regex(exp, str, num0,num1)!=NULL) {
+X		part = atoi(num0);
+X		max_part = atoi(num1);
+Xfprintf(stderr,"part %d of %d\n",part,max_part);
+X		dopart();
+X	}
+X#else
+X	for (p=str; *p; p++)	/* rescan for 'part' string */
+X		if (*p==exp[0])
+X			if (sscanf(p,exp,&part,&max_part) == 2) {
+X				dopart();
+X				break;
+X			}
+X#endif
+X}
+X
+Xdopart() {
+X	if (divert_part) {	/* diversion in progress */
+X		if (part == divert_part)	/* another mention of current part */
+X			return;
+X		end_oseq();
+X	}
+X	if (part == cur_part+1) 	/* OK: next in sequence */
+X		cur_part = part;
+X	else if (part > cur_part) 	/* out of sequence */
+X		oseq();
+X	else 	/* "can't" happen */
+X		fprintf(stderr,"Part %d unexpected\n",part);
+X}
+X
+X/* part out of sequence */
+Xoseq() {
+X	int i;
+X
+X	/* try and fill in gap */
+X	for (i=cur_part+1; i<part; i++)
+X		if (parts[i]) {
+X			putpart(i);
+X			cur_part = i;
+X		}
+X		else goto isgap;
+X	/* all missing parts restored -- continue */
+X	return;
+Xisgap:
+X	/* start diversion */
+X	divert_part = part;
+X	saveofs = ofs;
+X	sprintf(pname,"part%d",part);
+X	if ((ofs = fopen(pname,"w+")) == NULL) {
+X		perror(pname); exit(-1); }
+X	parts[part] = ofs;
+X}
+Xend_oseq() {
+X	divert_part = 0;
+X	ofs = saveofs;
+X}
+X
+Xputpart(n) {
+X	FILE *fs;
+X	register int c;
+X
+X	fs = parts[n];
+X	rewind(fs);
+X	while ((c=getc(fs))!=EOF)
+X		putc(c,ofs);
+X	fclose(fs);
+X	sprintf(pname,"part%d",n);
+X	unlink(pname);
+X}
+SHAR_EOF
+if test 3638 -ne "`wc -c < 'macbinfilt.c'`"
+then
+	echo shar: error transmitting "'macbinfilt.c'" '(should have been 3638 characters)'
+fi
+fi # end of overwriting check
+#	End of shell archive
+exit 0
+

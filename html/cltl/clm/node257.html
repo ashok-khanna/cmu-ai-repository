@@ -1,0 +1,207 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node257.html by HTTrack Website Copier/3.x [XR&CO'2014], Thu, 21 Oct 2021 14:58:19 GMT -->
+<HEAD>
+<TITLE>27.4. Format Directive Interface</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Format Directive Interface">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4776 HREF="node258.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4774 HREF="node253.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4768 HREF="node256.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4778 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4779 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4777 HREF="node258.html"> Compiling Format Control </A>
+<B>Up:</B> <A NAME=tex2html4775 HREF="node253.html"> Pretty Printing</A>
+<B> Previous:</B> <A NAME=tex2html4769 HREF="node256.html"> Dynamic Control of </A>
+<HR> <P>
+<H1><A NAME=SECTION003140000000000000000>27.4. Format Directive Interface</A></H1>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<A NAME=PPRINTFORMATDIRECTIVESSECTION>The</A>
+primary interface to operations for dynamically determining the
+arrangement of output is provided through the functions above.  However, an
+additional interface is provided via a set of format directives
+because, as shown by the examples in this section and the
+next, <tt>format</tt> strings are typically a much more compact way to specify
+pretty printing.  In addition, without such an interface, one would have to
+abandon the use of <tt>format</tt> when interacting with the pretty printer.
+<P>
+<DL COMPACT><DT><tt>~W</tt>
+<DD>
+<i>Write.</i>  An <i>arg</i>, any Lisp object, is printed obeying <i>every</i>
+printer control variable (as by <tt>write</tt>).  In addition, <tt>~W</tt>
+interacts correctly with depth abbreviation by not resetting the depth
+counter to zero.  <tt>~W</tt> does not accept parameters.  If given the colon
+modifier, <tt>~W</tt> binds <tt>*print-pretty*</tt> to <tt>t</tt>.  If given the atsign
+modifier, <tt>~W</tt> binds <tt>*print-level*</tt> and <tt>*print-length*</tt> to 
+<tt>nil</tt>.
+<P>
+<tt>~W</tt> provides automatic support for circularity detection.  If
+<tt>*print-circle*</tt> (and possibly also <tt>*print-shared*</tt>) is not <tt>nil</tt> and
+<tt>~W</tt> is applied to an argument that is a circular (or shared) reference,
+an appropriate ``<tt>#<i>n</i>#</tt>'' marker is inserted in the output
+instead of printing the argument.
+<P>
+<DT><tt>~_</tt>
+<DD>
+<i>Conditional newline.</i> Without any modifiers,
+<tt>~_</tt> is equivalent to
+<tt>(pprint-newline :linear)</tt>.
+The directive <tt>~@_</tt> is
+equivalent to <tt>(pprint-newline :miser)</tt>.
+The directive <tt>~:_</tt>
+is equivalent to <tt>(pprint-newline :fill)</tt>.
+The directive <tt>~:@_</tt> is
+equivalent to <tt>(pprint-newline :mandatory)</tt>.
+<P>
+<DT><tt>~&lt;<i>str</i>~:&gt;</tt>
+<DD>
+<i>Logical block.</i> If <tt>~:&gt;</tt> is used to terminate a
+<tt>~&lt;...</tt> directive, the directive is equivalent to a call on
+<tt>pprint-logical-block</tt>.  The <tt>format</tt> argument corresponding to the
+<tt>~&lt;...~:&gt;</tt> directive is treated in the same way as the <i>list</i>
+argument to <tt>pprint-logical-block</tt>, thereby providing automatic support for
+non-list arguments and the detection of circularity, sharing, and depth abbreviation. 
+The portion of the <tt>format</tt> control string nested within the
+<tt>~&lt;...~:&gt;</tt> specifies the <tt>:prefix</tt> (or <tt>:per-line-prefix</tt>),
+<tt>:suffix</tt>, and body of the <tt>pprint-logical-block</tt>.
+<P>
+The <tt>format</tt> string portion enclosed by <tt>~&lt;...~:&gt;</tt> can be
+divided into segments <tt>~&lt;<i>prefix</i>~;<i>body</i>~;<i>suffix</i>~:&gt;</tt> by <tt>~;</tt> directives.  If the first section is
+terminated by <tt>~@;</tt>, it specifies a per-line prefix rather than a
+simple prefix.  The prefix and suffix cannot contain <tt>format</tt> directives.  
+An error is signaled if either the prefix or suffix fails to be a constant string
+or if the enclosed portion is divided into more than three segments.
+<P>
+If the enclosed portion is divided into only two segments, the suffix defaults
+to the null string.  If the enclosed portion consists of only a single
+segment, both the prefix and the suffix default to the null string.  If the
+colon modifier is used (that is, <tt>~:&lt;...~:&gt;</tt>), the prefix and
+suffix default to <tt>&quot;(&quot;</tt> and <tt>&quot;)&quot;</tt>, respectively, instead of the null
+string.
+<P>
+The body segment can be any arbitrary <tt>format</tt> control string.  This <tt>format</tt>
+control string is applied to the elements of the list corresponding to the
+<tt>~&lt;...~:&gt;</tt> directive as a whole.  Elements are extracted from this
+list using <tt>pprint-pop</tt>, thereby providing automatic support for malformed lists
+and the detection of circularity, sharing, and length abbreviation.
+Within the body segment, <tt>~^</tt> acts like
+<tt>pprint-exit-if-list-exhausted</tt>.
+<P>
+<tt>~&lt;...~:&gt;</tt> supports a feature not supported by
+<tt>pprint-logical-block</tt>.  If <tt>~:@&gt;</tt> is used to terminate the
+directive (that is, <tt>~&lt;...~:@&gt;</tt>), then a fill-style
+conditional newline is automatically inserted after each group of blanks
+immediately contained in the body (except for blanks after a
+<tt>~&lt;newline&gt;</tt> directive).  This makes it easy to achieve the equivalent
+of paragraph filling.
+<P>
+If the atsign modifier is used with <tt>~&lt;...~:&gt;</tt>, the
+entire remaining argument list is passed to the directive as its argument.
+All of the remaining arguments are always consumed by
+<tt>~@&lt;...~:&gt;</tt>, even if they are not all used by the
+<tt>format</tt> string nested in the directive.  Other than the difference in its
+argument, <tt>~@&lt;...~:&gt;</tt> is exactly the same as
+<tt>~&lt;...~:&gt;</tt>, except that circularity (and sharing) detection 
+is not applied if the <tt>~@&lt;...~:&gt;</tt> is at top level
+in a <tt>format</tt> string.  This ensures that circularity detection is applied 
+only to data lists and not to <tt>format</tt> argument lists.
+<P>
+To a considerable extent, the basic form of the directive
+<tt>~&lt;...~&gt;</tt> is incompatible with the dynamic control of
+the arrangement of output by <tt>~W</tt>, <tt>~_</tt>,
+<tt>~&lt;...~:&gt;</tt>, <tt>~I</tt>, and <tt>~:T</tt>.  As
+a result, an error is signaled if any of these directives is nested within
+<tt>~&lt;...~&gt;</tt>.  Beyond this, an error is also signaled if
+the <tt>~&lt;...~:;...~&gt;</tt> form of
+<tt>~&lt;...~&gt;</tt> is used in the same <tt>format</tt> string with
+<tt>~W</tt>, <tt>~_</tt>,
+<tt>~&lt;...~:&gt;</tt>, <tt>~I</tt>, or <tt>~:T</tt>.
+<P>
+<DT><tt>~I</tt>
+<DD>
+<i>Indent.</i> <tt>~<i>n</i>I</tt> is equivalent to
+<tt>(pprint-indent :block <i>n</i>)</tt>.  <tt>~:<i>n</i>I</tt> is equivalent to
+<tt>(pprint-indent :current <i>n</i>)</tt>.  In both cases, <i>n</i> defaults to zero
+if it is omitted.
+<P>
+<DT><tt>~:T</tt>
+<DD> 
+<i>Tabulate.</i> If the colon modifier is used with the <tt>~T</tt>
+directive, the tabbing computation is done relative to the column where the
+section immediately containing the directive begins, rather than with
+respect to column zero.  <tt>~<i>n</i>,<i>m</i>:T</tt> is equivalent to
+<tt>(pprint-tab :section <i>n</i> <i>m</i>)</tt>.  <tt>~<i>n</i>,<i>m</i>:@T</tt>
+is equivalent to <tt>(pprint-tab :section-relative <i>n</i> <i>m</i>)</tt>.  The numerical
+parameters are both interpreted as being in units of ems and both default
+to 1.
+<P>
+<DT><tt>~/<i>name</i>/</tt>
+<DD>
+<i>Call function.</i> User-defined functions can be called from within a
+<tt>format</tt> string by using the directive <tt>~/<i>name</i>/</tt>.  The
+colon modifier, the atsign modifier, and arbitrarily many parameters can be
+specified with the <tt>~/<i>name</i>/</tt> directive.  The <i>name</i>
+can be any string that does not contain ``<tt>/</tt>''.  All of the characters
+in <i>name</i> are treated as if they were upper case.  If <i>name</i>
+contains a ``<tt>:</tt>'' or ``<tt>::</tt>'', then everything up to but not
+including the first ``<tt>:</tt>'' or ``<tt>::</tt>'' is taken to be a string that
+names a package.  Everything after the first ``<tt>:</tt>'' or ``<tt>::</tt>'' (if
+any) is taken to be a string that names a symbol.  The function
+corresponding to a <tt>~/<i>name</i>/</tt> directive is obtained by
+looking up the symbol that has the indicated name in the indicated package.
+If <i>name</i> does not contain a ``<tt>:</tt>'' or ``<tt>::</tt>'', then the whole
+name string is looked up in the <tt>user</tt> package.
+<P>
+When a <tt>~/<i>name</i>/</tt> directive is encountered, the indicated
+function is called with four or more arguments.  The first four arguments
+are the output stream, the <tt>format</tt> argument corresponding to the
+directive, the value <tt>t</tt> if the colon modifier was used (<tt>nil</tt>
+otherwise), and the value <tt>t</tt> if the atsign modifier was used (<tt>nil</tt>
+otherwise).  The remaining arguments consist of any parameters specified
+with the directive.  The function should print the argument appropriately.
+Any values returned by the function are ignored.
+<P>
+The three functions <tt>pprint-linear</tt>, <tt>pprint-fill</tt>, and
+<tt>pprint-tabular</tt> are designed so that they can be called by
+<tt>~/.../</tt> (that is, <tt>~/pprint-linear/</tt>,
+<tt>~/pprint-fill/</tt>, and <tt>~/pprint-tabular/</tt>.  In
+particular they take colon and atsign arguments.
+<P>
+ </DL>
+<P>
+As examples of the convenience of specifying pretty printing with
+<tt>format</tt> strings, consider the functions <tt>pprint-defun</tt>
+and <tt>pprint-let</tt> used as
+examples in the last section.  They can be more compactly defined as follows.  The
+function <tt>pprint-vector</tt> cannot be defined using <tt>format</tt>, because the data
+structure it traverses is not a list.  The function <tt>pprint-tabular</tt> is
+inconvenient to define using <tt>format</tt>, because of the need to pass its
+<tt>tabsize</tt> argument through to a <tt>~:T</tt> directive nested within
+an iteration over a list.
+<P><pre>
+(defun pprint-defun (list) 
+  (format t
+&quot;~:&lt;~W ~@_~:I~W ~:_~W~1I ~_~W~:&gt;&quot;
+list))
+
+(defun pprint-let (list) 
+  (format t &quot;~:&lt;~W~^ ~:&lt;~@{~:&lt;~@{~W~^ ~_~}~:&gt;~^ ~:_~}~:&gt;~1I~ 
+                ~@{~^ ~_~W~}~:&gt;&quot; 
+          list))
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html4776 HREF="node258.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4774 HREF="node253.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4768 HREF="node256.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4778 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4779 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4777 HREF="node258.html"> Compiling Format Control </A>
+<B>Up:</B> <A NAME=tex2html4775 HREF="node253.html"> Pretty Printing</A>
+<B> Previous:</B> <A NAME=tex2html4769 HREF="node256.html"> Dynamic Control of </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

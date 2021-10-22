@@ -1,0 +1,176 @@
+From net@cs.tu-berlin.de Wed Aug 10 19:35:03 EDT 1994
+Article: 9574 of comp.lang.scheme
+Path: cantaloupe.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!newsfeed.pitt.edu!gatech!howland.reston.ans.net!EU.net!Germany.EU.net!netmbx.de!zrz.TU-Berlin.DE!math.fu-berlin.de!cs.tu-berlin.de!net
+From: net@cs.tu-berlin.de (Oliver Laumann)
+Newsgroups: comp.lang.scheme
+Subject: Patch to make Elk 2.2 work under X11R6
+Date: 2 Aug 1994 16:07:48 GMT
+Organization: Technical University of Berlin, Germany
+Lines: 160
+Message-ID: <31lr0k$e47@news.cs.tu-berlin.de>
+NNTP-Posting-Host: kugelbus.cs.tu-berlin.de
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
+
+To use the X/Motif extensions of release 2.2 of Elk (the Scheme-based
+Extension Language Kit) under X11R6, you need to
+
+   o  add -lSM -lICE after each -lXt in your config/site file
+
+   o  edit lib/xaw/build and remove all lines referring to the Athena
+      clock widget (it's no longer in the Athena widget set)
+
+   o  apply the following small patch; then make clean and make install
+
+A copy of this patch can be found in ftp.x.org:/contrib/devel_tools as
+elk-2.2-patch-x11r6.
+
+
+-----------------------------------------------------------------------------
+*** 1.2	1992/12/28 13:41:44
+--- lib/xlib/init.c	1994/07/28 12:17:52
+***************
+*** 12,22 ****
+--- 12,32 ----
+  #endif
+  }
+  
++ static Object P_Xlib_Release_6_Or_Laterp () {
++ #ifdef XLIB_RELEASE_6_OR_LATER
++     return True;
++ #else
++     return False;
++ #endif
++ }
++ 
+  init_xlib_init () {
+      Define_Primitive (P_Xlib_Release_4_Or_Laterp,
+  			"xlib-release-4-or-later?",               0, 0, EVAL);
+      Define_Primitive (P_Xlib_Release_5_Or_Laterp,
+  			"xlib-release-5-or-later?",               0, 0, EVAL);
++     Define_Primitive (P_Xlib_Release_6_Or_Laterp,
++ 			"xlib-release-6-or-later?",               0, 0, EVAL);
+      P_Provide (Intern ("xlib.o"));
+  }
+  
+*** 1.17	1993/08/02 11:08:52
+--- lib/xlib/xlib.h	1994/07/28 12:17:21
+***************
+*** 15,20 ****
+--- 15,24 ----
+  #  define XLIB_RELEASE_5_OR_LATER
+  #endif
+  
++ #if XlibSpecificationRelease >= 6
++ #  define XLIB_RELEASE_6_OR_LATER
++ #endif
++ 
+  #include "scheme.h"
+  
+  extern int T_Display;
+*** 1.2	1993/08/02 11:10:55
+--- lib/xt/init.c	1994/07/28 12:18:41
+***************
+*** 12,17 ****
+--- 12,25 ----
+  #endif
+  }
+  
++ static Object P_Xt_Release_6_Or_Laterp () {
++ #ifdef XT_RELEASE_6_OR_LATER
++     return True;
++ #else
++     return False;
++ #endif
++ }
++ 
+  extern WidgetClass vendorShellWidgetClass;
+  
+  /* The reference to vendorShellWidgetClass is required to make sure
+***************
+*** 31,36 ****
+--- 39,46 ----
+      Define_Primitive (P_Xt_Release_4_Or_Laterp, "xt-release-4-or-later?",
+  	0, 0, EVAL);
+      Define_Primitive (P_Xt_Release_5_Or_Laterp, "xt-release-5-or-later?",
++ 	0, 0, EVAL);
++     Define_Primitive (P_Xt_Release_6_Or_Laterp, "xt-release-6-or-later?",
+  	0, 0, EVAL);
+      XtToolkitInitialize ();
+      P_Provide (Intern ("xt.o"));
+*** 1.34	1994/02/08 12:48:17
+--- lib/xt/resource.c	1994/08/02 13:00:04
+***************
+*** 283,291 ****
+      GC_Link2 (ret, tail);
+      /*
+       * Display is needed for resources like cursor and pixmap.
+!      * XtDisplay(w) is not necessarily the right one!
+       */
+!     dpy = XtDisplay (w);
+      for (i = 0; i < ac; i++, tail = Cdr (tail)) {
+  	Object o;
+  	XtArgVal val = argl[i].value;
+--- 283,291 ----
+      GC_Link2 (ret, tail);
+      /*
+       * Display is needed for resources like cursor and pixmap.
+!      * XtDisplayOfObject(w) is not necessarily the right one!
+       */
+!     dpy = XtDisplayOfObject (w);
+      for (i = 0; i < ac; i++, tail = Cdr (tail)) {
+  	Object o;
+  	XtArgVal val = argl[i].value;
+*** 1.20	1994/02/08 12:48:17
+--- lib/xt/widget.c	1994/08/02 13:00:12
+***************
+*** 118,124 ****
+  
+  static Object P_Widget_Display (w) Object w; {
+      Check_Widget (w);
+!     return Make_Display (0, XtDisplay (WIDGET(w)->widget));
+  }
+  
+  static Object P_Widget_Parent (w) Object w; {
+--- 118,124 ----
+  
+  static Object P_Widget_Display (w) Object w; {
+      Check_Widget (w);
+!     return Make_Display (0, XtDisplayOfObject (WIDGET(w)->widget));
+  }
+  
+  static Object P_Widget_Parent (w) Object w; {
+***************
+*** 136,142 ****
+  
+  static Object P_Widget_To_Window (w) Object w; {
+      Check_Widget (w);
+!     return Make_Window (0, XtDisplay (WIDGET(w)->widget),
+  	XtWindow (WIDGET(w)->widget));
+  }
+  
+--- 136,142 ----
+  
+  static Object P_Widget_To_Window (w) Object w; {
+      Check_Widget (w);
+!     return Make_Window (0, XtDisplayOfObject (WIDGET(w)->widget),
+  	XtWindow (WIDGET(w)->widget));
+  }
+  
+*** 1.19	1993/08/02 11:10:55
+--- lib/xt/xt.h	1994/07/28 12:18:16
+***************
+*** 14,19 ****
+--- 14,23 ----
+  #  define XT_RELEASE_5_OR_LATER
+  #endif
+  
++ #if XtSpecificationRelease >= 6
++ #  define XT_RELEASE_6_OR_LATER
++ #endif
++ 
+  typedef XtArgVal (*PFS2X) P_((Object));
+  typedef Object (*PFX2S) P_((XtArgVal));
+  
+

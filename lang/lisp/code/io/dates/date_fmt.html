@@ -1,0 +1,152 @@
+;;; Tue Dec 25 16:49:23 1990 by Mark Kantrowitz <mkant@A.GP.CS.CMU.EDU>
+;;; date-formatter.lisp
+
+;;; ****************************************************************
+;;; Time Formatting Functions **************************************
+;;; ****************************************************************
+(defun current-time-string (&optional (mode 'hyphen))
+  "Returns a string for the current time and date in a variety of modes."
+  (multiple-value-bind (sec min hour day month year dow) (get-decoded-time)
+    (format-date sec min hour day month year dow mode)))
+
+(defun format-ut-date (universal-time &optional (mode 'hyphen))
+  (when universal-time
+    (multiple-value-bind (sec min hour day month year dow)
+	(decode-universal-time universal-time)
+      (format-date sec min hour day month year dow mode))))
+
+(defun format-date (sec min hour day month year dow &optional (mode 'hyphen))
+  (case mode
+    (hyphen
+     (format nil "~@:(~A ~A ~A~)"
+	     (dow-string dow 'medium)	; 3 letter
+	     (date-string month day year 'dd-mmm-yy)
+	     (time-string hour min sec 'full)))
+    ((long fancy)
+     (format nil "~A, ~A, ~A"
+	     (dow-string dow 'long)
+	     (date-string month day year mode)
+	     (time-string hour min sec 'ampm)))))
+
+;;; ********************************
+;;; Date Pieces ********************
+;;; ********************************
+(defun year-string (year &optional (mode 'long))
+  "Formats a year number in various ways."
+  (when year
+    (case mode
+      (short (format nil "~A" (mod year 100)))
+      (long (format nil "~A" year)))))
+
+(defun time-string (hour min secs &optional (mode 'full))
+  "Formats the current time in a variety of ways."
+  ;; ampm vs 24-hour time.
+  (case mode
+    (full				; 24 hour
+     (format nil "~2,'0d:~2,'0d:~2,'0d" hour min secs))
+    (ampm
+     (let ((h (1+ (mod (+ hour 11.) 12.)))
+	   (ampm (or (> hour 12.) (zerop hour))))
+       (if (and (zerop secs)(zerop min) (= h 12))
+	   ;; midnight, noon
+	   (if (zerop hour) "midnight" "noon")
+	 (format nil "~d:~2,'0d:~2,'0d ~:[am~;pm~]"
+		 h min secs ampm))))))
+
+(defun dow-string (dow &optional (mode 'short))
+  "Formats the day of week in a variety of modes."
+  (case mode
+    (short
+     (svref '#("M" "T" "W" "R" "F" "S" "U") dow))
+    (medium
+     (svref '#("Mon" "Tue" "Wed" "Thu" "Fri" "Sat" "Sun") dow))
+    (long
+     (svref '#("Monday" "Tuesday" "Wednesday" "Thursday"
+	       "Friday" "Saturday" "Sunday") dow))
+    (french
+     (svref '#("Lundi" "Mardi" "Mercredi" "Jeudi" 
+	       "Vendredi" "Samedi" "Dimanche") dow))
+    (italian
+     (svref '#("Lunedi" "Martedi" "Mercoledi" "Giovedi"
+	       "Venerdi" "Sabato" "Domenica") dow))
+    (german
+     (svref '#("Montag" "Dienstag" "Mittwoch" "Donnerstag" 
+	       "Freitag" "Samstag" "Sonntag") dow))))
+
+(defun month-string (month &optional (mode 'short))
+  "Formats the month in a variety of ways."
+  (case mode
+    (short
+     (svref '#(0 "Jan" "Feb" "Mar" "Apr" "May"
+		 "Jun" "Jul" "Aug" "Sep" "Oct"
+		 "Nov" "Dec")
+	    month))
+    (long 
+     (svref '#(0 "January" "February" "March" "April" "May"
+		 "June" "July" "August" "September" "October"
+		 "November" "December")
+	    month))
+    (french
+     (svref '#(0 "Janvier" "Fevrier" "Mars" "Avril"
+		 "Mai" "Juin" "Juillet" "Aout" "Septembre"
+		 "Octobre" "Novembre" "Decembre")
+	    month))
+    (german
+     (svref '#(0 "Januar" "Februar" "Maerz" "April" "Mai" "Juni" 
+		 "Juli" "August" "September" "Oktober" "November" "Dezember")
+	    month))
+    (italian
+     (svref '#(0 "Gennaio" "Febbraio" "Marzo" "Aprile" "Maggio" "Giugno"
+		 "Luglio" "Agosto" "Settembre" "Ottobre" "Novembre" "Dicembre")
+	    month))))
+
+(defun date-string (month day year &optional (mode 'dd-mmm-yy))
+  "Given a date, returns a string for the date in a variety of modes."
+  ;; year can be long or short.
+  (case mode
+    ((hyphen dd-mmm-yy dd-mmm-yyyy)
+     ;; e.g., 3-APR-90, 3-APR-1990
+     (format nil "~A-~A-~A" 
+	     day
+	     (month-string month 'short)
+	     (year-string year (if (eq mode 'dd-mmm-yyyy) 'long 'short))))
+    ((slash mm/dd/yy mm/dd/yyyy)
+     ;; e.g., 4/3/90, 4/3/1990
+     (format nil "~A/~A~@[/~A~]"
+	     month day 
+	     (year-string year (if (eq mode 'mm/dd/yyyy) 'long 'short))))
+    ((iso YYYY-MM-DD)
+     ;; e.g., 1990-04-03
+     (format nil "~A-~2,'0D-~2,'0D"
+	     (year-string year 'long) month day))
+    (long
+     (format nil "~A ~D~@[, ~A~]"
+	     (month-string month 'long)
+	     day
+	     (year-string year 'long)))
+    (fancy
+     (format nil "the ~@(~:R~) of ~A, ~A"
+	     day (month-string month 'long) (year-string year 'long)))))
+
+;;; ********************************
+;;; Dead Code **********************
+;;; ********************************
+#|
+(defvar *month-days-table*
+  '#(0 0 31. 59. 90. 120. 151. 181. 212. 243. 273. 304. 334.)
+  "One-based array of cumulative days per month.")
+
+(defvar *month-lengths*
+  '#(0 31 28 31 30 31 30 31 31 30 31 30 31))
+;; what about leap years?
+
+(defun month-length (month year)
+  (if (= month 2)
+      (if (leap-year-p year) 29. 28.)
+      (svref *month-lengths* month)))
+
+(defun leap-year-p (year)
+  (and (zerop (mod year 4.))
+       (or (not (zerop (mod year 100.)))
+	   (zerop (mod year 400.)))))
+|#

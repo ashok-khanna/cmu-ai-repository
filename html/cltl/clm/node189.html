@@ -1,0 +1,482 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node189.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:47:30 GMT -->
+<HEAD>
+<TITLE>22.1.2. Parsing of Numbers and Symbols</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Parsing of Numbers and Symbols">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3903 HREF="node190.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3901 HREF="node187.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3895 HREF="node188.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3905 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3906 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3904 HREF="node190.html"> Macro Characters</A>
+<B>Up:</B> <A NAME=tex2html3902 HREF="node187.html"> Printed Representation of </A>
+<B> Previous:</B> <A NAME=tex2html3896 HREF="node188.html"> What the Read </A>
+<HR> <P>
+<H2><A NAME=SECTION002612000000000000000>22.1.2. Parsing of Numbers and Symbols</A></H2>
+<P>
+<A NAME=PARSETOKENSSECTION>When</A>
+an extended token is read, it is interpreted as a number or symbol.
+In general, the token is interpreted as a number if it satisfies
+the syntax for numbers specified in table <A HREF="node189.html#NUMBERSYNTAXTABLE">22-2</A>;
+this is discussed in more detail below.
+<P>
+The characters of the extended token may serve various syntactic
+functions as shown
+in table <A HREF="node189.html#StandardReadtableAttributesTable">22-3</A>, but it must be
+remembered that any character included in a token under the control
+of an escape character is treated as <i>alphabetic</i> rather than
+according to the attributes shown in the table.
+One consequence of this rule is that a whitespace, macro, or escape
+character will always be treated as alphabetic within an extended token
+because such a character cannot be included in an extended
+token except under the control of an escape character.
+<P>
+To allow for extensions to the syntax of numbers, a
+syntax for <i>potential numbers</i> is defined in Common Lisp that is
+more general than the actual syntax for numbers.
+Any token that is not a potential number and does not consist
+entirely of dots will always be taken to be a symbol,
+now and in the future; programs may rely on this fact.
+Any token that is a potential number but does not fit the
+actual number syntax defined below is a <i>reserved token</i> and
+has an implementation-dependent interpretation;
+an implementation may signal an error, quietly treat the token
+as a symbol, or take some other action.  Programmers should avoid
+the use of such reserved tokens.  (A symbol whose name looks like a reserved
+token can always be written using one or more escape characters.)
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+Just as <i>bignum</i> is the standard term used by Lisp implementors for
+very large integers, and <i>flonum</i> (rhymes with ``low hum'') refers
+to a floating-point number, the term <i>potnum</i> has been used widely
+as an abbreviation for ``potential number.''  ``Potnum'' rhymes with ``hot rum.''
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+
+<A NAME=NUMBERSYNTAXTABLE>&#160;</A>
+<pre>
+----------------------------------------------------------------
+Table 22-2: Actual Syntax of Numbers
+
+<i>number</i> ::= <i>integer</i> | <i>ratio</i> | <i>floating-point-number</i> 
+<i>integer</i> ::= [<i>sign</i>] {<i>digit</i>}+ [<i>decimal-point</i>] 
+<i>ratio</i> ::= [<i>sign</i>] {<i>digit</i>}+ / {<i>digit</i>}+ 
+<i>floating-point-number</i> ::= [<i>sign</i>] {<i>digit</i>}* <i>decimal-point</i> {<i>digit</i>}+ [<i>exponent</i>] 
+                       | [<i>sign</i>] {<i>digit</i>}+ [<i>decimal-point</i> {<i>digit</i>}*] <i>exponent</i>
+<i>sign</i> ::= + | - 
+<i>decimal-point</i> ::= . 
+<i>digit</i> ::= 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 
+<i>exponent</i> ::= <i>exponent-marker</i> [<i>sign</i>] {<i>digit</i>}+  
+<i>exponent-marker</i> ::= e | s | f | d | l | E | S | F | D | L
+----------------------------------------------------------------
+</pre>
+<P>
+<A NAME=StandardReadtableAttributesTable>&#160;</A>
+<pre>
+----------------------------------------------------------------
+Table 22-3: Standard Constituent Character Attributes
+
+! <i>alphabetic</i>       &lt;page&gt;   <i>illegal</i>          &lt;backspace&gt;   <i>illegal</i> 
+" <i>alphabetic</i> *     &lt;return&gt; <i>illegal</i> *        &lt;tab&gt;         <i>illegal</i> * 
+# <i>alphabetic</i> *     &lt;space&gt;  <i>illegal</i> *        &lt;newline&gt;     <i>illegal</i> * 
+$ <i>alphabetic</i>       &lt;rubout&gt; <i>illegal</i>          &lt;linefeed&gt;    <i>illegal</i> * 
+% <i>alphabetic</i>       .        <i>alphabetic</i>, <i>dot</i>, <i>decimal point</i>
+& <i>alphabetic</i>       +        <i>alphabetic</i>, <i>plus sign</i> 
+' <i>alphabetic</i> *     -        <i>alphabetic</i>, <i>minus sign</i> 
+( <i>alphabetic</i> *     *        <i>alphabetic</i> 
+) <i>alphabetic</i> *     /        <i>alphabetic</i>, <i>ratio marker</i> 
+, <i>alphabetic</i> *     @        <i>alphabetic</i> 
+0 <i>alphadigit</i>       A, a     <i>alphadigit</i> 
+1 <i>alphadigit</i>       B, b     <i>alphadigit</i> 
+2 <i>alphadigit</i>       C, c     <i>alphadigit</i> 
+3 <i>alphadigit</i>       D, d     <i>alphadigit</i>, <i>double-float exponent marker</i> 
+4 <i>alphadigit</i>       E, e     <i>alphadigit</i>, <i>float exponent marker</i> 
+5 <i>alphadigit</i>       F, f     <i>alphadigit</i>, <i>single-float exponent marker</i> 
+6 <i>alphadigit</i>       G, g     <i>alphadigit</i> 
+7 <i>alphadigit</i>       H, h     <i>alphadigit</i> 
+8 <i>alphadigit</i>       I, i     <i>alphadigit</i> 
+9 <i>alphadigit</i>       J, j     <i>alphadigit</i> 
+: <i>package marker</i>   K, k     <i>alphadigit</i> 
+; <i>alphabetic</i> *     L, l     <i>alphadigit</i>, <i>long-float exponent marker</i> 
+< <i>alphabetic</i>       M, m     <i>alphadigit</i> 
+= <i>alphabetic</i>       N, n     <i>alphadigit</i> 
+> <i>alphabetic</i>       O, o     <i>alphadigit</i> 
+? <i>alphabetic</i>       P, p     <i>alphadigit</i> 
+[ <i>alphabetic</i>       Q, q     <i>alphadigit</i> 
+\ <i>alphabetic</i> *     R, r     <i>alphadigit</i> 
+] <i>alphabetic</i>       S, s     <i>alphadigit</i>, <i>short-float exponent marker</i> 
+^ <i>alphabetic</i>       T, t     <i>alphadigit</i> 
+_ <i>alphabetic</i>       U, u     <i>alphadigit</i> 
+` <i>alphabetic</i> *     V, v     <i>alphadigit</i> 
+{ <i>alphabetic</i>       W, w     <i>alphadigit</i> 
+| <i>alphabetic</i> *     X, x     <i>alphadigit</i> 
+} <i>alphabetic</i>       Y, y     <i>alphadigit</i> 
+~ <i>alphabetic</i>       Z, z     <i>alphadigit</i> 
+
+----------------------------------------------------------------
+
+</pre>
+<P>
+A token is a potential number if it satisfies the following
+requirements:
+<UL><LI>
+It consists entirely of digits, signs (<tt>+</tt> or <tt>-</tt>),
+ratio markers (<tt>/</tt>), decimal points (<tt>.</tt>), extension characters
+(<tt>^</tt> or <tt>_</tt>), and number markers.  (A number marker is
+a letter.  Whether a letter may be treated as a number marker depends
+on context, but no letter that is adjacent to another letter may ever be
+treated as a number marker.  Floating-point exponent markers are instances
+of number markers.)
+<P>
+<LI>
+It contains at least one digit.  (Letters may be considered to be
+digits, depending on the value of <tt>*read-base*</tt>, but only
+in tokens containing no decimal points.)
+<P>
+<LI>
+It begins with a digit, sign, decimal point, or extension character.
+<P>
+<LI>
+It does not end with a sign.
+</UL>
+As examples, the following tokens are potential numbers,
+but they are <i>not</i> actually numbers as defined below, and so are
+reserved tokens.  (They do indicate some interesting possibilities
+for future extensions.)
+<pre>
+1b5000       777777q      1.7J       -3/4+6.7J    12/25/83 
+27^19        3^4/5        6//7       3.1.2.6      ^-43^ 
+3.141_592_653_589_793_238_4           -3.7+2.6i-6.17j+19.6k
+</pre>
+The following tokens are <i>not</i> potential numbers but are always
+treated as symbols:
+<P><pre>
+/            /5           +            1+           1- 
+foo+         ab.cd        _            ^            ^/-
+</pre><P>
+The following tokens are potential numbers if the value of
+<tt>*read-base*</tt> is <tt>16</tt> (an abnormal situation), but they are
+always treated as symbols if the value of <tt>*read-base*</tt>
+is <tt>10</tt> (the usual value):
+<P><pre>
+bad-face        25-dec-83       a/b     fad_cafe        f^
+</pre><P>
+It is possible for there to be an ambiguity as to whether
+a letter should be treated as a digit or as a number marker.
+In such a case, the letter is always treated as a digit
+rather than as a number marker.
+<P>
+Note that the printed representation for a potential
+number may not contain any escape characters.
+An escape character robs the following character of all syntactic
+qualities, forcing it to be strictly alphabetic and therefore unsuitable
+for use in a potential number.  For example,
+all of the following representations are interpreted as symbols, not numbers:
+<pre>
+\256   25\64   1.0\E6   |100|   3\.14159   |3/4|   3\/4   5||
+</pre>
+In each case, removing the escape character(s) would allow the token
+to be treated as a number.
+<P>
+If a potential number can in fact
+be interpreted as a number according to the BNF
+syntax in table <A HREF="node189.html#NUMBERSYNTAXTABLE">22-2</A>, then a number object of the
+appropriate type is constructed and returned.  It should be noted that in
+a given implementation it may be that not all tokens conforming to the
+actual syntax for numbers can actually be converted into number objects.
+For example, specifying too large or too small an exponent for a floating-point
+number may make the number impossible to represent in the implementation.
+Similarly, a ratio with denominator zero (such as <tt>-35/000</tt>)
+cannot be represented in <i>any</i> implementation.
+In any such circumstance where
+a token with the syntax of a number cannot be converted to an internal
+number object, an error is signaled.  (On the other hand, an error
+must not be signaled for specifying too many significant digits
+for a floating-point number; an appropriately truncated or rounded
+value should be produced.)
+<P>
+There is an omission in the syntax of numbers
+as described in table <A HREF="node189.html#NUMBERSYNTAXTABLE">22-2</A>,
+in that the syntax does not account for the possible
+use of letters as digits.
+The radix used for reading integers and ratios is normally decimal.
+However, this radix is actually determined by the value of
+the variable <tt>*read-base*</tt>, whose initial value is <tt>10</tt>.
+<tt>*read-base*</tt> may take on any integral value between <tt>2</tt> and <tt>36</tt>;
+let this value be <i>n</i>.  Then a token <i>x</i> is interpreted as
+an integer or ratio in base <i>n</i> if it could be properly
+so interpreted in the syntax <tt>#<i>n</i>R<i>x</i></tt>
+(see section <A HREF="node191.html#SHARPSIGNMACROCHARACTERSECTION">22.1.4</A>).
+So, for example, if the value of <tt>*read-base*</tt> is <tt>16</tt>,
+then the printed representation
+<P><pre>
+(a small face in a bad place)
+</pre><P>
+would be interpreted as if the following representation had
+been read with <tt>*read-base*</tt> set to <tt>10</tt>:
+<P><pre>
+(10 small 64206 in 10 2989 place)
+</pre><P>
+because four of the seven tokens in the list can be interpreted
+as hexadecimal numbers.  This facility is intended to be used
+in reading files of data that for some reason contain numbers
+not in decimal radix; it may also be used for reading programs
+written in Lisp dialects (such as MacLisp) whose default number radix is not
+decimal.  Non-decimal constants in Common Lisp programs
+or portable Common Lisp data files should be written using
+<tt>#O</tt>, <tt>#X</tt>, <tt>#B</tt>, or <tt>#<i>n</i>R</tt> syntax.
+<P>
+When <tt>*read-base*</tt> has a value greater than <tt>10</tt>, an ambiguity
+is introduced into the actual syntax for numbers because a letter can serve
+as either a digit or an exponent marker; a simple example is <tt>1E0</tt>
+when the value of <tt>*read-base*</tt> is <tt>16</tt>.  The ambiguity is resolved
+in accordance with the general principle that interpretation
+as a digit is preferred to interpretation as a number marker.
+The consequence in this case is that
+if a token can be interpreted as either an integer or a floating-point
+number, then it is taken to be an integer.
+<P>
+If a token consists solely of dots (with no escape characters), then an
+error is signaled, except in one circumstance: if the token is a single
+dot and occurs in a situation appropriate to ``dotted list'' syntax,
+then it is accepted as a part of such syntax.  Signaling an error
+catches not only misplaced dots in dotted list syntax but also
+lists that were truncated by <tt>*print-length*</tt> cutoff,
+because such lists end with a three-dot sequence (<tt>...</tt>).
+Examples:
+<P><pre>
+(a . b)         ;A dotted pair of <tt>a</tt> and <tt>b</tt> 
+(a.b)           ;A list of one element, the symbol named <tt>a.b</tt> 
+(a. b)          ;A list of two elements <tt>a.</tt> and <tt>b</tt> 
+(a .b)          ;A list of two elements <tt>a</tt> and <tt>.b</tt> 
+(a  . b)        ;A list of three elements <tt>a</tt>, <tt>.</tt>, and <tt>b</tt> 
+(a |.| b)       ;A list of three elements <tt>a</tt>, <tt>.</tt>, and <tt>b</tt> 
+(a  ... b)      ;A list of three elements <tt>a</tt>, <tt>...</tt>, and <tt>b</tt> 
+(a |...| b)     ;A list of three elements <tt>a</tt>, <tt>...</tt>, and <tt>b</tt> 
+(a b . c)       ;A dotted list of <tt>a</tt> and <tt>b</tt> with <tt>c</tt> at the end 
+.iot            ;The symbol whose name is <tt>.iot</tt> 
+(. b)           ;Illegal; an error is signaled 
+(a .)           ;Illegal; an error is signaled 
+(a .. b)        ;Illegal; an error is signaled 
+(a . . b)       ;Illegal; an error is signaled 
+(a b c ...)     ;Illegal; an error is signaled
+</pre><P>
+<P>
+In all other cases, the token is construed to be the name of a symbol.
+If there are any package markers
+(colons) in the token, they divide the token into pieces used to
+control the lookup and creation of the symbol.
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+If there is a single package marker, and it occurs at the beginning of the
+token, then the token is interpreted as a keyword, that is, a symbol in the
+<tt>keyword</tt> package.  The part of the token after the package marker must
+not have the syntax of a number.
+<P>
+If there is a single package marker not at the beginning or end of the
+token, then it divides the token into two parts.  The first part
+specifies a package; the second part is the name of an external symbol
+available in that package.  Neither of the two parts may have the syntax
+of a number.
+<P>
+If there are two adjacent package markers not at the beginning or end of the
+token, then they divide the token into two parts.  The first part
+specifies a package; the second part is the name of a symbol within
+that package (possibly an internal symbol).
+Neither of the two parts may have the syntax of a number.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988
+(COLON-NUMBER) <A NAME=20763>&#160;</A> 
+to clarify that, in the situations described in the
+preceding three paragraphs, the restriction on the syntax of the parts should
+be strengthened:  none of the parts may have the syntax of even
+a <i>potential</i> number.  Tokens such as <tt>:3600</tt>, <tt>:1/2</tt>,
+and <tt>editor:3.14159</tt> were already ruled out; this clarification further
+declares that such tokens as <tt>:2^ 3</tt>, <tt>compiler:1.7J</tt>,
+and <tt>Christmas:12/25/83</tt> are also in error and therefore should not be used
+in portable programs.  Implementations may differ in their treatment of
+such package-marked potential numbers.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+If a symbol token contains no package markers, then the entire token
+is the name of the symbol.  The symbol is looked up in
+the default package, which is the value
+of the variable <tt>*package*</tt>.
+<P>
+All other patterns of package markers,
+including the cases where there are more than two
+package markers or where a package marker appears at the end of the token,
+at present do not mean anything in Common Lisp (see chapter <A HREF="node111.html#XPACK">11</A>).
+It is therefore currently an error to use such patterns in a Common Lisp program.
+The valid patterns for tokens may be summarized as follows:
+<PRE>
+<i>nnnnn</i>            a number
+<i>xxxxx</i>            a symbol in the current package
+<tt>:<i>xxxxx</i></tt>          a symbol in the keyword package
+<tt><i>ppppp</i>:<i>xxxxx</i></tt>     an external symbol in the <i>ppppp</i> package
+<tt><i>ppppp</i>::<i>xxxxx</i></tt>    a (possibly internal) symbol in the <i>ppppp</i> package
+</PRE>
+where <i>nnnnn</i> has the syntax of a number, and <i>xxxxx</i> and <i>ppppp</i> do
+not have the syntax of a number.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+In accordance with the X3J13 decision noted above
+(COLON-NUMBER) <A NAME=20789>&#160;</A> , <i>xxxxx</i> and <i>ppppp</i> may not have the syntax of even
+a potential number.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Variable]</b><BR>
+<tt>*read-base*</tt><P>The value of <tt>*read-base*</tt> controls the interpretation of tokens
+by <tt>read</tt> as being integers or ratios.  Its value is the radix
+in which integers and ratios are to be read; the value may be any integer
+from <tt>2</tt> to <tt>36</tt> (inclusive) and is normally <tt>10</tt> (decimal radix).
+Its value affects only the reading of integers and ratios.
+In particular, floating-point numbers are always read in decimal radix.
+The value of <tt>*read-base*</tt> does not affect the radix for rational numbers
+whose radix is explicitly indicated by
+<tt>#O</tt>, <tt>#X</tt>, <tt>#B</tt>, or <tt>#<i>n</i>R</tt> syntax
+or by a trailing decimal point.
+<P>
+Care should be taken when setting <tt>*read-base*</tt> to a value larger
+than <tt>10</tt>, because tokens that would normally be interpreted as
+symbols may be interpreted as numbers instead.  For example,
+with <tt>*read-base*</tt> set to <tt>16</tt> (hexadecimal radix), variables
+with names such as <tt>a</tt>, <tt>b</tt>, <tt>f</tt>, <tt>bad</tt>, and <tt>face</tt>
+will be treated by the reader as numbers (with decimal values
+10, 11, 15, 2989, and 64206, respectively).  The ability to alter
+the input radix is provided in Common Lisp primarily for the purpose of
+reading data files in special formats, rather than for the purpose of altering
+the default radix in which to read programs.  The user is strongly
+encouraged to use <tt>#O</tt>, <tt>#X</tt>, <tt>#B</tt>, or <tt>#<i>n</i>R</tt> syntax when
+notating non-decimal constants in programs.
+<P>
+<hr>
+<b>Compatibility note:</b> This variable corresponds to the variable
+called <tt>ibase</tt> in MacLisp and to the function called <tt>radix</tt>
+in Interlisp.
+<hr>
+<P>
+<BR><b>[Variable]</b><BR>
+<tt>*read-suppress*</tt><P>When the value of <tt>*read-suppress*</tt> is <tt>nil</tt>, the Lisp reader
+operates normally.  When it is not <tt>nil</tt>, then most of the interesting
+operations of the reader are suppressed; input characters are parsed,
+but much of what is read is not interpreted.
+<P>
+The primary purpose of <tt>*read-suppress*</tt> is to support the operation of
+the read-time conditional constructs <tt>#+</tt> and <tt>#-</tt>
+(see section <A HREF="node191.html#SHARPSIGNMACROCHARACTERSECTION">22.1.4</A>).  It is important for these
+constructs to be able to skip over the printed representation of a Lisp
+expression despite the possibility that the syntax of the skipped
+expression may not be entirely legal for the current implementation; this
+is because a primary application of <tt>#+</tt> and <tt>#-</tt> is to allow the
+same program to be shared among several Lisp implementations despite
+small incompatibilities of syntax.
+<P>
+A non-<tt>nil</tt> value of <tt>*read-suppress*</tt> has the following specific
+effects on the Common Lisp reader:
+<UL><LI>
+All extended tokens are completely uninterpreted.  It matters not
+whether the token looks like a number, much less like a valid number;
+the pattern of package markers also does not matter.  An extended token
+is simply discarded and treated as if it were <tt>nil</tt>; that is, reading
+an extended token when <tt>*read-suppress*</tt> is non-<tt>nil</tt> simply returns <tt>nil</tt>.
+(One consequence of this is that the error concerning improper
+dotted-list syntax will not be signaled.)
+<P>
+<LI>
+Any standard
+<tt>#</tt> macro-character construction that requires, permits, or disallows
+an infix numerical argument, such as <tt>#<i>n</i>R</tt>, will not enforce
+any constraint on the presence, absence, or value of such an argument.
+<P>
+<LI>
+The <tt>#\</tt> construction always produces the value <tt>nil</tt>.
+It will not signal an error even if an unknown character name is seen.
+<P>
+<LI>
+Each of the <tt>#B</tt>, <tt>#O</tt>, <tt>#X</tt>, and <tt>#R</tt>
+constructions always scans over a following token and produces the value <tt>nil</tt>.
+It will not signal an error even if the token does not have the syntax
+of a rational number.
+<P>
+<LI>
+The <tt>#*</tt> construction always scans over a following token and
+produces the value <tt>nil</tt>.
+It will not signal an error even if the token does not consist solely
+of the characters <tt>0</tt> and <tt>1</tt>.
+</UL>
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<UL><LI>
+Each of the <tt>#.</tt> and <tt>#,</tt> constructions reads the following
+form (in suppressed mode, of course) but does not evaluate it.
+The form is discarded and <tt>nil</tt> is produced.
+</UL>
+<img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<ul>
+X3J13 voted in January 1989
+(SHARP-COMMA-CONFUSION) <A NAME=20861>&#160;</A>  to remove <tt>#,</tt> from the language.
+</ul>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<UL><LI>
+Each of the <tt>#A</tt>, <tt>#S</tt>, and <tt>#:</tt>
+constructions reads the following
+form (in suppressed mode, of course) but does not interpret it in any way;
+it need not even be a list in the case of <tt>#S</tt>, or a symbol
+in the case of <tt>#:</tt>.  The form is discarded and <tt>nil</tt> is produced.
+<P>
+<LI>
+The <tt>#=</tt> construction is totally ignored.  It does not read
+a following form.  It produces no object, but is treated as whitespace.
+<P>
+<LI>
+The <tt>##</tt> construction always produces <tt>nil</tt>.
+</UL>
+Note that, no matter what the value of <tt>*read-suppress*</tt>,
+parentheses still continue to delimit (and construct) lists;
+the <tt>#(</tt> construction continues to delimit vectors;
+and comments, strings, and the quote and backquote constructions continue to be
+interpreted properly.  Furthermore, such situations as
+<tt>')</tt>,
+<tt>#&lt;</tt>, <tt>#)</tt>, and <tt>#<b></b>space<b></b></tt> continue to signal errors.
+<P>
+In some cases, it may be appropriate for a user-written macro-character
+definition to check the value of <tt>*read-suppress*</tt> and to avoid certain
+computations or side effects if its value is not <tt>nil</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<BR><b>[Variable]</b><BR>
+<tt>*read-eval*</tt><P>X3J13 voted in June 1989 (DATA-IO) <A NAME=20886>&#160;</A>  to add a new reader control variable,
+<tt>*read-eval*</tt>, whose default value is <tt>t</tt>.
+If <tt>*read-eval*</tt> is false, the <tt>#.</tt> reader macro signals an error.
+<P>
+Printing is also affected.  If
+  <tt>*read-eval*</tt> is false and <tt>*print-readably*</tt> is true, any <tt>print-object</tt>
+  method that would otherwise output a <tt>#.</tt> reader macro must either output something
+  different or signal an error of type <tt>print-not-readable</tt>.
+<P>
+Binding <tt>*read-eval*</tt> to <tt>nil</tt> is useful when reading data that came from
+  an untrusted source, such as a network or a user-supplied data file; it
+  prevents the <tt>#.</tt> reader macro from being exploited as a ``Trojan horse'' to
+  cause arbitrary forms to be evaluated.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html3903 HREF="node190.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3901 HREF="node187.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3895 HREF="node188.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3905 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3906 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3904 HREF="node190.html"> Macro Characters</A>
+<B>Up:</B> <A NAME=tex2html3902 HREF="node187.html"> Printed Representation of </A>
+<B> Previous:</B> <A NAME=tex2html3896 HREF="node188.html"> What the Read </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

@@ -1,0 +1,227 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node94.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:32:30 GMT -->
+<HEAD>
+<TITLE>7.10.1. Constructs for Handling Multiple Values</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Constructs for Handling Multiple Values">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+ 
+<br><HR><A NAME=tex2html2697 HREF="node95.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2695 HREF="node93.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2689 HREF="node93.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2699 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2700 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2698 HREF="node95.html"> Rules Governing the </A>
+<B>Up:</B> <A NAME=tex2html2696 HREF="node93.html"> Multiple Values</A>
+<B> Previous:</B> <A NAME=tex2html2690 HREF="node93.html"> Multiple Values</A>
+<HR> <P>
+<H2><A NAME=SECTION0011101000000000000000>7.10.1. Constructs for Handling Multiple Values</A></H2>
+<P>
+Normally multiple values are not used.  Special forms are
+required both to <i>produce</i> multiple values and to <i>receive</i> them.
+If the caller of a function does not request multiple values,
+but the called function produces multiple values, then the first
+value is given to the caller and all others are discarded;
+if the called function produces zero values, then the caller gets <tt>nil</tt>
+as a value.
+<P>
+The primary primitive for producing multiple values is <tt>values</tt>,
+which takes any number of arguments and returns that many values.  If the
+last form in the body of a function is a <tt>values</tt> with three arguments,
+then a call to that function will return three values.  Other special
+forms also produce multiple values, but they can be described in terms of
+<tt>values</tt>.  Some built-in Common Lisp functions, such as <tt>floor</tt>, return
+multiple values; those that do are so documented.
+<P>
+The special forms and macros for receiving multiple values are as follows:
+<P><pre>
+multiple-value-list 
+multiple-value-call 
+multiple-value-prog1 
+multiple-value-bind 
+multiple-value-setq
+</pre><P>
+These specify a form to evaluate and an indication of where to put
+the values returned by that form.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>values</tt> <tt>&amp;rest</tt> <em>args</em><P>All of the arguments are returned, in order, as values.
+For example:
+<P><pre>
+(defun polar (x y) 
+  (values (sqrt (+ (* x x) (* y y))) (atan y x))) 
+
+(multiple-value-bind (r theta) (polar 3.0 4.0) 
+  (vector r theta)) 
+   => #(5.0 0.9272952)
+</pre><P>
+<P>
+The expression <tt>(values)</tt> returns zero values.  This is the standard idiom
+for returning no values from a function.
+<P>
+Sometimes it is desirable to indicate explicitly that a function will return
+exactly one value.  For example, the function
+<P><pre>
+(defun foo (x y) 
+  (floor (+ x y) y))
+</pre><P>
+will return two values because <tt>floor</tt> returns
+two values.  It may be that the second value makes no sense,
+or that for efficiency reasons it is desired not to compute the
+second value.  The <tt>values</tt> function is the standard idiom
+for indicating that only one value is to be returned,
+as shown in the following example.
+<P><pre>
+(defun foo (x y) 
+  (values (floor (+ x y) y)))
+</pre><P>
+This works because <tt>values</tt> returns exactly <i>one</i> value for each of
+its argument forms; as for any function call,
+if any argument form to <tt>values</tt> produces more than one value, all but the
+first are discarded.
+<P>
+There is absolutely no way in Common Lisp for a caller to distinguish between
+returning a single value in the ordinary manner and returning
+exactly one ``multiple value.''  For example, the values returned
+by the expressions <tt>(+ 1 2)</tt> and <tt>(values (+ 1 2))</tt> are identical
+in every respect: the single value <tt>3</tt>.
+<P>
+<BR><b>[Constant]</b><BR>
+<tt>multiple-values-limit</tt><P>The value of <tt>multiple-values-limit</tt> is a positive integer that is
+the upper exclusive bound on the number of values that may
+be returned from a function.  This bound depends on the implementation
+but will not be smaller than 20.
+(Implementors are encouraged to make this limit as large as practicable
+without sacrificing performance.)
+See <tt>lambda-parameters-limit</tt> and <tt>call-arguments-limit</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>values-list</tt> <tt><i>list</i></tt><P>All of the elements of <i>list</i> are returned as multiple values.
+For example:
+<P><pre>
+(values-list (list a b c)) == (values a b c)
+</pre><P>
+In general,
+<P><pre>
+(values-list <i>list</i>) == (apply #'values <i>list</i>)
+</pre><P>
+but <tt>values-list</tt> may be clearer or more efficient.
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>multiple-value-list</tt> <tt><i>form</i></tt><P><tt>multiple-value-list</tt> evaluates <i>form</i> and returns a list of
+the multiple values it returned.
+For example:
+<P><pre>
+(multiple-value-list (floor -3 4)) => (-1 1)
+</pre><P>
+<tt>multiple-value-list</tt> and <tt>values-list</tt> are therefore inverses
+of each other.
+<P>
+<BR><b>[Special Form]</b><BR>
+<tt>multiple-value-call</tt> <tt><i>function</i></tt> <tt>{<i>form</i>}*</tt><P><tt>multiple-value-call</tt> first evaluates <i>function</i> to obtain a function
+and then evaluates all of the <i>form</i>s.  All the values
+of the <i>form</i>s are gathered together (not just one value from each)
+and are all given as arguments to the function.  The result of <tt>multiple-value-call</tt>
+is whatever is returned by the function.
+For example:
+<P><pre>
+(+ (floor 5 3) (floor 19 4)) 
+   == (+ 1 4) => 5 
+(multiple-value-call #'+ (floor 5 3) (floor 19 4)) 
+   == (+ 1 2 4 3) => 10 
+(multiple-value-list <i>form</i>) == (multiple-value-call #'list <i>form</i>)
+</pre><P>
+<P>
+<BR><b>[Special Form]</b><BR>
+<tt>multiple-value-prog1</tt> <tt><i>form</i></tt> <tt>{<i>form</i>}*</tt><P><tt>multiple-value-prog1</tt> evaluates the first <i>form</i> and saves all the values
+produced by that form.  It then evaluates the other <i>form</i>s
+from left to right, discarding their values.  The values produced
+by the first <i>form</i> are returned by <tt>multiple-value-prog1</tt>.  See <tt>prog1</tt>,
+which always returns a single value.
+<P>
+<BR><b>[Macro]</b><BR>
+<pre>
+<tt>multiple-value-bind</tt> <tt>({<i>var</i>}*)</tt> <tt><i>values-form</i></tt>
+                      <tt>{<i>declaration</i>}*</tt> <tt>{<i>form</i>}*</tt>
+</pre>
+<P>The <i>values-form</i> is evaluated, and each of the variables <i>var</i> is
+bound to the respective value returned by that form.  If there are more
+variables than values returned, extra values of <tt>nil</tt> are given to the
+remaining variables.  If there are more values than variables, the excess
+values are simply discarded.  The variables are bound to the values over
+the execution of the forms, which make up an implicit <tt>progn</tt>.
+For example:
+<P><pre>
+(multiple-value-bind (x) (floor 5 3) (list x)) => (1) 
+(multiple-value-bind (x y) (floor 5 3) (list x y)) => (1 2) 
+(multiple-value-bind (x y z) (floor 5 3) (list x y z)) 
+   => (1 2 <tt>nil</tt>)
+</pre><P>
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>multiple-value-setq <i>variables</i> <i>form</i></tt><P>The <i>variables</i> must be a list of variables.  The <i>form</i> is
+evaluated, and the variables are <i>set</i> (not bound) to the values
+returned by that form.  If there are more variables than values returned,
+extra values of <tt>nil</tt> are assigned to the remaining variables.  If there
+are more values than variables, the excess values are simply discarded.
+<P>
+<hr>
+<b>Compatibility note:</b> In Lisp Machine Lisp this is called <tt>multiple-value</tt>.
+The added clarity of the name <tt>multiple-value-setq</tt> in Common Lisp was deemed
+worth the incompatibility with Lisp Machine Lisp.
+<hr>
+<P>
+<tt>multiple-value-setq</tt> always returns a single value, which is the first
+value returned by <i>form</i>, or <tt>nil</tt> if <i>form</i> produces zero values.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989
+(SYMBOL-MACROLET-SEMANTICS) <A NAME=7798>&#160;</A>  to specify that if any <i>var</i>
+refers not to an ordinary variable but to a binding made by
+<tt>symbol-macrolet</tt>, then that <i>var</i> is handled as
+if <tt>setq</tt> were used to assign the appropriate value to it.
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>nth-value</tt> <tt><i>n</i></tt> <tt><i>form</i></tt><P>X3J13 voted in January 1989
+(NTH-VALUE) <A NAME=7807>&#160;</A> 
+to add a new macro named <tt>nth-value</tt>.
+The argument forms <i>n</i> and <i>form</i> are both evaluated.
+The value of <i>n</i> must be a non-negative integer,
+and the <i>form</i> may produce any number of values.
+The integer <i>n</i> is used as a zero-based index into the
+list of values.
+Value <i>n</i> of the <i>form</i> is returned as the
+single value of the <tt>nth-value</tt> form; <tt>nil</tt> is returned if the
+<i>form</i> produces no more than <i>n</i> values.
+<P>
+As an example, <tt>mod</tt> could be defined as
+<P><pre>
+(defun mod (number divisor) 
+  (nth-value 1 (floor number divisor)))
+</pre><P>
+Value number 1 is the <i>second</i> value returned by <tt>floor</tt>,
+the first value being value number 0.
+<P>
+One could define <tt>nth-value</tt> simply as
+<P><pre>
+(defmacro nth-value (n form) 
+  `(nth ,n (multiple-value-list ,form)))
+</pre><P>
+but the clever implementor will doubtless find an implementation
+technique for <tt>nth-value</tt> that avoids constructing an intermediate
+list of all the values of the <i>form</i>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ BR> <HR><A NAME=tex2html2697 HREF="node95.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2695 HREF="node93.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2689 HREF="node93.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2699 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2700 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2698 HREF="node95.html"> Rules Governing the </A>
+<B>Up:</B> <A NAME=tex2html2696 HREF="node93.html"> Multiple Values</A>
+<B> Previous:</B> <A NAME=tex2html2690 HREF="node93.html"> Multiple Values</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

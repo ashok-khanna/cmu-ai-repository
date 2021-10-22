@@ -1,0 +1,109 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node299.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 10:10:43 GMT -->
+<HEAD>
+<TITLE>28.1.9.7. Definitions of Make-Instance and Initialize-Instance</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Definitions of Make-Instance and Initialize-Instance">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html5393 HREF="node300.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5391 HREF="node292.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5387 HREF="node298.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5395 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5396 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5394 HREF="node300.html"> Redefining Classes</A>
+<B>Up:</B> <A NAME=tex2html5392 HREF="node292.html"> Object Creation and </A>
+<B> Previous:</B> <A NAME=tex2html5388 HREF="node298.html"> Initialize-Instance</A>
+<HR> <P>
+<H3><A NAME=SECTION003219700000000000000>28.1.9.7. Definitions of Make-Instance and Initialize-Instance</A></H3>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+The generic function <tt>make-instance</tt> behaves as if it were defined as
+follows, except that certain optimizations are permitted:
+<P>
+
+<P>
+<P><pre>
+(defmethod make-instance ((class standard-class) &amp;rest initargs) 
+  (setq initargs (default-initargs class initargs)) 
+  ... 
+  (let ((instance (apply #'allocate-instance class initargs))) 
+    (apply #'initialize-instance instance initargs) 
+    instance)) <BR><BR>(defmethod make-instance ((class-name symbol) &amp;rest initargs) 
+  (apply #'make-instance (find-class class-name) initargs))
+</pre><P>
+<P>
+
+<P>
+The elided code in the definition of <tt>make-instance</tt> checks the
+supplied initialization arguments to determine whether an initialization
+argument was supplied that neither filled a slot nor supplied an argument
+to an applicable method. This check could be implemented using the generic
+functions <tt>class-prototype</tt>, <tt>compute-applicable-methods</tt>, 
+<tt>function-keywords</tt>, and <tt>class-slot-initargs</tt>. See the third
+part of the Common Lisp Object System specification for a
+description of this initialization argument check.
+[The third part
+has not yet been approved by X3J13 for inclusion in the forthcoming
+Common Lisp standard and is not included in this book.-GLS]
+<P>
+The generic function <tt>initialize-instance</tt> behaves as if it were
+defined as follows, except that certain optimizations are permitted:
+<P>
+<P><pre>
+(defmethod initialize-instance 
+           ((instance standard-object) &amp;rest initargs) 
+  (apply #'shared-initialize instance t initargs)))
+</pre><P>
+<P>
+These procedures can be customized at either the Programmer Interface level,
+the meta-object level, or both.
+<P>
+Customizing at the Programmer Interface level includes using the 
+<tt>:initform</tt>, <tt>:initarg</tt>, and <tt>:default-initargs</tt> options to
+<tt>defclass</tt>, as well as defining methods for <tt>make-instance</tt>
+and <tt>initialize-instance</tt>.  It is also possible to define
+methods for <tt>shared-initialize</tt>, which would be invoked by the
+generic functions <tt>reinitialize-instance</tt>, 
+<tt>update-instance-for-redefined-class</tt>, 
+<tt>update-instance-for-different-class</tt>, and 
+<tt>initialize-instance</tt>.  The meta-object level supports additional
+customization by allowing methods to be defined on 
+<tt>make-instance</tt>, <tt>default-initargs</tt>, and 
+<tt>allocate-instance</tt>.  Parts 2 and 3 of the Common Lisp Object System specification document each of these generic
+functions and the system-supplied primary methods.
+[The third part
+has not yet been approved by X3J13 for inclusion in the forthcoming
+Common Lisp standard and is not included in this book.-GLS]
+<P>
+Implementations are permitted to make certain optimizations to 
+<tt>initialize-instance</tt> and <tt>shared-initialize</tt>.  The
+description of <tt>shared-initialize</tt> in
+section <A HREF="node311.html#FunctionsintheProgrammerInterfaceSECTION">28.2</A>
+mentions the
+possible optimizations.
+<P>
+Because of optimization, the check for valid initialization arguments
+might not be implemented using the generic functions 
+<tt>class-prototype</tt>, <tt>compute-applicable-methods</tt>, 
+<tt>function-keywords</tt>, and <tt>class-slot-initargs</tt>. In addition,
+methods for the generic function <tt>default-initargs</tt> and the
+system-supplied primary methods for <tt>allocate-instance</tt>, 
+<tt>initialize-instance</tt>,
+and <tt>shared-initialize</tt> might not be called on
+every call to <tt>make-instance</tt> or might not receive exactly the
+arguments that would be expected.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html5393 HREF="node300.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5391 HREF="node292.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5387 HREF="node298.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5395 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5396 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5394 HREF="node300.html"> Redefining Classes</A>
+<B>Up:</B> <A NAME=tex2html5392 HREF="node292.html"> Object Creation and </A>
+<B> Previous:</B> <A NAME=tex2html5388 HREF="node298.html"> Initialize-Instance</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

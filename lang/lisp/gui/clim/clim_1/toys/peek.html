@@ -1,0 +1,661 @@
+;;; -*- Syntax: Common-Lisp; Package: clim-user -*-
+(in-package :clim-user)
+#|
+			 RESTRICTED RIGHTS LEGEND
+				    
+ Use, duplication, or disclosure by the Government is subject to
+ restrictions as set forth in subdivision (b)(3)(ii) of the Rights in
+ Technical Data and Computer Software Clause at 52.227-7013 of the DOD
+ FAR Supplement.
+				    
+		     BBN Systems and Technologies,
+			     a division of
+		      Bolt Beranek and Newman Inc.
+			   10 Moulton Street
+			  Cambridge, MA 02138
+			      617-873-3000
+				    
+      Copyright 1990, 1991, 1992 by BBN Systems and Technologies, 
+      a division of Bolt Beranek and Newman Inc., all rights reserved.
+
+|#
+;;; RCS: $Id: peek-frame.lisp,v 1.5 1992/04/11 15:06:29 kanderso Exp $
+#+rcs(rcs::header "$Header: /planning/master/dart/util/peek-frame.lisp,v 1.5 1992/04/11 15:06:29 kanderso Exp $")
+
+#||
+
+(PEEK) creates a peek frame for watching and manipulating lisp process activity
+and optionally OS process activity.  
+
+The current command items are:
+
+Update: Immediately update the display pane.
+
+Redisplay: Completely redisplay the display pane if something ugly happens
+  to it.
+
+Options: Popup dialog of display options.
+
+Faster: Half the interval between screen updates.
+
+Slower: Double the interval between screen updates.
+
+Pause: Toggle the paused/running state of the display.
+
+Authors: Ken Anderson (KAnderson@bbn.com), Jeff Morrill (JMorrill@bbn.com),
+with initial help form Dennis Doughty (doughty@daffy-duck.hq.ileaf.com).
+
+||#
+
+;;; Somehow, set the appropriate feature in your LISP.
+
+;#+wrong
+(eval-when (compile load eval)
+  (cond ((not (find-package :clim-utils))
+	 (pushnew :clim-0.9 *features*))
+	((not (find-package :clim-sys))
+	 (pushnew :clim-1.0 *features*))
+	(t (pushnew :clim-2.0 *features*))))
+
+;;;****************************************************************
+;;;****************************************************************
+;;;****************************************************************
+
+;;;
+;;; Functions for manipulating processes
+;;;
+(defun restart-process (p)
+  #+lucid (lcl::restart-process p)
+  #+allegro (mp:process-reset p))
+
+;;;****************************************************************
+
+(defun process-state (p)
+  #+lucid (lcl::process-state p)
+  #+allegro
+  (cond ((mp:process-active-p p) "active")
+	((mp:process-runnable-p p) "runnable")
+	(t "deactivated")))
+
+;;;****************************************************************
+
+(defun activate-process (p)
+  #+lucid (lcl::activate-process p)
+  #+allegro (mp:process-enable p))
+
+;;;****************************************************************
+
+(defun deactivate-process (p)
+  #+lucid (lcl::deactivate-process p)
+  #+allegro (mp:process-disable p))
+
+;;;****************************************************************
+
+(defun process-whostate (p)
+  #+lucid (lcl::process-whostate p)
+  #+allegro (mp:process-whostate p))
+
+;;;****************************************************************
+
+(defun process-name (p)
+  #+lucid (lcl::process-name p)
+  #+allegro (mp:process-name p))
+
+;;;****************************************************************
+
+(defun all-processes ()
+  #+clim-0.9 (ci::all-processes)
+  #+clim-1.0 (clim-utils:all-processes)
+  #+clim-2.0 (clim-sys:all-processes))
+
+;;;****************************************************************
+
+(defun current-process ()
+  #+clim-0.9 (ci::current-process)
+  #+clim-1.0 (clim-utils:current-process)
+  #+clim-2.0 (clim-sys:current-process))
+
+;;;****************************************************************
+
+(defun destroy-process (p)
+  #+clim-0.9 (ci::destroy-process p)
+  #+clim-1.0 (clim-utils:destroy-process p)
+  #+clim-2.0 (clim-sys:destroy-process p))
+
+;;;****************************************************************
+
+(defun process-p (thing)
+  #+lucid (typep thing 'lcl::process)
+  #+allegro (mp:process-p thing))
+
+;;;****************************************************************
+
+(defun bell ()
+  #+clim-0.9 (silica::ring-bell (find-port))
+  #-clim-0.9 (clim:beep))
+
+;;;****************************************************************
+;;;****************************************************************
+;;;****************************************************************
+
+;;; Define a simple "peek-like" application.  It has one display
+;;; area which incrementally redisplays every timeout seconds.
+(define-application-frame peek-frame
+			  ()
+  ((display-pane )
+   (commands-pane )
+   (mode :initform :process)       ;for extensibility
+   (show-gc-p :initform t)
+   (show-lisp-processes-p :initform t)
+   (show-OS-processes-p :initform nil)
+   (OS-command :initarg :OS-command :initform '("/bin/ps"))	; List of command and arguments
+   (timeout :initform 1)
+   (timeout-growth-factor :initform 2.0)
+   (paused-p :initform nil))
+  
+  #+clim-0.9 (:command-definer t)
+
+  #+clim-1.0
+  (:panes
+   ((commands :command-menu
+	      :display-after-commands nil
+	      :initial-cursor-visibility nil
+	      )
+    (display :application
+	      :display-function 'display-peek-status
+	      :incremental-redisplay t
+	      :display-after-commands t
+	      :initial-cursor-visibility nil
+	      :scroll-bars :both)
+    (mouse-doc   :pointer-documentation)))
+  #+clim-1.0
+  (:layout
+   ((default
+       (:column 1
+		(commands :compute)
+		(display :rest)
+		(mouse-doc :compute)))))
+  #+clim-2.0
+  (:panes
+   (commands
+    (scrolling ()
+       (make-pane 'application-pane
+		  :display-function 'display-commands
+		  :display-time t
+		  :initial-cursor-visibility nil)))
+   (display
+    (scrolling ()
+       (make-pane 'application-pane
+		  :incremental-redisplay t
+		  :display-function 'display-peek-status
+		  :display-time :command-loop
+		  :initial-cursor-visibility nil)
+		  )))
+  #+clim-2.0
+  (:pointer-documentation t)
+  #+clim-2.0
+  (:layouts (default (vertically () (.2 commands) (.8 display))))
+  
+  (:command-definer define-peek-command)
+  (:top-level #+clim-0.9 (clim-top-level)
+	      #-clim-0.9 (default-frame-top-level)))
+
+;;;****************************************************************
+
+(defmacro with-peek-frame ((symbol) &body body)
+
+  #-clim-0.9 `(let ((,symbol *application-frame*)) ,@body))
+
+;;;****************************************************************
+
+(defmacro with-peek-frame-slots ((&rest symbols) &body body)
+  `(with-peek-frame (.frame.)
+     (with-slots ,symbols .frame. ,@body)))
+
+;;;****************************************************************
+
+;;; We might reuse an existing frame.  Reinitialize it.
+(defmethod run-frame-top-level :before ((frame peek-frame))
+  (initialize-peek-frame frame))
+
+;;;****************************************************************
+
+(defmethod initialize-peek-frame ((frame peek-frame))
+  #-clim-0.9
+  (setf (slot-value frame 'display-pane) (get-frame-pane frame 'display)
+	(slot-value frame 'commands-pane) (get-frame-pane frame 'commands))
+  )
+
+;;;****************************************************************
+
+(defmethod stop-frame :before ((frame peek-frame) &optional abortp disown)
+  (declare (ignore abortp disown)))
+
+;;;****************************************************************
+;;;****************************************************************
+
+;;; Define the command menu for the frame.
+(defvar *peek-commands*
+    '((("Update" (com-update))
+       ("Redisplay" (com-redisplay))
+       ("Options" (com-options)))
+      (("Faster" (com-faster))
+       ("Slower" (com-slower))
+       ("Pause" (com-pause)))))
+
+;;;****************************************************************
+
+(defun present-command (pretty-name command stream)
+  #-clim-1.0
+  (declare (ignore pretty-name))
+  #-clim-1.0
+  (present command 'command :stream stream)
+  #+clim-1.0
+  (present (list pretty-name
+		 nil (list :command command))
+	   'clim::command-menu-element
+	   :stream stream))
+
+;;;****************************************************************
+;;;****************************************************************
+;;;****************************************************************
+
+(defmacro with-output-truncation ((stream) &body body)
+  #+(or clim-0.9 clim-1.0)
+  `(clim:with-end-of-line-action
+    (:allow ,stream)
+    (clim:with-end-of-page-action (:allow ,stream) ,@body))
+  #+clim-2.0
+  `(clim:with-end-of-line-action
+    (,stream :allow)
+    (clim:with-end-of-page-action (,stream :allow) ,@body)))
+
+;;;****************************************************************
+
+;;; Here's the redisplay function that will be incrementally
+;;; redisplayed.
+(defmethod display-peek-status ((frame peek-frame) stream)
+  (with-output-truncation (stream)
+    (display-peek-status-internal frame stream (slot-value frame 'mode))))
+
+;;;****************************************************************
+
+;;; Here it is again, defined as a multi-method so we can easily
+;;; define new "modes" of display (as in "Processes," "File
+;;; System," etc.)
+(defmethod display-peek-status-internal ((frame peek-frame)
+					 stream (mode (eql ':process)))
+  (macrolet
+      ((cell (stream item)
+	 `(formatting-cell (,stream)
+	   (format ,stream "~A" ,item))))
+    (with-slots
+	(timeout paused-p show-gc-p show-lisp-processes-p
+		 show-OS-processes-p OS-command)
+      frame
+      (let ((count 0))
+	;; Show the time
+	(let ((ut (get-universal-time)))
+	  (updating-output (stream :unique-id (incf count)
+				   :cache-value ut)
+	    (multiple-value-bind (sec min hrs)
+		(decode-universal-time ut)
+	      (format stream "~2D:~2,'0D:~2,'0D" hrs min sec)))
+	  (let ((cache-value (if paused-p "Paused" timeout)))
+	    (updating-output (stream :unique-id 'timeout
+				     :cache-value cache-value)
+	      (format stream " [~A]" cache-value))
+	    (terpri stream))))
+      (when show-gc-p
+	(check-gc stream)
+	(fresh-line stream))
+      (when show-lisp-processes-p
+	(formatting-table (stream)
+	  ;; Headings
+	  (let ((id "Process label"))
+	    (updating-output (stream :unique-id id :cache-value id)
+	      (with-text-face #+clim-2.0 (stream :bold) #-clim-2.0 (:bold stream)
+		(formatting-row (stream)
+		  (cell stream "PROCESS")
+		  (cell stream "STATE")
+		  (cell stream "ACTIVITY")))))
+	  (let ((list (all-processes)))
+	    (setq list (remove-if #'(lambda (x)
+				      (or (eq x (current-process))
+					  #+lucid
+					  (eq x SYSTEM:*IDLE-PROCESS*)))
+				  list))
+	    (if (not list)
+		(formatting-row (stream)
+				(cell stream "no processes")))
+	    (dolist (p list)
+	      (let ((name (process-name p))
+		    (state (process-whostate p))
+		    (activity (process-state p)))
+		(unless (or (eq p (current-process)) ; Ignore this process
+			    #+lucid
+			    (eq p SYSTEM:*IDLE-PROCESS*)) ; and idle process
+		  (formatting-row (stream)
+		    (with-output-as-presentation
+		      #-clim-2.0
+		      (:stream stream :object p :type 'process :single-box t)
+		      #+clim-2.0
+		      (stream p 'process :single-box t)
+		      (cell stream name)
+		      (cell stream state)
+		      (cell stream activity)))
+		))))))
+      (when show-OS-processes-p
+	(check-OS stream OS-command)))))
+
+;;;****************************************************************
+
+(defun check-gc (stream)
+  ;; What you might want to say about the GC is very system-dependent.
+  #+lucid
+  (macrolet
+      ((cell (stream item)
+	 `(formatting-cell (,stream)
+			   (format ,stream "~A" ,item))))
+    (let ((id "EGC label"))
+      (updating-output
+       (stream :unique-id id :cache-value id)
+       (with-text-face #+clim-2.0 (stream :bold) #-clim-2.0 (:bold stream)
+		       (format stream "EGC Levels "))))
+    (formatting-item-list 
+     (stream :n-rows 1)
+     (let ((uid 0))
+       (dolist (level (lcl:egc-state))
+	 (let ((value (round (* (car level) 100)
+			     (+ (car level) (cdr level)))))
+	   (updating-output (stream :unique-id uid :cache-value value)
+			    (formatting-cell (stream)
+					     (format stream "~2d" value)))))))
+    (terpri stream)
+    (multiple-value-bind (used before-gc no-gc)
+	(lcl::gc-size)
+      (formatting-table
+       (stream)
+       (let ((id "GC label"))
+	 (updating-output
+	  (stream :unique-id id :cache-value id)
+	  (with-text-face
+	      #+clim-2.0 (stream :bold) #-clim-2.0 (:bold stream)
+	      (formatting-row (stream)
+			      (cell stream "Kwords used")
+			      (cell stream "Available Before GC")
+			      (cell stream "Available if GC disabled")))))
+       (formatting-row (stream)
+		       (cell stream (floor used 4000))
+		       (cell stream (floor before-gc 4000))
+		       (cell stream (floor no-gc 4000))))))
+  #-lucid
+  (format stream "~%I don't know nothin about non-LUCID GC.~%"))
+
+;;;****************************************************************
+
+#-clim-0.9
+(defmethod read-frame-command ((frame peek-frame) &key (stream *standard-input*))
+  (let ((timeout (slot-value frame 'timeout)) ;in seconds
+	(paused (slot-value frame 'paused-p))
+	object)
+    #+clim-2.0 (setq timeout nil)  ;timeout seems broken?
+    (when (setq object
+	    (with-input-context ('command) (ob)
+				(read-gesture :stream stream
+					      :peek-p t
+					      :timeout (and (not paused) timeout))
+				(t ob)))
+      (when (consp object) (execute-frame-command frame object))
+      nil)))
+
+;;;****************************************************************
+
+;;; Process presentation type
+(define-presentation-type process ())
+
+;;;****************************************************************
+
+;;; Define the commands.
+(define-peek-command (com-operate-on-process)
+    ((thing 'process))
+  (when (process-p thing)
+    (with-peek-frame (frame)
+      (with-slots (display-pane) frame
+	(let ((command (choose-process-command display-pane)))
+	  (when command
+	    (execute-frame-command
+	     frame
+	     `(,(symbol-function command) , thing))))))))
+
+;;;****************************************************************
+;;;****************************************************************
+
+#+clim-1.0
+(clim:define-gesture-name :right :button :right)
+#+clim-2.0
+(clim:define-gesture-name :right :pointer-button :right)
+
+;;;****************************************************************
+;;;****************************************************************
+
+;;; Override the normal :right menu.
+(define-presentation-translator operate-on-process-right
+    (process command #-clim-0.9 peek-frame :gesture :right)
+  (object presentation #+clim-0.9 gesture window x y)
+   presentation #+clim-0.9 gesture window x y
+   (values `(com-operate-on-process ,object) 'command))
+
+;;;****************************************************************
+
+(define-presentation-translator operate-on-process
+    (process command #-clim-0.9 peek-frame :gesture :select)
+  (object presentation #+clim-0.9 gesture window x y)
+   presentation #+clim-0.9 gesture window x y
+   (values `(com-operate-on-process ,object) 'command))
+
+;;;****************************************************************
+
+(defun choose-process-command (stream)
+  (menu-choose
+   '(("Activate" :value com-activate-process)
+     ("Deactivate" :value com-deactivate-process)
+     ("Destroy" :value com-destroy-process)
+     ("Restart" :value com-restart-process)
+     ("No Operation" :value nil))		; Darn CLIM menus
+   :associated-window stream))
+
+;;;****************************************************************
+;;;****************************************************************
+;;;****************************************************************
+
+(define-peek-frame-command (com-activate-process ;:menu ("Activate"
+						;	:documentation "Activate this Process")
+						 )
+    ((thing 'process))
+  (and (process-p thing)
+       (activate-process thing)))
+
+;;;****************************************************************
+
+(define-peek-command (com-deactivate-process ;:menu ("DE-Activate"
+						;    :documentation "Deactivate this Process")
+					     )
+    ((thing 'process))
+  (and (process-p thing)
+       #+lucid (not (eq thing SYSTEM:*IDLE-PROCESS*))
+       (deactivate-process thing)))
+
+;;;****************************************************************
+
+(define-peek-command (com-destroy-process)
+    ((thing 'process))
+  (and (process-p thing)
+       #+lucid (not (eq thing lcl::*initial-process*))
+       (destroy-process thing)))
+
+;;;****************************************************************
+
+(define-peek-command (com-update :menu ("Update" :documentation "This happens automatically"))
+    ;; Update the display.  Since update happens automatically each
+    ;; time through the command loop, this command doesn't need to
+    ;; do anything.
+    ())
+
+;;;****************************************************************
+
+(define-peek-command (com-redisplay :menu ("Redisplay" :documentation "Refresh the process window"))
+    ()
+  #+clim-0.9
+  (with-peek-frame (frame)
+    (with-peek-frame-slots (display-pane)
+      ;; HOWEVER, CLIM (2/91) WILL OCCASIONALLY SCREW UP WHEN THE WINDOW 
+      ;; IS FIRST PUT UP OR RESIZED, SO WE DO A COMPLETE REDISPLAY.
+      (window-clear display-pane)
+      (display-peek-status frame display-pane)
+      )))
+
+;;;****************************************************************
+
+(define-peek-command (com-options :menu ("Options"
+					 :documentation "Options for what to show in the main window"))
+    ()
+  (with-peek-frame-slots (display-pane show-gc-p show-lisp-processes-p
+				  show-OS-processes-p)
+    (let ((gc show-gc-p)
+	  (lisp show-lisp-processes-p)
+	  (OS show-OS-processes-p)
+	  (stream display-pane))
+      (when (not (eq :abort
+		     (accepting-values (stream :own-window t)
+		       (setq gc (accept 'boolean :stream stream
+					:default gc :prompt "Show GC"))
+		       (terpri stream)
+		       (setq lisp (accept 'boolean :stream stream
+					  :default lisp
+					  :prompt "Show LISP processes"))
+		       (terpri stream)
+		       (setq OS (accept 'boolean :stream stream
+					  :default OS
+					  :prompt "Show OS processes"))
+		       (terpri stream)
+		       )))
+	(setf show-gc-p gc)
+	(setf show-lisp-processes-p lisp)
+	(setf show-OS-processes-p OS)))))
+
+;;;****************************************************************
+
+(define-peek-command (com-pause-process)
+    ()
+  (with-peek-frame-slots (paused-p)
+    (setf paused-p
+	  (not paused-p))))
+
+;;;****************************************************************
+
+(define-peek-command (com-restart-process)
+    ((thing 'process))
+  (and (process-p thing)
+       #+lucid (not (eq thing lcl::*initial-process*))
+       (restart-process thing)))
+
+;;;****************************************************************
+
+(define-peek-command (com-faster :menu ("Faster" :documentation "Update the process window Faster than now"))
+    ()
+  (with-peek-frame-slots (timeout timeout-growth-factor)
+    (setf timeout (/ timeout timeout-growth-factor))))
+
+;;;****************************************************************
+
+(define-peek-command (com-slower :menu ("Slower" :documentation "Update the process window Slower than now"))
+    ()
+  (with-peek-frame-slots (timeout timeout-growth-factor)
+    (setf timeout (* timeout timeout-growth-factor))))
+
+;;;****************************************************************
+
+(define-peek-command (com-pause :menu ("Pause" :documentation "Stop or Start Refreshing the process window"))
+    ()
+  (with-peek-frame-slots (paused-p)
+    (setf paused-p
+	  (not paused-p))))
+
+;;;****************************************************************
+;;;****************************************************************
+;;;****************************************************************
+
+#|
+Here is a sample UNIX program that shows running processes
+/bin/ps -aux | awk ' \
+   {if ($3 != "0.0") print $0}'
+|#
+
+;;;****************************************************************
+;;;****************************************************************
+
+(defun check-OS (stream program)
+  (fresh-line stream)
+  (let ((pipe ()))
+    (unwind-protect
+	(progn
+	  (setq pipe
+	    #+lucid
+	    (lcl::run-program (first program)
+			      :arguments (rest program)
+			      :output :stream :wait nil)
+	    #+allegro
+	    (excl:run-shell-command (first program)
+				    :output :stream :wait nil))
+	  (loop
+	    (let ((line (read-line pipe nil nil)))
+	      (if (null line) (return)
+		(updating-output (stream :unique-id line
+					 :id-test #'equal
+					 :cache-value line
+					 :cache-test #'string=)
+				 (format stream "~A" line)
+				 (terpri stream)))))) ; Dart CLIM can't do "~%"
+      (close pipe))))
+
+;;;****************************************************************
+;;;****************************************************************
+
+(eval-when (compile load eval)
+  (export 'peek))
+
+;;;****************************************************************
+;;;****************************************************************
+
+(defun peek (&key create (width 500) (height 300))
+  "Start a peek frame."
+  #+clim-0.9
+  (launch-frame 'peek-frame
+		:title "Peek"
+		:width width :height height
+		:create create)
+  #+clim-1.0
+  (let ((frame (make-application-frame 'peek-frame
+				       :parent
+				       (open-root-window #+genera :sheet
+							 #-genera :clx)
+				       :top 150 :left 200
+				       :right (+ 200 width) :bottom (+ 150 height))))
+    (mp:process-run-restartable-function "PEEK" 'clim:run-frame-top-level frame)
+    )
+  #+clim-2.0
+  (let ((frame (make-application-frame 'peek-frame
+				       :width width :height height
+				       )))
+    (run-frame-top-level frame)))
+
+;;;****************************************************************
+;;;****************************************************************
+;;;****************************************************************
+;;;
+;;; end of file
+;;;
+;;;****************************************************************
+;;;****************************************************************
+;;;****************************************************************

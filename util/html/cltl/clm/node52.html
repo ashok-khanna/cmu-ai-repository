@@ -1,0 +1,156 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node52.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:31:47 GMT -->
+<HEAD>
+<TITLE>4.8. Type Conversion Function</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Type Conversion Function">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2151 HREF="node53.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2149 HREF="node44.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2143 HREF="node51.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2153 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2154 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2152 HREF="node53.html"> Determining the Type </A>
+<B>Up:</B> <A NAME=tex2html2150 HREF="node44.html"> Type Specifiers</A>
+<B> Previous:</B> <A NAME=tex2html2144 HREF="node51.html"> Defining New Type </A>
+<HR> <P>
+<H1><A NAME=SECTION00880000000000000000>4.8. Type Conversion Function</A></H1>
+<P>
+The following function may be used to convert an object to an
+equivalent object of another type.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>coerce</tt> <tt><I>object</I></tt> <tt><I>result-type</I></tt><P>
+The <i>result-type</i> must be a type specifier; the <i>object</i> is converted
+to an ``equivalent'' object of the specified type.
+If the coercion cannot be performed, then an error is signaled.
+In particular, <tt>(coerce x 'nil)</tt> always signals an error.
+If <i>object</i> is already of the specified type, as determined
+by <tt>typep</tt>, then it is simply returned.
+It is not generally
+possible to convert any object to be of any type whatsoever; only certain
+conversions are permitted:
+<UL><LI>
+Any sequence type may be converted to any other sequence type, provided
+the new sequence can contain all actual elements of the old sequence
+(it is an error if it cannot).  If the <i>result-type</i> is specified as
+simply <tt>array</tt>, for example, then <tt>(array t)</tt> is assumed.  A
+specialized type such as <tt>string</tt> or <tt>(vector (complex short-float))</tt>
+may be specified; of course, the result may be of either that type or
+some more general type, as determined by the implementation.
+Elements of the new sequence will be <tt>eql</tt> to corresponding elements
+of the old sequence.
+If the
+<i>sequence</i> is already of the specified type, it may be returned without
+copying it; in this, <tt>(coerce <i>sequence</i> <i>type</i>)</tt> differs from
+<tt>(concatenate <i>type</i> <i>sequence</i>)</tt>, for the latter is required to
+copy the argument <i>sequence</i>.  In particular, if one specifies
+<tt>sequence</tt>, then the argument may simply be returned if it already is
+a <tt>sequence</tt>.
+<P><pre>
+(coerce '(a b c) 'vector) => #(a b c)
+</pre><P>
+</UL>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (SEQUENCE-TYPE-LENGTH) <A NAME=2678>&#160;</A>  to specify that
+<tt>coerce</tt> should signal an error if the new sequence type specifies the
+number of elements and the old sequence has a different length.
+<P>
+X3J13 voted in March 1989 (CHARACTER-PROPOSAL) <A NAME=2682>&#160;</A> 
+to specify that if the <i>result-type</i> is <tt>string</tt>
+then it is understood to mean <tt>(vector character)</tt>,
+and <tt>simple-string</tt> is understood to mean <tt>(simple-array character (*))</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<UL><LI>
+Some strings, symbols, and integers may be converted to characters.
+If <i>object</i> is a string of length 1, then the
+sole element of the string is returned.  If <i>object</i> is a symbol
+whose print name is of length 1, then the sole element of the print name
+is returned.  If <i>object</i> is an integer <i>n</i>, then <tt>(int-char <i>n</i>)</tt>
+is returned.  See <tt>character</tt>.
+<P><pre>
+(coerce &quot;a&quot; 'character) => #\a
+</pre><P>
+</UL>
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (CHARACTER-PROPOSAL) <A NAME=2703>&#160;</A> 
+to eliminate <tt>int-char</tt> from Common Lisp.
+Presumably this eliminates the possibility of coercing an
+integer to a character, although the vote did not address
+this question directly.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<UL><LI>
+Any non-complex number can be converted to a <tt>short-float</tt>,
+<tt>single-float</tt>, <tt>double-float</tt>, or <tt>long-float</tt>.  If simply <tt>float</tt>
+is specified, and <i>object</i> is not already a <tt>float</tt> of some kind, then
+the object is converted to a <tt>single-float</tt>.
+<P><pre>
+(coerce 0 'short-float) => 0.0S0 
+(coerce 3.5L0 'float) => 3.5L0 
+(coerce 7/2 'float) => 3.5
+</pre><P>
+<P>
+<LI>
+Any number can be converted to a complex number.
+If the number is not already complex, then a zero imaginary part
+is provided by coercing the integer zero to the type of the given real part.
+(If the given real part is rational, however, then the rule of
+canonical representation for complex rationals will result
+in the immediate re-conversion of the result from type <tt>complex</tt>
+back to type <tt>rational</tt>.)
+<P><pre>
+(coerce 4.5s0 'complex) => #C(4.5S0 0.0S0) 
+(coerce 7/2 'complex) => 7/2 
+(coerce #C(7/2 0) '(complex double-float)) 
+   => #C(3.5D0 0.0D0)
+</pre><P>
+<P>
+<LI>
+Any object may be coerced to type <tt>t</tt>.
+<P><pre>
+(coerce x 't) == (identity x) == x
+</pre><P>
+</UL>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1988 (FUNCTION-TYPE) <A NAME=2726>&#160;</A> 
+to allow coercion of certain objects to the type <tt>function</tt>:
+<UL><LI>
+A symbol or lambda-expression can be converted to a function.
+A symbol is coerced to type <tt>function</tt> as if by applying
+<tt>symbol-function</tt> to the symbol; an error is signaled if the predicate
+<tt>fboundp</tt> is not true of
+the symbol or if the symbol names a macro or special form.
+A list <i>x</i> whose <i>car</i> is the symbol <tt>lambda</tt>
+is coerced to a function as if by execution of <tt>(eval `#',<i>x</i>)</tt>,
+that is, of <tt>(eval (list 'function <i>x</i>))</tt>.
+</UL>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+Coercions from floating-point numbers to rationals and from ratios
+to integers are purposely <i>not</i> provided because of rounding
+problems.  The functions <tt>rational</tt>, <tt>rationalize</tt>,
+<tt>floor</tt>, <tt>ceiling</tt>, <tt>truncate</tt>, and <tt>round</tt> may be used for
+such purposes.  Similarly, coercions from characters to integers
+are purposely not provided; <tt>char-code</tt> or <tt>char-int</tt> may be
+used explicitly to perform such conversions.
+<P>
+<BR> <HR><A NAME=tex2html2151 HREF="node53.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2149 HREF="node44.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2143 HREF="node51.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2153 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2154 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2152 HREF="node53.html"> Determining the Type </A>
+<B>Up:</B> <A NAME=tex2html2150 HREF="node44.html"> Type Specifiers</A>
+<B> Previous:</B> <A NAME=tex2html2144 HREF="node51.html"> Defining New Type </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

@@ -1,0 +1,145 @@
+Although the Schematik 1.1.5.2 executable (produced under NeXTstep
+2.2) seems to run just fine under NeXTstep 3.0, the sources will not
+compile as-is under 3.0.  The following diffs will make the sources
+compile under 3.0, and the resulting executable seems to work the
+same.  However, the testing has not been very thorough.  A future
+release of the Schematik sources will hopefully be directly compilable
+under 3.0; in the meantime, you are welcome to try using these diffs.
+  -Max Hailperin <max@nic.gac.edu>, 3/10/93
+  (Thanks to Chris Kane for the diffs.)
+====================
+diff -r Schematik_1.1.5.2/Schematik_main.m Schematik_1.1.5.2_for_3.0/Schematik_main.m
+41a42
+> extern int errno;
+45c46
+< char *stlchr(const char *, int);
+---
+> char *stlchr(char *, int);
+diff -r Schematik_1.1.5.2/Agent.subproj/FindAgent.m Schematik_1.1.5.2_for_3.0/Agent.subproj/FindAgent.m
+44c44
+< #import <mach.h>
+---
+> #import <mach/mach.h>
+diff -r Schematik_1.1.5.2/Agent.subproj/HelpAgent.m Schematik_1.1.5.2_for_3.0/Agent.subproj/HelpAgent.m
+46c46
+< #import <mach.h>
+---
+> #import <mach/mach.h>
+289c289
+< - initFrame:(NXRect *)aRect
+---
+> - initFrame:(const NXRect *)aRect
+diff -r Schematik_1.1.5.2/Agent.subproj/InfoAgent.m Schematik_1.1.5.2_for_3.0/Agent.subproj/InfoAgent.m
+40c40
+< #import <mach.h>
+---
+> #import <mach/mach.h>
+diff -r Schematik_1.1.5.2/Agent.subproj/PrefAgent.m Schematik_1.1.5.2_for_3.0/Agent.subproj/PrefAgent.m
+44c44
+< #import <appkit/defaults.h>
+---
+> #import <defaults/defaults.h>
+49c49
+< #import <mach.h>
+---
+> #import <mach/mach.h>
+316c316
+<     return (retval?:[NXApp loadNibSection:nibFile owner:owner withNames:NO fromZone:zone]);
+---
+>     return (retval?retval:[NXApp loadNibSection:nibFile owner:owner withNames:NO fromZone:zone]);
+361c361
+<     return (retval?:[[NXImage allocFromZone:zone] initFromSection:imageFile]);
+---
+>     return (retval?retval:[[NXImage allocFromZone:zone] initFromSection:imageFile]);
+366c366,367
+<     return ([stringTable valueForStringKey:key]?:(value?:key));
+---
+>   const char *val=[stringTable valueForStringKey:key];
+>     return (val?val:(value?value:key));
+diff -r Schematik_1.1.5.2/Doc.subproj/DocText.m Schematik_1.1.5.2_for_3.0/Doc.subproj/DocText.m
+50c50
+< #import <nextdev/keycodes.h>
+---
+> #import <dev/m68k/keycodes.h>
+52c52
+< #import <NXCType.h>
+---
+> #import <appkit/NXCType.h>
+125c125
+< - initFrame:(NXRect *)r
+---
+> - initFrame:(const NXRect *)r
+130c130
+< - initFrame:(NXRect *)r text:(const char *)text alignment:(int)mode
+---
+> - initFrame:(const NXRect *)r text:(const char *)text alignment:(int)mode
+diff -r Schematik_1.1.5.2/Doc.subproj/DocWin.m Schematik_1.1.5.2_for_3.0/Doc.subproj/DocWin.m
+45c45
+< #import <sys/malloc.h>
+---
+> //#import <sys/malloc.h>
+47,48c47,48
+< #import <mach.h>
+< #import <NXCType.h>
+---
+> #import <mach/mach.h>
+> #import <appkit/NXCType.h>
+diff -r Schematik_1.1.5.2/Doc.subproj/InteractionWin.m Schematik_1.1.5.2_for_3.0/Doc.subproj/InteractionWin.m
+43c43
+< #import <mach.h>
+---
+> #import <mach/mach.h>
+diff -r Schematik_1.1.5.2/Graphics.subproj/GraphicsView.m Schematik_1.1.5.2_for_3.0/Graphics.subproj/GraphicsView.m
+48,49c48,49
+< #import <defaults.h>
+< #import <mach.h>
+---
+> #import <defaults/defaults.h>
+> #import <mach/mach.h>
+127c127
+<     theWindow = [[Panel allocFromZone:[self zone]] initContent:frameRect style:NX_RESIZEBARSTYLE backing:NX_BUFFERED buttonMask:NX_RESIZEBUTTONMASK|NX_MINIATURIZEBUTTONMASK defer:NO];
+---
+>     theWindow = [[Panel allocFromZone:[self zone]] initContent:frameRect style:NX_RESIZEBARSTYLE backing:NX_BUFFERED buttonMask:NX_MINIATURIZEBUTTONMASK defer:NO];
+143c143
+< - drawSelf:(NXRect *)r :(int)rectCount
+---
+> - drawSelf:(const NXRect *)r :(int)rectCount
+diff -r Schematik_1.1.5.2/Main.subproj/Main.m Schematik_1.1.5.2_for_3.0/Main.subproj/Main.m
+59c59
+< #import <mach.h>
+---
+> #import <mach/mach.h>
+309c309
+< - (BOOL)app:sender openFile:(const char *)file type:(const char *)aType
+---
+> - (int)app:sender openFile:(const char *)file type:(const char *)aType
+316c316
+<       return NO;
+---
+>       return 0;
+321c321
+<     return YES;
+---
+>     return 1;
+361c361
+<       if (![appSpeaker extendPowerOffBy:600000 actual:&actual])
+---
+>       if (![[Application workspace] extendPowerOffBy:600000])
+diff -r Schematik_1.1.5.2/Main.subproj/SchemeProtocol.m Schematik_1.1.5.2_for_3.0/Main.subproj/SchemeProtocol.m
+46c46
+< #import <defaults.h>
+---
+> #import <defaults/defaults.h>
+49,50c49,50
+< #import <mach.h>
+< #import <NXCType.h> 
+---
+> #import <mach/mach.h>
+> #import <appkit/NXCType.h> 
+229a230,231
+>     char *host=NXGetDefaultValue([NXApp appName],"NXHost");
+>     char *ps=NXGetDefaultValue([NXApp appName],"NXPSName");
+231c233
+<     sprintf(buffer,"%i\n%s\n%s\n",windowNum, (NXGetDefaultValue([NXApp appName],"NXHost")?:"\0"), (NXGetDefaultValue([NXApp appName],"NXPSName")?:"\0"));
+---
+>     sprintf(buffer,"%i\n%s\n%s\n",windowNum, (host?host:"\0"), (ps?ps:"\0"));

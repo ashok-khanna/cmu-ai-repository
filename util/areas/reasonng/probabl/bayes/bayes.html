@@ -1,0 +1,501 @@
+program BayesNet(NodeFile,LinkFile,Output);
+{
+   This code is a basic implementation of Judea Pearl's belief
+   propagation algorithm for tree-structured Bayesian belief
+   networks.  The procedures and functions can be divided into
+   three basic groups:
+   
+   Math Support:
+      Normalize
+      MakeIdentityVector
+      TermProduct
+      TermQuotient
+      MatMult
+   Core:
+      ReviseBelief
+      UpdateNode
+      SubmitEvidence
+   General Support:
+      ReadString
+      FindNode
+      DumpNetwork
+         DumpNode
+      ReadNet
+         ReadNodes
+         ReadLinks
+      
+   The Core routines are described in the August AI Expert article.
+   The main program is set up to run the example from the May AI
+   Expert article.  It reads the net from two data files which are
+   described in ReadNodes and ReadLinks.  Be sure to figure out how
+   to RESET these files so that they get picked up correctly by those
+   procedures.   
+}
+
+const
+   MaxString      = 15;
+   MaxValues      =  5;
+         
+type
+   StringRange = 1..MaxString;
+   ValueRange  = 1..MaxValues;
+   StringType  = packed array[StringRange] of char;
+   NetVector   = record
+                    Data:  array [ValueRange] of real;
+                    NVals: ValueRange
+                 end;
+   CPType      = record
+                    Data:        array[ValueRange,ValueRange] of real;
+                    NRows,NCols: ValueRange
+                 end;
+   NetNodePtr  = ^NetNode;
+   NetNode     = record
+                    Name:                       StringType;
+                    NumValues:                  ValueRange;
+                    Values:                     array[ValueRange] of 
+StringType;
+                    Belief,Pi,IncomingPi,
+                    ExternalLambda,
+                    Lambda,OutgoingLambda:      NetVector;
+                    Parent,NextNode,
+                    NextSibling,FirstChild:     NetNodePtr;
+                    CPMatrix,TransCPMatrix:     CPType
+                 end;
+                        
+var      NodeFile,LinkFile:            Text;
+         NetRoot,NodeList:             NetNodePtr;
+         EvidenceVector:               NetVector;
+
+{ ******************** Math Support ******************** }
+        
+procedure Normalize(var Vector: NetVector);
+{ Scales incoming Vector so that it sums to unity }
+var i:   ValueRange;
+    Sum: real;
+
+begin
+Sum := 0;
+with Vector do
+   begin
+   for i := 1 to NVals do
+      Sum := Sum + Data[i];
+   for i := 1 to NVals do
+      Data[i] := Data[i] / Sum
+   end
+end;
+         
+procedure MakeIdentityVector(var Vector: NetVector;Length: ValueRange);
+{ Makes incoming Vector into an identity vector of specified length}
+var i: ValueRange;
+
+begin
+with Vector do
+   begin   
+   NVals := Length;
+   for i := 1 to Length do
+      Data[i] := 1.0   
+   end   
+end;
+
+procedure TermProduct(var V1,V2,Result: NetVector);
+{ Returns term product of V1 and V2 in Result }                      
+var i:  ValueRange;
+
+begin
+if v1.NVals <> v2.Nvals then
+   writeln('*** Dimension error in TermProduct ***');
+with Result do
+   begin
+   Nvals := V1.Nvals;
+   for i := 1 to NVals do
+      Data[i] := V1.Data[i] * V2.Data[i]
+   end
+
+end;
+
+procedure TermQuotient(var V1,V2,Result: NetVector);
+{ Returns term quotient of V1 and V2 in Result }                               
+             
+var i:  ValueRange;
+
+begin
+if v1.NVals <> v2.Nvals then
+   writeln('*** Dimension error in TermQuotient ***');
+with Result do
+   begin
+   Nvals := V1.Nvals;
+   for i := 1 to NVals do
+      Data[i] := V1.Data[i] / V2.Data[i]
+   end
+end;
+
+procedure MatMult(var InMat:  CPType;var InVec:  NetVector;var OutVec: 
+NetVector);
+{ Simplified matrix multiplication matrix routine.  Multiplies InMat * InVec
+  to produce OutVec.  Interprets InVec to be a NVals X 1 matrix. }
+var Row,Col: ValueRange;
+
+begin
+if InMat.NCols <> InVec.NVals then
+   writeln('*** Dimension error in MatMult ***');
+with InMat do
+   begin
+   OutVec.NVals := NRows;
+   for Row := 1 to NRows do
+      begin
+      OutVec.Data[Row] := 0.0;
+      for Col := 1 to NCols do
+         OutVec.Data[Row] := OutVec.Data[Row] + Data[Row,Col] * InVec.Data[Col]
+       end
+   end
+end;
+
+{ ******************** Core ******************** }
+
+procedure ReviseBelief(Node: NetNodePtr);
+var Child:  NetNodePtr;
+begin
+with Node^ do
+   begin
+   { Part (a) of Figure 4 }
+   if Parent <> nil then
+      MatMult(TransCPMatrix,IncomingPi,Pi);
+   { Part (b) of Figure 4 }
+   Lambda := ExternalLambda;
+   Child := FirstChild;
+   while Child <> nil do
+      begin
+      TermProduct(Child^.OutgoingLambda,Lambda,Lambda);
+      Child := Child^.NextSibling
+      end;
+   { Shaded part of Figure 4 }
+   TermProduct(Lambda,Pi,Belief);   
+   Normalize(Belief)
+   end
+end;
+
+procedure UpdateNode(Node,Sender: NetNodePtr);
+var Child:  NetNodePtr;
+begin
+with Node^ do
+   begin
+   ReviseBelief(Node);
+   { Update OutgoingLambda & send update message to parent
+     (part (c) of Figure 4) }
+   if (Parent <> Sender) and (Parent <> nil) then
+      begin
+      MatMult(CPMatrix,Lambda,OutgoingLambda);
+      UpdateNode(Parent,Node)
+      end;
+   { Update IncomingPi and send update message to children
+     (part (d) of Figure 4) }
+   Child := FirstChild;
+   while Child <> nil do
+      begin
+      if Child <> Sender then
+         begin
+         TermQuotient(Belief,Child^.OutgoingLambda,Child^.IncomingPi);
+         UpdateNode(Child,Node)
+         end;
+      Child := Child^.NextSibling
+      end
+   end
+end;
+
+procedure SubmitEvidence(Node: NetNodePtr;var Evidence: NetVector);
+var i: ValueRange;
+begin
+with node^ do
+   begin
+   writeln('Submitting evidence to ',Node^.Name,', evidence is:');
+   for i := 1 to Evidence.NVals do
+      writeln('[',Values[i],'] = ',Evidence.Data[i]);
+   TermProduct(Evidence,ExternalLambda,ExternalLambda);
+   UpdateNode(Node,nil)
+   end
+end;
+
+{ ******************** General Support ******************** }
+
+function ReadString(var InFile: Text;var InString: StringType): boolean;
+{ Reads InFile, returning next string in InString.  Returns FALSE upon
+  encountering end of file, otherwise returns TRUE. }
+var i,j:  StringRange;
+
+begin
+if eof(InFile) then
+   ReadString := false
+else
+   begin
+   i := 1;
+   while not eoln(InFile) do
+      begin
+      read(InFile,InString[i]);
+      i := i + 1
+      end;
+   readln(InFile);
+   for j := i to MaxString do
+      InString[j] := ' ';
+   ReadString := true   
+   end;   
+end;
+         
+function FindNode(NodeName: StringType):NetNodePtr;
+{ Searches network for node having specified NodeName. }                  
+var CurrentNode:   NetNodePtr;
+
+begin
+CurrentNode := NodeList;
+while (CurrentNode^.Name <> NodeName) and (CurrentNode <> nil) do
+   CurrentNode := CurrentNode^.NextNode;
+if CurrentNode = nil then
+   begin
+   writeln('*** Error in FindNode -- cannot find ',NodeName);
+   FindNode := nil
+   end
+else
+   FindNode := CurrentNode
+end;
+        
+procedure DumpNetwork(Node: NetNodePtr);
+{ Recursive procedure to dump network, given pointer to root }
+
+procedure DumpNode(Node: NetNodePtr);
+{ Simple procedure to dump a single node }
+const Stars = '*************************************************';
+
+var CurrentValue,NumRows,NumCols,Row,Col:  ValueRange;
+
+begin
+writeln(Stars);
+with Node^ do
+   begin
+   writeln('Dumping ',Name);
+   for CurrentValue := 1 to NumValues do
+      writeln('Pi[',Values[CurrentValue],'] = ',Pi.Data[CurrentValue]);
+   for CurrentValue := 1 to NumValues do
+      writeln('Lambda[',Values[CurrentValue],'] = ',Lambda.Data[CurrentValue]);
+   for CurrentValue := 1 to NumValues do
+      writeln('Belief[',Values[CurrentValue],'] = ',Belief.Data[CurrentValue]);
+   if Parent <> nil then
+      begin
+      writeln;
+      writeln('CP Matrix:');
+      for Row := 1 to CPMatrix.NRows do
+         begin
+         for Col := 1 to CPMatrix.NCols do
+            write(CPMatrix.Data[Row,Col]);
+         writeln
+         end
+      end
+   end;
+writeln(Stars);
+writeln('Type <cr> to continue...');
+readln
+end;   { of DumpNode }
+
+var CurrentNode: NetNodePtr;
+
+begin
+if Node <> nil then
+   begin
+   DumpNode(Node);
+   CurrentNode := Node^.FirstChild;
+   while CurrentNode <> nil do
+      begin
+      DumpNetwork(CurrentNode);
+      CurrentNode := CurrentNode^.NextSibling
+      end 
+   end  
+end;
+
+procedure ReadNet(var NodeFile,LinkFile: Text);
+       
+procedure ReadNodes(Var NodeFile: Text);
+{ This procedure reads the NodeFile.  Format of file is as follows:
+
+   Node 1 name
+   Node 1 number of values
+   Node 1 value 1 name
+   Node 1 value 1 prior probability (ignored except for root node)
+   Node 1 value 2 name
+   Node 1 value 2 prior probability (ignored except for root node)
+           .....
+   Node 1 value n name
+   Node 1 value n prior probability (ignored except for root node)
+   Node 2 name
+           .....
+           etc.
+}   
+var NodeName:      StringType;
+    CurrentValue:  ValueRange;
+    eofStatus:     boolean;
+    CurrentNode:   NetNodePtr;
+                    
+begin
+reset(NodeFile);
+NodeList := nil;
+while ReadString(NodeFile,NodeName) do
+   begin
+   new(CurrentNode);
+   with CurrentNode^ do
+      begin
+      Name := NodeName;
+      readln(NodeFile,NumValues);
+      for CurrentValue := 1 to NumValues do
+         begin
+         eofStatus := ReadString(NodeFile,Values[CurrentValue]);
+         readln(NodeFile,Pi.Data[CurrentValue])
+         end;
+      Pi.NVals := NumValues;
+      Parent := nil;
+      NextSibling := nil;
+      FirstChild := nil;
+      NextNode := NodeList;
+      NodeList := CurrentNode;
+      MakeIdentityVector(ExternalLambda,NumValues);
+      MakeIdentityVector(Lambda,NumValues)
+      end
+   end;
+close(NodeFile)
+end;   { or ReadNodes }
+
+procedure ReadLinks(var LinkFile: Text);
+{ This procedure reads the NodeFile.  Be careful here, upper/lower case
+  must match identically the node names in NodeFile.  Format of file is
+  as follows:
+
+   Top Node name for first link
+   Bottom Node name for first link
+   1st row of CP matrix
+   2nd row of CP matrix
+          ....
+   nth row of CP matrix
+   Top Node name for second link
+   Bottom Node name for second link
+   1st row of CP matrix
+   2nd row of CP matrix
+          ....
+   nth row of CP matrix
+       etc.
+}
+var TopNodeName,BottomNodeName:      StringType;
+    TopNode,BottomNode:              NetNodePtr;
+    Row,Col:                         ValueRange;
+    eofStatus:                       boolean;
+                    
+begin
+reset(LinkFile);
+while ReadString(LinkFile,TopNodeName) do
+   begin
+   TopNode := FindNode(TopNodeName);
+   eofStatus := ReadString(LinkFile,BottomNodeName);
+   BottomNode := FindNode(BottomNodeName);
+   with BottomNode^ do
+      begin
+      CPMatrix.NRows := TopNode^.NumValues;
+      CPMatrix.NCols := NumValues;
+      TransCPMatrix.NRows := CPMatrix.Ncols;
+      TransCPMatrix.NCols := CPMatrix.NRows;
+      for Row := 1 to CPMatrix.NRows do
+         begin
+         for Col := 1 to CPMatrix.Ncols do
+            begin
+            read(LinkFile,CPMatrix.Data[Row,Col]);
+            TransCPMatrix.Data[Col,Row] := CPMatrix.Data[Row,Col]
+            end;
+         readln(LinkFile)
+         end;
+      NextSibling := TopNode^.FirstChild;
+      Parent := TopNode;
+      MakeIdentityVector(OutgoingLambda,TopNode^.NumValues)
+      end;
+   TopNode^.FirstChild := BottomNode
+   end
+end;   { of ReadLinks }
+
+begin
+ReadNodes(NodeFile);
+ReadLinks(LinkFile);
+{ Find root of network. }
+NetRoot := NodeList;
+while NetRoot^.Parent <> nil do
+   NetRoot := NetRoot^.NextNode;
+{ Initialize network }   
+UpdateNode(NetRoot,nil)
+end;
+     
+begin
+
+{ Read network in }
+ReadNet(NodeFile,LinkFile);
+
+{ Take a look }
+DumpNetwork(NetRoot);
+
+{ Store evidence from rain alarm in EvidenceVector }
+with EvidenceVector do
+   begin
+   Data[1] := 0.8;
+   Data[2] := 0.04;
+   NVals := 2
+   end;
+
+{ Submit EvidenceVector to Rain node }   
+SubmitEvidence(FindNode('Rain           '),EvidenceVector);
+
+{ Take a look }
+DumpNetwork(NetRoot);
+
+{ Store evidence from telephone call in EvidenceVector }
+with EvidenceVector do
+   begin
+   Data[1] := 1.0;
+   Data[2] := 0.02;
+   NVals := 2
+   end;
+
+{ Submit EvidenceVector to Sunburn node }   
+SubmitEvidence(FindNode('Sunburn        '),EvidenceVector);
+
+{ Take a look }
+DumpNetwork(NetRoot)
+
+end.
+
+Clouds
+Rain
+0.6 0.4
+0.0 1.0
+Rain
+Play Game
+0.05 0.95
+1.00 0.00
+Clouds
+Sunburn
+0.1 0.9
+0.7 0.3
+Clouds
+2
+Present
+.1
+Absent
+.9
+Rain
+2
+Present
+0
+Absent
+0
+Play Game
+2
+Yes
+0
+No
+0
+Sunburn
+2
+Yes
+0
+No
+0

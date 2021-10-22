@@ -1,0 +1,212 @@
+From ukriegel@isst.fhg.de Fri Oct 22 13:58:02 EDT 1993
+Article: 11281 of comp.lang.lisp
+Xref: glinda.oz.cs.cmu.edu comp.lang.lisp:11281
+Newsgroups: comp.lang.lisp
+Path: honeydew.srv.cs.cmu.edu!das-news.harvard.edu!noc.near.net!howland.reston.ans.net!xlink.net!news.fhg.de!isst.fhg.de!saturn!ukriegel
+From: ukriegel@isst.fhg.de (Ulrich Kriegel)
+Subject: EuLisp->C total compiler
+Message-ID: <CFB2LE.LGz@isst.fhg.de>
+Keywords: EuLisp->C total compiler
+Sender: news@isst.fhg.de
+Organization: ISST der FHG
+X-Newsreader: TIN [version 1.1 PL8]
+Date: Fri, 22 Oct 1993 15:48:50 GMT
+Lines: 195
+
+We proudly announce that the first experimental version of Apply/E2C,
+the EuLisp->C total compiler from ISST is available via anonymous ftp from
+ftp.isst.fhg.de in APPLY/Distribution:
+1.README.INSTALL-93-10 - how to install the compiler
+2.apply-93-10e.txt - contains a description of the compiler and a collection of
+known bugs.
+3.apply-93-10.tar.gz - the distribution
+Please, send bug reports and remarks to 
+        ulrich.kriegel@isst.fhg.de or
+        ingo.mohr@isst.fhg.de
+To enable  the creation of a mailing list of Apply/E2C users we ask all users 
+to mail us their address. Please, place Apply/E2C into the subject line.
+
+The development of Apply/E2C was supported by the German Federal Ministry for
+Research and Technology (BMFT) within the joint project APPLY. The partners
+of this project are the Christian Albrechts University Kiel, the Fraunhofer
+Institute for Software Engineering and Systems Engineering (ISST), the German
+National Research Center for Computer Science(GMD), and VW-Gedas.
+
+The main goal of APPLY project is to development a Lisp system which
+consistently supports the efficient execution of applications and their simple
+integration into current software environments.
+In that framework we at ISST are investigating strategies for the compilation
+of EuLisp-Modules into efficient stand-alone C-Programs.
+As a first step Apply/E2C is realized as a total compiler compiling
+EuLisp-Modules into C source code which then must be compiled by an
+ANSI-C-compiler (at moment only gcc of GNU is supported). At the moment
+Apply/E2C is running on top of Franz Allegr0 CL 4.1, a port to cmu lisp
+will be available soon.
+
+To achieve to project goals the following implementation decisions were taken:
+- The hardware stack is used instead of an own lisp control stack.
+- Lisp data types are represented similar to C datatypes in order to
+  avoid incompatibility with hardwara datatypes and in order to enable easy data
+  exchange with non-Lisp programs.
+These decisions require to use a conservative pointer finding strategy for gc. 
+
+The implementation comprises EuLisp 0.99 level-0 except concurrency.
+Forthcoming versions of Apply/E2C will contain a C interface and staight module 
+compilation.
+
+
+------------------------------------------------------------------------
+Comparision with other systems and compilers
+------------------------------------------------------------------------
+
+The measurements are done on a diskless Sun-ELC (32MB) with only one user
+working on the machine. 
+
+Allegro:      Franz Allegro 4.1 with default settings for speed, space
+              and safety 
+Allegro opt.: like Allegro but with
+              (declaim (optimize (speed 3) (safety 0) (debug 0)))
+CMU:          The CMU-Common-Lisp-Compiler Version 16f with default
+              settings for speed, space and safety
+CMU opt.:     like CMU but with
+              (declaim (optimize (speed 3) (safety 0) (debug 0)))
+Apply:        with default parameters for GC
+C:            The Lisp-programs implemented in C
+              compiled with gcc
+
+
+Traverse
+--------
+(see Gabriel, (traverse root) = 100)
+
+tested features in traverse-init:
+- memory allocation / creation of structures
+- function calls
+- simple list operations (car, cdr, null)
+- integer arithmetic (=, 1-, *, mod)
+
+tested features in traverse-run:
+- function calls
+- simple list operations (car, cdr, null)
+- structure access (read and write)
+
+                traverse-init   traverse-run
+                       time in seconds
+                user  system     user  system
+Allegro          1.3    0.1      10.8   0.0
+Allegro opt.     0.5    0.0       4.6   0.0
+CMU              0.8    0.0      10.0   0.1
+CMU opt.         0.5    0.0       8.4   0.0
+Apply            4.4    0.0       4.9   0.0 
+C                1.2    0.0       4.2   0.0
+
+The C-version uses the language independent memory management system developed
+as part of the APPLY-project and described in "E.Ulrich Kriegel: A
+Conservative Garbage Collector for an EuLisp to ASM/C Compiler. In: Preprints
+of Position Papers OOPSLA`93 Workshop on Memory Management and Garbage
+Collection." This paper is available via ftp.gmd.de in gmd/apply/gc.ps.Z
+
+
+Tak
+---
+Program as in Gabriel; 
+Call: instead of (tak 18 12 6)
+            with (tak 24 12 6)
+to gain times greater than one second.
+
+tested features are:
+- function calls
+- simple arithmetic (<, - resp. 1-)
+
+               time in seconds
+                user   system
+Allegro          0.8     0.0
+Allegro opt.     0.6     0.0
+CMU              1.6     0.0
+CMU opt.         1.6     0.0
+Apply            2.7     0.0 
+C                0.4     0.0
+
+
+Takl
+----
+Program as in Gabriel; 
+Call: instead of (takl L18 L12 L6)
+            with (takl L24 L12 L6)
+to gain times greater than one second.
+
+tested features are:
+- function calls
+- simple list operations (car, cdr, null)
+
+               time in seconds
+                user   system
+Allegro          3.8     0.0
+Allegro opt.     3.2     0.0
+CMU              5.1     0.0
+CMU opt.         4.3     0.0
+Apply            2.0     0.0 
+C                2.0     0.0
+
+
+GTakl
+-----
+A variation of takl from Gabriel with a generic function replacing a null test
+with two methods specializing on the first argument for <null> and <cons>. But
+notice that this is not a test for generic dispatch in general, because the
+dispatch on these two classes in this case allows optimizations with great
+effect. 
+
+Arguments are the same as for takl.
+ 
+tested features are:
+- function calls
+- generic dispatch
+- simple list operations (car, cdr, null)
+
+               time in seconds
+                user   system
+Allegro        113.2    0.1
+Allegro opt.   110.5    0.0
+CMU             12.1    0.0
+CMU opt.        10.1    0.0
+Apply            7.8    0.0 
+C++              2.3    0.0 
+
+
+Umdrehen (the german word for `reverse`)
+--------
+A function which reverses a list using only cond, null, car, cdr, cons
+and recursive calls of itself.
+
+Called with a 14-element list.
+
+tested features are:
+- memory allocation (cons)
+- Garbage Collection
+- function calls
+- simple list operations (car, cdr, null)
+
+               time in seconds
+                user   system
+Allegro         16.2     0.3
+Allegro opt.    13.3     0.2
+CMU             49.8     5.7   # of full GC´s:   17
+CMU opt.        42.6     6.5
+Apply           26.7     1.9   # of full GC´s: 1325,  uses a 64kB heap
+C               35.9    20.3
+C               29.6    19.6   on a SPARC-2 with 64MB and harddisk
+
+C-Version: uses only `malloc` without recycling memory. Therefore the
+high system time (paging!).
+
+
+--
+---------------------------------------------------------
+Dr. E.Ulrich Kriegel, ulrich.kriegel@isst.fhg.de, (++49 30) 20372-346 
+Fraunhofer Institute for Software Engineering and Systems Engineering
+(FhG ISST), Kurstrasse 33, D-10117 Berlin, FRG
+fax:   (++49 30) 20372-207
+=====================================================================
+
+

@@ -1,0 +1,285 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node246.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:31:35 GMT -->
+<HEAD>
+<TITLE>26.8. Value Accumulation</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Value Accumulation">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4640 HREF="node247.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4638 HREF="node235.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4632 HREF="node245.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4642 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4643 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4641 HREF="node247.html"> Variable Initializations</A>
+<B>Up:</B> <A NAME=tex2html4639 HREF="node235.html"> Loop</A>
+<B> Previous:</B> <A NAME=tex2html4633 HREF="node245.html"> End-Test Control</A>
+<HR> <P>
+<H1><A NAME=SECTION003080000000000000000>26.8. Value Accumulation</A></H1>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<A NAME=LOOPACCUMSECTION>Accumulating</A>
+values during iteration and returning them from a loop
+is often useful.  Some of these accumulations occur so
+frequently that special loop clauses have been developed to handle them.
+<P>
+The loop keywords <tt>append</tt>, <tt>appending</tt>,
+<tt>collect</tt>, <tt>collecting</tt>,
+<tt>nconc</tt>, and <tt>nconcing</tt>
+designate clauses that
+accumulate values in lists and return them.
+<P>
+The loop keywords <tt>count</tt>, <tt>counting</tt>,
+<tt>maximize</tt>, <tt>maximizing</tt>,
+<tt>minimize</tt>, <tt>minimizing</tt>,
+<tt>sum</tt>, and <tt>summing</tt>
+designate clauses that accumulate and
+return numerical values.
+[There is no semantic difference between the ``ing'' keywords and their non-``ing''
+counterparts.  They are provided purely for the sake of stylistic diversity among users.
+I happen to prefer the non-``ing'' forms-when I use <tt>loop</tt> at all.-GLS]
+<P>
+The loop preposition <tt>into</tt> can be used to name the 
+variable used to hold partial accumulations.
+The variable is bound as if by the loop
+construct <tt>with</tt> (see section <A HREF="node247.html#LOOPVARSECTION">26.9</A>).  If 
+<tt>into</tt> is used, the construct does not provide a default return value;
+however, the variable is available
+for use in any <tt>finally</tt> clause.
+<P>
+You can combine value-returning accumulation clauses in a loop if
+all the clauses accumulate the same type of data object.  
+By default, the Loop Facility returns only one value;
+thus, the data objects collected by multiple accumulation clauses 
+as return values must have compatible types. For example, since both
+the <tt>collect</tt> and <tt>append</tt> constructs accumulate objects into a
+list that is returned from a loop, you can combine them safely.
+<P>
+<P><pre>
+;;; Collect every name and the kids in one list by using 
+;;; COLLECT and APPEND. 
+(loop for name in '(fred sue alice joe june) 
+      for kids in '((bob ken) () () (kris sunshine) ()) 
+      collect name 
+      append kids) 
+   => (FRED BOB KEN SUE ALICE JOE KRIS SUNSHINE JUNE)
+</pre><P>
+[In the preceding example, note that the items accumulated by the
+<tt>collect</tt> and <tt>append</tt> clauses are interleaved in the result list, according to
+the order in which the clauses were executed.-GLS]
+<P>
+Multiple clauses that do not accumulate the same type of data object 
+can coexist in a loop only if each clause accumulates its values into 
+a different user-specified variable.  Any number of values can
+be returned from a loop if you use the Common Lisp function <tt>values</tt>,
+as the next example shows:
+<P><pre>
+;;; Count and collect names and ages. 
+(loop for name in '(fred sue alice joe june) 
+      as age in '(22 26 19 20 10) 
+      append (list name age) into name-and-age-list 
+      count name into name-count 
+      sum age into total-age 
+      finally 
+        (return (values (round total-age name-count) 
+                        name-and-age-list))) 
+   => 19 and (FRED 22 SUE 26 ALICE 19 JOE 20 JUNE 10)
+</pre><P>
+<P>
+<BR><b>[Loop Clause]</b><BR>
+<tt>collect</tt> <em>expr</em> <tt>[into</tt> <em>var</em>] <tt><BR></tt><tt>collecting</tt> <em>expr</em> <tt>[into</tt> <em>var</em>]<P>During each iteration, these constructs collect the value of the specified 
+expression into a list. When iteration terminates, the list is returned.
+<P>
+The argument <i>var</i> is 
+set to the list of collected values; if <i>var</i> is specified, the loop
+does not return the final list automatically.  If <i>var</i> is not
+specified, it is equivalent to specifying an internal name for
+<i>var</i> and returning its value in a <tt>finally</tt> clause.
+The <i>var</i> argument
+is bound as if by the construct <tt>with</tt>.
+You cannot specify a data type for <i>var</i>; it must be of type <tt>list</tt>.
+<P>
+Examples:
+<P><pre>
+;;; Collect all the symbols in a list. 
+(loop for i in '(bird 3 4 turtle (1 . 4) horse cat) 
+      when (symbolp i) collect i) 
+   => (BIRD TURTLE HORSE CAT) 
+
+;;; Collect and return odd numbers. 
+(loop for i from 1 to 10 
+      if (oddp i) collect i) 
+   => (1 3 5 7 9) 
+
+;;; Collect items into local variable, but don't return them. 
+(loop for i in '(a b c d) by #'cddr 
+      collect i into my-list 
+      finally (print my-list)) `;Prints 1 line
+(A C)  
+   => NIL
+</pre><P>
+<P>
+<BR><b>[Loop Clause]</b><BR>
+<tt>append</tt> <em>expr</em> <tt>[into</tt> <em>var</em>] <tt><BR></tt><tt>appending</tt> <em>expr</em> <tt>[into</tt> <em>var</em>] <tt><BR></tt><tt>nconc</tt> <em>expr</em> <tt>[into</tt> <em>var</em>] <tt><BR></tt><tt>nconcing</tt> <em>expr</em> <tt>[into</tt> <em>var</em>]<P>These constructs are similar to <tt>collect</tt> except that the
+values of the specified expression must be lists.
+<P>
+The <tt>append</tt> keyword causes its list values to be concatenated 
+into a single list, as if 
+they were arguments to the Common Lisp function <tt>append</tt>.
+<P>
+The <tt>nconc</tt> keyword causes its list values to be concatenated
+into a single list,
+as if they were arguments to the Common Lisp function <tt>nconc</tt>.  
+Note that the <tt>nconc</tt> keyword destructively modifies its argument lists.
+<P>
+The argument <i>var</i> is 
+set to the list of concatenated values; if you specify <i>var</i>, the loop
+does not return the final list automatically.  The <i>var</i> argument
+is bound as if by the construct <tt>with</tt>.
+You cannot specify a data type for <i>var</i>; it must be of type <tt>list</tt>.
+<P>
+Examples:
+<P><pre>
+;;; Use APPEND to concatenate some sublists. 
+(loop for x in '((a) (b) ((c))) 
+      append x) 
+   => (A B (C))
+</pre><P>
+<P><pre>
+;;; NCONC some sublists together.  Note that only lists 
+;;; made by the call to LIST are modified. 
+(loop for i upfrom 0  
+      as x in '(a b (c)) 
+      nconc (if (evenp i) (list x) '())) 
+   => (A (C))
+</pre><P>
+<P>
+<BR><b>[Loop Clause]</b><BR>
+<tt>count</tt> <em>expr</em> <tt>[into</tt> <em>var</em>] <tt>[type-spec]</tt> <tt><BR></tt><tt>counting</tt> <em>expr</em> <tt>[into</tt> <em>var</em>] <tt>[type-spec]</tt><P>The <tt>count</tt> construct counts the number of times that the specified 
+expression has a non-<tt>nil</tt> value.
+<P>
+The argument <i>var</i> accumulates the number of occurrences; if 
+<i>var</i> is specified, the loop
+does not return the final count automatically.  The <i>var</i> argument
+is bound as if by the construct <tt>with</tt>.
+<P>
+If <tt>into</tt> <i>var</i> is used, the optional
+<i>type-spec</i> argument specifies a data type for <i>var</i>.
+If there is no <tt>into</tt> variable, the optional <i>type-spec</i>
+argument applies to the internal variable that is keeping the count.
+In either case it is an error to specify a non-numeric 
+data type.
+The default type is implementation-dependent, but it must be a subtype
+of <tt>(or integer float)</tt>.
+<P>
+Example:
+<P><pre>
+(loop for i in '(a b nil c nil d e) 
+      count i) 
+   => 5
+</pre><P>
+<P>
+<BR><b>[Loop Clause]</b><BR>
+<tt>sum</tt> <em>expr</em> <tt>[into</tt> <em>var</em>] <tt>[type-spec]</tt> <tt><BR></tt><tt>summing</tt> <em>expr</em> <tt>[into</tt> <em>var</em>] <tt>[type-spec]</tt><P>The <tt>sum</tt> construct forms a cumulative sum of the values of the
+specified expression at each iteration.
+<P>
+The argument <i>var</i> is used to accumulate
+the sum; if <i>var</i> is specified, the loop
+does not return the final sum automatically.  The <i>var</i> argument
+is bound as if by the construct <tt>with</tt>.
+<P>
+If <tt>into</tt> <i>var</i> is used, the optional
+<i>type-spec</i> argument specifies a data type for <i>var</i>.
+If there is no <tt>into</tt> variable, the optional <i>type-spec</i>
+argument applies to the internal variable that is keeping the sum.
+In either case it is an error to specify a non-numeric 
+data type.
+The default type is implementation-dependent, but it must be a subtype
+of <tt>number</tt>.
+<P>
+Examples:
+<P><pre>
+;;; Sum the elements of a list. 
+
+(loop for i fixnum in '(1 2 3 4 5) 
+      sum i) 
+   => 15 
+
+;;; Sum a function of elements of a list. 
+
+(setq series 
+      '(1.2 4.3 5.7)) 
+   => (1.2 4.3 5.7) 
+
+(loop for v in series  
+      sum (* 2.0 v)) 
+   => 22.4
+</pre><P>
+<P>
+<BR><b>[Loop Clause]</b><BR>
+<tt>maximize</tt> <em>expr</em> <tt>[into</tt> <em>var</em>] <tt>[type-spec]</tt> <tt><BR></tt><tt>maximizing</tt> <em>expr</em> <tt>[into</tt> <em>var</em>] <tt>[type-spec]</tt> <tt><BR></tt><tt>minimize</tt> <em>expr</em> <tt>[into</tt> <em>var</em>] <tt>[type-spec]</tt> <tt><BR></tt><tt>minimizing</tt> <em>expr</em> <tt>[into</tt> <em>var</em>] <tt>[type-spec]</tt><P>The <tt>maximize</tt> construct compares the value of the specified expression
+obtained during the first iteration with values obtained in successive
+iterations. The maximum value encountered is determined and returned.  If the
+loop never executes the body, the returned value is not meaningful.
+<P>
+The <tt>minimize</tt> construct is similar to <tt>maximize</tt>; it
+determines and returns the minimum value.
+<P>
+The argument <i>var</i> accumulates the maximum or
+minimum value; if <i>var</i> is specified, the loop
+does not return the maximum or minimum automatically.  The <i>var</i> argument
+is bound as if by the construct <tt>with</tt>.
+<P>
+If <tt>into</tt> <i>var</i> is used, the optional
+<i>type-spec</i> argument specifies a data type for <i>var</i>.
+If there is no <tt>into</tt> variable, the optional <i>type-spec</i>
+argument applies to the internal variable that is keeping the intermediate result.
+In either case it is an error to specify a non-numeric 
+data type.
+The default type is implementation-dependent, but it must be a subtype
+of <tt>(or integer float)</tt>.
+<P>
+Examples:
+<P><pre>
+(loop for i in '(2 1 5 3 4) 
+      maximize i) 
+   => 5
+</pre><P>
+
+<P><pre>
+(loop for i in '(2 1 5 3 4) 
+      minimize i) 
+   => 1 
+
+;;; In this example, FIXNUM applies to the internal 
+;;; variable that holds the maximum value. 
+
+(setq series '(1.2 4.3 5.7)) 
+   => (1.2 4.3 5.7) 
+
+(loop for v in series  
+      maximize (round v) fixnum) 
+   => 6 
+
+;;; In this example, FIXNUM applies to the variable RESULT. 
+
+(loop for v float in series 
+      minimize (round v) into result fixnum 
+      finally (return result)) 
+   => 1
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+
+<br><HR><A NAME=tex2html4640 HREF="node247.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4638 HREF="node235.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4632 HREF="node245.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4642 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4643 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4641 HREF="node247.html"> Variable Initializations</A>
+<B>Up:</B> <A NAME=tex2html4639 HREF="node235.html"> Loop</A>
+<B> Previous:</B> <A NAME=tex2html4633 HREF="node245.html"> End-Test Control</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

@@ -1,0 +1,185 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node132.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:46:43 GMT -->
+<HEAD>
+<TITLE>12.8. Byte Manipulation Functions</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Byte Manipulation Functions">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3175 HREF="node133.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3173 HREF="node121.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3167 HREF="node131.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3177 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3178 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3176 HREF="node133.html"> Random Numbers</A>
+<B>Up:</B> <A NAME=tex2html3174 HREF="node121.html"> Numbers</A>
+<B> Previous:</B> <A NAME=tex2html3168 HREF="node131.html"> Logical Operations on </A>
+<HR> <P>
+<H1><A NAME=SECTION001680000000000000000>12.8. Byte Manipulation Functions</A></H1>
+<P>
+Several functions are provided for dealing with an arbitrary-width field of
+contiguous bits appearing anywhere in an integer.
+Such a contiguous set of bits is called a <i>byte</i>.
+Here the term <i>byte</i> does not imply some fixed number of bits
+(such as eight), rather a field of arbitrary and user-specifiable width.
+<P>
+The byte-manipulation functions use objects called <i>byte specifiers</i> to
+designate a specific byte position within an integer.
+The representation of a byte specifier is implementation-dependent;
+in particular, it may or may not be a number.
+It is sufficient to know that the function <tt>byte</tt> will construct one,
+and that the byte-manipulation functions will accept them.
+The function <tt>byte</tt> accepts two integers representing
+the <i>position</i> and <i>size</i> of the byte and returns
+a byte specifier.
+Such a specifier designates a byte whose width is <i>size</i>
+and whose bits have weights <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41863.gif">
+through <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41864.gif">.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>byte <i>size</i> <i>position</i></tt><P><tt>byte</tt> takes two integers representing the size and position
+of a byte and returns a byte specifier suitable for use
+as an argument to byte-manipulation functions.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>byte-size <i>bytespec</i> <BR></tt><tt>byte-position <i>bytespec</i></tt><P>Given a byte specifier, <tt>byte-size</tt> returns the size specified as an
+integer; <tt>byte-position</tt> similarly returns the position.
+For example:
+<P><pre>
+(byte-size (byte <i>j</i> <i>k</i>)) == <i>j</i> 
+(byte-position (byte <i>j</i> <i>k</i>)) == <i>k</i>
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>ldb <i>bytespec</i> <i>integer</i></tt><P><i>bytespec</i> specifies a byte of <i>integer</i> to be extracted.
+The result is returned as a non-negative integer.
+For example:
+<P><pre>
+(logbitp <i>j</i> (ldb (byte <i>s</i> <i>p</i>) <i>n</i>)) == (and (&lt; <i>j</i> <i>s</i>) (logbitp (+ <i>j</i> <i>p</i>) <i>n</i>))
+</pre><P>
+The name of the function <tt>ldb</tt> means ``load byte.''
+<P>
+<hr>
+<b>Compatibility note:</b> The MacLisp function <tt>haipart</tt> can be
+implemented in terms of <tt>ldb</tt> as follows:
+<P><pre>
+(defun haipart (integer count) 
+  (let ((x (abs integer))) 
+    (if (minusp count) 
+        (ldb (byte (- count) 0) x) 
+        (ldb (byte count (max 0 (- (integer-length x) count))) 
+             x))))
+</pre><P>
+<hr>
+<P>
+If the argument <i>integer</i> is specified by a form that is a <i>place</i> form
+acceptable to <tt>setf</tt>, then
+<tt>setf</tt> may be used with <tt>ldb</tt> to modify
+a byte within the integer that is stored
+in that <i>place</i>.
+The effect is to perform a <tt>dpb</tt> operation
+and then store the result back into the <i>place</i>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>ldb-test <i>bytespec</i> <i>integer</i></tt><P><tt>ldb-test</tt> is a predicate that is true if any of
+the bits designated by the byte specifier <i>bytespec</i> are 1's in <i>integer</i>;
+that is, it is true if the designated field is non-zero.
+<P><pre>
+(ldb-test <i>bytespec</i> <i>n</i>) == (not (zerop (ldb <i>bytespec</i> <i>n</i>)))
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>mask-field <i>bytespec</i> <i>integer</i></tt><P>This is similar to <tt>ldb</tt>; however, the result contains
+the specified byte
+of <i>integer</i> in the position specified by <i>bytespec</i>,
+rather than in position 0 as with <tt>ldb</tt>.
+The result therefore agrees with <i>integer</i> in the byte specified
+but has zero-bits everywhere else.
+For example:
+<P><pre>
+(ldb <i>bs</i> (mask-field <i>bs</i> <i>n</i>)) == (ldb <i>bs</i> <i>n</i>) 
+
+(logbitp <i>j</i> (mask-field (byte <i>s</i> <i>p</i>) <i>n</i>)) 
+   == (and (&gt;= <i>j</i> <i>p</i>) (&lt; <i>j</i> (+ <i>p</i> <i>s</i>)) (logbitp <i>j</i> <i>n</i>)) 
+
+(mask-field <i>bs</i> <i>n</i>) == (logand <i>n</i> (dpb -1 <i>bs</i> 0))
+</pre><P>
+<P>
+If the argument <i>integer</i> is specified by a form that is a <i>place</i> form
+acceptable to <tt>setf</tt>,
+then <tt>setf</tt> may be used with <tt>mask-field</tt>
+to modify a byte within the integer that is stored
+in that <i>place</i>.
+The effect is to perform a <tt>deposit-field</tt> operation
+and then store the result back into the <i>place</i>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>dpb <i>newbyte</i> <i>bytespec</i> <i>integer</i></tt><P>This returns a number that is the same as <i>integer</i> except in the
+bits specified by <i>bytespec</i>.  Let <i>s</i> be the size specified
+by <i>bytespec</i>; then the low <i>s</i> bits of <i>newbyte</i> appear in
+the result in the byte specified by <i>bytespec</i>.
+The integer <i>newbyte</i> is therefore interpreted as
+being right-justified, as if it were the result of <tt>ldb</tt>.
+For example:
+<P><pre>
+(logbitp <i>j</i> (dpb <i>m</i> (byte <i>s</i> <i>p</i>) <i>n</i>)) 
+  == (if (and (&gt;= <i>j</i> <i>p</i>) (&lt; <i>j</i> (+ <i>p</i> <i>s</i>))) 
+         (logbitp (- <i>j</i> <i>p</i>) <i>m</i>) 
+         (logbitp <i>j</i> <i>n</i>))
+</pre><P>
+The name of the function <tt>dpb</tt> means ``deposit byte.''
+<P>
+<BR><b>[Function]</b><BR>
+<tt>deposit-field <i>newbyte</i> <i>bytespec</i> <i>integer</i></tt><P>This function is to <tt>mask-field</tt> as <tt>dpb</tt> is to <tt>ldb</tt>.
+The result is an integer that contains the bits of <i>newbyte</i>
+within the byte specified by <i>bytespec</i>, and elsewhere contains the bits
+of <i>integer</i>.
+For example:
+<P><pre>
+(logbitp <i>j</i> (deposit-field <i>m</i> (byte <i>s</i> <i>p</i>) <i>n</i>)) 
+   == (if (and (&gt;= <i>j</i> <i>p</i>) (&lt; <i>j</i> (+ <i>p</i> <i>s</i>))) 
+          (logbitp <i>j</i> <i>m</i>) 
+          (logbitp <i>j</i> <i>n</i>))
+</pre><P>
+<P>
+<hr>
+<b>Implementation note:</b> If the <i>bytespec</i> is a constant, one may of course
+construct, at compile time, an equivalent mask <i>m</i>, for example
+by computing <tt>(deposit-field -1 <i>bytespec</i> 0)</tt>.  Given
+this mask <i>m</i>, one may then compute
+<P><pre>
+(deposit-field <i>newbyte</i> <i>bytespec</i> <i>integer</i>)
+</pre><P>
+by computing
+<P><pre>
+(logior (logand <i>newbyte</i> <i>m</i>) (logand <i>integer</i> (lognot <i>m</i>)))
+</pre><P>
+where the result of <tt>(lognot <i>m</i>)</tt> can of course also be computed
+at compile time.  However, the following expression
+may also be used and may require fewer
+temporary registers in some situations:
+<P><pre>
+(logxor <i>integer</i> (logand <i>m</i> (logxor <i>integer</i> <i>newbyte</i>)))
+</pre><P>
+A related, though possibly less useful, trick is that
+<P><pre>
+(let ((z (logand (logxor x y) m))) 
+  (setq x (logxor z x)) 
+  (setq y (logxor z y)))
+</pre><P>
+interchanges those bits of <tt>x</tt> and <tt>y</tt> for which the mask <tt>m</tt> is
+<tt>1</tt>, and leaves alone those bits of <tt>x</tt> and <tt>y</tt> for which <tt>m</tt> is
+<tt>0</tt>.
+<hr>
+<BR> <HR><A NAME=tex2html3175 HREF="node133.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3173 HREF="node121.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3167 HREF="node131.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3177 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3178 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3176 HREF="node133.html"> Random Numbers</A>
+<B>Up:</B> <A NAME=tex2html3174 HREF="node121.html"> Numbers</A>
+<B> Previous:</B> <A NAME=tex2html3168 HREF="node131.html"> Logical Operations on </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

@@ -1,0 +1,297 @@
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/faqs/lang/oop/faq-doc-29.html by HTTrack Website Copier/3.x [XR&CO'2014], Thu, 21 Oct 2021 15:06:19 GMT -->
+<HEAD>
+<TITLE>Comp.Object FAQ Version 1.0.5 (12-13) Announcement - signature implementation for G++ 2.5.2 and tech report available</TITLE>
+</HEAD>
+<BODY>
+<H1>signature implementation for G++ 2.5.2 and tech report available</H1>
+<PRE>
+Date: 4 Nov 1993 12:03:00 -0500
+Organization: Department of Computer Sciences, Purdue University
+
+Announcing the paper
+
+	Signatures: A C++ Extension for
+	Type Abstraction and Subtype Polymorphism
+
+	by Gerald Baumgartner and Vincent F. Russo.
+	Tech report CSD-TR-93-059, Dept. of Computer
+	Sciences, Purdue University, September 1993.
+	Submitted to Software Practice &#38; Experience.
+
+and a beta release of our implementation of
+
+	signatures for GCC 2.5.2.
+
+
+ How to Get that Stuff?
+ ----------------------
+
+You can get both the paper and the implementation by ftp from
+
+	host:		ftp.cs.purdue.edu	(128.10.2.1)
+
+	login:		anonymous
+
+	password:	your e-mail address
+
+	directory:	pub/gb
+
+	files:		COPYING			Copyright notice.
+
+			README			This file.
+
+			Signatures.{dvi,ps}.gz	DVI and Postscript versions
+						of the paper.
+
+			gcc-2.5.2.sig.diff.gz	Patch to upgrade GCC 2.5.2.
+
+			test.tar.gz		Test files and script to run
+						the tests.
+
+To make GCC 2.5.2 understand signatures, just copy the context diff
+file into the GCC source directory, type
+
+	gunzip gcc-2.5.2.sig.diff.gz
+	patch &#60; gcc-2.5.2.sig.diff
+
+and rebuild and install `gcc,' `cc1plus,' the man pages, and the manual.
+
+For compiling C++ code containing signatures, you need to use the
+command line option
+
+	-fhandle-signatures
+
+We tested our extension on Sun 4 only, but since there are no changes
+to the compiler backend, it is expected work on other architectures as
+well.  To test whether it works on your architecture, unpack the file
+`test.tar.gz' and run the shell script
+
+	Test
+
+It compiles the test programs and runs them.  If everything works
+correctly, all the test programs (all 40 of them) should print
+
+	Hello World.
+
+
+ What are Signatures anyway?
+ ---------------------------
+
+Roughly, signatures are type abstractions or interfaces of classes.
+They are related to ML's signatures, categories in Axiom, definition
+modules in Modula-2, interface modules in Modula-3, and types in
+POOL-I.
+
+The main language constructs added are signatures and signature pointers.
+For example, the signature declaration
+
+	signature S
+	{
+	  int foo (void);
+	  int bar (int);
+	};
+
+defines a new abstract type `S' with member functions `int foo (void)'
+and `int bar (int).'  Signature types cannot be instantiated since they
+don't provide any implementation.  Only signature pointers and signature
+references can be defined.  For example,
+
+	C obj;
+	S * p = &#38;obj;
+
+defines a signature pointer `p' and initializes it to point to an object
+of class type `C,' where `C' is required to contain the public member
+functions `int foo (void)' and `int bar (int).'  The member function call
+
+	int i = p-&#62;foo ();
+
+executes then `obj.foo ().'
+
+Class `C' is called an implementation of the abstract type `S.'  In
+this example, we could have made `S' an abstract virtual class and `C' a
+subclass of `S,' and we would have had the same effect.  The advantages
+of signatures over abstract virtual classes are
+
+	- you can build a type hierarchy separate from the class inheritance
+	  (implementation) hierarchy,
+	- subtyping becomes decoupled from inheritance, and
+	- signatures can be used with compiled classes, while you cannot
+	  retrofit an abstract virtual class on top of compiled class
+	  hierarchies.
+
+For more information, please, see the paper.
+
+
+ What's Implemented and what's not?
+ ----------------------------------
+
+Signature declarations and signature pointers are implemented and
+working.  For examples of what's working and how to use them you can
+have a look at the test files.
+
+The following bugs are known:
+
+      - The destructor of objects cannot be called though signature pointers.
+      - A signature pointer cannot point to an object of a class defined
+	by multiple inheritance.
+      - The signature conformance check does not work if the signature
+	contains other signature declarations or class declarations.
+      - Operator and conversion operator member functions of signatures
+	can only be called with function call syntax, such as
+	`p-&#62;operator+(17),' but not with operator or conversion syntax.
+
+The following language constructs and features are not yet implemented:
+
+      - constants in signatures,
+      - signature references,
+      - signature inheritance,
+      - the `sigof' (signature of a class) construct,
+      - views (not even the parsing is done),
+      - signature templates, and
+      - exception specifications in signature member function declarations.
+
+The following optimization is not implemented:
+
+      - Looking up a virtual class member function through a signature
+	pointer/reference requires double indirection.  This can be optimized
+	by memoizing, so that only the first lookup of a member function
+	requires double indirection and further lookups require only single
+	indirection.
+
+The items above are roughly in the order in which they will be implemented.
+
+Besides bug fixes, the main features that have been implemented since the
+last release are default implementations of signature member functions
+and opaque types.
+
+
+ Feedback
+ --------
+
+Please, send your questions, comments, suggestions, and complaints to
+
+	gb@cs.purdue.edu
+
+--
+Gerald Baumgartner
+Dept. of Computer Sciences, Purdue University,  W. Lafayette, IN 47907
+Internet: gb@cs.purdue.edu, UUCP: ...!{decwrl,gatech,ucbvax}!purdue!gb
+
+
+&#62;41 The Texas Persistent Store
+
+  The Texas Persistent Store, version 0.1
+
+Texas is a simple, portable, high-performance and (best of all) FREE
+persistent store for C++ using "pointer swizzling at page fault time"
+to translate persistent addresses to hardware-supported virtual addresses.
+
+Texas is built on top of a normal virtual memory, and relies on the
+underlying virtual memory system for caching.  It uses user-level virtual
+memory protections to control the faulting of data from a persistent storage
+file into virtual memory.
+
+All addresses in a page are translated from a persistent format to
+actual virtual addresses when the page is brought into virtual memory,
+and subsequent memory references (including pointer traversals) are
+just as fast as for non-persistent data.
+
+Texas is easy to use, and is implemented as a UNIX library.  It is small
+and can be linked into applications.  It requires no special operating 
+system privileges, and persistence is orthogonal to type---objects may be 
+allocated on either a conventional transient heap, or on the persistent
+heap, as desired.
+
+Texas supports simple checkpointing of heap data.  A log-structured storage
+module is under development, and will provide fast checkpointing of small
+transactions.
+
+Texas is beta software, and the current prerelease version supports only
+simple single-machine operation.  Future releases will support client-server
+operation, a flexible access control scheme, and transaction support.
+
+Texas currently runs under SunOS and ULTRIX, using Sun CC or GNU C++.
+Porting to other modern systems (e.g., OS/2, WNT, Mach) should be easy---it
+requires only mprotect(), signal(), and sbrk() calls (or their equivalent)
+to control virtual memory protection setting and trap handling.
+
+Papers about the pointer swizzling scheme and Texas itself (referenced
+below) are available via anonymous ftp from cs.utexas.edu (IP address
+128.83.139.9), as postscript files swizz.ps and texaspstore.ps in the
+directory pub/garbage.
+
+The source code for Texas is also available, in the directory
+pub/garbage/texas.
+
+References:
+
+Paul R. Wilson and Sheetal V. Kakkad, "Pointer Swizzling at Page Fault
+Time: Efficiently and Compatibly Supporting Huge Address Spaces on Standard
+Hardware," Proc. Second Int'l. Workshop on Object Orientation in Operating
+Systems, Sept. 1992, Dourdan, France, pp. 364--377.
+
+Vivek Singhal, Sheetal V. Kakkad, and Paul R. Wilson, "Texas: an Efficient,
+Portable Persistent Store", Proc. Fifth Int'l. Workshop on Persistent Object
+Systems, Sept. 1992, San Miniato, Italy, pp. 11-33.
+
+
+&#62;42 OSE C++lib
+
+From: grahamd@research.otc.com.au (Graham Dumpleton)
+Date: Tue, 16 Nov 1993 11:34:42 +1100 (EST)
+Organisation: Telstra International
+Phone: +61-2-287-3119
+
+  WHAT:
+
+    OSE consists of three C++ class libraries, a build environment based on
+    GNU make, programs for documentation extraction and other miscellaneous
+    tools.
+
+    The C++ libraries include generic classes and some UNIX specific classes.
+    Collection classes use templates compatable with AT&#38;T C++ 3.0. If you
+    have a C++ compiler which does not support templates, a template
+    preprocessor supplied with OSE can be used.
+
+    OSE uses a GNU style configure script, making it relatively easy to
+    install, even on platforms for which it may not yet have been compiled.
+    For DOS users, a script is provided to create a copy of the C++
+    libraries suitable for compilation on that platform.
+
+
+  WHERE:
+
+    OSE can be obtained via anonymous ftp from:
+
+      Europe:
+
+	ftp.th-darmstadt.de [130.83.55.75]
+	directory pub/programming/languages/C++/class-libraries/OSE
+
+      United States
+
+	straylight.acs.ncsu.edu [152.1.65.11]
+	directory /pub/ose
+
+      Australia:
+
+	csis.dit.csiro.au [192.41.146.1]
+	directory pub/otc
+
+
+  HELP:
+
+    To get further information about OSE, without actually fetching the
+    complete package, either fetch the file "ANNOUNCE" from one of the
+    ftp sites, or send mail to:
+
+      ose@research.otc.com.au
+
+
+&#62;43 Traces,kiczales,MOP,DI
+</PRE>
+<A NAME=up HREF="faq.html">Go Back Up</A><P>
+<A NAME=up HREF="faq-doc-28.html">Go To Previous</A><P>
+<A NAME=up HREF="faq-doc-30.html">Go To Next</A><P>
+</BODY>

@@ -1,0 +1,253 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node228.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 10:09:53 GMT -->
+<HEAD>
+<TITLE>25.1.4. Similarity of Constants</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Similarity of Constants">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4408 HREF="node229.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4406 HREF="node224.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4402 HREF="node227.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4410 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4411 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4409 HREF="node229.html"> Documentation</A>
+<B>Up:</B> <A NAME=tex2html4407 HREF="node224.html"> The Compiler</A>
+<B> Previous:</B> <A NAME=tex2html4403 HREF="node227.html"> Compilation Environment</A>
+<HR> <P>
+<H2><A NAME=SECTION002914000000000000000>25.1.4. Similarity of Constants</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<A NAME=SIMILARASACONSTANTSECTION>X3J13</A>
+voted in March 1989 (CONSTANT-COMPILABLE-TYPES) <A NAME=28737>&#160;</A> 
+to specify what objects can be in compiled constants and
+what relationship there must be between a constant
+passed to the compiler and the one that is established by compiling it
+and then loading its file.
+<P>
+The key is a definition of an equivalence relationship called
+``similarity as constants''
+between Lisp
+objects.  Code passed through the file
+compiler and then loaded must behave as though quoted constants in it
+are similar in this sense to quoted constants in the corresponding source code.
+An object may be used as a quoted constant processed by <tt>compile-file</tt>
+if and only if the compiler can guarantee that the resulting constant established
+by loading the compiled file is ``similar as a constant'' to the
+original.  Specific requirements are spelled out below.
+<P>
+Some types of objects, such as streams, are not supported in constants
+processed by the file compiler.  Such objects may not portably appear
+as constants in code processed with <tt>compile-file</tt>.  Conforming
+implementations are required to handle such objects either by having
+the compiler or loader reconstruct an equivalent copy of the
+object in some implementation-specific manner or by having the
+compiler signal an error.
+<P>
+Of the types supported in constants, some are treated as aggregate
+objects.  For these types, being similar as constants is defined
+recursively.  We say that an object of such a type has certain ``basic
+attributes''; to be similar as a constant to another object, the
+values of the corresponding attributes of the two objects must also be
+similar as constants.
+<P>
+A definition of this recursive form has problems with any circular or infinitely
+recursive object such as a list that is an element of itself.  We use
+the idea of depth-limited comparison and say that two objects are
+similar as constants if they are similar at all finite levels.  This
+idea is implicit in the definitions below, and it applies in all the
+places where attributes of two objects are required to be similar as
+constants.  The question of handling circular constants is the subject
+of a separate vote by X3J13 (see below).
+<P>
+The following terms are used throughout this section.
+  The term <i>constant</i> refers to a quoted or self-evaluating constant,
+  not a named constant defined by <tt>defconstant</tt>.
+  The term <i>source code</i> is used to refer to the objects constructed
+  when <tt>compile-file</tt> calls <tt>read</tt> (or the equivalent) and to
+  additional objects constructed by
+  macro expansion during file compilation.
+  The term <i>compiled code</i> is used to refer to objects constructed by 
+  <tt>load</tt>.
+<P>
+Two objects are <i>similar as a constant</i> if and only if
+they are both of one of the types listed below and satisfy the
+additional requirements listed for that type.
+<P>
+<DL COMPACT><DT><tt>number</tt>
+<DD>
+<P>
+  Two numbers are similar as constants if they are of the same type
+  and represent the same mathematical value.
+<P>
+<DT><tt>character</tt>
+<DD>
+<P>
+  Two characters are similar as constants if they both represent
+  the same character.  (The intent is that this be compatible with
+  how <tt>eql</tt> is defined on characters.)
+<P>
+<DT><tt>symbol</tt>
+<DD>
+  X3J13 voted in June 1989 (COMPILE-FILE-SYMBOL-HANDLING) <A NAME=28753>&#160;</A> 
+  to define similarity as a constant for interned symbols.
+  A symbol <b><i>S</i></b> appearing in the source code is similar as a constant to 
+  a symbol <b><i>S'</i></b> in the compiled code if their print names are similar as constants
+   and either of the following conditions holds:
+<UL><LI>  <b><i>S</i></b> is accessible in <tt>*package*</tt> at compile time and <b><i>S'</i></b> is accessible in
+       <tt>*package*</tt> at load time.
+<LI>  <b><i>S'</i></b> is accessible in the package that is similar as a constant to the
+       home package of symbol <i>S</i>.
+</UL>
+  The ``similar as constants'' relationship for interned symbols has nothing
+  to do with <tt>*readtable*</tt> or how the function <tt>read</tt> would parse the 
+  characters in the print name of the symbol.
+<P>
+  An uninterned symbol in the source code is similar as a constant
+  to an uninterned symbol in the compiled code if their print names
+  are similar as constants.
+<P>
+<DT><tt>package</tt>
+<DD>
+<P>
+  A package in the source code is similar as a constant to a package in
+  the compiled code if their names are similar as constants.  Note that
+  the loader finds the corresponding package object as if by calling
+  <tt>find-package</tt> with the package name as an argument.  An error is
+  signaled if no package of that name exists at load time.
+<P>
+<DT><tt>random-state</tt>
+<DD>
+<P>
+ We say that two <tt>random-state</tt> objects are <i>functionally equivalent</i> if 
+  applying <tt>random</tt> to them repeatedly always produces the same 
+  pseudo-random numbers in the same order.
+<P>
+  Two random-states are similar as constants if and only if copies of
+  them made via <tt>make-random-state</tt> are functionally equivalent.
+  (Note that a constant <tt>random-state</tt> object cannot be used as the <i>state</i>
+  argument to the function <tt>random</tt> because <tt>random</tt> performs
+  a side effect on that argument.)
+<P>
+<DT><tt>cons</tt>
+<DD>
+<P>
+  Two conses are similar as constants if the values of their respective
+  <i>car</i> and <i>cdr</i> attributes are similar as constants.
+<P>
+<DT><tt>array</tt>
+<DD>
+<P>
+  Two arrays are similar as constants if the corresponding values of each
+  of the following attributes are similar as constants:
+  for vectors (one-dimensional arrays), the <tt>length</tt> and <tt>element-type</tt>
+  and the result of <tt>elt</tt> for all valid indices;
+  for all other arrays, the <tt>array-rank</tt>, the result of <tt>array-dimension</tt>
+  for all valid axis numbers, the <tt>array-element-type</tt>,
+  and the result of <tt>aref</tt> for all valid indices.  (The point of
+distinguishing vectors is to take any fill pointers into account.)
+<P>
+  If the array in the source code is a <tt>simple-array</tt>, then
+  the corresponding array in the compiled code must also be a
+  <tt>simple-array</tt>, but if the array in the source code is displaced, has a
+  fill pointer, or is adjustable, the corresponding array in the
+  compiled code is permitted to lack any or all of these qualities.
+<P>
+<DT><tt>hash-table</tt>
+<DD>
+<P>
+  Two hash tables are similar as constants if they meet
+  three requirements.
+  First, they must have the same test (for example, both are <tt>eql</tt> hash tables
+  or both are <tt>equal</tt> hash tables).
+  Second, there must be a unique bijective correspondence between the keys of
+      the two tables, such that the corresponding keys are similar as
+      constants.
+  Third, for all keys, the values associated with two corresponding keys
+      must be similar as constants.
+<P>
+  If there is more than one possible one-to-one correspondence between
+  the keys of the two tables, it is unspecified whether the two
+  tables are similar as constants.  A conforming
+  program cannot use such a table as a constant.
+<P>
+<DT><tt>pathname</tt>
+<DD>
+<P>
+  Two pathnames are similar as constants if all corresponding pathname
+  components are similar as constants.
+<P>
+<DT><tt>stream</tt>, <tt>readtable</tt>, and <tt>method</tt>
+<DD>
+<P>
+  Objects of these types are not supported in compiled constants.
+<P>
+<DT><tt>function</tt>
+<DD>
+<P>
+   X3J13 voted in June 1989 (CONSTANT-FUNCTION-COMPILATION) <A NAME=28798>&#160;</A> 
+   to specify that objects of type <tt>function</tt>
+   are not supported in compiled constants.
+<P>
+<DT><tt>structure</tt> and <tt>standard-object</tt>
+<DD>
+<P>
+   X3J13 voted in March 1989 (LOAD-OBJECTS) <A NAME=28802>&#160;</A>  to introduce a facility
+based on the Common Lisp Object System
+whereby a user can specify how <tt>compile-file</tt> and <tt>load</tt>
+must cooperate to reconstruct compile-time constant objects at load time
+(see <tt>make-load-form</tt>).
+<P>
+ </DL>
+<P>
+   X3J13 voted in March 1989 (CONSTANT-COLLAPSING) <A NAME=28807>&#160;</A>  to specify
+the circumstances under which constants may be coalesced in compiled code.
+<P>
+Suppose <b><i>A</i></b> and <b><i>B</i></b> are two
+objects used as quoted constants in the source code, and that <b><i>A'</i></b> and
+<b><i>B'</i></b> are the corresponding objects in the compiled code.  If <b><i>A'</i></b> and <b><i>B'</i></b>
+are <tt>eql</tt> but <b><i>A</i></b> and <b><i>B</i></b> were not <tt>eql</tt>, then we say that <b><i>A</i></b> and <b><i>B</i></b> have been
+<i>coalesced</i> by the compiler.
+<P>
+An implementation is permitted to coalesce constants
+appearing in code to be compiled if and only if they are similar as
+constants, except that objects of type <tt>symbol</tt>, <tt>package</tt>,
+<tt>structure</tt>, or <tt>standard-object</tt> obey their own rules
+and may not be coalesced by a separate mechanism.
+<P>
+<hr>
+<b>Rationale:</b> Objects of type <tt>symbol</tt> and <tt>package</tt> cannot be coalesced because the fact
+that they are named, interned objects means they are already as
+coalesced as it is useful for them to be.  Uninterned symbols could
+perhaps be coalesced, but that was thought to be more dangerous than
+useful.  Structures and objects could be
+coalesced if a ``similar as a constant'' predicate were defined for them;
+it would be a generic function.  However, at present there is no such
+predicate.  Currently <tt>make-load-form</tt> provides a protocol by which
+<tt>compile-file</tt> and <tt>load</tt> work together to construct an object in the
+compiled code that is equivalent to the object in the source code;
+a different mechanism would have to be added to permit coalescing.
+<hr>
+<P>
+Note that coalescing is possible only because it is forbidden to
+destructively modify constants (CONSTANT-MODIFICATION) <A NAME=28832>&#160;</A>  (see <tt>quote</tt>).
+<P>
+   X3J13 voted in March 1989 (CONSTANT-CIRCULAR-COMPILATION) <A NAME=28834>&#160;</A>  to specify
+that objects containing circular or infinitely recursive references may legitimately
+appear as constants to be compiled.  The compiler is
+required to preserve <tt>eql</tt>-ness of substructures within a file compiled
+by <tt>compile-file</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html4408 HREF="node229.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4406 HREF="node224.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4402 HREF="node227.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4410 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4411 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4409 HREF="node229.html"> Documentation</A>
+<B>Up:</B> <A NAME=tex2html4407 HREF="node224.html"> The Compiler</A>
+<B> Previous:</B> <A NAME=tex2html4403 HREF="node227.html"> Compilation Environment</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

@@ -1,0 +1,98 @@
+From dwbrown@nps.navy.mil Tue Jul  5 17:19:51 EDT 1994
+Article: 2782 of comp.speech
+Xref: glinda.oz.cs.cmu.edu comp.soft-sys.matlab:7057 comp.dsp:11910 comp.speech:2782
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!newsfeed.pitt.edu!gatech!news-feed-1.peachnet.edu!emory!swrinde!elroy.jpl.nasa.gov!lll-winken.llnl.gov!taurus.cs.nps.navy.mil!nps.navy.mil!usenet
+From: dwbrown@nps.navy.mil (Dennis W. Brown)
+Newsgroups: comp.soft-sys.matlab,comp.dsp,comp.speech
+Subject: SPC Toolbox
+Date: 30 Jun 1994 23:06:44 GMT
+Organization: Naval Postgraduate School, Monterey, CA
+Lines: 81
+Distribution: world
+Message-ID: <2uvj64$db@nps.navy.mil>
+Reply-To: dwbrown@nps.navy.mil
+NNTP-Posting-Host: in50210.cc.nps.navy.mil
+
+To all:
+
+I've place updated version of spctools.tar.Z and spctools.zip at
+
+ftp.nps.navy.mil:/pub/ece/spctools/spctools.tar.Z
+ftp.nps.navy.mil:/pub/ece/spctools/spctools.zip
+
+as of 1500, CA time, Jun 30th.  This would be the last version but
+as I'm still not done with all the documentation (approaching 300+
+pages), there will be one last post next week.  I'm currently living
+out of a suitcase and pickup, just hanging around Monterey to finish
+this thing.
+
+Major changes in this version.
+
+1.  I've "speeded up" ZOOMTOOL.  When you grab the cursors by clicking
+on the zoomed line (not the cursor itself), the position readouts are 
+updated continuously vice only when you release the mouse button (during
+drags).  Doing this required me to re-write much of the zoomtool code.
+To get the maximum speed, I converted it all to the UserData programming
+paradigm and use the Global Varible paradigm during cursor drags.  The 
+speedup occurs by eliminating some of the problems caused by having to
+use the UserData (or, in this case, the line objects XData property) 
+for variable storage.  For example, to update the Y positional readout, 
+I have to find the Y value for the current X value from the line's 
+YData property.  This first requires "getting" the YData with a call
+sorta like "y = get(h,'YData')".   The trouble with this and the whole
+ideal of using UserData properties for variable storage is that even though
+I need just a single value out of the vector stored in YData, I have to
+first make a copy of the whole YData vector.  Once that is accomplished,
+I can then use subscript notation to retrieve the Y value I need 
+"yval = y(index)".  For most of the buttons ('<', '>', etc), I still have to 
+do this but when dragging, I make the copy once on the buttondownfcn call
+and stores it as a global variable.  The 'windowbuttonmotionfcn' and
+'windowbuttonupfcn' just access this variable.
+
+The MathWorks needs to
+provide a better way of storing variables for GUI applications use. 
+Having to retrieve entire vectors and matrices for single values requires
+way too much overhead having to first copy the whole damn thing.  I've
+made a few suggestions to them on this but haven't heard anything back.
+At minimum, what is needed is an "Variable" object that can be a child 
+of any other object.  The variable object would have at least one property
+which is the data itself (call it say 'Data').  It could have additional
+properties such as Maximum, Minimum, Mean, Size, etc, which would speed up
+retrieving these values (e.g. they are set when Data is set, thus the 
+corresponding functions won't have to be executed on them).  One could
+the retrieve these by "m = get(h,'Maximum')" where h is a handle to the 
+object.  Note a Tag property would also be included so that the handle to
+a variable can be found with "h = findobl('Tag','myvariable').  Individual
+cells in vectors and matrices could be retrieved ( or blocks for that
+matter) with call to "y = get(h,'Value',index)" for single vectors,
+"y = get(h,'Value',[x y] for matrices, and "y = get(h,'Value',start:end)"
+and "y = get(h,'Value',[xstart xend ystart yend])" for blocks.
+
+Best thing though would be to simply give each figure window it's own
+workspace with persistnent storage so you don't have to worry about
+retrieving variables from any objects.
+
+2.  I've added a function called "spcscope" which is used like the
+rest of the GUI functions.  Try calling it with "spcscope('seatsit.voc')".
+It provides a way to playback signal looking at the time-domain and
+spectrum of the signal.  It makes it look like you're sitting in front
+of both an o-scope and a spectrum analyzer.  The data is framed to 
+the time window you specify and successive frames can be overlapped.
+Different smoothing windows are available and you can smooth the 
+spectrum in the frequency domain (averaging adjacent frequency bins)
+or time domain (averaging successive frames after computing the FFT).
+This is still a work in progress.
+
+Regards,
+Dennis
+
+
+---
+| Dennis W. Brown           |
+| Naval Postgraduate School | email: browndw@ece.nps.navy.mil 
+| Monterey, CA 93940        | Usenet: dwbrown@cc.nps.navy.mil
+| (408)656-2393             |    CIS: 75450,1105            
+
+
+
+

@@ -1,0 +1,168 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node211.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:32:03 GMT -->
+<HEAD>
+<TITLE>23.1.5.3. Using Logical Pathnames</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Using Logical Pathnames">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4196 HREF="node212.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4194 HREF="node208.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4188 HREF="node210.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4198 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4199 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4197 HREF="node212.html"> Examples of the </A>
+<B>Up:</B> <A NAME=tex2html4195 HREF="node208.html"> Logical Pathnames</A>
+<B> Previous:</B> <A NAME=tex2html4189 HREF="node210.html"> Parsing of Logical </A>
+<HR> <P>
+<H3><A NAME=SECTION002715300000000000000>23.1.5.3. Using Logical Pathnames</A></H3>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+  Some real file systems do not have versions.  Logical pathname
+  translation to such a file system ignores the version.  This implies that
+  a portable program cannot rely on being able to store in a file system
+  more than one version of a
+  file named by a logical pathname.
+<P>
+  The type of a logical pathname for a Common Lisp source file is <tt>LISP</tt>.
+  This should be translated into whatever implementation-defined
+  type is appropriate in a physical pathname.
+<P>
+  The logical pathname host name <tt>SYS</tt> is reserved for the implementation.
+  The existence and meaning of logical pathnames for logical host <tt>SYS</tt> is
+  implementation-defined.
+<P>
+  File manipulation functions must operate with logical pathnames
+according to the following requirements:
+<UL><LI>  The following accept logical pathnames
+  and translate them into physical pathnames as if by calling the
+  function <tt>translate-logical-pathname</tt>:
+<pre>
+compile-file           ed               probe-file 
+compile-file-pathname  file-author      rename-file 
+delete-file            file-write-date  truename 
+directory              load             with-open-file  
+dribble                open            
+</pre>
+<P>
+<LI> Applying the function <tt>pathname</tt> to a stream created by the function <tt>open</tt>
+  or the macro <tt>with-open-file</tt> using a logical pathname produces a logical pathname.
+<P>
+<LI> The functions <tt>truename</tt>, <tt>probe-file</tt>, and <tt>directory</tt>
+      never return logical pathnames.
+<P>
+<LI> Calling <tt>rename-file</tt> with a logical pathname as the second argument returns a
+  logical pathname as the first value.
+<P>
+<LI> <tt>make-pathname</tt> returns a logical pathname if and only if the host is
+  logical.  If the <tt>:host</tt> argument to <tt>make-pathname</tt> is supplied, the host is
+  logical if it came from the <tt>pathname-host</tt> of a logical pathname.  Whether a
+  <tt>:host</tt> argument is logical if it is a string equal to a logical pathname
+  host name is implementation-defined.
+</UL>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>logical-pathname <i>pathname</i></tt><P>    Converts the argument to a logical pathname and returns it.  The
+    argument can be a logical pathname, a logical pathname namestring
+    containing a host component, or a stream for which the <tt>pathname</tt>
+    function returns a logical pathname.  For any other argument,
+    <tt>logical-pathname</tt> signals an error of type <tt>type-error</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>translate-logical-pathname <i>pathname</i> &amp;key</tt><P>    Translates a logical pathname to the corresponding physical pathname.
+    The <i>pathname</i> argument is first coerced to a pathname.  If it is not a
+    pathname, string, or file stream, an error of type <tt>type-error</tt> is
+    signaled.
+<P>
+    If the coerced argument is a physical pathname, it is returned.
+<P>
+    If the coerced argument is a logical pathname, the first matching
+    translation (according to <tt>pathname-match-p</tt>) of the logical pathname
+    host is applied, as if by calling <tt>translate-pathname</tt>.  If the result is
+    a logical pathname, this process is repeated.  When the result is
+    finally a physical pathname, it is returned.
+<P>
+    If no translation matches a logical pathname,
+    an error of type <tt>file-error</tt> is signaled.
+<P>
+    <tt>translate-logical-pathname</tt> may perform additional translations,
+    typically to provide translation of file types to local naming
+    conventions, to accommodate physical file systems with names of limited length,
+    or to deal with special character requirements such as
+    translating hyphens to underscores or uppercase letters to lowercase.
+    Any such additional translations are implementation-defined.  Some
+    implementations do no additional translations.
+<P>
+    There are no specified keyword arguments for
+    <tt>translate-logical-pathname</tt> but implementations are permitted to extend
+    it by adding keyword arguments.  There is one specified return value
+    from <tt>translate-logical-pathname</tt>; implementations are permitted to
+    extend it by returning additional values.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>logical-pathname-translations <i>host</i></tt><P>    If the specified <i>host</i> is not the host component of a logical pathname and is not a
+    string that has been defined as a logical pathname host name by <tt>setf</tt> of
+    <tt>logical-pathname-translations</tt>, this function signals an error of type <tt>type-error</tt>;
+    otherwise, it returns the list of translations for the specified <i>host</i>.  Each translation is
+    a list of at least two elements, from-wildname and to-wildname.  Any
+    additional elements are implementation-defined.  A from-wildname is a
+    logical pathname whose host is the specified <i>host</i>.  A to-wildname is any pathname.
+    Translations are searched in the order listed, so more specific
+    from-wildnames must precede more general ones.
+<P>
+    <tt>(setf (logical-pathname-translations <i>host</i>) <i>translations</i>)</tt>
+    sets the list of translations for the logical
+    pathname <i>host</i> to <i>translations</i>.  If <i>host</i> is a string that has
+    not previously been used as logical pathname host, a new logical
+    pathname host is defined; otherwise an existing host's translations are
+    replaced.  Logical pathname host names are compared with <tt>string-equal</tt>.
+<P>
+    When setting the translations list, each from-wildname can be a logical
+    pathname whose host is <i>host</i> or a logical pathname namestring <i>s</i>
+    parseable by <tt>(parse-namestring <i>s</i> <i>host-object</i>)</tt>, where <i>host-object</i>
+    is an appropriate object for representing the specified <i>host</i> to
+    <tt>parse-namestring</tt>.  (This circuitous specification dodges the fact
+    that <tt>parse-namestring</tt> does not necessarily accept as its second argument
+    any old string that names a logical host.)
+    Each to-wildname can be anything coercible to a pathname by application of
+    the function <tt>pathname</tt>.
+    If to-wildname coerces to a logical pathname,
+    <tt>translate-logical-pathname</tt> will retranslate the result, repeatedly if
+    necessary.
+<P>
+    Implementations may define additional functions that operate on
+    logical pathname hosts (for example, to specify additional translation
+    rules or options).
+<P>
+<BR><b>[Function]</b><BR>
+<tt>load-logical-pathname-translations <i>host</i></tt><P>    If a logical pathname host named <i>host</i> (a string) is already defined,
+    this function returns <tt>nil</tt>.  Otherwise, it searches for a logical pathname host definition
+    in an implementation-defined manner.  If none is found, it signals an
+    error.  If a definition is found, it installs the definition and returns <tt>t</tt>.
+<P>
+    The search used by <tt>load-logical-pathname-translations</tt> should be
+    documented, as logical pathname definitions will be created by users as well as
+    by Lisp implementors.  A typical search technique is to
+    look in an implementation-defined directory for a file whose name is derived from
+    the host name in an implementation-defined fashion.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>compile-file-pathname <i>pathname</i> &amp;key :output-file</tt><P>    Returns the pathname that <tt>compile-file</tt> would write into, if given the
+    same arguments.  If the pathname argument is a logical pathname and the
+    <tt>:output-file</tt> argument is unspecified, the result is a logical pathname.
+    If an implementation supports additional keyword arguments to
+    <tt>compile-file</tt>, <tt>compile-file-pathname</tt> must accept the same arguments.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html4196 HREF="node212.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4194 HREF="node208.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4188 HREF="node210.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4198 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4199 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4197 HREF="node212.html"> Examples of the </A>
+<B>Up:</B> <A NAME=tex2html4195 HREF="node208.html"> Logical Pathnames</A>
+<B> Previous:</B> <A NAME=tex2html4189 HREF="node210.html"> Parsing of Logical </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

@@ -1,0 +1,205 @@
+; From S.N.K.Watt@open.ac.uk Fri Oct  7 14:26:34 EDT 1994
+; Article: 14978 of comp.lang.lisp
+; Path: cantaloupe.srv.cs.cmu.edu!das-news.harvard.edu!news2.near.net!MathWorks.Com!europa.eng.gtefsd.com!howland.reston.ans.net!pipex!lyra.csx.cam.ac.uk!warwick!clyde.open.ac.uk!uu-stuart-mac.open.ac.uk!user
+; From: S.N.K.Watt@open.ac.uk (Stuart Watt)
+; Newsgroups: comp.lang.lisp
+; Subject: Re: SEXP level DIFF?
+; Date: Fri, 07 Oct 1994 09:32:56 +0000
+; Organization: The Open University, U.K.
+; Lines: 190
+; Message-ID: <S.N.K.Watt-0710940932560001@uu-stuart-mac.open.ac.uk>
+; References: <36pvg9$qih@hacgate2.hac.com>
+; NNTP-Posting-Host: uu-stuart-mac.open.ac.uk
+; 
+; In article <36pvg9$qih@hacgate2.hac.com>, seth@aic.hrl.hac.com (Seth
+; Goldman) wrote:
+; 
+; > Does anyone know of (or have) a DIFF application that would compare
+; > two lisp files and produce the differences resolved to the s-expression
+; > level?
+; 
+; Apologies for the length of the following code, but here's a version I
+; consed up ages ago. It's written using the series package, and it's a
+; generic differential comparator, that is, it can be used to compare and
+; identify mismatches in any series inputs. You can use this on files if you
+; use:
+; 
+; (scan-file <filename> #'read)
+; 
+; to generate the series inputs, and use #'equal as the test function. I am
+; sorry for the structure of the function "compare" in advance: that's not
+; usually how I write Common Lisp, but that's series for you.
+; 
+; If what you *really* want is to compare inside s-expressions, then you
+; might need to call the thing recursively in the test function. An
+; ultimately general minimal nested differential comparator is really hard
+; to write: I tried, and gave up after spending a week on it without
+; managing to decide what it should do, let alone how it should do it. 
+; 
+; Regards, Stuart  
+; ===============================================================================
+;;; -*- Mode: Lisp; Package: AUXILIARIES -*-
+
+(in-package "AUXILIARIES")
+
+(eval-when (compile load eval)
+  (series::install))
+
+;;; Compare.Lisp
+;;;
+;;; Author: Stuart Watt
+;;;         The Open University
+;;;
+;;; The differential comparator, implemented in Series. The function
+;;; compare takes two series and returns four series in synch. Each entry
+;;; has the following form <objects1> <objects2> <position1> <position2>.
+;;;
+;;; This means that there is a mismatch between the given objects at the
+;;; given positions. When one set of objects is nil, then there are new
+;;; (or deleted) elements, depending upon your interpretation.
+;;;
+;;; Since we are only really interested in using sequences, there are tw
+;;; functions, compare-sequences and map-compare-sequences, that get
+;;; optimised to handle sequence operations, and do not need series to
+;;; be around at run time. A typical use of the differential comparator
+;;; would involve map-compare-sequence, with a function passed, which
+;;; might even use the generic flet to deal with additions and deletions
+;;; to the given set of objects.
+;;;
+;;; In Dale, for instance, this strategy is used to deal with the
+;;; binding between emacs buffers and their tag tables, and the windows
+;;; which present their contents as a set of icons. Using the differential
+;;; comparator we can distinguish (typically) between objects being
+;;; renamed and objects being added or deleted.
+
+(defstruct (stack (:type list))
+  (objects ())
+  (position 0)
+  series
+  (length 0))
+
+(defstruct (match (:type list)
+                  (:constructor make-match (sequence-1 sequence-2
+position-1 position-2)))
+  (sequence-1 () :read-only t)
+  (sequence-2 () :read-only t)
+  (position-1 () :read-only t)
+  (position-2 () :read-only t))
+
+(defun match (stack1 stack2 test count)
+  (let ((length (stack-length stack1)))
+    (and (>= length count)
+         (search (stack-objects stack1)
+                 (stack-objects stack2)
+           :test test
+           :start1 0
+           :end1 count))))
+
+(defun synchronise (stack1 stack2 position1 position2 test)
+  (let ((objects1 (stack-objects stack1))
+        (objects2 (stack-objects stack2)))
+    (prog1 (let ((return1 (subseq objects1 position1))
+                 (return2 (subseq objects2 position2)))
+             (when (or return1 return2)
+               (let ((mismatch (mismatch return1 return2 :test test)))
+                 (when mismatch
+                   (setf return1 (subseq return1 mismatch)
+                         return2 (subseq return2 mismatch))
+                   (let ((objects1 (reverse return1))
+                         (objects2 (reverse return2))
+                         (position1 (- (stack-position stack1)
+                                       (stack-length stack1)))
+                         (position2 (- (stack-position stack2)
+                                       (stack-length stack2))))
+                     (if (= (stack-series stack1) 1)
+                         (make-match objects1 objects2 position1 position2)
+                         (make-match objects2 objects1 position2
+position1)))))))
+      (setf (stack-objects stack1) (subseq objects1 0 position1)
+            (stack-objects stack2) (subseq objects2 0 position2)
+            (stack-length stack1) (length (stack-objects stack1))
+            (stack-length stack2) (length (stack-objects stack2))))))
+
+(defun new (object stack1 stack2 test count-fn)
+  (incf (stack-position stack1))
+  (let ((length (stack-length stack2)))
+    (cond ((and (= length 1)
+                (zerop (stack-length stack1))
+                (funcall test object (first (stack-objects stack2))))
+           (pop (stack-objects stack2))
+           (setf (stack-length stack2) 0)
+           nil)
+          (t
+           (push object (stack-objects stack1))
+           (incf (stack-length stack1))
+           (let* ((count (funcall count-fn (max (stack-length stack1)
+                  (stack-length stack2))))
+                  (match (match stack1 stack2 test count)))
+             (when match
+               (synchronise stack1 stack2 0 match test)))))))
+
+(defun compare (series1 series2 test count-fn)
+  (declare (optimizable-series-function 4))
+  (declare (off-line-port series1 series2))
+  (declare (type series series1 series2))
+  (producing (output1 output2 position1 position2)
+             ((input1 series1)
+              (input2 series2)
+              (stack1 (make-stack :series 1))
+              (stack2 (make-stack :series 2))
+         object
+              input1-empty-p
+              input2-empty-p
+              result)
+    (loop
+      (tagbody
+        get1
+        (when input1-empty-p (go get2))
+        (setq object (next-in input1 (setq input1-empty-p t) (go get2)))
+        (setq result (new object stack1 stack2 test count-fn))
+        (when result (go output))
+
+        get2
+        (when input2-empty-p (go final))
+        (setq object (next-in input2 (setq input2-empty-p t) (go final)))
+        (setq result (new object stack2 stack1 test count-fn))
+        (when result (go output))
+
+        final
+        (unless (and input1-empty-p input2-empty-p) (go get1))
+        (setq result (synchronise stack1 stack2 0 0 test))
+        (unless result (terminate-producing))
+
+        output
+        (next-out output1 (first result))
+        (next-out output2 (second result))
+        (next-out position1 (third result))
+        (next-out position2 (fourth result))))))
+
+(defun default-count-fn (stack-length)
+  (+ 2 (* 2 (floor (log stack-length 10)))))
+
+;;; Function to compare sequences for testing (and perhaps real)
+;;; porpoises. 
+
+(defun compare-sequences (sequence1 sequence2
+                          &key (test #'eql) (count-fn #'default-count-fn))
+  (collect (mapping (((object1 object2 position1 position2)
+                      (compare (scan sequence1)
+                               (scan sequence2)
+                        test count-fn)))
+             (list object1 object2 position1 position2))))
+
+(defun map-compare-sequences (function sequence1 sequence2
+                              &key (test #'eql) (count-fn #'default-count-fn))
+  (iterate (((object1 object2 position1 position2)
+             (compare (scan sequence1) (scan sequence2) test count-fn)))
+    (funcall function object1 object2 position1 position2)))
+
+; -- 
+; Stuart Watt; Human Cognition Research Laboratory, Open University,
+; Walton Hall, Milton Keynes, MK7 6AA, UK. 
+; Tel: +44 908 654513; Fax: +44 908 653169. 
+; WWW: http://hcrl.open.ac.uk/
+
+

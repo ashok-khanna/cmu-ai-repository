@@ -1,0 +1,1800 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node200.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:47:15 GMT -->
+<HEAD>
+<TITLE>22.3.3. Formatted Output to Character Streams</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Formatted Output to Character Streams">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4034 HREF="node201.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4032 HREF="node197.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4028 HREF="node199.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4036 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4037 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4035 HREF="node201.html"> Querying the User</A>
+<B>Up:</B> <A NAME=tex2html4033 HREF="node197.html"> Output Functions</A>
+<B> Previous:</B> <A NAME=tex2html4029 HREF="node199.html"> Output to Binary </A>
+<HR> <P>
+<H2><A NAME=SECTION002633000000000000000>22.3.3. Formatted Output to Character Streams</A></H2>
+<P>
+<A NAME=FORMATSECTION>The</A>
+<A NAME=23445>function</A>
+<tt>format</tt> is very useful for producing
+nicely formatted text, producing good-looking messages, and so on.
+<tt>format</tt> can generate a string or output to a stream.
+<P>
+Formatted output is performed not only by the <tt>format</tt> function
+itself but by certain other functions that accept a control string
+``the way <tt>format</tt> does.''  For example, error-signaling functions
+such as <tt>cerror</tt> accept <tt>format</tt> control strings.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>format <i>destination</i> <i>control-string</i> &amp;rest <i>arguments</i></tt><P><tt>format</tt> is used to produce formatted output.
+<tt>format</tt> outputs the characters of <i>control-string</i>,
+except that a tilde (<tt>~</tt>) introduces a directive.
+The character after
+the tilde, possibly preceded by prefix parameters and modifiers, specifies
+what kind of formatting is desired.  Most directives use one or more
+elements of <i>arguments</i> to create their output; the typical directive
+puts the next element of <i>arguments</i> into the output, formatted in
+some special way.  It is an error if no argument remains for a directive
+requiring an argument, but it is not an error if one or more arguments
+remain unprocessed by a directive.
+<P>
+The output is sent to <i>destination</i>.  If <i>destination</i> is
+<tt>nil</tt>, a string is created that contains the output; this string is
+returned as the value of the call to <tt>format</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(STREAM-ACCESS) <A NAME=23464>&#160;</A> 
+to specify that when the first argument
+to <tt>format</tt> is <tt>nil</tt>, <tt>format</tt> creates a stream
+of type <tt>string-stream</tt> in much the same manner as <tt>with-output-to-string</tt>.
+(This stream may be visible to the user if, for example, the <tt>~S</tt>
+directive is used to print a <tt>defstruct</tt> structure that has a user-supplied
+print function.)
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+In all other cases
+<tt>format</tt> returns <tt>nil</tt>, performing output to <i>destination</i>
+as a side effect.
+If <i>destination</i> is a stream, the output is sent to it.  If
+<i>destination</i> is <tt>t</tt>, the output is sent to the stream
+that is the value of the variable <tt>*standard-output*</tt>.
+If <i>destination</i> is a string with a fill pointer, then
+in effect the output characters are added to the end of the string
+(as if by use of <tt>vector-push-extend</tt>).
+<P>
+The <tt>format</tt> function includes some extremely complicated and specialized
+features.  It is not necessary to understand all or even most of its
+features to use <tt>format</tt> effectively.  The beginner should
+skip over anything in the following documentation that is not
+immediately useful or clear.  The more sophisticated features
+(such as conditionals and iteration) are
+there for the convenience of programs with especially complicated formatting
+requirements.
+<P>
+A <tt>format</tt> directive consists of a tilde (<tt>~</tt>),
+optional prefix parameters
+separated by commas, optional colon (<tt>:</tt>) and at-sign (<tt>@</tt>) modifiers,
+and a single character indicating what kind of directive this is.
+The alphabetic case of the directive character is ignored.
+The prefix parameters are generally integers,
+notated as optionally signed decimal numbers.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1987 (FORMAT-ATSIGN-COLON) <A NAME=23489>&#160;</A> 
+to specify that if both colon and at-sign modifiers are present, they may appear
+in either order; thus <tt>~:@R</tt> and <tt>~@:R</tt>
+mean the same thing.  However, it is traditional to put the colon first, and all the
+examples in this book put colons before at-signs.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+Examples of control strings:
+<P><pre>
+&quot;~S&quot;           ;An <tt>~S</tt> directive with no parameters or modifiers 
+&quot;~3,-4:@s&quot;     ;An <tt>~S</tt> directive with two parameters, 3 and -4, 
+               ; and both the colon and at-sign flags 
+&quot;~,+4S&quot;        ;First prefix parameter is omitted and takes 
+               ; on its default value; the second parameter is 4
+</pre><P>
+Sometimes a prefix parameter is used to specify a character, for
+instance the padding character in a right- or left-justifying operation.
+In this case a single quote (<tt>'</tt>) followed by the desired
+character may be used as a prefix parameter, to mean the character
+object that is the character following the single quote.  For
+example, you can use <tt>~5,'0d</tt>
+to print an integer in decimal radix in five columns with leading zeros,
+or <tt>~5,'*d</tt> to get leading asterisks.
+<P>
+In place of a prefix parameter to a directive, you can put the letter
+<tt>V</tt> (or <tt>v</tt>), which takes an argument from <i>arguments</i> for use as a parameter to
+the directive.  Normally this should be an integer or character object,
+as appropriate.  This feature allows variable-width fields and the like.
+If the argument used by a <tt>V</tt> parameter is <tt>nil</tt>,
+the effect is as if the parameter had been omitted.
+You may also use the character <tt>#</tt> in place of a parameter; it
+represents the number of arguments remaining to be processed.
+<P>
+It is an error to give a format directive more parameters than
+it is described here as accepting.  It is also an error to give
+colon or at-sign modifiers to a directive in a combination not
+specifically described here as being meaningful.
+<P>
+
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(FORMAT-PRETTY-PRINT) <A NAME=23517>&#160;</A> 
+to clarify the interaction between <tt>format</tt>
+and the various printer control variables (those named <tt>*print-<i>xxx</i>*</tt>).
+This is important because many <tt>format</tt> operations are defined, directly
+or indirectly, in terms of <tt>prin1</tt> or <tt>princ</tt>, which are affected
+by the printer control variables.  The general rule is that <tt>format</tt>
+does not bind any of the standard printer control variables except as
+specified in the individual descriptions of directives.  An implementation
+may not bind any standard printer control variable not specified in the
+description of a <tt>format</tt> directive, nor may an implementation fail
+to bind any standard printer control variables that is specified to be bound
+by such a description.  (See these
+descriptions for specific changes voted by X3J13.)
+<P>
+One consequence of this change is that the user is guaranteed to be able
+to use the <tt>format ~A</tt> and <tt>~S</tt> directives
+to do pretty printing, under control of the <tt>*print-pretty*</tt> variable.
+Implementations have differed on this point in their interpretations of
+the first edition.  The new <tt>~W</tt> directive may be more appropriate
+than either <tt>~A</tt> and <tt>~S</tt> for some purposes,
+whether for pretty printing or ordinary printing.
+See section <A HREF="node257.html#PPRINTFORMATDIRECTIVESSECTION">27.4</A> for a discussion of
+<tt>~W</tt> and other new <tt>format</tt> directives related to pretty printing.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+Here are some relatively simple examples to give you the general
+flavor of how <tt>format</tt> is used.
+<P><pre>
+(format <tt>nil</tt> &quot;foo&quot;) => &quot;foo&quot; 
+
+(setq x 5) 
+
+(format <tt>nil</tt> &quot;The answer is ~D.&quot; x) => &quot;The answer is 5.&quot; 
+
+(format <tt>nil</tt> &quot;The answer is ~3D.&quot; x) => &quot;The answer is   5.&quot; 
+
+(format <tt>nil</tt> &quot;The answer is ~3,'0D.&quot; x) => &quot;The answer is 005.&quot; 
+
+(format <tt>nil</tt> &quot;The answer is ~:D.&quot; (expt 47 x)) 
+                                => &quot;The answer is 229,345,007.&quot;
+</pre><P>
+<P>
+<P><pre>
+(setq y &quot;elephant&quot;) 
+
+(format <tt>nil</tt> &quot;Look at the ~A!&quot; y) => &quot;Look at the elephant!&quot; 
+
+(format <tt>nil</tt> &quot;Type ~:C to ~A.&quot; 
+        (set-char-bit #\D :control t) 
+        &quot;delete all your files&quot;) 
+   => &quot;Type Control-D to delete all your files.&quot;
+</pre><P>
+<P>
+<P><pre>
+(setq n 3)
+</pre><P>
+<P><pre>
+(format <tt>nil</tt> &quot;~D item~:P found.&quot; n) => &quot;3 items found.&quot;
+</pre><P>
+<P><pre>
+(format <tt>nil</tt> &quot;~R dog~:[s are~; is~] here.&quot; n (= n 1)) 
+      => &quot;three dogs are here.&quot;
+</pre><P>
+<P><pre>
+(format <tt>nil</tt> &quot;~R dog~:*~[s are~; is~:;s are~] here.&quot; n) 
+      => &quot;three dogs are here.&quot;
+</pre><P>
+<P><pre>
+(format <tt>nil</tt> &quot;Here ~[are~;is~:;are~] ~:*~R pupp~:@P.&quot; n) 
+      => &quot;Here are three puppies.&quot;
+</pre><P>
+<P>
+In the descriptions of the directives that follow,
+the term <i>arg</i> in general
+refers to the next item of the set of <i>arguments</i> to be processed.
+The word or phrase at the beginning of each description is a mnemonic
+(not necessarily an accurate one) for the directive.
+<DL COMPACT><DT><tt>~A</tt>
+<DD>
+<i>Ascii</i>.  An <i>arg</i>, any Lisp object, is printed without escape characters
+(as by <tt>princ</tt>).  In particular, if <i>arg</i> is a string, its characters
+will be output verbatim.
+If <i>arg</i> is <tt>nil</tt>, it will
+be printed as <tt>nil</tt>; the colon modifier
+(<tt>~:A</tt>) will cause an <i>arg</i> of <tt>nil</tt> to be printed as <tt>()</tt>,
+but if <i>arg</i> is a composite structure, such as a list or vector,
+any contained occurrences of <tt>nil</tt> will still be printed as <tt>nil</tt>.
+<P>
+<tt>~<i>mincol</i>A</tt> inserts spaces on the right, if necessary, to make the
+width at least <i>mincol</i> columns.  The <tt>@</tt> modifier causes the spaces
+to be inserted on the left rather than the right.
+<P>
+<tt>~<i>mincol</i>,<i>colinc</i>,<i>minpad</i>,<i>padchar</i>A</tt> is the full form of <tt>~A</tt>,
+which allows elaborate control of the padding.
+The string is padded on the right (or on the left if the
+<tt>@</tt> modifier is used) with at least <i>minpad</i> copies
+of <i>padchar</i>; padding characters are then inserted <i>colinc</i> characters
+at a time until the total width is at least <i>mincol</i>.
+The defaults are <tt>0</tt> for <i>mincol</i> and <i>minpad</i>, <tt>1</tt> for <i>colinc</i>,
+and the space character for <i>padchar</i>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(FORMAT-PRETTY-PRINT) <A NAME=23636>&#160;</A> 
+to specify that <tt>format</tt> binds <tt>*print-escape*</tt>
+to <tt>nil</tt> during the processing of the <tt>~A</tt> directive.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<DT><tt>~S</tt>
+<DD>
+<i>S-expression</i>.
+This is just like <tt>~A</tt>, but <i>arg</i> is printed <i>with</i> escape
+characters (as by <tt>prin1</tt> rather than <tt>princ</tt>).  The output is
+therefore suitable for input to <tt>read</tt>.  <tt>~S</tt> accepts
+all the arguments and modifiers that <tt>~A</tt> does.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(FORMAT-PRETTY-PRINT) <A NAME=23653>&#160;</A> 
+to specify that <tt>format</tt> binds <tt>*print-escape*</tt>
+to <tt>t</tt> during the processing of the <tt>~S</tt> directive.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<DT><tt>~D</tt>
+<DD>
+<i>Decimal</i>.
+An <i>arg</i>, which should be an integer, is printed in decimal radix.
+<tt>~D</tt> will never put a decimal point after the number.
+<P>
+<tt>~<i>mincol</i>D</tt> uses a column width of <i>mincol</i>; spaces are inserted on
+the left if the number requires fewer than <i>mincol</i> columns for its digits
+and sign.  If the number doesn't fit in <i>mincol</i> columns, additional columns
+are used as needed.
+<P>
+<tt>~<i>mincol</i>,<i>padchar</i>D</tt> uses <i>padchar</i> as the pad character
+instead of space.
+<P>
+If <i>arg</i> is not an integer, it is printed
+in <tt>~A</tt> format and decimal base.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(FORMAT-PRETTY-PRINT) <A NAME=23675>&#160;</A> 
+to specify that <tt>format</tt> binds <tt>*print-escape*</tt>
+to <tt>nil</tt>, <tt>*print-radix*</tt> to <tt>nil</tt>, and <tt>*print-base*</tt> to <tt>10</tt>
+during processing of <tt>~D</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+The <tt>@</tt> modifier causes the number's sign to be printed always; the default
+is to print it only if the number is negative.
+The <tt>:</tt> modifier causes commas to be printed between groups of three digits;
+the third prefix parameter may be used to change the character used as the comma.
+Thus the most general form of <tt>~D</tt> is
+<tt>~<i>mincol</i>,<i>padchar</i>,<i>commachar</i>D</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988
+(FORMAT-COMMA-INTERVAL) <A NAME=23693>&#160;</A> 
+to add a fourth parameter, the <i>commainterval</i>.
+This must be an integer; if it is not provided,
+it defaults to 3.  This parameter controls the number of digits in each
+group separated by the <i>commachar</i>.
+<P>
+By extension, each of the <tt>~B</tt>, <tt>~O</tt>, and <tt>~X</tt> directives
+accepts a <i>commainterval</i> as a fourth parameter,
+and the <tt>~R</tt> directive accepts a <i>commainterval</i> as its fifth parameter.
+Examples:
+<P><pre>
+(format nil &quot;~,,' ,4B&quot; #xFACE) => &quot;1111 1010 1100 1110&quot; 
+(format nil &quot;~,,' ,4B&quot; #x1CE) => &quot;1 1100 1110&quot; 
+(format nil &quot;~19,,' ,4B&quot; #xFACE) => &quot;1111 1010 1100 1110&quot; 
+(format nil &quot;~19,,' ,4B&quot; #x1CE) => &quot;0000 0001 1100 1110&quot;
+</pre><P>
+This is one of those little improvements that probably don't matter much
+but aren't hard to implement either.  It was pretty silly having the number 3 wired
+into the definition of comma separation when it is just as easy to make it
+a parameter.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<DT><tt>~B</tt>
+<DD>
+<i>Binary</i>.
+This is just like <tt>~D</tt> but prints in binary radix (radix 2)
+instead of decimal.  The full form is therefore
+<tt>~<i>mincol</i>,<i>padchar</i>,<i>commachar</i>B</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(FORMAT-PRETTY-PRINT) <A NAME=23717>&#160;</A> 
+to specify that <tt>format</tt> binds <tt>*print-escape*</tt>
+to <tt>nil</tt>, <tt>*print-radix*</tt> to <tt>nil</tt>, and <tt>*print-base*</tt> to <tt>2</tt>
+during processing of <tt>~B</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<DT><tt>~O</tt>
+<DD>
+<i>Octal</i>.
+This is just like <tt>~D</tt> but prints in octal radix (radix 8)
+instead of decimal.  The full form is therefore
+<tt>~<i>mincol</i>,<i>padchar</i>,<i>commachar</i>O</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(FORMAT-PRETTY-PRINT) <A NAME=23735>&#160;</A> 
+to specify that <tt>format</tt> binds <tt>*print-escape*</tt>
+to <tt>nil</tt>, <tt>*print-radix*</tt> to <tt>nil</tt>, and <tt>*print-base*</tt> to <tt>8</tt>
+during processing of <tt>~O</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<DT><tt>~X</tt>
+<DD>
+<i>Hexadecimal</i>.
+This is just like <tt>~D</tt> but prints in hexadecimal radix
+(radix 16) instead of decimal.  The full form is therefore
+<tt>~<i>mincol</i>,<i>padchar</i>,<i>commachar</i>X</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(FORMAT-PRETTY-PRINT) <A NAME=23753>&#160;</A> 
+to specify that <tt>format</tt> binds <tt>*print-escape*</tt>
+to <tt>nil</tt>, <tt>*print-radix*</tt> to <tt>nil</tt>, and <tt>*print-base*</tt> to <tt>16</tt>
+during processing of <tt>~X</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+</dl>
+<hr>
+<b>Compatibility note:</b> In MacLisp and Lisp Machine Lisp the <tt>~X</tt> directive
+outputs a space, and <tt>~<i>n</i>X</tt> outputs <i>n</i> spaces,
+in a manner analogous to Fortran <tt>X</tt> format.
+In Common Lisp the directive <tt>~@T</tt> is used for that purpose.
+<hr>
+<dl compact>
+<DT><tt>~R</tt>
+<DD>
+<i>Radix</i>.
+<tt>~<i>n</i>R</tt> prints <i>arg</i> in radix <i>n</i>.
+The modifier flags and any remaining parameters are used as for
+the <tt>~D</tt> directive.
+Indeed, <tt>~D</tt> is the same as <tt>~10R</tt>.  The full form here is therefore
+<tt>~<i>radix</i>,<i>mincol</i>,<i>padchar</i>,<i>commachar</i>R</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(FORMAT-PRETTY-PRINT) <A NAME=23787>&#160;</A> 
+to specify that <tt>format</tt> binds <tt>*print-escape*</tt>
+to <tt>nil</tt>, <tt>*print-radix*</tt> to <tt>nil</tt>, and <tt>*print-base*</tt> to the value
+of the first parameter
+during the processing of the <tt>~R</tt> directive with a parameter.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+If no parameters are given to <tt>~R</tt>, then an entirely different
+interpretation is given.
+<p>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<i>Notice of correction.</i>
+In the first edition, this sentence referred to ``arguments'' given to <tt>~R</tt>.
+The correct term is ``parameters.''
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+The argument should be an integer;
+suppose it is <tt>4</tt>. Then
+<tt>~R</tt> prints <i>arg</i> as a cardinal English number: <tt>four</tt>;
+<tt>~:R</tt> prints <i>arg</i> as an ordinal English number: <tt>fourth</tt>;
+<tt>~@R</tt> prints <i>arg</i> as a Roman numeral: <tt>IV</tt>; and
+<tt>~:@R</tt> prints <i>arg</i> as an old Roman numeral: <tt>IIII</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(FORMAT-PRETTY-PRINT) <A NAME=23817>&#160;</A> 
+to specify that <tt>format</tt> binds <tt>*print-base*</tt> to <tt>10</tt>
+during the processing of the <tt>~R</tt> directive with no parameter.
+<P>
+The first edition did not specify how <tt>~R</tt> and its variants should
+handle arguments that are very large or not positive.  Actual practice varies,
+and X3J13 has not yet addressed the topic.
+Here is a sampling of current practice.
+<P>
+For <tt>~@R</tt> and <tt>~:@R</tt>, nearly all implementations
+produce Roman numerals only for integers in the range 1 to 3999, inclusive.
+Some implementations will produce old-style Roman numerals for integers in
+the range 1 to 4999, inclusive.  All other integers are printed in decimal
+notation, as if <tt>~D</tt> had been used.
+<P>
+For zero, most implementations print <tt>zero</tt> for <tt>~R</tt>
+and <tt>zeroth</tt> for <tt>~:R</tt>.
+<P>
+For <tt>~R</tt> with a negative argument, most implementations simply print
+the word <tt>minus</tt> followed by its absolute value as a cardinal in English.
+<P>
+For <tt>~:R</tt> with a negative argument, some implementations also print
+the word <tt>minus</tt> followed by its absolute value as an ordinal in English;
+other implementations print the absolute value followed by the word <tt>previous</tt>.
+Thus the argument <tt>-4</tt> might produce <tt>minus fourth</tt> or <tt>fourth previous</tt>.
+Each has its charm, but one is not always a suitable substitute for the other;
+users should be careful.
+<P>
+There is standard English nomenclature for fairly large integers (up to <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42677.gif">,
+at least), based on appending the suffix -illion to Latin names of integers.
+Thus we have the names <i>trillion</i>, <i>quadrillion</i>, <i>sextillion</i>,
+<i>septillion</i>, and so on.  For extremely large integers, one may express powers
+of ten in English.
+One implementation gives
+<tt>1606938044258990275541962092341162602522202993782792835301376</tt>
+(which is <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42679.gif">, the result of <tt>(ash 1 200)</tt>)
+in this manner:
+<listing>
+one times ten to the sixtieth power six hundred six times ten to the
+fifty-seventh power nine hundred thirty-eight septdecillion forty-four
+sexdecillion two hundred fifty-eight quindecillion nine hundred ninety
+quattuordecillion two hundred seventy-five tredecillion five hundred 
+forty-one duodecillion nine hundred sixty-two undecillion ninety-two 
+decillion three hundred forty-one nonillion one hundred sixty-two
+octillion six hundred two septillion five hundred twenty-two sextillion
+two hundred two quintillion nine hundred ninety-three quadrillion seven 
+hundred eighty-two trillion seven hundred ninety-two billion eight 
+hundred thirty-five million three hundred one thousand three hundred
+seventy-six
+</listing>
+<P>
+Another implementation prints it this way (note the use of <tt>plus</tt>):
+<listing>
+one times ten to the sixtieth power plus six hundred six times ten to 
+the fifty-seventh power plus ... plus two hundred seventy-five times 
+ten to the forty-second power plus five hundred forty-one duodecillion 
+nine hundred sixty-two undecillion ...  three hundred seventy-six
+</listing>
+<P>
+(I have elided some of the text here to save space.)
+<P>
+Unfortunately, the meaning of this nomenclature differs between American English (in which <i>k</i>-illion means <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42681.gif">, so one trillion is <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42683.gif">) and British English (in which <i>k</i>-illion means <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42685.gif">, so one trillion is <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42687.gif">).
+To avoid both confusion and prolixity, 
+I recommend using decimal notation for all numbers above 999,999,999;
+this is similar to the escape hatch used for Roman numerals.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<DT><tt>~P</tt>
+<DD>
+<i>Plural</i>.
+If <i>arg</i> is not <tt>eql</tt> to the integer <tt>1</tt>, a lowercase <tt>s</tt> is
+printed; if <i>arg</i> is <tt>eql</tt> to <tt>1</tt>, nothing is printed.  (Notice
+that if <i>arg</i> is a floating-point <tt>1.0</tt>, the <tt>s</tt> <i>is</i>
+printed.)
+<tt>~:P</tt> does the same thing, after doing a <tt>~:*</tt> to back up one argument;
+that is, it prints a lowercase <tt>s</tt> if the <i>last</i> argument was not
+<tt>1</tt>.  This is useful after printing a number using <tt>~D</tt>.
+<tt>~@P</tt> prints <tt>y</tt> if the argument is <tt>1</tt>, or <tt>ies</tt> if it is
+not.  <tt>~:@P</tt> does the same thing, but backs up first.
+<P><pre>
+(format <tt>nil</tt> &quot;~D tr~:@P/~D win~:P&quot; 7 1) => &quot;7 tries/1 win&quot; 
+(format <tt>nil</tt> &quot;~D tr~:@P/~D win~:P&quot; 1 0) => &quot;1 try/0 wins&quot; 
+(format <tt>nil</tt> &quot;~D tr~:@P/~D win~:P&quot; 1 3) => &quot;1 try/3 wins&quot;
+</pre><P>
+<P>
+<DT><tt>~C</tt>
+<DD>
+<i>Character</i>.  The next <i>arg</i> should be a character; it is printed
+according to the modifier flags.
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<tt>~C</tt> prints the character in an implementation-dependent
+abbreviated format.  This format should be culturally compatible with the
+host environment.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1987 (FORMAT-OP-C) <A NAME=23914>&#160;</A>  to specify that
+<tt>~C</tt> performs exactly the same action as <tt>write-char</tt>
+if the character to be printed has zero for its bits attributes.
+X3J13 voted in March 1989 (CHARACTER-PROPOSAL) <A NAME=23917>&#160;</A>  to eliminate
+the bits and font attributes, replacing them with the notion of
+implementation-defined attributes.  The net effect is that characters
+whose implementation-defined attributes all have the ``standard''
+values should be printed by <tt>~C</tt> in the same way
+that <tt>write-char</tt> would print them.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<tt>~:C</tt> spells out the names of the control bits
+and represents non-printing characters
+by their names: <tt>Control-Meta-F</tt>, <tt>Control-Return</tt>, <tt>Space</tt>.
+This is a ``pretty'' format for printing characters.
+<P>
+<tt>~:@C</tt> prints what <tt>~:C</tt> would, and then
+if the character requires unusual shift keys on the keyboard to type it,
+this fact is mentioned: <tt>Control-<b></b> (Top-F)</tt>.  This is the
+format for telling the user about a key he or she is expected to type,
+in prompts, for instance.  The precise output may depend not only
+on the implementation but on the particular I/O devices in use.
+<P>
+<tt>~@C</tt> prints the character so that the Lisp reader can read it,
+using <tt>#\</tt> syntax.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(FORMAT-PRETTY-PRINT) <A NAME=23933>&#160;</A> 
+to specify that <tt>format</tt> binds <tt>*print-escape*</tt> to <tt>t</tt>
+during the processing of the <tt>~@C</tt> directive.
+Other variants of the <tt>~C</tt> directive do not bind any printer control variables.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+</dl>
+<hr>
+<b>Rationale:</b> In some implementations the <tt>~S</tt> directive would
+do what <tt>~C</tt> does,
+but <tt>~C</tt> is compatible
+with Lisp dialects such as MacLisp that do not have a character data type.
+<hr>
+<dl compact>
+<DT><tt>~F</tt>
+<DD>
+<i>Fixed-format floating-point</i>.
+The next <i>arg</i> is printed as a floating-point
+number.
+<P>
+The full form is <tt>~<i>w</i>,<i>d</i>,<i>k</i>,<i>overflowchar</i>,<i>padchar</i>F</tt>.
+The parameter <i>w</i>
+is the width of the field to be printed; <i>d</i> is the number
+of digits to print after the decimal point; <i>k</i> is a scale factor
+that defaults to zero.
+<P>
+Exactly <i>w</i> characters will
+be output.  First, leading copies of the character <i>padchar</i>
+(which defaults to a space) are printed, if necessary, to pad the
+field on the left.
+If the <i>arg</i> is negative, then a minus sign is printed;
+if the <i>arg</i> is not negative, then a plus sign is printed
+if and only if the <tt>@</tt> modifier was specified.  Then a sequence
+of digits, containing a single embedded decimal point, is printed;
+this represents the magnitude of the value of <i>arg</i> times <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42691.gif">,
+rounded to <i>d</i> fractional digits.
+(When rounding up and rounding down would produce printed values
+equidistant from the scaled value of <i>arg</i>, then the implementation
+is free to use either one.  For example, printing the argument
+<tt>6.375</tt> using the format <tt>~4,2F</tt> may correctly produce
+either <tt>6.37</tt> or <tt>6.38</tt>.)
+Leading zeros are not permitted, except that a single
+zero digit is output before the decimal point if the printed value
+is less than 1, and this single zero digit is not output
+after all if <i>w</i>=<i>d</i>+1.
+<P>
+If it is impossible to print the value in the required format in a field
+of width <i>w</i>, then one of two actions is taken.  If the
+parameter <i>overflowchar</i> is specified, then <i>w</i> copies of that
+parameter are printed instead of the scaled value of <i>arg</i>.
+If the <i>overflowchar</i> parameter is omitted, then the scaled value
+is printed using more than <i>w</i> characters, as many more as may be
+needed.
+<P>
+If the <i>w</i> parameter is omitted, then the field is of variable width.
+In effect, a value is chosen
+for <i>w</i> in such a way that no leading pad characters need to be printed
+and exactly <i>d</i> characters will follow the decimal point.
+For example, the directive <tt>~,2F</tt> will print exactly
+two digits after the decimal point and as many as necessary before the
+decimal point.
+<P>
+If the parameter <i>d</i> is omitted, then there is no constraint
+on the number of digits to appear after the decimal point.
+A value is chosen for <i>d</i> in such a way that as many digits
+as possible may be printed subject to the width constraint
+imposed by the parameter <i>w</i> and the constraint that no trailing
+zero digits may appear in the fraction, except that if the
+fraction to be printed is zero, then a single zero digit should
+appear after the decimal point if permitted by the width constraint.
+<P>
+If both <i>w</i> and <i>d</i> are omitted, then the effect is to print
+the value using ordinary free-format output; <tt>prin1</tt> uses this format
+for any number whose magnitude is either zero or between
+<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42653.gif"> (inclusive) and <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42697.gif"> (exclusive).
+<P>
+If <i>w</i> is omitted, then if the magnitude of <i>arg</i> is so large (or, if
+<i>d</i> is also omitted, so small) that more than 100 digits would have to
+be printed, then an implementation is free, at its discretion, to print
+the number using exponential notation instead, as if by the directive
+<tt>~E</tt> (with all parameters to <tt>~E</tt> defaulted, not
+taking their values from the <tt>~F</tt> directive).
+<P>
+If <i>arg</i> is a rational number, then it is coerced to be a <tt>single-float</tt>
+and then printed.  (Alternatively, an implementation is permitted to
+process a rational number by any other method that has essentially the
+same behavior but avoids such hazards as loss of precision or overflow
+because of the coercion.  However, note that if <i>w</i> and <i>d</i> are
+unspecified and the number has no exact decimal representation,
+for example <tt>1/3</tt>, some precision cutoff must be chosen
+by the implementation: only a finite number of digits may be printed.)
+<P>
+If <i>arg</i> is a complex number or some non-numeric
+object, then it is printed using the format directive <tt>~<i>w</i>D</tt>,
+thereby printing it in decimal radix and a minimum field width of <i>w</i>.
+(If it is desired to print each of the real part and imaginary part
+of a complex number using a <tt>~F</tt> directive, then this must
+be done explicitly with two <tt>~F</tt> directives and code to
+extract the two parts of the complex number.)
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(FORMAT-PRETTY-PRINT) <A NAME=24008>&#160;</A> 
+to specify that <tt>format</tt> binds <tt>*print-escape*</tt> to <tt>nil</tt>
+during the processing of the <tt>~F</tt> directive.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<P><pre>
+(defun foo (x) 
+  (format nil &quot;~6,2F|~6,2,1,'*F|~6,2,,'?F|~6F|~,2F|~F&quot; 
+          x x x x x x)) 
+(foo 3.14159)  => &quot;  3.14| 31.42|  3.14|3.1416|3.14|3.14159&quot; 
+(foo -3.14159) => &quot; -3.14|-31.42| -3.14|-3.142|-3.14|-3.14159&quot; 
+(foo 100.0)    => &quot;100.00|******|100.00| 100.0|100.00|100.0&quot; 
+(foo 1234.0)   => &quot;1234.00|******|??????|1234.0|1234.00|1234.0&quot; 
+(foo 0.006)    => &quot;  0.01|  0.06|  0.01| 0.006|0.01|0.006&quot;
+</pre><P>
+<P>
+</dl>
+<hr>
+<b>Compatibility note:</b> The <tt>~F</tt> directive is similar to the
+<tt>F<i>w</i>.<i>d</i></tt> edit descriptor in Fortran.
+<P>
+The presence
+or absence of the <tt>@</tt> modifier corresponds to the effect of
+the Fortran <tt>SS</tt> or <tt>SP</tt> edit descriptor; nothing in Common Lisp
+corresponds to the Fortran <tt>S</tt> edit descriptor.
+<P>
+The scale factor
+specified by the parameter <i>k</i> corresponds to the scale factor <i>k</i>
+specified by the Fortran <tt><i>k</i>P</tt> edit descriptor.
+<P>
+In Fortran, the leading zero that precedes the decimal point when
+the printed value is less than 1 is optional; in Common Lisp, the implementation
+is required to print that zero digit.
+<P>
+In Common Lisp, the <i>w</i> and <i>d</i>
+parameters are optional; in Fortran, they are required.
+<P>
+In Common Lisp, the pad character and overflow character are user-specifiable;
+in Fortran, they are always space and asterisk, respectively.
+<P>
+A Fortran implementation
+is prohibited from printing a representation of negative zero;
+Common Lisp permits the printing of such a representation when appropriate.
+<P>
+In MacLisp and Lisp Machine Lisp, the <tt>~F</tt> format directive takes
+a single parameter: the number of digits to use in the printed
+representation.  This incompatibility between
+Common Lisp and MacLisp was introduced for the sake of cultural compatibility
+with Fortran.
+<hr>
+<dl compact>
+<P>
+<DT><tt>~E</tt>
+<DD>
+<i>Exponential floating-point</i>.
+The next <i>arg</i> is printed in exponential notation.
+<P>
+The full form is <tt>~<i>w</i>,<i>d</i>,<i>e</i>,<i>k</i>,<i>overflowchar</i>,<i>padchar</i>,<i>exponentchar</i>E</tt>.
+The parameter <i>w</i>
+is the width of the field to be printed; <i>d</i> is the number
+of digits to print after the decimal point; <i>e</i> is the number
+of digits to use when printing the exponent;
+<i>k</i> is a scale factor that defaults to 1 (not zero).
+<P>
+Exactly <i>w</i> characters will
+be output.  First, leading copies of the character <i>padchar</i>
+(which defaults to a space) are printed, if necessary, to pad the
+field on the left.
+If the <i>arg</i> is negative, then a minus sign is printed;
+if the <i>arg</i> is not negative, then a plus sign is printed
+if and only if the <tt>@</tt> modifier was specified.  Then a sequence
+of digits, containing a single embedded decimal point, is printed.
+The form of this sequence of digits depends on the scale factor <i>k</i>.
+If <i>k</i> is zero, then <i>d</i> digits are printed after the decimal
+point, and a single zero digit appears before the decimal point if
+the total field width will permit it.  If <i>k</i> is positive,
+then it must be strictly less than <i>d</i>+2;  <i>k</i> significant digits
+are printed before the decimal point, and <i>d</i>-<i>k</i>+1
+digits are printed after the decimal point.  If <i>k</i> is negative,
+then it must be strictly greater than -<i>d</i>;
+a single zero digit appears before the decimal point if
+the total field width will permit it, and after the decimal point
+are printed first
+-<i>k</i> zeros and then <i>d</i>+<i>k</i> significant digits.
+The printed fraction must be properly rounded.
+(When rounding up and rounding down would produce printed values
+equidistant from the scaled value of <i>arg</i>, then the implementation
+is free to use either one.  For example, printing
+<tt>637.5</tt> using the format <tt>~8,2E</tt> may correctly produce
+either <tt>6.37E+02</tt> or <tt>6.38E+02</tt>.)
+<P>
+Following the digit sequence, the exponent is printed.
+First the character parameter <i>exponentchar</i> is printed; if this
+parameter is omitted, then the exponent marker that
+<tt>prin1</tt> would use is printed, as determined from the
+type of the floating-point number and the current value of
+<tt>*read-default-float-format*</tt>.
+Next, either a plus sign or a minus sign
+is printed, followed by <i>e</i> digits representing the power of
+10 by which the printed fraction must be multiplied
+to properly represent the rounded value of <i>arg</i>.
+<P>
+If it is impossible to print the value in the required format in a field
+of width <i>w</i>, possibly because <i>k</i> is too large or too small
+or because the exponent cannot be printed in <i>e</i> character positions,
+then one of two actions is taken.  If the
+parameter <i>overflowchar</i> is specified, then <i>w</i> copies of that
+parameter are printed instead of the scaled value of <i>arg</i>.
+If the <i>overflowchar</i> parameter is omitted, then the scaled value
+is printed using more than <i>w</i> characters, as many more as may be
+needed; if the problem is that <i>d</i> is too small for the specified <i>k</i>
+or that <i>e</i> is too small, then a larger value is used for <i>d</i> or <i>e</i>
+as may be needed.
+<P>
+If the <i>w</i> parameter is omitted, then the field is of variable width.
+In effect a value is chosen
+for <i>w</i> in such a way that no leading pad characters need to be printed.
+<P>
+If the parameter <i>d</i> is omitted, then there is no constraint
+on the number of digits to appear.
+A value is chosen for <i>d</i> in such a way that as many digits
+as possible may be printed subject to the width constraint
+imposed by the parameter <i>w</i>, the constraint of the scale factor <i>k</i>,
+and the constraint that no trailing
+zero digits may appear in the fraction, except that if the
+fraction to be printed is zero, then a single zero digit should
+appear after the decimal point if the width constraint allows it.
+<P>
+If the parameter <i>e</i> is omitted, then the exponent is printed
+using the smallest number of digits necessary to represent its value.
+<P>
+If all of <i>w</i>, <i>d</i>, and <i>e</i> are omitted, then the effect is to print
+the value using ordinary free-format exponential-notation output;
+<tt>prin1</tt> uses this format for any non-zero number whose magnitude
+is less than <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42653.gif"> or greater than or equal to <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42697.gif">.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(FORMAT-E-EXPONENT-SIGN) <A NAME=24106>&#160;</A> 
+to amend the previous paragraph as follows:
+<P>
+If all of <i>w</i>, <i>d</i>, and <i>e</i> are omitted, then the effect is to print
+the value using ordinary free-format exponential-notation output;
+<tt>prin1</tt> uses a similar format for any non-zero number whose magnitude
+is less than <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42653.gif"> or greater than or equal to <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42697.gif">.
+The only difference is that the <tt>~E</tt> directive always prints
+a plus or minus sign before the exponent, while <tt>prin1</tt> omits the plus sign
+if the exponent is non-negative.
+<P>
+(The amendment reconciles this paragraph with the specification several
+paragraphs above that <tt>~E</tt> always prints
+a plus or minus sign before the exponent.)
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+If <i>arg</i> is a rational number, then it is coerced to be a <tt>single-float</tt>
+and then printed.  (Alternatively, an implementation is permitted to
+process a rational number by any other method that has essentially the
+same behavior but avoids such hazards as loss of precision or overflow
+because of the coercion.  However, note that if <i>w</i> and <i>d</i> are
+unspecified and the number has no exact decimal representation,
+for example <tt>1/3</tt>, some precision cutoff must be chosen
+by the implementation: only a finite number of digits may be printed.)
+<P>
+If <i>arg</i> is a complex number or some non-numeric
+object, then it is printed using the format directive <tt>~<i>w</i>D</tt>,
+thereby printing it in decimal radix and a minimum field width of <i>w</i>.
+(If it is desired to print each of the real part and imaginary part
+of a complex number using a <tt>~E</tt> directive, then this must
+be done explicitly with two <tt>~E</tt> directives and code to
+extract the two parts of the complex number.)
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(FORMAT-PRETTY-PRINT) <A NAME=24128>&#160;</A> 
+to specify that <tt>format</tt> binds <tt>*print-escape*</tt> to <tt>nil</tt>
+during the processing of the <tt>~E</tt> directive.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<P><pre>
+(defun foo (x) 
+  (format <tt>nil</tt> 
+          &quot;~9,2,1,,'*E|~10,3,2,2,'?,,'$E|~9,3,2,-2,'%@E|~9,2E&quot; 
+          x x x x)) 
+(foo 3.14159)  => &quot;  3.14E+0| 31.42$-01|+.003E+03|  3.14E+0&quot; 
+(foo -3.14159) => &quot; -3.14E+0|-31.42$-01|-.003E+03| -3.14E+0&quot; 
+(foo 1100.0)   => &quot;  1.10E+3| 11.00$+02|+.001E+06|  1.10E+3&quot; 
+(foo 1100.0L0) => &quot;  1.10L+3| 11.00$+02|+.001L+06|  1.10L+3&quot; 
+(foo 1.1E13)   => &quot;*********| 11.00$+12|+.001E+16| 1.10E+13&quot; 
+(foo 1.1L120)  => &quot;*********|??????????|%%%%%%%%%|1.10L+120&quot; 
+(foo 1.1L1200) => &quot;*********|??????????|%%%%%%%%%|1.10L+1200&quot;
+</pre><P>
+Here is an example of the effects of varying the scale factor:
+<P><pre>
+(dotimes (k 13) 
+  (format t &quot; %Scale factor  2D: | 13,6,2,VE|&quot; 
+          (- k 5) 3.14159))              ;Prints 13 lines 
+Scale factor -5: | 0.000003E+06| 
+Scale factor -4: | 0.000031E+05| 
+Scale factor -3: | 0.000314E+04| 
+Scale factor -2: | 0.003142E+03| 
+Scale factor -1: | 0.031416E+02| 
+Scale factor  0: | 0.314159E+01| 
+Scale factor  1: | 3.141590E+00| 
+Scale factor  2: | 31.41590E-01| 
+Scale factor  3: | 314.1590E-02| 
+Scale factor  4: | 3141.590E-03| 
+Scale factor  5: | 31415.90E-04| 
+Scale factor  6: | 314159.0E-05| 
+Scale factor  7: | 3141590.E-06|
+</pre><P>
+</dl>
+<hr>
+<b>Compatibility note:</b> The <tt>~E</tt> directive is similar to the
+<tt>E<i>w</i>.<i>d</i></tt> and <tt>E<i>w</i>.<i>d</i>E<i>e</i></tt>
+edit descriptors in Fortran.
+<P>
+The presence
+or absence of the <tt>@</tt> modifier corresponds to the effect of
+the Fortran <tt>SS</tt> or <tt>SP</tt> edit descriptor; nothing in Common Lisp
+corresponds to the Fortran <tt>S</tt> edit descriptor.
+<P>
+The scale factor
+specified by the parameter <i>k</i> corresponds to the scale factor <i>k</i>
+specified by the Fortran <tt><i>k</i>P</tt> edit descriptor;
+note, however, that the default value for <i>k</i> is 1 in Common Lisp,
+as opposed to the default value of zero in Fortran.
+(On the other hand, note that a scale factor of 1 is used
+for Fortran list-directed output, which is roughly
+equivalent to using <tt>~E</tt> with the <i>w</i>, <i>d</i>,
+<i>e</i>, and <i>overflowchar</i> parameters
+omitted.)
+<P>
+In Common Lisp, the <i>w</i> and <i>d</i>
+parameters are optional; in Fortran, they are required.
+<P>
+In Fortran, omitting <i>e</i> causes the exponent to be printed using
+either two or three digits; if three digits are required, then the
+exponent marker is omitted.  In Common Lisp, omitting <i>e</i> causes the
+exponent to be printed using as few digits as possible; the exponent marker
+is never omitted.
+<P>
+In Common Lisp, the pad character and overflow character are user-specifiable;
+in Fortran they are always space and asterisk, respectively.
+<P>
+A Fortran implementation
+is prohibited from printing a representation of negative zero;
+Common Lisp permits the printing of such a representation when appropriate.
+<P>
+In MacLisp and Lisp Machine Lisp, the <tt>~E</tt> format directive takes
+a single parameter: the number of digits to use in the printed
+representation.  This incompatibility between
+Common Lisp and MacLisp was introduced for the sake of cultural compatibility
+with Fortran.
+<hr>
+<dl compact>
+<DT><tt>~G</tt>
+<DD>
+<i>General floating-point</i>.  The next <i>arg</i> is printed as a floating-point
+number in either fixed-format or exponential notation as appropriate.
+<P>
+The full form is <tt>~<i>w</i>,<i>d</i>,<i>e</i>,<i>k</i>,<i>overflowchar</i>,<i>padchar</i>,<i>exponentchar</i>G</tt>.
+The format in which to print <i>arg</i> depends on the magnitude (absolute
+value) of the <i>arg</i>.  Let <i>n</i> be an integer such that
+<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42673.gif">.
+(If <i>arg</i> is zero, let <i>n</i> be 0.)
+Let <i>ee</i> equal <i>e</i>+2, or 4 if <i>e</i> is omitted.
+Let <i>ww</i> equal <i>w</i>-<i>ee</i>,
+or <tt>nil</tt> if <i>w</i> is omitted.  If <i>d</i> is omitted, first let <i>q</i>
+be the number of digits needed to print <i>arg</i> with no loss
+of information and without leading or trailing zeros;
+then let <i>d</i> equal <tt>(max <i>q</i> (min <i>n</i> 7))</tt>.
+Let <i>dd</i> equal <i>d</i>-<i>n</i>.
+<P>
+If 0<i>dd</i><i>d</i>, then <i>arg</i> is printed
+as if by the format directives
+<P><pre>
+~<i>ww</i>,<i>dd</i>,,<i>overflowchar</i>,<i>padchar</i>F~<i>ee</i>@T
+</pre><P>
+Note that the scale factor <i>k</i> is not passed to the <tt>~F</tt>
+directive.  For all other values of <i>dd</i>, <i>arg</i> is printed as if
+by the format directive
+<P><pre>
+~<i>w</i>,<i>d</i>,<i>e</i>,<i>k</i>,<i>overflowchar</i>,<i>padchar</i>,<i>exponentchar</i>E
+</pre><P>
+<P>
+In either case, an <tt>@</tt> modifier is specified to the <tt>~F</tt>
+or <tt>~E</tt> directive if and only if one was specified to the
+<tt>~G</tt> directive.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(FORMAT-PRETTY-PRINT) <A NAME=24239>&#160;</A> 
+to specify that <tt>format</tt> binds <tt>*print-escape*</tt> to <tt>nil</tt>
+during the processing of the <tt>~G</tt> directive.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+Examples:
+<P><pre>
+(defun foo (x) 
+  (format <tt>nil</tt> 
+          &quot;~9,2,1,,'*G|~9,3,2,3,'?,,'$G|~9,3,2,0,'%G|~9,2G&quot; 
+          x x x)) 
+
+(foo 0.0314159) => &quot;  3.14E-2|314.2$-04|0.314E-01|  3.14E-2&quot; 
+(foo 0.314159)  => &quot;  0.31   |0.314    |0.314    | 0.31    &quot; 
+(foo 3.14159)   => &quot;   3.1   | 3.14    | 3.14    |  3.1    &quot; 
+(foo 31.4159)   => &quot;   31.   | 31.4    | 31.4    |  31.    &quot; 
+(foo 314.159)   => &quot;  3.14E+2| 314.    | 314.    |  3.14E+2&quot; 
+(foo 3141.59)   => &quot;  3.14E+3|314.2$+01|0.314E+04|  3.14E+3&quot; 
+(foo 3141.59L0) => &quot;  3.14L+3|314.2$+01|0.314L+04|  3.14L+3&quot; 
+(foo 3.14E12)   => &quot;*********|314.0$+10|0.314E+13| 3.14E+12&quot; 
+(foo 3.14L120)  => &quot;*********|?????????|%%%%%%%%%|3.14L+120&quot; 
+(foo 3.14L1200) => &quot;*********|?????????|%%%%%%%%%|3.14L+1200&quot;
+</pre><P>
+<P>
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<p>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<i>Notice of correction.</i>
+In the first edition, the example for the value <tt>3.14E12</tt> contained two
+typographical errors:
+<P><listing>
+(foo 3.14E12)   => "*********|314.2$+10|0.314E+13| 3.14L+12" 
+                                  ^                    ^
+                                  should be 0          should be E
+</listing><P>
+These have been corrected above.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+
+</dl>
+<hr>
+<b>Compatibility note:</b> The <tt>~G</tt> directive is similar to the
+<tt>G<i>w</i>.<i>d</i></tt> edit descriptor in Fortran.
+<P>
+The Common Lisp rules for deciding between the use of <tt>~F</tt>
+and <tt>~E</tt> are compatible with the rules used by Fortran
+but have been extended to cover the cases where <i>w</i> or <i>d</i>
+is omitted or where <i>e</i> is specified.
+<P>
+In MacLisp and Lisp Machine Lisp, the <tt>~G</tt> format directive is equivalent
+to the Common Lisp <tt>~@*</tt> directive.  This incompatibility between
+Common Lisp and MacLisp was introduced for the sake of cultural compatibility
+with Fortran.
+<hr>
+<dl compact>
+<DT><tt>~$</tt>
+<DD>
+<i>Dollars floating-point</i>.  The next <i>arg</i> is printed as a floating-point
+number in fixed-format notation.  This format is particularly
+convenient for printing a value as dollars and cents.
+<P>
+The full form is <tt>~<i>d</i>,<i>n</i>,<i>w</i>,<i>padchar</i>$</tt>.
+The parameter <i>d</i> is the number
+of digits to print after the decimal point (default value 2);
+<i>n</i> is the minimum number of digits to print before the decimal
+point (default value 1);
+<i>w</i> is the minimum total width of the field to be printed (default
+value 0).
+<P>
+First padding and the sign are output.
+If the <i>arg</i> is negative, then a minus sign is printed;
+if the <i>arg</i> is not negative, then a plus sign is printed
+if and only if the <tt>@</tt> modifier was specified.  
+If the <tt>:</tt> modifier is used, the sign appears before any padding,
+and otherwise after the padding.
+If <i>w</i> is specified and the number of other characters to be output
+is less than <i>w</i>, then copies of <i>padchar</i> (which defaults
+to a space) are output to
+make the total field width equal <i>w</i>.
+Then <i>n</i> digits are printed for the integer part of <i>arg</i>,
+with leading zeros if necessary; then a decimal point;
+then <i>d</i> digits of fraction, properly rounded.
+<P>
+If the magnitude of <i>arg</i> is so large that more than <i>m</i> digits would
+have to be printed, where <i>m</i> is the larger of <i>w</i> and 100, then an
+implementation is free, at its discretion, to print the number using
+exponential notation instead, as if by the directive
+<tt>~<i>w</i>,<i>q</i>,,,,<i>padchar</i>E</tt>, where <i>w</i> and <i>padchar</i> are
+present or omitted according to whether they were present or omitted in
+the <tt>~$</tt> directive, and where <i>q</i>=<i>d</i>+<i>n</i>-1,
+where <i>d</i> and <i>n</i> are the (possibly default) values given to the
+<tt>~$</tt> directive.
+<P>
+If <i>arg</i> is a rational number, then it is coerced to be a <tt>single-float</tt>
+and then printed.  (Alternatively, an implementation is permitted to
+process a rational number by any other method that has essentially the
+same behavior but avoids such hazards as loss of precision or overflow
+because of the coercion.)
+<P>
+If <i>arg</i> is a complex number or some non-numeric
+object, then it is printed using the format directive <tt>~<i>w</i>D</tt>,
+thereby printing it in decimal radix and a minimum field width of <i>w</i>.
+(If it is desired to print each of the real part and imaginary part
+of a complex number using a <tt>~$</tt> directive, then this must
+be done explicitly with two <tt>~$</tt> directives and code to
+extract the two parts of the complex number.)
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(FORMAT-PRETTY-PRINT) <A NAME=24327>&#160;</A> 
+to specify that <tt>format</tt> binds <tt>*print-escape*</tt> to <tt>nil</tt>
+during the processing of the <tt>~$</tt> directive.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<DT><tt>~%</tt>
+<DD>
+This outputs a <tt>#\Newline</tt> character, thereby terminating the current
+output line and beginning a new one
+(see <tt>terpri</tt>).
+<P>
+<tt>~<i>n</i>%</tt> outputs <i>n</i> newlines.
+<P>
+No <i>arg</i> is used.  Simply putting a newline in the control string
+would work, but <tt>~%</tt> is often used because it makes the control string
+look nicer in the middle of a Lisp program.
+<P>
+<DT><tt>~&amp;</tt>
+<DD>
+Unless it can be determined that the output stream
+is already at the beginning of a line,
+this outputs a newline (see <tt>fresh-line</tt>).
+<P>
+<tt>~<i>n</i>&amp;</tt> calls <tt>fresh-line</tt>
+and then outputs <i>n</i>-1 newlines.
+<tt>~0&amp;</tt> does nothing.
+<P>
+<DT><tt>~|</tt>
+<DD>
+This outputs a page separator character, if possible.
+<tt>~<i>n</i>|</tt> does this
+<i>n</i> times.  <tt>|</tt> is vertical bar, not capital I.
+<P>
+<DT><tt>~~</tt>
+<DD>
+<i>Tilde</i>.
+This outputs a tilde.  <tt>~<i>n</i>~</tt> outputs <i>n</i> tildes.
+<P>
+<DT><tt>~</tt><b><</b>newline<b>></b>
+<DD>
+Tilde immediately followed by a newline ignores the newline
+and any following non-newline whitespace characters.
+With a <tt>:</tt>, the newline
+is ignored, but any following whitespace is left in place.
+With an <tt>@</tt>, the newline
+is left in place, but any following whitespace is ignored.
+This directive is typically used when a format control string is too long
+to fit nicely into one line of the program:
+<P><pre>
+(defun type-clash-error (fn nargs argnum right-type wrong-type) 
+  (format *error-output* 
+          &quot;~&amp;Function ~S requires its ~:[~:R~;~*~] ~ 
+           argument to be of type ~S,~%but it was called ~ 
+           with an argument of type ~S.~%&quot; 
+          fn (eql nargs 1) argnum right-type wrong-type)) 
+
+(type-clash-error 'aref nil 2 'integer 'vector)  prints: 
+Function AREF requires its second argument to be of type INTEGER, 
+but it was called with an argument of type VECTOR. 
+
+(type-clash-error 'car 1 1 'list 'short-float)  prints: 
+Function CAR requires its argument to be of type LIST, 
+but it was called with an argument of type SHORT-FLOAT.
+</pre><P>
+Note that in this example newlines appear in the output only as specified
+by the <tt>~&amp;</tt> and <tt>~%</tt> directives; the actual newline characters
+in the control string are suppressed because each is preceded by a tilde.
+<P>
+<DT><tt>~T</tt>
+<DD>
+<i>Tabulate</i>.
+This spaces over to a given column.
+<tt>~<i>colnum</i>,<i>colinc</i>T</tt> will output
+sufficient spaces to move the cursor to column <i>colnum</i>.  If the cursor
+is already at or beyond column <i>colnum</i>, it will output spaces to move it to
+column <i>colnum</i>+<i>k</i>*<i>colinc</i> for the smallest positive integer
+<i>k</i> possible, unless <i>colinc</i> is zero, in which case no spaces
+are output if the cursor is already at or beyond column <i>colnum</i>.
+<i>colnum</i> and <i>colinc</i> default to <tt>1</tt>.
+<P>
+Ideally, the current column position is determined by examination of the
+destination, whether a stream or string. (Although no user-level
+operation for determining the column position of a stream is defined
+by Common Lisp, such a facility may exist at the implementation level.)
+If for some reason the current absolute column position cannot be determined
+by direct inquiry,
+<tt>format</tt> may be able to deduce the current column position by noting
+that certain directives (such as <tt>~%</tt>, or <tt>~&amp;</tt>,
+or <tt>~A</tt> with the argument being a string containing a newline) cause
+the column position to be reset to zero, and counting the number of characters
+emitted since that point.  If that fails, <tt>format</tt> may attempt a
+similar deduction on the riskier assumption that the destination was
+at column zero when <tt>format</tt> was invoked.  If even this heuristic fails
+or is implementationally inconvenient, at worst
+the <tt>~T</tt> operation will simply output two spaces.
+(All this implies that code that uses <tt>format</tt> is
+more likely to be portable if all format control strings that use 
+the <tt>~T</tt> directive either begin with <tt>~%</tt> or <tt>~&amp;</tt>
+to force a newline
+or are designed to be used only when the destination is known from other
+considerations to be at column zero.)
+<P>
+<tt>~@T</tt> performs <i>relative</i> tabulation.
+<tt>~<i>colrel</i>,<i>colinc</i>@T</tt> outputs <i>colrel</i> spaces
+and then outputs the smallest non-negative
+number of additional spaces necessary to move the cursor
+to a column that is a multiple
+of <i>colinc</i>.  For example, the directive <tt>~3,8@T</tt> outputs
+three spaces and then moves the cursor to a ``standard multiple-of-eight
+tab stop'' if not at one already.
+If the current output column cannot be determined, however,
+then <i>colinc</i> is ignored, and exactly <i>colrel</i> spaces are output.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (PRETTY-PRINT-INTERFACE) <A NAME=24425>&#160;</A>  to define <tt>~:T</tt>
+and <tt>~:@T</tt> to perform tabulation relative to a point defined
+by the pretty printing process (see section <A HREF="node257.html#PPRINTFORMATDIRECTIVESSECTION">27.4</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<DT><tt>~*</tt>
+<DD>
+The next <i>arg</i> is ignored.  <tt>~<i>n</i>*</tt> ignores the next <i>n</i> arguments.
+<P>
+<tt>~:*</tt> ``ignores backwards''; that is, it backs up in the list of
+arguments so that the argument last processed will be processed again.
+<tt>~<i>n</i>:*</tt> backs up <i>n</i> arguments.
+<P>
+When within a <tt>~{</tt> construct
+(see below), the ignoring (in either direction) is relative to the list
+of arguments being processed by the iteration.
+<P>
+<tt>~<i>n</i>@*</tt> is an ``absolute goto'' rather than a ``relative goto'':
+it goes to the <i>n</i>th <i>arg</i>, where 0 means the first one;
+<i>n</i> defaults to 0, so <tt>~@*</tt> goes back to the first <i>arg</i>.
+Directives after a <tt>~<i>n</i>@*</tt>
+will take arguments in sequence beginning with the one gone to.
+When within a <tt>~{</tt> construct, the ``goto''
+is relative to the list of arguments being processed by the iteration.
+<P>
+<DT><tt>~?</tt>
+<DD>
+<i>Indirection</i>.
+The next <i>arg</i> must be a string, and the one after it a list;
+both are consumed by the <tt>~?</tt> directive.
+The string is processed as a <tt>format</tt> control string, with the
+elements of the list as the arguments.  Once the recursive processing
+of the control string has been finished, then processing of the control
+string containing the <tt>~?</tt> directive is resumed.
+Example:
+<P><pre>
+(format nil &quot;~? ~D&quot; &quot;&lt;~A ~D&gt;&quot; '(&quot;Foo&quot; 5) 7) => &quot;&lt;Foo 5&gt; 7&quot; 
+(format nil &quot;~? ~D&quot; &quot;&lt;~A ~D&gt;&quot; '(&quot;Foo&quot; 5 14) 7) => &quot;&lt;Foo 5&gt; 7&quot;
+</pre><P>
+Note that in the second example three arguments are supplied
+to the control string <tt>&quot;&lt;~A ~D&gt;&quot;</tt>, but only two are processed
+and the third is therefore ignored.
+<P>
+With the <tt>@</tt> modifier, only one <i>arg</i> is directly consumed.
+The <i>arg</i> must be a string; it is processed as part of the control
+string as if it had appeared in place of the <tt>~@?</tt> construct,
+and any directives in the recursively processed control string may
+consume arguments of the control string containing the <tt>~@?</tt>
+directive.
+Example:
+<P><pre>
+(format nil &quot;~@? ~D&quot; &quot;&lt;~A ~D&gt;&quot; &quot;Foo&quot; 5 7) => &quot;&lt;Foo 5&gt; 7&quot; 
+(format nil &quot;~@? ~D&quot; &quot;&lt;~A ~D&gt;&quot; &quot;Foo&quot; 5 14 7) => &quot;&lt;Foo 5&gt; 14&quot;
+</pre><P>
+<P>
+Here is a rather sophisticated example.
+The <tt>format</tt> function itself,
+as implemented at one time in Lisp Machine Lisp,
+used a routine internal to the <tt>format</tt> package called <tt>format-error</tt> to
+signal error messages; <tt>format-error</tt> in turn used <tt>error</tt>, which used
+<tt>format</tt> recursively.  Now <tt>format-error</tt> took a string and
+arguments, just like <tt>format</tt>, but also printed the control string
+to <tt>format</tt> (which at this point was available
+in the global variable <tt>*ctl-string*</tt>) and a little
+arrow showing where in the processing of the control string the error
+occurred.  The variable <tt>*ctl-index*</tt> pointed one character after the
+place of the error.
+<P><pre>
+(defun format-error (string &amp;rest args)     ;Example 
+  (error <tt>nil</tt> &quot;~?~%~V@T<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42833.gif">~%~3@T &quot;~A &quot;~%&quot; 
+         string args (+ *ctl-index* 3) *ctl-string*))
+</pre><P>
+(The character set used in the Lisp Machine Lisp implementation contains a
+down-arrow character <tt><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42833.gif"></tt>, which is not a standard Common Lisp
+character.)  This first processed the given string and arguments using
+<tt>~?</tt>, then output a newline, tabbed a variable amount for
+printing the down-arrow, and printed the control string between
+double quotes (note the use of <tt> &quot;</tt> to include double quotes within
+the control string).  The effect was something like this:
+<P><pre>
+(format t &quot;The item is a ~[Foo~;Bar~;Loser~].&quot; 'quux) 
+&gt;&gt;ERROR: The argument to the FORMAT &quot;~[&quot; command  
+         must be a number. 
+                   <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42833.gif"> 
+   &quot;The item is a ~[Foo~;Bar~;Loser~].&quot;
+</pre><P>
+<P>
+</DL>
+<hr>
+<b>Implementation note:</b> Implementors may wish to report errors occurring
+within <tt>format</tt> control strings in the manner outlined here.
+It looks pretty flashy when done properly.
+<hr>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (PRETTY-PRINT-INTERFACE) <A NAME=24545>&#160;</A>  to introduce
+certain <tt>format</tt> directives to support the user interface to the pretty
+printer described in detail in chapter <A HREF="node253.html#PPRINT">27</A>.
+<P>
+<DL COMPACT><DT><tt>~_</tt>
+<DD>
+<i>Conditional newline.</i> Without any modifiers, the directive
+<tt>~_</tt> is equivalent to
+<tt>(pprint-newline :linear)</tt>.  The directive
+<tt>~@_</tt> is
+equivalent to <tt>(pprint-newline :miser)</tt>.  The directive
+<tt>~:_</tt>
+is equivalent to <tt>(pprint-newline :fill)</tt>.  The directive
+<tt>~:@_</tt> is
+equivalent to <tt>(pprint-newline :mandatory)</tt>.
+<P>
+<DT><tt>~W</tt>
+<DD>
+<i>Write.</i>  An <i>arg</i>, any Lisp object, is printed obeying <i>every</i>
+printer control variable (as by <tt>write</tt>).
+See section <A HREF="node257.html#PPRINTFORMATDIRECTIVESSECTION">27.4</A> for details.
+<P>
+<DT><tt>~I</tt>
+<DD>
+<i>Indent.</i> The directive <tt>~<i>n</i>I</tt> is equivalent to
+<tt>(pprint-indent :block <i>n</i>)</tt>.  The directive <tt>~:<i>n</i>I</tt> is equivalent to
+<tt>(pprint-indent :current <i>n</i>)</tt>.  In both cases, <i>n</i> defaults to zero,
+if it is omitted.
+</DL>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+The format directives after this point are much more complicated than the
+foregoing; they constitute control structures that can perform
+case conversion,
+conditional selection, iteration, justification, and non-local exits.
+Used with restraint, they can perform powerful tasks.  Used with
+abandon, they can produce completely unreadable and unmaintainable code.
+<P>
+The case-conversion, conditional, iteration, and justification
+constructs can contain other formatting constructs by bracketing them.
+These constructs must nest properly with respect to each other.
+For example, it is not legitimate to put the start of a case-conversion
+construct in each arm of a conditional and the
+end of the case-conversion construct outside the conditional:
+<P><pre>
+(format <tt>nil</tt> &quot;~:[abc~:@(def~;ghi~:@(jkl~]mno~)&quot; x)  ;Illegal!
+</pre><P>
+One might expect this to produce either <tt>&quot;abcDEFMNO&quot;</tt> or <tt>&quot;ghiJKLMNO&quot;</tt>,
+depending on whether <tt>x</tt> is false or true; but in fact the construction
+is illegal because the <tt>~[...~;...~]</tt>
+and <tt>~(...~)</tt> constructs are not properly nested.
+<P>
+The processing indirection caused by the <tt>~?</tt> directive
+is also a kind of nesting for the purposes of this rule of proper nesting.
+It is not permitted to
+start a bracketing construct within a string processed
+under control of a <tt>~?</tt>
+directive and end the construct at some point after the <tt>~?</tt> construct
+in the string containing that construct, or vice versa.
+For example, this situation is illegal:
+<P><pre>
+(format <tt>nil</tt> &quot;~?ghi~)&quot; &quot;abc~@(def&quot;)     ;Illegal!
+</pre><P>
+One might expect it to produce <tt>&quot;abcDEFGHI&quot;</tt>, but in fact the construction
+is illegal because the <tt>~?</tt>
+and <tt>~(...~)</tt> constructs are not properly nested.
+<P>
+<DL COMPACT><DT><tt>~(<i>str</i>~)</tt>
+<DD>
+<i>Case conversion</i>.
+The contained control string <i>str</i> is processed, and what it produces
+is subject to case conversion:
+<tt>~(</tt> converts every uppercase character
+to the corresponding lowercase character;
+<tt>~:(</tt> capitalizes all words, as if by <tt>string-capitalize</tt>;
+<tt>~@(</tt> capitalizes just the first word and forces the rest to lowercase;
+<tt>~:@(</tt> converts every lowercase character
+to the corresponding uppercase character.
+In this example, <tt>~@(</tt> is used to cause the first word
+produced by <tt>~@R</tt> to be capitalized:
+<P><pre>
+(format nil &quot;~@R ~(~@R~)&quot; 14 14) => &quot;XIV xiv&quot; 
+(defun f (n) (format nil &quot;~@(~R~) error~:P detected.&quot; n)) 
+(f 0) => &quot;Zero errors detected.&quot; 
+(f 1) => &quot;One error detected.&quot; 
+(f 23) => &quot;Twenty-three errors detected.&quot;
+</pre><P>
+<P>
+<DT><tt>~[<i>str0</i>~;<i>str1</i>~;<i>...</i>~;<i>strn</i>~]</tt>
+<DD>
+<i>Conditional expression</i>.
+This is a set of control strings, called <i>clauses</i>, one of which is
+chosen and used.  The clauses are separated by <tt>~;</tt> and the construct
+is terminated by <tt>~]</tt>.  For example,
+<P><pre>
+&quot;~[Siamese~;Manx~;Persian~] Cat&quot;
+</pre><P>
+The <i>arg</i>th
+clause is selected, where the first clause is number 0.
+If a prefix parameter is given (as <tt>~<i>n</i>[</tt>),
+then the parameter is used instead of an argument.
+(This is useful only if the parameter is specified by <tt>#</tt>,
+to dispatch on the number of arguments remaining to be processed.)
+If <i>arg</i> is out of range, then no clause is selected
+(and no error is signaled).
+After the selected alternative has been processed, the control string
+continues after the <tt>~]</tt>.
+<P>
+<tt>~[<i>str0</i>~;<i>str1</i>~;<i>...</i>~;<i>strn</i>~:;<i>default</i>~]</tt> has a default case.
+If the <i>last</i> <tt>~;</tt> used to separate clauses
+is <tt>~:;</tt> instead, then the last clause is an ``else'' clause
+that is performed if no other clause is selected.
+For example:
+<P><pre>
+&quot;~[Siamese~;Manx~;Persian~:;Alley~] Cat&quot;
+</pre><P>
+<P>
+<tt>~:[<i>false</i>~;<i>true</i>~]</tt> selects the <i>false</i> control string
+if <i>arg</i> is <tt>nil</tt>, and selects the <i>true</i> control string otherwise.
+<P>
+<tt>~@[<i>true</i>~]</tt> tests the argument.  If it is not <tt>nil</tt>,
+then the argument is not used up by the <tt>~@[</tt> command
+but remains as the next one to be processed,
+and the one clause <i>true</i> is processed.
+If the <i>arg</i> is <tt>nil</tt>, then the argument is used up,
+and the clause is not processed.
+The clause therefore should normally use exactly one argument,
+and may expect it to be non-<tt>nil</tt>.
+For example:
+<P><pre>
+(setq *print-level* <tt>nil</tt> *print-length* 5) 
+(format <tt>nil</tt> &quot;~@[ print level = ~D~]~@[ print length = ~D~]&quot; 
+            *print-level* *print-length*) 
+   =>  &quot; print length = 5&quot;
+</pre><P>
+<P>
+The combination of <tt>~[</tt> and <tt>#</tt> is useful, for
+example, for dealing with English conventions for printing lists:
+<P><pre>
+(setq foo &quot;Items:~#[ none~; ~S~; ~S and ~S~ 
+           ~:;~@{~#[~; and~]
+~S~^,~}~].&quot;) 
+(format <tt>nil</tt> foo) 
+        =>  &quot;Items: none.&quot; 
+(format <tt>nil</tt> foo 'foo) 
+        =>  &quot;Items: FOO.&quot; 
+(format <tt>nil</tt> foo 'foo 'bar) 
+        =>  &quot;Items: FOO and BAR.&quot; 
+(format <tt>nil</tt> foo 'foo 'bar 'baz) 
+        =>  &quot;Items: FOO, BAR, and BAZ.&quot; 
+(format <tt>nil</tt> foo 'foo 'bar 'baz 'quux) 
+        =>  &quot;Items: FOO, BAR, BAZ, and QUUX.&quot;
+</pre><P>
+<P>
+<DT><tt>~;</tt>
+<DD>
+This separates clauses in <tt>~[</tt> and <tt>~&lt;</tt>
+constructions.  It is an error elsewhere.
+<P>
+<DT><tt>~]</tt>
+<DD>
+This terminates a <tt>~[</tt>.  It is an error elsewhere.
+<P>
+<DT><tt>~{<i>str</i>~}</tt>
+<DD>
+<i>Iteration</i>.
+This is an iteration construct.  The argument should be a list,
+which is used as a set of arguments as if for a recursive call to <tt>format</tt>.
+The string <i>str</i> is used repeatedly as the control string.
+Each iteration can absorb as many elements of the list as it likes
+as arguments;
+if <i>str</i> uses up two arguments by itself, then two elements of the
+list will get used up each time around the loop.
+If before any iteration step the list is empty, then the iteration is terminated.
+Also, if a prefix parameter <i>n</i> is given, then there will be at most <i>n</i>
+repetitions of processing of <i>str</i>.  Finally, the
+<tt>~^</tt> directive can be used to terminate the iteration
+prematurely.
+<P>
+Here are some simple examples:
+<P><pre>
+(format <tt>nil</tt> 
+        &quot;The winners are:~{ ~S~}.&quot; 
+        '(fred harry jill)) 
+     => &quot;The winners are: FRED HARRY JILL.&quot; 
+
+(format <tt>nil</tt> &quot;Pairs:~{ &lt;~S,~S&gt;~}.&quot; '(a 1 b 2 c 3)) 
+     => &quot;Pairs: &lt;A,1&gt; &lt;B,2&gt; &lt;C,3&gt;.&quot;
+</pre><P>
+<P>
+<tt>~:{<i>str</i>~}</tt> is similar, but the argument should be a list of sublists.
+At each repetition step, one sublist is used as the set of arguments for
+processing <i>str</i>; on the next repetition, a new sublist is used, whether
+or not all of the last sublist had been processed.  Example:
+<P><pre>
+(format <tt>nil</tt> &quot;Pairs:~:{ &lt;~S,~S&gt;~}.&quot; 
+            '((a 1) (b 2) (c 3))) 
+     => &quot;Pairs: &lt;A,1&gt; &lt;B,2&gt; &lt;C,3&gt;.&quot;
+</pre><P>
+<P>
+<tt>~@{<i>str</i>~}</tt> is similar to <tt>~{<i>str</i>~}</tt>, but instead of
+using one argument that is a list, all the remaining arguments
+are used as the list of arguments for the iteration.
+Example:
+<P><pre>
+(format <tt>nil</tt> &quot;Pairs:~@{ &lt;~S,~S&gt;~}.&quot; 
+            'a 1 'b 2 'c 3) 
+     => &quot;Pairs: &lt;A,1&gt; &lt;B,2&gt; &lt;C,3&gt;.&quot;
+</pre><P>
+If the iteration is terminated before all the remaining arguments are
+consumed, then any arguments not processed by the iteration remain to be
+processed by any directives following the iteration construct.
+<P>
+<tt>~:@{<i>str</i>~}</tt>
+combines the features of <tt>~:{<i>str</i>~}</tt>
+and <tt>~@{<i>str</i>~}</tt>.
+All the remaining arguments
+are used, and each one must be a list.
+On each iteration, the next argument is used as a list of arguments to <i>str</i>.
+Example:
+<P><pre>
+(format <tt>nil</tt> &quot;Pairs:~:@{ &lt;~S,~S&gt;~}.&quot; 
+            '(a 1) '(b 2) '(c 3)) 
+     => &quot;Pairs: &lt;A,1&gt; &lt;B,2&gt; &lt;C,3&gt;.&quot;
+</pre><P>
+<P>
+Terminating the repetition construct with <tt>~:}</tt> instead of
+<tt>~}</tt> forces <i>str</i> to be processed at least once, even if
+the initial list of arguments is null (however, it will not override an explicit
+prefix parameter of zero).
+<P>
+If <i>str</i> is empty, then an argument is used as <i>str</i>.  It must be a string
+and precede any arguments processed by the iteration.  As an example,
+the following are equivalent:
+<P><pre>
+(apply #'format stream string arguments) 
+(format stream &quot;~1{~:}&quot; string arguments)
+</pre><P>
+This will use <tt>string</tt> as a formatting string.  The <tt>~1{</tt> says it will
+be processed at most once, and the <tt>~:}</tt> says it will be processed at least once.
+Therefore it is processed exactly once, using <tt>arguments</tt> as the arguments.
+This case may be handled more clearly by the <tt>~?</tt> directive,
+but this general feature of <tt>~{</tt>
+is more powerful than <tt>~?</tt>.
+<P>
+<DT><tt>~}</tt>
+<DD>
+This terminates a <tt>~{</tt>.  It is an error elsewhere.
+<P>
+<DT><tt>~<i>mincol</i>,<i>colinc</i>,<i>minpad</i>,<i>padchar</i>&lt;<i>str</i>~&gt;</tt>
+<DD>
+<i>Justification</i>.
+This justifies the text produced by processing <i>str</i>
+within a field at least <i>mincol</i> columns wide.  <i>str</i>
+may be divided up into segments with <tt>~;</tt>, in which case the
+spacing is evenly divided between the text segments.
+<P>
+With no modifiers, the leftmost text segment is left-justified in the
+field, and the rightmost text segment right-justified;  if there is
+only one text element, as a special case, it is right-justified.
+The <tt>:</tt> modifier causes
+spacing to be introduced before the first text segment;  the <tt>@</tt>
+modifier causes spacing to be added after the last.
+The <i>minpad</i> parameter (default <tt>0</tt>) is the minimum number of
+padding characters to be output between each segment.
+The padding character is specified by <i>padchar</i>,
+which defaults to the space character.
+If the total width needed to satisfy these constraints is greater
+than <i>mincol</i>, then the width used is <i>mincol</i>+<i>k</i>*<i>colinc</i>
+for the smallest possible non-negative integer value <i>k</i>;
+<i>colinc</i> defaults to <tt>1</tt>, and <i>mincol</i> defaults to <tt>0</tt>.
+<P>
+<P><pre>
+(format <tt>nil</tt> &quot;~10&lt;foo~;bar~&gt;&quot;)          =>  &quot;foo    bar&quot; 
+(format <tt>nil</tt> &quot;~10:&lt;foo~;bar~&gt;&quot;)         =>  &quot;  foo  bar&quot; 
+(format <tt>nil</tt> &quot;~10:@&lt;foo~;bar~&gt;&quot;)        =>  &quot;  foo bar &quot; 
+(format <tt>nil</tt> &quot;~10&lt;foobar~&gt;&quot;)            =>  &quot;    foobar&quot; 
+(format <tt>nil</tt> &quot;~10:&lt;foobar~&gt;&quot;)           =>  &quot;    foobar&quot; 
+(format <tt>nil</tt> &quot;~10@&lt;foobar~&gt;&quot;)           =>  &quot;foobar    &quot; 
+(format <tt>nil</tt> &quot;~10:@&lt;foobar~&gt;&quot;)          =>  &quot;  foobar  &quot;
+</pre><P>
+<P>
+Note that <i>str</i> may include <tt>format</tt> directives.
+All the clauses in <i>str</i> are processed in order;
+it is the resulting pieces of text that are justified.
+<P>
+The <tt>~^</tt> directive may be used to terminate processing
+of the clauses prematurely, in which case only the completely processed clauses
+are justified.
+<P>
+If the first clause of a <tt>~&lt;</tt> is terminated with <tt>~:;</tt> instead of
+<tt>~;</tt>, then it is used in a special way.  All of the clauses are
+processed (subject to <tt>~^</tt>, of course), but the first one is not used
+in performing the spacing and padding.  When the padded result has been
+determined, then if it will fit on the current line of output, it is
+output, and the text for the first clause is discarded.  If, however, the
+padded text will not fit on the current line, then the text segment for
+the first clause is output before the padded text.  The first clause
+ought to contain a newline (such as a <tt>~%</tt> directive).  The first
+clause is always processed, and so any arguments it refers to will be
+used; the decision is whether to use the resulting segment of text, not
+whether to process the first clause.  If the <tt>~:;</tt> has a prefix
+parameter <i>n</i>, then the padded text must fit on the current line with
+<i>n</i> character positions to spare to avoid outputting the first clause's
+text.  For example, the control string
+<P><pre>
+&quot;~%;; ~{~&lt;~%;; ~1:; ~S~&gt;~^,~}.~%&quot;
+</pre><P>
+can be used to print a list of items separated by commas without
+breaking items over line boundaries, beginning each line with
+<tt>;; </tt>.  The prefix parameter <tt>1</tt> in <tt>~1:;</tt> accounts for the width of the
+comma that will follow the justified item if it is not the last
+element in the list, or the period if it is.  If <tt>~:;</tt> has a second
+prefix parameter, then it is used as the width of the line,
+thus overriding the natural line width of the output stream.  To make
+the preceding example use a line width of 50, one would write
+<P><pre>
+&quot;~%;; ~{~&lt;~%;; ~1,50:; ~S~&gt;~^,~}.~%&quot;
+</pre><P>
+<P>
+If the second argument is not specified, then <tt>format</tt> uses the
+line width of the output stream.
+If this cannot be determined (for example, when producing a string result),
+then <tt>format</tt> uses <tt>72</tt> as the line length.
+<P>
+<DT><tt>~&gt;</tt>
+<DD>
+Terminates a <tt>~&lt;</tt>.  It is an error elsewhere.
+<p>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (PRETTY-PRINT-INTERFACE) <A NAME=25029>&#160;</A>  to introduce
+certain <tt>format</tt> directives to support the user interface to the pretty
+printer.  If <tt>~:&gt;</tt> is used to terminate a
+<tt>~&lt;...</tt> directive, the directive is equivalent to a call on
+<tt>pprint-logical-block</tt>.
+See section <A HREF="node257.html#PPRINTFORMATDIRECTIVESSECTION">27.4</A> for details.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<DT><tt>~^</tt>
+<DD>
+<i>Up and out</i>.
+This is an escape construct.  If there are no more arguments remaining to
+be processed, then the immediately enclosing <tt>~{</tt> or <tt>~&lt;</tt> construct
+is terminated.  If there is no such enclosing construct, then the entire
+formatting operation is terminated.  In the <tt>~&lt;</tt> case, the formatting
+<i>is</i> performed, but no more segments are processed before doing the
+justification.  The <tt>~^</tt> should appear only at the <i>beginning</i> of a
+<tt>~&lt;</tt> clause, because it aborts the entire clause it appears in (as well
+as all following clauses).
+<tt>~^</tt> may appear anywhere in a <tt>~{</tt>
+construct.
+<P><pre>
+(setq donestr &quot;Done.~^  ~D warning~:P.~^  ~D error~:P.&quot;) 
+(format <tt>nil</tt> donestr) => &quot;Done.&quot; 
+(format <tt>nil</tt> donestr 3) => &quot;Done.  3 warnings.&quot; 
+(format <tt>nil</tt> donestr 1 5) => &quot;Done.  1 warning.  5 errors.&quot;
+</pre><P>
+<P>
+If a prefix parameter is given, then termination occurs if the parameter
+is zero.  (Hence <tt>~^</tt> is equivalent to <tt>~#^</tt>.)  If two
+parameters are given, termination occurs if they are equal.  If three
+parameters are given, termination occurs if the first is less than or
+equal to the second and the second is less than or equal to the third.
+Of course, this is useless if all the prefix parameters are constants; at
+least one of them should be a <tt>#</tt> or a <tt>V</tt> parameter.
+<P>
+If <tt>~^</tt> is used within a <tt>~:{</tt> construct, then it merely terminates
+the current iteration step (because in the standard case it tests for
+remaining arguments of the current step only); the next iteration step
+commences immediately.  To terminate the entire iteration process,
+use <tt>~:^</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988
+(FORMAT-COLON-UPARROW-SCOPE) <A NAME=25078>&#160;</A> 
+to clarify the behavior of <tt>~:^</tt> as follows.
+It may be used only if the command it would terminate is <tt>~:{</tt>
+or <tt>~:@{</tt>.  The entire iteration process is terminated
+if and only if the sublist that is supplying the arguments for the current iteration step
+is the last sublist (in the case of terminating a <tt>~:{</tt> command)
+or the last argument to that call to <tt>format</tt> (in the
+case of terminating a <tt>~:@{</tt> command).
+Note furthermore that while <tt>~^</tt> is equivalent
+to <tt>~#^</tt> in all circumstances,
+<tt>~:^</tt> is <i>not</i> equivalent
+to <tt>~:#^</tt> because the latter terminates the entire iteration
+if and only if no arguments remain for <i>the current iteration step</i>
+(as opposed to no arguments remaining for the entire iteration process).
+<P>
+Here are some examples of the differences in the
+behaviors of <tt>~^</tt>, <tt>~:^</tt>,
+and <tt>~:#^</tt>.
+<P><pre>
+(format nil 
+        &quot;~:{/~S~^ ...~}&quot; 
+        '((hot dog) (hamburger) (ice cream) (french fries))) 
+ => &quot;/HOT .../HAMBURGER/ICE .../FRENCH ...&quot;
+</pre><P>
+For each sublist, ``<tt> ...</tt>'' appears after the first word unless there are no
+additional words.
+<P><pre>
+(format nil 
+        &quot;~:{/~S~:^ ...~}&quot; 
+        '((hot dog) (hamburger) (ice cream) (french fries))) 
+ => &quot;/HOT .../HAMBURGER .../ICE .../FRENCH&quot;
+</pre><P>
+For each sublist, ``<tt> ...</tt>'' always appears after the first word, unless it is the
+last sublist, in which case the entire iteration is terminated.
+<P><pre>
+(format nil 
+        &quot;~:{/~S~:#^ ...~}&quot; 
+        '((hot dog) (hamburger) (ice cream) (french fries))) 
+ => &quot;/HOT .../HAMBURGER&quot;
+</pre><P>
+For each sublist, ``<tt> ...</tt>'' appears after the first word, but if the sublist
+has only one word then the entire iteration is terminated.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+If <tt>~^</tt> appears within a control string being processed
+under the control of a <tt>~?</tt> directive, but not within
+any <tt>~{</tt> or <tt>~&lt;</tt> construct within that string,
+then the string being
+processed will be terminated, thereby ending processing
+of the <tt>~?</tt> directive.  Processing then
+continues within the string
+containing the <tt>~?</tt> directive at the point following that directive.
+<P>
+If <tt>~^</tt> appears within a <tt>~[</tt> or <tt>~(</tt> construct,
+then all the commands up to the <tt>~^</tt> are properly selected
+or case-converted, the <tt>~[</tt> or <tt>~(</tt> processing is terminated,
+and the outward search continues for a <tt>~{</tt> or <tt>~&lt;</tt> construct
+to be terminated.  For example:
+<P><pre>
+(setq tellstr &quot;~@(~@[~R~]~^ ~A.~)&quot;) 
+(format <tt>nil</tt> tellstr 23) => &quot;Twenty-three.&quot; 
+(format <tt>nil</tt> tellstr nil &quot;losers&quot;) => &quot;Losers.&quot; 
+(format <tt>nil</tt> tellstr 23 &quot;losers&quot;) => &quot;Twenty-three losers.&quot;
+</pre><P>
+<P>
+Here are some examples of the use of <tt>~^</tt> within a <tt>~&lt;</tt> construct.
+<P><pre>
+(format <tt>nil</tt> &quot;~15&lt;~S~;~^~S~;~^~S~&gt;&quot; 'foo) 
+        =>  &quot;            FOO&quot; 
+(format <tt>nil</tt> &quot;~15&lt;~S~;~^~S~;~^~S~&gt;&quot; 'foo 'bar) 
+        =>  &quot;FOO         BAR&quot; 
+(format <tt>nil</tt> &quot;~15&lt;~S~;~^~S~;~^~S~&gt;&quot; 'foo 'bar 'baz) 
+        =>  &quot;FOO   BAR   BAZ&quot;
+</pre><P>
+<P>
+ </DL>
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<hr>
+<b>Compatibility note:</b> The <tt>~Q</tt> directive and user-defined directives of Zetalisp have been
+omitted here, as well as control lists (as opposed to strings),
+which are rumored to be changing in meaning.
+<hr>
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (PRETTY-PRINT-INTERFACE) <A NAME=25225>&#160;</A> 
+to introduce user-defined directives in the form of the
+<tt>~/.../</tt> directive.
+See section <A HREF="node257.html#PPRINTFORMATDIRECTIVESSECTION">27.4</A> for details.
+<P>
+The hairiest <tt>format</tt> control string I have ever seen in shown
+in table <A HREF="node200.html#XAPPINGFORMATTABLE">22-8</A>.
+It started innocently enough as part of the simulator for Connection Machine Lisp
+[<A HREF="node368.html#CONNECTIONMACHINELISP">44</A>,<A HREF="node368.html#CMLISPIMPLEMENTATION">57</A>]; the <i>xapping</i> data type,
+defined by <tt>defstruct</tt>, needed a <tt>:print-function</tt> option so that
+xappings would print properly.  As this data type became more complicated, step by step,
+so did the <tt>format</tt> control string.
+<P>
+<A NAME=XAPPINGFORMATTABLE>&#160;</A>
+<listing>
+----------------------------------------------------------------
+Table 22-8: Print Function for the Xapping Data Type
+
+(defun print-xapping (xapping stream depth) 
+  (declare (ignore depth)) 
+  (format stream 
+          ;; Are you ready for this one? 
+          "~:[{~;[~]~:{~S~:[->~S~;~*~]~:^ ~}~:[~; ~]~ 
+           ~{~S->~^ ~}~:[~; ~]~[~*~;->~S~;->~*~]~:[}~;]~]" 
+          ;; Is that clear? 
+          (xectorp xapping) 
+          (do ((vp (xectorp xapping)) 
+               (sp (finite-part-is-xetp xapping)) 
+               (d (xapping-domain xapping) (cdr d)) 
+               (r (xapping-range xapping) (cdr r)) 
+               (z '() (cons (list (if vp (car r) (car d)) 
+                                  (or vp sp) 
+                                  (car r)) 
+                            z))) 
+              ((null d) (reverse z))) 
+          (and (xapping-domain xapping) 
+               (or (xapping-exceptions xapping) 
+                   (xapping-infinite xapping))) 
+          (xapping-exceptions xapping) 
+          (and (xapping-exceptions xapping) 
+               (xapping-infinite xapping)) 
+          (ecase (xapping-infinite xapping) 
+            ((nil) 0) 
+            (:constant 1) 
+            (:universal 2)) 
+          (xapping-default xapping) 
+          (xectorp xapping)))
+
+See section 22.1.5 for the defstruct definition of the xapping data
+type, whose accessor functions are used in this code.
+----------------------------------------------------------------
+</listing>
+<P>
+See the description of <tt>set-macro-character</tt> for a discussion of xappings
+and the <tt>defstruct</tt> definition.  Assume that the predicate <tt>xectorp</tt>
+is true of a xapping if it is a xector, and that the predicate <tt>finite-part-is-xetp</tt>
+is true if every value in the range is the same as its corresponding index.
+<P>
+Here is a blow-by-blow description of the parts of this format string:
+<P>
+<listing>
+~:[{~;[~]                  Print ``['' for a xector, and ``{'' otherwise. 
+
+~:{~S~:[->~S~;~*~]~:^ ~}   Given a list of lists, print the pairs.
+                           Each sublist has three elements: the index
+                           (or the value if we're printing a xector);
+                           a flag that is true for either a xector or
+                           xet (in which case no arrow is printed);
+                           and the value.  Note the use of ~:{ to
+                           iterate, and the use of ~:^ to avoid
+                           printing a separating space after the final
+                           pair (or at all, if there are no pairs). 
+
+~:[~; ~]                   If there were pairs and there are
+                           exceptions or an infinite part, print a
+                           separating space. 
+
+~<newline>                 Do nothing.  This merely allows the format
+                           control string to be broken across two lines. 
+
+~{~S->~^ ~}                Given a list of exception indices, print them.
+                           Note the use of ~{ to iterate, and the use
+                           of ~^ to avoid printing a separating space
+                           after the final exception (or at all, if
+                           there are no exceptions).
+
+~:[~; ~]                   If there were exceptions and there is an
+                           infinite part, print a separating space. 
+
+~[~*~;->~S~;->~*~]         Use ~[ to choose one of three cases for
+                           printing the infinite part. 
+
+~:[}~;]~]                  Print ``]'' for a xector, and ``}'' otherwise.
+</listing>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html4034 HREF="node201.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4032 HREF="node197.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4028 HREF="node199.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4036 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4037 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4035 HREF="node201.html"> Querying the User</A>
+<B>Up:</B> <A NAME=tex2html4033 HREF="node197.html"> Output Functions</A>
+<B> Previous:</B> <A NAME=tex2html4029 HREF="node199.html"> Output to Binary </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

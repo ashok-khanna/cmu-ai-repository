@@ -1,0 +1,425 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node188.html by HTTrack Website Copier/3.x [XR&CO'2014], Thu, 21 Oct 2021 14:58:19 GMT -->
+<HEAD>
+<TITLE>22.1.1. What the Read Function Accepts</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" What the Read Function Accepts">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3891 HREF="node189.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3889 HREF="node187.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3883 HREF="node187.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3893 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3894 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3892 HREF="node189.html"> Parsing of Numbers </A>
+<B>Up:</B> <A NAME=tex2html3890 HREF="node187.html"> Printed Representation of </A>
+<B> Previous:</B> <A NAME=tex2html3884 HREF="node187.html"> Printed Representation of </A>
+<HR> <P>
+<H2><A NAME=SECTION002611000000000000000>22.1.1. What the Read Function Accepts</A></H2>
+<P>
+<A NAME=READER>The</A>
+<A NAME=19903>purpose</A>
+of the Lisp reader is to accept characters, interpret them
+as the printed representation of a Lisp object, and construct and
+return such an object.  The reader cannot accept everything that the
+printer produces; for example, the printed representations of compiled
+code objects cannot be read in.  However, the reader has
+many features that are not used by the output of the printer at all,
+such as comments, alternative representations, and convenient
+abbreviations for frequently used but unwieldy constructs.  The reader is
+also parameterized in such a way that it can be used as a lexical
+analyzer for a more general user-written parser.
+<P>
+The reader is organized as a recursive-descent parser.
+Broadly speaking,
+the reader operates by reading a character from
+the input stream and treating it in one of three ways.
+Whitespace characters serve as separators but are otherwise
+ignored.  Constituent and escape characters are accumulated
+to make a <i>token</i>, which is then interpreted as a number or symbol.
+Macro characters trigger the invocation of functions (possibly
+user-supplied) that can perform arbitrary parsing actions,
+including recursive invocation of the reader.
+<P>
+More precisely,
+when the reader is invoked, it reads a single character from the input stream
+and dispatches according to the syntactic type of that character.
+Every character that can appear in the input stream
+must be of exactly one of the following kinds:
+<i>illegal</i>,
+<i>whitespace</i>,
+<i>constituent</i>,
+<i>single escape</i>,
+<i>multiple escape</i>, or
+<i>macro</i>.
+Macro characters are further divided
+into the types <i>terminating</i> and <i>non-terminating</i> (of tokens).
+(Note that macro characters have nothing whatever to do with macros
+in their operation.  There is a superficial similarity in that macros allow
+the user to extend the syntax of Common Lisp at the level of forms,
+while macro characters allow the user to extend the syntax at the
+level of characters.)
+Constituents additionally have one or more attributes,
+the most important of which is <i>alphabetic</i>; these attributes are discussed
+further in section <A HREF="node189.html#PARSETOKENSSECTION">22.1.2</A>.
+<P>
+The parsing of Common Lisp expressions is discussed in terms of these
+syntactic character types because the types of individual characters
+are not fixed
+but may be altered by the user (see <tt>set-syntax-from-char</tt>
+and <tt>set-macro-character</tt>).
+The characters of the standard character set initially have the
+syntactic types shown in table <A HREF="node188.html#StandardCharacterSyntaxTable">22-1</A>.
+Note that
+the brackets, braces, question mark, and exclamation point
+(that is, <tt>[</tt>, <tt>]</tt>, <tt>{</tt>,
+<tt>}</tt>, <tt>?</tt>,
+and <tt>!</tt>) are normally defined to be constituents, but they
+are not used for any purpose in standard Common Lisp syntax and do not occur
+in the names of built-in Common Lisp functions or variables.
+These characters are explicitly reserved to the user.
+The primary intent
+is that they be used as macro characters; but a user might choose,
+for example, to make <tt>!</tt> be a <i>single escape</i> character
+(as it is in Portable Standard Lisp).
+<P>
+<A NAME=StandardCharacterSyntaxTable>&#160;</A>
+<pre>
+----------------------------------------------------------------
+Table 22-1: Standard Character Syntax Types
+
+&lt;tab&gt; <i>whitespace</i>          &lt;page&gt; <i>whitespace</i> &lt;newline&gt; <i>whitespace</i> 
+&lt;space&gt; <i>whitespace</i>        @ <i>constituent</i>     ` <i>terminating macro</i> 
+! <i>constituent</i> *           A <i>constituent</i>     a <i>constituent</i> 
+" <i>terminating macro</i>       B <i>constituent</i>     b <i>constituent</i> 
+# <i>non-terminating macro</i>   C <i>constituent</i>     c <i>constituent</i> 
+$ <i>constituent</i>             D <i>constituent</i>     d <i>constituent</i> 
+% <i>constituent</i>             E <i>constituent</i>     e <i>constituent</i> 
+& <i>constituent</i>             F <i>constituent</i>     f <i>constituent</i> 
+' <i>terminating macro</i>       G <i>constituent</i>     g <i>constituent</i> 
+( <i>terminating macro</i>       H <i>constituent</i>     h <i>constituent</i> 
+) <i>terminating macro</i>       I <i>constituent</i>     i <i>constituent</i> 
+* <i>constituent</i>             J <i>constituent</i>     j <i>constituent</i> 
++ <i>constituent</i>             K <i>constituent</i>     k <i>constituent</i> 
+, <i>terminating macro</i>       L <i>constituent</i>     l <i>constituent</i> 
+- <i>constituent</i>             M <i>constituent</i>     m <i>constituent</i> 
+. <i>constituent</i>             N <i>constituent</i>     n <i>constituent</i> 
+/ <i>constituent</i>             O <i>constituent</i>     o <i>constituent</i> 
+0 <i>constituent</i>             P <i>constituent</i>     p <i>constituent</i> 
+1 <i>constituent</i>             Q <i>constituent</i>     q <i>constituent</i> 
+2 <i>constituent</i>             R <i>constituent</i>     r <i>constituent</i> 
+3 <i>constituent</i>             S <i>constituent</i>     s <i>constituent</i> 
+4 <i>constituent</i>             T <i>constituent</i>     t <i>constituent</i> 
+5 <i>constituent</i>             U <i>constituent</i>     u <i>constituent</i> 
+6 <i>constituent</i>             V <i>constituent</i>     v <i>constituent</i> 
+7 <i>constituent</i>             W <i>constituent</i>     w <i>constituent</i> 
+8 <i>constituent</i>             X <i>constituent</i>     x <i>constituent</i> 
+9 <i>constituent</i>             Y <i>constituent</i>     y <i>constituent</i> 
+: <i>constituent</i>             Z <i>constituent</i>     z <i>constituent</i> 
+; <i>terminating macro</i>       [ <i>constituent</i> *   { <i>constituent</i> * 
+< <i>constituent</i>             \ <i>single escape</i>   | <i>multiple escape</i> 
+= <i>constituent</i>             ] <i>constituent</i> *   } <i>constituent</i> * 
+> <i>constituent</i>             ^ <i>constituent</i>     ~ <i>constituent</i> 
+? <i>constituent</i> *           _ <i>constituent</i>     &lt;rubout&gt; <i>constituent</i> 
+&lt;bkspace&gt; <i>constituent</i>  &lt;return&gt; <i>whitespace</i> &lt;linefeed&gt; <i>whitespace</i>
+
+The characters marked with an asterisk are initially constituents
+but are reserved to the user for use as macro characters or for
+any other desired purpose.
+----------------------------------------------------------------
+</pre>
+<P>
+The algorithm performed by the Common Lisp reader is roughly as follows:
+<OL><LI>
+<A NAME=READERSTART>If</A> at end of file, perform end-of-file processing (as specified
+by the caller of the <tt>read</tt> function).
+Otherwise,
+read one character from the input stream, call it <i>x</i>, and
+dispatch according to the syntactic type of <i>x</i> to one
+of steps <A HREF="node188.html#READERILLEGAL">2</A> to <A HREF="node188.html#READERCONSTITUENT">7</A>.
+<P>
+<LI>
+<A NAME=READERILLEGAL>If</A> <i>x</i> is an <i>illegal</i> character, signal an error.
+<P>
+<LI>
+<A NAME=READERWHITESPACE>If</A> <i>x</i> is a <i>whitespace</i> character,
+then discard it and go back to step <A HREF="node188.html#READERSTART">1</A>.
+<P>
+<LI>
+If <i>x</i> is a <i>macro</i> character (at this point the
+distinction between <i>terminating</i> and <i>non-terminating</i> macro characters
+does not matter), then execute the function associated
+with that character.  The function may return zero values or one value
+(see <tt>values</tt>).
+<P>
+The macro-character function may of course read characters from the input
+stream; if it does, it will see those characters following the macro
+character.  The function may even invoke the reader recursively.
+This is how the macro character <tt>(</tt> constructs a list:
+by invoking the reader recursively to read the elements of the list.
+<P>
+If one value is returned, then return that value as the result of the
+read operation; the algorithm is done.
+If zero values are returned, then go back to step <A HREF="node188.html#READERSTART">1</A>.
+<P>
+<LI>
+If <i>x</i> is a <i>single escape</i> character (normally <tt> </tt>),
+then read the next character and call it <i>y</i>
+(but if at end of file, signal an error instead).
+Ignore the usual syntax of <i>y</i>
+and pretend it is a <i>constituent</i> whose only attribute is
+<i>alphabetic</i>.
+<p>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+(If <i>y</i> is a lowercase character, leave it alone;
+do not replace it with the corresponding uppercase character.)
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+For the purposes of <tt>readtable-case</tt>, <i>y</i> is not replaceable.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+Use <i>y</i> to begin a token, and go to step <A HREF="node188.html#READERPLAINTOKEN">8</A>.
+<P>
+<LI>
+If <i>x</i> is a <i>multiple escape</i> character (normally <tt>|</tt>),
+then begin a token (initially
+containing no characters) and go to step <A HREF="node188.html#READERMULTITOKEN">9</A>.
+<P>
+<LI>
+<A NAME=READERCONSTITUENT>If</A> <i>x</i> is a <i>constituent</i> character, then it begins an extended token.
+After the entire token is read in, it will be interpreted
+either as representing a Lisp object such as a symbol or number
+(in which case that object is returned as the result of the read operation),
+or as being of illegal syntax (in which case an error is signaled).
+<p>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+If <i>x</i> is a lowercase character, replace it with the
+corresponding uppercase character.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (READ-CASE-SENSITIVITY) <A NAME=20190>&#160;</A>  to introduce
+<tt>readtable-case</tt>.  Consequently, the preceding sentence
+should be ignored.  The case of <i>x</i> should not be altered; instead,
+<i>x</i> should be regarded as replaceable.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+Use <i>x</i> to begin a token, and go on to step <A HREF="node188.html#READERPLAINTOKEN">8</A>.
+<P>
+<LI>
+(<A NAME=READERPLAINTOKEN>At</A> this point a token is being accumulated, and an even number
+of <i>multiple escape</i> characters have been encountered.)
+If at end of file, go to step <A HREF="node188.html#READERTOKENEND">10</A>.
+Otherwise, read a character (call it <i>y</i>), and
+perform one of the following actions according to its syntactic type:<p>
+<UL><LI>
+If <i>y</i> is a <i>constituent</i> or <i>non-terminating macro</i>,
+then do the following.
+<p>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+If <i>y</i> is a lowercase character, replace it with the
+corresponding uppercase character.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (READ-CASE-SENSITIVITY) <A NAME=20209>&#160;</A>  to introduce
+<tt>readtable-case</tt>.  Consequently, the preceding sentence
+should be ignored.  The case of <i>y</i> should not be altered; instead,
+<i>y</i> should be regarded as replaceable.
+<P>
+Append <i>y</i> to the token being built,
+and repeat step <A HREF="node188.html#READERPLAINTOKEN">8</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<LI>
+If <i>y</i> is a <i>single escape</i> character, then read the next character
+and call it <i>z</i>
+(but if at end of file, signal an error instead).
+Ignore the usual syntax of <i>z</i>
+and pretend it is a <i>constituent</i> whose only attribute is
+<i>alphabetic</i>.
+<p>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+(If <i>z</i> is a lowercase character, leave it alone;
+do not replace it with the corresponding uppercase character.)
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+For the purposes of <tt>readtable-case</tt>, <i>z</i> is not replaceable.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+Append <i>z</i> to the token being built,
+and repeat step <A HREF="node188.html#READERPLAINTOKEN">8</A>.
+<P>
+<LI>
+If <i>y</i> is a <i>multiple escape</i> character,
+then go to step <A HREF="node188.html#READERMULTITOKEN">9</A>.
+<P>
+<LI>
+If <i>y</i> is an <i>illegal</i> character, signal an error.
+<P>
+<LI>
+If <i>y</i> is a <i>terminating macro</i> character, it terminates
+the token.  First ``unread'' the character <i>y</i>
+(see <tt>unread-char</tt>), then go to step <A HREF="node188.html#READERTOKENEND">10</A>.
+<P>
+<LI>
+If <i>y</i> is a <i>whitespace</i> character, it terminates
+the token.  First ``unread'' <i>y</i>
+if appropriate (see <tt>read-preserving-whitespace</tt>),
+then go to step <A HREF="node188.html#READERTOKENEND">10</A>.
+</UL>
+<P>
+<LI>
+(<A NAME=READERMULTITOKEN>At</A> this point a token is being accumulated, and an odd number
+of <i>multiple escape</i> characters have been encountered.)
+If at end of file, signal an error.
+Otherwise, read a character (call it <i>y</i>), and
+perform one of the following actions according to its syntactic type:<p>
+<UL><LI>
+If <i>y</i> is a <i>constituent</i>, <i>macro</i>, or <i>whitespace</i>
+character, then ignore the usual syntax of that character
+and pretend it is a <i>constituent</i> whose only attribute is
+<i>alphabetic</i>.
+<p>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+(If <i>y</i> is a lowercase character, leave it alone;
+do not replace it with the corresponding uppercase character.)
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+For the purposes of <tt>readtable-case</tt>, <i>y</i> is not replaceable.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+Append <i>y</i> to the token being built,
+and repeat step <A HREF="node188.html#READERMULTITOKEN">9</A>.
+<P>
+<LI>
+If <i>y</i> is a <i>single escape</i> character, then read the next character
+and call it <i>z</i>
+(but if at end of file, signal an error instead).
+Ignore the usual syntax of <i>z</i>
+and pretend it is a <i>constituent</i> whose only attribute is
+<i>alphabetic</i>.
+<p>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+(If <i>z</i> is a lowercase character, leave it alone;
+do not replace it with the corresponding uppercase character.)
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+For the purposes of <tt>readtable-case</tt>, <i>z</i> is not replaceable.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+Append <i>z</i> to the token being built,
+and repeat step <A HREF="node188.html#READERMULTITOKEN">9</A>.
+<P>
+<LI>
+If <i>y</i> is a <i>multiple escape</i> character,
+then go to step <A HREF="node188.html#READERPLAINTOKEN">8</A>.
+<P>
+<LI>
+If <i>y</i> is an <i>illegal</i> character, signal an error.
+</UL>
+<P>
+<LI>
+<A NAME=READERTOKENEND>An</A> entire token has been accumulated.
+<p>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (READ-CASE-SENSITIVITY) <A NAME=20288>&#160;</A>  to introduce
+<tt>readtable-case</tt>.  If the accumulated token
+is to be interpreted as a symbol, any case conversion of replaceable
+characters should be performed at this point according to the value
+of the <tt>readtable-case</tt> slot of the current readtable (the value
+of <tt>*readtable*</tt>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+Interpret the token as representing
+a Lisp object and return that object as the result
+of the read operation, or signal an error if the token
+is not of legal syntax.
+<p>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (CHARACTER-PROPOSAL) <A NAME=20294>&#160;</A> 
+to specify that implementation-defined
+attributes may be removed from the characters of a symbol token
+when constructing the print name.
+It is implementation-dependent which attributes are removed.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+
+</OL>
+As a rule, a <i>single escape</i> character never stands for itself but always
+serves to cause the following character to be treated as a simple alphabetic
+character.  A <i>single escape</i> character can be included in a token only
+if preceded by another <i>single escape</i> character.
+<P>
+A <i>multiple escape</i> character also never stands for itself.  The characters
+between a pair of <i>multiple escape</i> characters are all treated as
+simple alphabetic characters, except that <i>single escape</i> and
+<i>multiple escape</i> characters must nevertheless be preceded by
+a <i>single escape</i> character to be included.
+<P>
+<hr>
+<b>Compatibility note:</b> In MacLisp, the <tt>|</tt> character is implemented
+as a macro character that reads characters up to the next unescaped
+<tt>|</tt> and then makes a token; no characters are ever read beyond
+the second <tt>|</tt> of a matching pair.
+In Common Lisp, the second <tt>|</tt> does not terminate the token being read
+but merely reverts to the ordinary (rather than multiple-escape) mode
+of token accumulation.  This results in some differences in the way
+certain character sequences are interpreted.  For example,
+the sequence <tt>|foo||bar|</tt> would be read in MacLisp
+as two distinct tokens, <tt>|foo|</tt> and <tt>|bar|</tt>, whereas in Common Lisp
+it would be treated as a single token equivalent to <tt>|foobar|</tt>.
+The sequence <tt>|foo|bar|baz|</tt> would be read in MacLisp
+as three distinct tokens, <tt>|foo|</tt>, <tt>bar</tt>, and <tt>|baz|</tt>, whereas in Common Lisp
+it would be treated as a single token equivalent to <tt>|fooBARbaz|</tt>;
+note that the middle three lowercase letters are converted to
+uppercase letters as they
+do not fall within a matching pair of vertical bars.
+<P>
+One reason for the different treatment of <tt>|</tt> in Common Lisp lies
+in the syntax for package-qualified symbol names.  A sequence such as
+<tt>|foo:bar|</tt> ought to be interpreted as a symbol whose name is
+<tt>foo:bar</tt>; the colon should be treated as a simple alphabetic
+character because it lies within a pair of vertical bars.  The symbol
+<tt>|bar|</tt> within the package <tt>|foo|</tt> can be notated not as <tt>|foo:bar|</tt>
+but as <tt>|foo|:|bar|</tt>; the colon can serve as a package marker because
+it falls outside the vertical bars, and yet the notation is treated as a single
+token thanks to the new rules adopted in Common Lisp.
+<P>
+In MacLisp, the parentheses are treated as
+additional character types.  In Common Lisp they are simply <i>macro</i> characters,
+as described in section <A HREF="node190.html#MACROCHARACTERSSECTION">22.1.3</A>.
+<P>
+What MacLisp calls ``single character objects''
+(tokens of type <i>single</i>) are not provided for explicitly in Common Lisp.
+They can be viewed as simply a kind of macro character.
+That is, the effect of
+<P><pre>
+(setsyntax '$ 'single <tt>nil</tt>) 
+(setsyntax '% 'single <tt>nil</tt>)
+</pre><P>
+in MacLisp can be achieved in Common Lisp by
+<P><pre>
+(defun single-macro-character (stream char) 
+  (declare (ignore stream)) 
+  (intern (string char))) 
+(set-macro-character '$ #'single-macro-character) 
+(set-macro-character '% #'single-macro-character)
+</pre><P>
+<hr>
+<P>
+<BR> <HR><A NAME=tex2html3891 HREF="node189.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3889 HREF="node187.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3883 HREF="node187.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3893 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3894 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3892 HREF="node189.html"> Parsing of Numbers </A>
+<B>Up:</B> <A NAME=tex2html3890 HREF="node187.html"> Printed Representation of </A>
+<B> Previous:</B> <A NAME=tex2html3884 HREF="node187.html"> Printed Representation of </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

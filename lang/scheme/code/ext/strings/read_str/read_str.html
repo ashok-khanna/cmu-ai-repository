@@ -1,0 +1,70 @@
+;;; Many Scheme systems provide a function called
+;;; (read-string [input-port]) or
+;;; (read-line   [input-port])
+;;; which reads a line of text (terminated by a #\Newline) from the
+;;; given port (which defaults to the current input port, like all
+;;; other Scheme input commands) and returns it as a string.
+;;; If the end of the port is reached before a #\Newline has been
+;;; read, an end of file object is returned (however many characters
+;;; may have been read before the end of port was reached).
+;;; This file was written to help me port programs between several
+;;; dialects of Scheme, and uses no operations or constants that are
+;;; not defined in the standard.
+;;; 
+;;; (read-chars  [input-port])
+;;; is just like read-string, except that it returns its result as a
+;;; list of character codes.  It exists for two reasons:
+;;; (1) the portable implementation of read-string/read-line was
+;;; already building such a list internally;
+;;; (2) the operation is useful in its own right.
+
+(define (read-chars-aux port fn)
+    (let ((c (read-char port)))
+	(if (eof-object? c)
+	    c
+	    (if (eq? c #\Newline)
+		(fn '())
+		(let ((chars (list c)))
+		    (let loop ((end chars))
+			(let ((c (read-char port)))
+			    (if (eof-object? c)
+				c
+				(if (eq? c #\newline)
+				    (fn chars)
+				    (begin
+					(set-cdr! end (list c))
+					(loop (cdr end)) )) )) )) )) ))
+
+(define (read-chars . rest)
+    (read-chars-aux
+	(if (pair? rest) (car rest) (current-input-port))
+	(lambda (chars) chars)))
+
+(define (read-string . rest)
+    (read-chars-aux
+	(if (pair? rest) (car rest) (current-input-port))
+	list->string))
+
+(define (read-line . rest)
+    (read-chars-aux
+	(if (pair? rest) (car rest) (current-input-port))
+	list->string))
+
+;;; If you already have read-string, you can
+;(define read-line read-string)
+;;; If you already have read-line, you can
+;(define read-string read-line)
+;;; If you already have read-line or read-string, you can
+;(define (read-chars . rest)
+;    (let ((string (read-string
+;		      (if (pair? rest) (car rest) (current-input-port)))))
+;	(if (eof-object? string) string (string->list string))))
+
+;;; Here is a little test function.
+(define (read-until-empty-line)
+    (let loop ((strings '()))
+	(let ((string (read-string)))
+	    (if (or (eof-object? string) (equal? string ""))
+		(reverse! strings)
+		(loop (cons string strings)) )) ))
+

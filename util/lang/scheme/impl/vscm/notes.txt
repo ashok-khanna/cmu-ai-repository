@@ -1,0 +1,101 @@
+Article 8421 of comp.lang.scheme:
+Xref: glinda.oz.cs.cmu.edu comp.lang.scheme:8421
+Newsgroups: comp.lang.scheme
+Path: honeydew.srv.cs.cmu.edu!fs7.ece.cmu.edu!europa.eng.gtefsd.com!howland.reston.ans.net!newsserver.jvnc.net!nntpserver.pppl.gov!princeton!nimaster.princeton.edu!blume
+From: blume@tyrolia.cs.princeton.edu (Matthias Blume)
+Subject: Re: Engines & Other Threading Systems
+In-Reply-To: flan@wheezer.wustl.edu's message of 9 Mar 1994 22:33:56 GMT
+Message-ID: <BLUME.94Mar9195444@tyrolia.cs.princeton.edu>
+Originator: news@nimaster
+Sender: news@Princeton.EDU (USENET News System)
+Nntp-Posting-Host: tyrolia.princeton.edu
+Organization: Princeton University
+References: <2llisk$lmu@wuacn.wustl.edu>
+Date: Thu, 10 Mar 1994 00:54:44 GMT
+Lines: 83
+
+
+(This might arrive twice on some sites -- sorry about that!)
+
+VSCM has built-in procedures for creating and managing coroutines.
+Furthermore, there is support for asynchronous timer interrupts.  Even
+though I don't think it has already been done I'm pretty sure that it
+is easy to build engines out of those primitives.
+
+Strictly speaking it is not even necessary to have built-in coroutines
+since those can easily be implemented on top of call/cc.  (VSCM also
+has a very efficient call/cc mechanism, with an O(1) complexity for
+both continuation capture (call/cc) and context switch (continuation
+invocation).)  Having an asynchronous timer and a facility to handle
+timer interrupts should be sufficient in itself.
+
+The latest version of VSCM can be obtained per anonymous ftp from
+
+	ftp://nexus.yorku.ca/pub/scheme/imp/vscmV0r2.tar.Z
+	(aka nexus.yorku.ca:/pub/scheme/imp/vscmV0r2.tar.Z)
+
+Warning: I was told that the Scheme repository (i.e. the ftp location
+mentioned above) will move in the near future (in fact: right now).
+The Scheme repository is mirrored by several other ftp servers around
+the world.
+
+---
+
+A short description of engine-related features offered by VSCM
+(A (sort of) complete description of all extra features comes with the
+distribution and can also be found on the World Wide Web:
+
+	http://www.cs.princeton.edu/grad/Matthias_Blume/vscm.html
+
+):
+
+;;
+;; Timer...
+;;
+
+(timer [ticks])
+
+	- always returns the number of ticks left in the timer
+	- ``(timer 0)'' turns off the timer
+	- ``(timer n)'' with ``n'' being an exact integer > 0 sets the
+	  number of ticks in the timer to ``n''
+
+	- the timer turns off itself upon expiration
+	- it is an error for the timer to expire with no ``timer expiration
+	  handler'' defined in the current context
+
+(with-timer-expiration-handler handler thunk)
+
+	- both arguments are procedures of 0 arguments
+	- ``thunk'' will be called and when the timer expires ``(handler)''
+	  will run
+	- the computation of ``(thunk)'' resumes when ``handler'' returns
+
+;;
+;; Coroutines...
+;;
+
+(cr-create proc)
+
+	- returns a new coroutine object
+	- ``proc'' is a procedure of one argument, defining the body of the
+	  new coroutine
+	- its argument will be supplied by the first ``cr-transfer''
+	  to the newly created coroutine
+
+(cr-transfer coroutine obj)
+
+	- transfers control to ``coroutine''
+	- ``obj'' is supplied to ``coroutine'' as the return value of
+	  the most recent ``cr-transfer'' which was executed in the body
+	  of ``coroutine'' or as the argument to ``proc'' (see ``cr-create'')
+	- the active coroutine is implicitly suspended
+
+(cr-self)
+
+	- returns the coroutine object associated with the active coroutine
+
+--
+-Matthias
+
+

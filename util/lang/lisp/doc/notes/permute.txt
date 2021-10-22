@@ -1,0 +1,292 @@
+From kris.wbst129@xerox.com Thu May 19 13:22:54 EDT 1994
+Article: 12774 of comp.lang.lisp
+Xref: glinda.oz.cs.cmu.edu comp.lang.lisp:12774
+Newsgroups: comp.lang.lisp
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!newsfeed.pitt.edu!gatech!howland.reston.ans.net!usc!nic-nac.CSU.net!charnel.ecst.csuchico.edu!olivea!decwrl!parc!rocksanne!kris
+From: kris%.wbst129@xerox.com (Kris A. Schneider)
+Subject: Efficient way to generate permutations?
+Message-ID: <1994May11.205732.19694@news.wrc.xerox.com>
+Sender: news@news.wrc.xerox.com
+Reply-To: kris.wbst129@xerox.com
+Organization: Xerox
+X-Newsreader: TIN [version 1.2 PL1]
+Date: Wed, 11 May 1994 20:57:32 GMT
+Lines: 33
+
+Hi all,
+
+I'm currently using something like the following code to generate a
+permutation of *N* integers (1 through *N* inclusive) in an *N*-length array:
+
+(defconstant *N* 100)
+(defvar *PERM* (make-array *N* :initial-element 0)
+	"Array to hold permutation")
+(defvar *CHECK* (make-array *N* :initial-element 0)
+	"Flags to check if a number has already been generated")
+
+(defun permute ()
+  (dotimes (i *N*)
+    (let ((j (do ((r (1+ (random *N*)) (1+ (random *N*))))
+                 ((zerop (aref *CHECK* (1- r))) r))))
+      (setf (aref *CHECK* (1- j)) 1)
+      (setf (aref *PERM* i) j))))
+
+The do loop that eventually returns a value to bind to "j" keeps generating
+random numbers until it finds one that hasn't been generated yet.  The
+appropriate "flag" is then set in the *CHECK* array and the number is added to
+the permutation (the array *PERM*).  The whole do loop construct strikes me as
+overkill, so I'm curious if anyone has a more effecient approach?  Thanks for
+any suggestions.
+
+
+Kris A. Schneider
+---------------------------------------------------------------------
+Net			  Xerox			   800 Phillips Rd.
+  kris.wbst129@xerox.com    Kris:Wbst129:Xerox	   Xerox Corp.
+  716.422.5013		    8*222-5013 (x25013)	   Mail Stop: 129-39A
+						   Webster, NY 14580
+---------------------------------------------------------------------
+
+
+Article 12779 of comp.lang.lisp:
+Xref: glinda.oz.cs.cmu.edu comp.lang.lisp:12779
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!newsfeed.pitt.edu!gatech!swrinde!cs.utexas.edu!usc!nic-nac.CSU.net!charnel.ecst.csuchico.edu!olivea!koriel!news2me.EBay.Sun.COM!cronkite.Central.Sun.COM!sixgun.East.Sun.COM!brinkley.East.Sun.COM!dr-pepper.East.Sun.COM!eastnews!pnorvig
+From: pnorvig@norvig.eastnews (Peter Norvig)
+Newsgroups: comp.lang.lisp
+Subject: Re: Efficient way to generate permutations?
+Date: 12 May 1994 13:53:49 GMT
+Organization: Sun Microsystems Laboratories Inc.
+Lines: 5
+Message-ID: <PNORVIG.94May12095349@norvig.eastnews>
+References: <1994May11.205732.19694@news.wrc.xerox.com>
+NNTP-Posting-Host: norvig.east.sun.com
+In-reply-to: kris%.wbst129@xerox.com's message of Wed, 11 May 1994 20:57:32 GMT
+
+
+(defun permute (vector)
+  (loop for i from (length vector) downto 1 do
+    (rotatef (aref vector (- i 1)) (aref vector (random i))))
+  vector)
+
+
+Article 12780 of comp.lang.lisp:
+Xref: glinda.oz.cs.cmu.edu comp.lang.lisp:12780
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!newsfeed.pitt.edu!gatech!howland.reston.ans.net!xlink.net!sbusol.rz.uni-sb.de!sbusol.rz.uni-sb.de!usenet
+From: nesmith@cs.uni-sb.de (Daniel Nesmith)
+Newsgroups: comp.lang.lisp
+Subject: Re: Efficient way to generate permutations?
+Date: 12 May 1994 21:14:18 GMT
+Organization: CS Department, University of the Saarland
+Lines: 44
+Distribution: world
+Message-ID: <2qu67aINNc6t@sbusol.rz.uni-sb.de>
+References: <1994May11.205732.19694@news.wrc.xerox.com>
+Reply-To: nesmith@cs.uni-sb.de
+NNTP-Posting-Host: js-sfbslc10.cs.uni-sb.de
+
+I would be inclined to do something like the following.  ALL-PERMUTATIONS will
+compute all permutations (here represented as lists), while RANDOM-PERMUTATION
+will return a single random permutation.
+
+
+(defun all-permutations (n)
+  "Returns a list of all permutations of the integers 1 .. N.  Each
+permutation is represented as a list. N must be an integer greater than 0."
+  (if (= n 1)
+      (list (list 1))
+    (let ((other-permutes
+	  (all-permutations (1- n))))
+      ;; for each permutation of 1 .. n-1, stick n in at all possible
+      ;; places 
+      (mapcan
+	#'(lambda (seq)
+           (let ((res-list nil))
+             (dotimes (i n res-list)
+	       (push 
+		 (nconc (subseq seq 0 i)
+			(cons n
+		              (subseq seq i)))
+		 res-list))))
+	other-permutes))))
+
+(defun random-permutation (n)
+  "Returns a list of the integers 1 .. N in some random permutation. 
+N must be an integer greater than 0."
+  (if (= n 1)
+      (list 1)
+    (let ((other-permute
+	   (random-permutation (1- n)))
+	  (i (random n)))
+      ;; stick N in just before the I'th elt of OTHER-PERMUTE
+      (if (zerop i)
+          (cons n other-permute)
+	(let ((spot (nthcdr (1- i) other-permute)))
+          (setf (cdr spot) (cons n (cdr spot)))
+          other-permute)))))
+
+Dan
+
+
+
+
+
+Article 12836 of comp.lang.lisp:
+Xref: glinda.oz.cs.cmu.edu comp.lang.lisp:12836
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!godot.cc.duq.edu!news.duke.edu!convex!cs.utexas.edu!swrinde!ihnp4.ucsd.edu!library.ucla.edu!galaxy.ucr.edu!valiant!wilbur
+From: wilbur@valiant.ucr.edu (Wilhelm Burger)
+Newsgroups: comp.lang.lisp
+Subject: Re: Efficient way to generate permutations?
+Date: 17 May 1994 22:01:38 GMT
+Organization: University of California, Riverside (Visualization and Intelligent Systems Laboratory)
+Lines: 98
+Message-ID: <2rbes2$6hn@galaxy.ucr.edu>
+References: <1994May11.205732.19694@news.wrc.xerox.com> <2qu67aINNc6t@sbusol.rz.uni-sb.de>
+NNTP-Posting-Host: valiant.ucr.edu
+
+
+Hi,
+    Here is what I did some time back to go through *all* permutations 
+efficiently. Please keep me updated on other solutions.
+
+Good luck and best regards,
+Wilhelm.
+
+
+
+;;;-----------------------------------------------------------------------------
+;;; Author: Wilhelm Burger (wilbur@constitution.ucr.edu)
+;;;-----------------------------------------------------------------------------
+
+(in-package 'user)
+
+(defun make-permutation-vector (n)
+    (let ((perm (make-array n :element-type 'fixnum
+        :initial-contents
+             (loop for i from 0 to (1- n) collect i))))
+      perm))
+
+(defmacro swap-elements (vector i j)
+    `(setf (aref ,vector ,i)
+        (prog1 
+          (aref ,vector ,j) 
+          (setf (aref ,vector ,j) (aref ,vector ,i))))
+)
+
+(defun next-permutation (in-perm &optional data-vector)
+  (declare (type (simple-array fixnum (*)) in-perm))
+    ;in-perm is an integer vector
+    (let* ((n (1- (length in-perm)))     ;n ... max.index
+           (i (1- n)) (first nil))
+        (declare (fixnum i n))
+      (setq i
+        (do ((ii (1- n) (1- ii)))
+            ((or (< ii 0) (<= (aref in-perm ii) (aref in-perm (1+ ii)))) ii)
+           (declare (fixnum ii))))
+
+      (setq first (< i 0))
+
+      (do ((j (1+ i) (1+ j))
+           (k n (1- k)))
+          ((>= j k) j) 
+          (declare (fixnum j k))
+          (swap-elements in-perm j k)
+          (when data-vector (swap-elements data-vector j k)))
+
+      (unless first
+        (let ((j
+           (do ((jj (1+ i) (1+ jj)))
+               ((>= (aref in-perm jj) (aref in-perm i)) jj)
+              (declare (fixnum jj)))))
+          (declare (fixnum j))
+          (swap-elements in-perm i j)
+          (when data-vector (swap-elements data-vector i j))))
+      (values in-perm first))
+)
+
+
+;;;-----------------------------------------------------------------------------
+
+(defmacro with-permutations ((data-vector &optional permutation-var iteration-var)
+    &rest body)
+    ;; data-vector is the vector to be permuted - it is destructively used
+    ;;   but returned in the original order
+    ;; permutation-var can be used to access the current permutation vector
+    ;; iteration-var can be used to access the current permutation number
+    (let ((permv (or permutation-var (gensym "permv")))
+          (iterv (or iteration-var (gensym "iterv")))
+          (dvsym (gensym "dv"))
+          (nsym (gensym "n")))
+      `(let*
+         ((,dvsym ,data-vector)
+          (,nsym (length ,dvsym))
+          (,permv (make-array ,nsym :element-type 'fixnum
+              :initial-contents
+                (loop for i from 0 to (1- ,nsym) collect i))))
+         (do ((_done nil) (,iterv 0 (1+ ,iterv))) (_done ,iterv)
+
+           ,@body
+           (multiple-value-setq (,permv _done)
+              (next-permutation ,permv ,dvsym))
+           )))
+)
+
+
+
+#|
+(let ((pv (make-permutation-vector 4))
+      (*print-array* t))
+    (with-permutations (pv) 
+        (print pv)))
+|#
+-- 
+W. Burger, College of Engineering, Univ. of California, Riverside
+Email: wilbur@constitution.ucr.edu    Tel: (909) 787-2299 or 6383
+
+
+Article 12866 of comp.lang.lisp:
+Xref: glinda.oz.cs.cmu.edu comp.lang.lisp:12866
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!godot.cc.duq.edu!news.duke.edu!MathWorks.Com!news2.near.net!info-server.bbn.com!news
+From: chyde@bbn.com
+Newsgroups: comp.lang.lisp
+Subject: RE: Efficient way to generate permutations?
+Date: 20 May 1994 19:27:05 GMT
+Organization: Bolt, Beranek and Newman Inc.
+Lines: 31
+Message-ID: <2rj2u9$59s@info-server.bbn.com>
+Reply-To: chyde@bbn.com
+NNTP-Posting-Host: exploder.bbn.com
+In-reply-to: <2qu67aINNc6t@sbusol.rz.uni-sb.de>
+
+of course, Peter N's way was interestingly elegant...here's a different
+way: make a list of N integers (or an array and just use the indices)
+
+randomly select an element of the list and push it onto a new list,
+removing it from the old list. loop until original list is empty.
+
+I suspect that there's something wrong with this as you get close to the
+end, having to do with the randomness decreasing, but maybe not...
+
+(let ((n 10)
+      (start)
+      j
+      (result ()))
+  (dotimes (i N)
+    (push i start))
+  (dotimes (i N)
+    (setq j (random (- N i)))
+    (push (elt start j) result)
+    (setq start (remove (elt start j) start))
+    )
+  (print result)
+  )
+
+the effect you want to get is sort of the opposite of a SORT, so it
+might be that an UNSORT mechanism is the right thing, which seems to
+feel like Peter's example...
+
+ -- clint
+
+
+
+
+

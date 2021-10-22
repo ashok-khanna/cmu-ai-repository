@@ -1,0 +1,2219 @@
+#
+# This file contains context diffs between xlispstat versions 2.1R1 and
+# 2.1R2. To apply these diffs to a vanilla 2.1R1 distribution, 
+# 
+#	1) cd to the root of the 2.1R1 distribution
+#	2) save this file as diffs2.1R1-2.1R2, say
+#	3) run `patch -p0 < diffs2.1R1-2.1R2'
+#
+# If you do not have the patch program, you can obtain it by anonymous ftp
+# from prep.ai.mit.edu in directory pub/gnu or from other ftp servers that
+# provide gnu software
+#
+Common subdirectories: /NOKOMIS/users/luke/working/xlispstat2.1R1/Data and ./Data
+Common subdirectories: /NOKOMIS/users/luke/working/xlispstat2.1R1/Examples and ./Examples
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/Makefile ./Makefile
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/Makefile	Wed Sep 12 09:36:30 1990
+--- ./Makefile	Mon Feb 11 19:11:48 1991
+***************
+*** 28,38 ****
+  ##############################################################################
+  ##############################################################################
+  # User Compiler Flags
+! # Use DYNLOAD for dynamic loading on BSD systems
+  
+  UCFLAGS = -O -f68881
+  ULDFLAGS = -f68881
+- ULDRFLAGS =
+  CC=cc
+  LD=ld
+  
+--- 28,38 ----
+  ##############################################################################
+  ##############################################################################
+  # User Compiler Flags
+! # Add a -I directive if the X11 include files are not in a standard place
+! # For Sun's OpenLook, for example, add -I/usr/openwin/include
+  
+  UCFLAGS = -O -f68881
+  ULDFLAGS = -f68881
+  CC=cc
+  LD=ld
+  
+***************
+*** 59,65 ****
+  
+  ##############################################################################
+  ##############################################################################
+! # Directory to sarch for X11 libraries (libX11.a, etc.)
+  X11LIBDIR=/usr/local/lib
+  
+  ###############################################################################
+--- 59,66 ----
+  
+  ##############################################################################
+  ##############################################################################
+! # Directory to search for X11 libraries (libX11.a, etc.)
+! 
+  X11LIBDIR=/usr/local/lib
+  
+  ###############################################################################
+***************
+*** 73,81 ****
+  CFLAGS = -DUNIX -D${GRAPHSYS} ${UCFLAGS} ${FOREIGN_FLAG}
+  LIBS = ${EXTRALIBS} -lm
+  LDFLAGS = ${ULDFLAGS}
+- LDRFLAGS = ${ULDRFLAGS}
+  
+- 
+  OSOBJS = xsdynload.o xssystem.o
+  
+  XLISPOBJS = xlbfun.o xlcont.o xldbug.o xldmem.o \
+--- 74,80 ----
+***************
+*** 109,116 ****
+  BASICOBJS = ${OSOBJS} ${XLISPOBJS} ${COMMONOBJS} ${STATOBJS} ${DISTOBJS} \
+  	${LINALGOBJS} ${GRAFOBJS} ${BAYESOBJS}
+  
+! OBJS = ${BASICOBJS} ${GRAPHSYS}.o ${EXTRAOBJS}
+  
+  LISPFILES = init.lsp common.lsp help.lsp objects.lsp statistics.lsp \
+  	dialogs.lsp graphics.lsp graphics2.lsp graphics3.lsp regression.lsp \
+  	oneway.lsp nonlin.lsp maximize.lsp bayes.lsp step.lsp autoload.lsp \
+--- 108,124 ----
+  BASICOBJS = ${OSOBJS} ${XLISPOBJS} ${COMMONOBJS} ${STATOBJS} ${DISTOBJS} \
+  	${LINALGOBJS} ${GRAFOBJS} ${BAYESOBJS}
+  
+! OBJS = ${BASICOBJS} ${EXTRAOBJS}
+  
++ GNUPLOTOBJS = unixstuff.o dummygraph.o
++ 
++ SUNOBJS = sunstuff.o sungraphwin.o sunresizebr.o sunwindows.o \
++ 	sundialogs.o sunmenus.o
++ 
++ X11WINDOWSOBJS = X11BSDstuff.o X11graph.o X11menus.o X11dialogs.o \
++ 	X11buttons.o X11text.o X11toggle.o X11choice.o X11slider.o \
++ 	X11listitem.o X11resizebr.o X11scroll.o
++ 
+  LISPFILES = init.lsp common.lsp help.lsp objects.lsp statistics.lsp \
+  	dialogs.lsp graphics.lsp graphics2.lsp graphics3.lsp regression.lsp \
+  	oneway.lsp nonlin.lsp maximize.lsp bayes.lsp step.lsp autoload.lsp \
+***************
+*** 139,147 ****
+  	cp xlispstat ${BINDIR}
+  	cp sunxlisp X11xlisp ${XLISPLIB}
+  
+! xlisp:	${OBJS}
+! 	${CC} ${LDFLAGS} -o xlisp ${OBJS} ${LIBS}
+  
+  X11sun:	sun X11
+  	setup.shell xlispstat ${XLISPLIB} both
+  	chmod a+x xlispstat
+--- 147,168 ----
+  	cp xlispstat ${BINDIR}
+  	cp sunxlisp X11xlisp ${XLISPLIB}
+  
+! xlisp:	${GRAPHSYS}xlisp
+  
++ GNUPLOTxlisp:	${OBJS} ${GNUPLOTOBJS}
++ 	${CC} ${LDFLAGS} -o xlisp ${OBJS} ${GNUPLOTOBJS} ${LIBS}
++ 	touch GNUPLOTxlisp
++ 
++ SUNVIEWxlisp:	${OBJS} ${SUNOBJS}
++ 	${CC} ${LDFLAGS} -o xlisp ${OBJS} ${SUNOBJS} \
++ 	-lsuntool -lsunwindow -lpixrect ${LIBS}
++ 	touch SUNVIEWxlisp
++ 
++ X11WINDOWSxlisp:	${OBJS} ${X11WINDOWSOBJS}
++ 	${CC} ${LDFLAGS} -o xlisp ${OBJS} ${X11WINDOWSOBJS} \
++ 	-L${X11LIBDIR} -lX11 ${LIBS}
++ 	touch X11WINDOWSxlisp
++ 
+  X11sun:	sun X11
+  	setup.shell xlispstat ${XLISPLIB} both
+  	chmod a+x xlispstat
+***************
+*** 163,200 ****
+  	rm -f xlisp sunxlisp X11xlisp xlispstat
+  
+  
+! SUNOBJS = sunstuff.o sungraphwin.o sunresizebr.o sunwindows.o \
+! 	sundialogs.o sunmenus.o
+! 
+! SUNVIEW.o: ${SUNOBJS}
+! 	rm -f SUNVIEW.o
+! 	${LD} -r ${LDRFLAGS} -o SUNVIEW.o ${SUNOBJS} -lsuntool -lsunwindow -lpixrect
+! 
+  sunwindows.o: sunwindows.c xlisp.h windows.h
+  sundialogs.o: sundialogs.c xlisp.h dialogs.h
+  
+! sunstuff.o: sunstuff.c
+  	${CC} -c ${CFLAGS} -D${SUNOS} sunstuff.c
+  
+! 
+! GNUPLOTOBJS = unixstuff.o dummygraph.o
+! GNUPLOT.o: ${GNUPLOTOBJS}
+! 	rm -f GNUPLOT.o
+! 	${LD} -r ${LDRFLAGS} -o GNUPLOT.o ${GNUPLOTOBJS}
+! 
+! unixstuff.o: unixstuff.c xlisp.h version.h
+  graphics.o: graphics.c gnuplot.h xlisp.h
+  myplot.o: myplot.c gnuplot.h xlisp.h
+  term.o: term.c gnuplot.h xlisp.h
+  
+! 
+! X11WINDOWSOBJS = X11BSDstuff.o X11graph.o X11menus.o X11dialogs.o \
+! 	X11buttons.o X11text.o X11toggle.o X11choice.o X11slider.o \
+! 	X11listitem.o X11resizebr.o X11scroll.o
+! X11WINDOWS.o: ${X11WINDOWSOBJS}
+! 	rm -f X11WINDOWS.o
+! 	${LD} -r ${LDRFLAGS} -o X11WINDOWS.o -L${X11LIBDIR} ${X11WINDOWSOBJS} -lX11
+! 
+  X11BSDstuff.o: X11BSDstuff.c xlisp.h version.h
+  X11dialogs.o: X11dialogs.c xlisp.h dialogs.h
+  X11buttons.o: X11buttons.c xlisp.h dialogs.h
+--- 184,203 ----
+  	rm -f xlisp sunxlisp X11xlisp xlispstat
+  
+  
+! # More dependencies are needed here
+  sunwindows.o: sunwindows.c xlisp.h windows.h
++ sungraphwin.o: sungraphwin.c StGWWindow.h stmem.h
+  sundialogs.o: sundialogs.c xlisp.h dialogs.h
+  
+! sunstuff.o: sunstuff.c xlisp.h version.h
+  	${CC} -c ${CFLAGS} -D${SUNOS} sunstuff.c
+  
+! unixstuff.o: unixstuff.c xlisp.h version.h Makefile
+  graphics.o: graphics.c gnuplot.h xlisp.h
+  myplot.o: myplot.c gnuplot.h xlisp.h
+  term.o: term.c gnuplot.h xlisp.h
+  
+! X11graph.o: X11graph.c xlisp.h StGWWindow.h StX11options.h
+  X11BSDstuff.o: X11BSDstuff.c xlisp.h version.h
+  X11dialogs.o: X11dialogs.c xlisp.h dialogs.h
+  X11buttons.o: X11buttons.c xlisp.h dialogs.h
+***************
+*** 204,224 ****
+  X11slider.o: X11slider.c xlisp.h dialogs.h
+  X11listitem.o: X11listitem.c xlisp.h dialogs.h
+  
+- sungraphwin.o: sungraphwin.c StGWWindow.h stmem.h
+- sunstuff.o: sunstuff.c xlisp.h version.h
+- 
+- # More dependencies are needed here
+  xlisp.h: xldmem.h
+  xlisp.o: xlisp.c xlisp.h Makefile
+  xlftab.o: xlftab.c osdefs.h osptrs.h Makefile
+- unixstuff.o: unixstuff.c Makefile
+  statinit.o: statinit.c Makefile
+  iviewdata.o: iviewdata.c xlisp.h StGWWindow.h stmem.h
+  objectinit.o: objectinit.c xlisp.h Makefile
+  
+  foreign.h: machines/${MACHINE}/foreign.h Makefile
+  	cp machines/${MACHINE}/foreign.h .
+- 
+- xsdynload.o: xsdynload.c xlisp.h foreign.h Makefile
+- 
+- X11graph.o: X11graph.c xlisp.h StGWWindow.h StX11options.h
+--- 207,219 ----
+  X11slider.o: X11slider.c xlisp.h dialogs.h
+  X11listitem.o: X11listitem.c xlisp.h dialogs.h
+  
+  xlisp.h: xldmem.h
+  xlisp.o: xlisp.c xlisp.h Makefile
+  xlftab.o: xlftab.c osdefs.h osptrs.h Makefile
+  statinit.o: statinit.c Makefile
+  iviewdata.o: iviewdata.c xlisp.h StGWWindow.h stmem.h
+  objectinit.o: objectinit.c xlisp.h Makefile
++ xsdynload.o: xsdynload.c xlisp.h foreign.h Makefile
+  
+  foreign.h: machines/${MACHINE}/foreign.h Makefile
+  	cp machines/${MACHINE}/foreign.h .
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/README.2.1R2 ./README.2.1R2
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/README.2.1R2	Wed Feb 20 10:59:22 1991
+--- ./README.2.1R2	Wed Feb 20 09:31:45 1991
+***************
+*** 0 ****
+--- 1,83 ----
++ xlispstat2.1R2 incorporates some bug fixes and minor modifications.
++ The changed files are listed below. Patches for working around bugs
++ in the ULTRIX 4.0 servers and libraries have been incorporated, so
++ the separate ultrix patch is no longer needed.
++ 
++ Makefile		modified to no longer use ld -r (which ceased to work
++ 			properly with shared libraries on SunOS 4.1 and never
++ 			worked on the Cray XMP).
++ 
++ README.2.1R2		This file
++ 
++ RELEASE			Minor fixes and spelling corrections
++ 
++ StX11options.h		Added define for working around ULTRIX XDrawPoints bug
++ 
++ X11dialogs.c		Added XSync all to StX11DialogReset to drop pending
++ 			X events on an error reset
++ 
++ X11graph.c		Added code for working around ULTRIX bugs
++ 
++ X11listitem.c		Fixed bug in :set-text method for 2D lists
++ 
++ X11scroll.c		removed pointer grab to avoid freezing the screen if
++ 			the method goes into an infinite loop or the server
++ 			gets confused on queue overflow (may be a problem in
++ 			Sun's xnews server)
++ 
++ X11slider.c		removed pointer grab to avoid freezing the screen if
++ 			the method goes into an infinite loop or the server
++ 			gets confused on queue overflow (may be a problem in
++ 			Sun's xnews server)
++ 
++ X11text.c		Fixed bugs that could result in overestimate of text
++ 			field width
++ 
++ commonmath.c		Fixed rem function to match CL definition for neg. args
++ 			Added mod function (same as old version of rem)
++ 			Modified integer arithmetic to (hopefully) overflow to
++ 			floating point when necessary. This probably needs
++ 			more work but should do for now. If it does not work
++ 			on some systems you can define a preprocessor variable
++ 			to revert to the previous handling of integer 
++ 			arithmetic.
++ 
++ compound.c		fixed bug of intermediate results in arithmetic with
++ 			matrices or objects not being protected from GC
++ 
++ linalg.c		fixed bug of result of chol-decomp not being
++ 			protected from GC
++ 
++ math.c			added mod function
++ 
++ osdefs.h		added mod function
++ 
++ osptrs.h		added mod function
++ 
++ postscript.c		added BoundingBox comment to output (for psfig)
++ 
++ version.h		updated to reflect new release
++ 
++ xlisp.help		fixed incorrect argument info for list item :set-text
++ 			added mod help info
++ 
++ xlisp.help.small	added to the distribution
++ 
++ macintosh/macdialogs2.c	fixed bug that could cause overestimate of text field
++ 			width
++ 
++ machines/decstation	added directory
++ 
++ machines/decstation/README	added pointer to pmax directory (not everyone
++ 				is in on the pmax terminology!)
++ 
++ machines/pmax/README		added description of ULTRIX 4.0 X bug
++ 				workarounds
++ 
++ machines/pmax/StX11options.h	set up for use with ULTRIX 4.0/dxwm
++ 
++ machines/sun3/README		modified to reflect changes in Makefile
++ 				added info for use with openwin
++ 
++ machines/sun4/README		modified to reflect changes in Makefile
++ 				added info for use with openwin
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/RELEASE ./RELEASE
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/RELEASE	Thu Sep 13 08:21:53 1990
+--- ./RELEASE	Fri Feb  1 16:15:54 1991
+***************
+*** 23,30 ****
+  possible to customize menus, dialogs, and the way plots respond to
+  mouse actions.
+  
+! The UNIX version, which can be compiled without graphics, for X11
+! graphics, or for SunView graphics, is available by anonymous ftp from
+  
+  	umnstat.stat.umn.edu (128.101.51.1)
+  
+--- 23,31 ----
+  possible to customize menus, dialogs, and the way plots respond to
+  mouse actions.
+  
+! Source code for the UNIX version, which can be compiled without
+! graphics, for X11 graphics, or for SunView graphics, is available by
+! anonymous ftp from
+  
+  	umnstat.stat.umn.edu (128.101.51.1)
+  
+***************
+*** 31,37 ****
+  It is in the file xlispstat2.1R1.tar.Z in the directory pub/xlispstat.
+  (The version and release numbers will be updated as changes are
+  made/bugs are fixed).  This system has been compiled on a VAX, DEC
+! 3100 (pmax), Sun 3, Encore Multimax and Apollo 4500.
+  
+  The Macintosh version is also available by anonymous ftp from the
+  address given above. The Macintosh distribution consists of two parts,
+--- 32,39 ----
+  It is in the file xlispstat2.1R1.tar.Z in the directory pub/xlispstat.
+  (The version and release numbers will be updated as changes are
+  made/bugs are fixed).  This system has been compiled on a VAX, DEC
+! 3100 (pmax), Sun 3, Encore Multimax and (with a modified Makefile) a
+! Cray XMP.
+  
+  The Macintosh version is also available by anonymous ftp from the
+  address given above. The Macintosh distribution consists of two parts,
+***************
+*** 40,49 ****
+  	XLISP-STAT2.1R1.Disk1.sit.Hqx
+  	XLISP-STAT2.1R1.Disk2.sit.Hqx
+  
+! in the directory puxlispstat. These files contain archives created
+  with StuffIt 1.5.1 that have been binhexed with BinHex 4.0. The
+! Macintosh distribution includes two versions of the system, one foe
+! macs with a math coprocessor and one for generic macs.
+  
+  For reasonable operation the Mac version requires 2MB of memory. It
+  may be possible to use it on very small problems with only 1MB. The
+--- 42,52 ----
+  	XLISP-STAT2.1R1.Disk1.sit.Hqx
+  	XLISP-STAT2.1R1.Disk2.sit.Hqx
+  
+! in the directory pub/xlispstat. These files contain archives created
+  with StuffIt 1.5.1 that have been binhexed with BinHex 4.0. The
+! Macintosh distribution includes two versions of the system, one for
+! macs with a math coprocessor and one for generic macs. Source code for
+! the Macintosh version is included in the UNIX sources.
+  
+  For reasonable operation the Mac version requires 2MB of memory. It
+  may be possible to use it on very small problems with only 1MB. The
+***************
+*** 52,58 ****
+  A tutorial introduction to the system is available. It is written
+  primarily for the Macintosh version, but the differences to the UNIX
+  version are minor. The tutorial is available as a set of LaTeX files
+! in xlispstat.doc.tar.Z in the pub directory at the ftp address above.
+  
+  If you do not have access to anonymous ftp, you can obtain the source
+  code and documentation from the statlib archive. To find out how to do
+--- 55,62 ----
+  A tutorial introduction to the system is available. It is written
+  primarily for the Macintosh version, but the differences to the UNIX
+  version are minor. The tutorial is available as a set of LaTeX files
+! in xlispstat.doc.tar.Z in the directory pub/xlispstat at the ftp
+! address above.
+  
+  If you do not have access to anonymous ftp, you can obtain the source
+  code and documentation from the statlib archive. To find out how to do
+***************
+*** 79,85 ****
+  	luke@umnstat.stat.umn.edu
+  
+  
+! 			      COPYRIGHT
+  				   
+  ******************************************************************************
+  * XLISP-STAT 2.1 Copyright (c) 1990, by Luke Tierney
+--- 83,89 ----
+  	luke@umnstat.stat.umn.edu
+  
+  
+! 			COPYRIGHT INFORMATION
+  				   
+  ******************************************************************************
+  * XLISP-STAT 2.1 Copyright (c) 1990, by Luke Tierney
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/StX11options.h ./StX11options.h
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/StX11options.h	Tue Sep 11 06:46:47 1990
+--- ./StX11options.h	Sun Oct 14 09:59:41 1990
+***************
+*** 22,24 ****
+--- 22,31 ----
+  /* variable SERVER_COLOR_FREE_PROBLEM may help.                        */
+  
+  /* #define SERVER_COLOR_FREE_PROBLEM */
++ 
++ /* On Ultrix 4.0 there is a bug in the Xmfb server's handling of the   */
++ /* XDrawPoints request used in drawing fast symbols. To enable a       */
++ /* workaround define the preprocessor variable DRAWPOINTSBUG.          */
++ 
++ /* #define DRAWPOINTSBUG */
++ 
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/X11dialogs.c ./X11dialogs.c
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/X11dialogs.c	Thu Aug 16 10:27:03 1990
+--- ./X11dialogs.c	Wed Feb 20 09:31:45 1991
+***************
+*** 292,297 ****
+--- 292,298 ----
+    Display *dpy = StX11Display();
+  
+    XUngrabPointer(dpy, CurrentTime);
++   XSync(dpy, TRUE);
+  }
+  
+  /***********************************************************************/
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/X11graph.c ./X11graph.c
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/X11graph.c	Tue Sep 11 08:40:13 1990
+--- ./X11graph.c	Sun Oct 14 09:59:55 1990
+***************
+*** 1910,1915 ****
+--- 1910,1917 ----
+    fast_syms[17].black = sym17black;
+  }
+  
++ static XPoint tmpsym[SYMROWS * SYMROWS];
++ 
+  StGWSetSymRefCon(index, rc)
+  	unsigned int index;
+  	long rc;
+***************
+*** 1961,1966 ****
+--- 1963,1984 ----
+    }
+  }
+  
++ static set_tmpsym(sym, n, x, y)
++      XPoint *sym;
++      int n, x, y;
++ {
++   int i;
++ 
++   tmpsym[0].x = x;
++   tmpsym[0].y = y;
++   for (i = 1; i < n; i++) {
++     x += sym[i].x;
++     y += sym[i].y;
++     tmpsym[i].x = x;
++     tmpsym[i].y = y;
++   }
++ }
++ 
+  static cheat_syms(dpy, gwinfo, sym, x, y)
+       Display *dpy;
+       StGWWinInfo *gwinfo;
+***************
+*** 1998,2015 ****
+--- 2016,2047 ----
+      break;
+    default:
+      if (fast_syms[sym].nblack > 0) {
++ #ifdef DRAWPOINTSBUG
++       set_tmpsym(fast_syms[sym].black, fast_syms[sym].nblack,
++ 		 left + fast_syms[sym].bleft, top + fast_syms[sym].btop);
++       XDrawPoints(dpy, d, black_gc, tmpsym, fast_syms[sym].nblack,
++ 		  CoordModeOrigin);
++ #else
+        fast_syms[sym].black[0].x = left + fast_syms[sym].bleft;
+        fast_syms[sym].black[0].y = top + fast_syms[sym].btop;
+        XDrawPoints(dpy, d, black_gc, 
+  		  fast_syms[sym].black, fast_syms[sym].nblack,
+  		  CoordModePrevious);
++ #endif
+      }
+      if (fast_syms[sym].nwhite > 0) {
++ #ifdef DRAWPOINTSBUG
++       set_tmpsym(fast_syms[sym].white, fast_syms[sym].nwhite,
++ 		 left + fast_syms[sym].wleft, top + fast_syms[sym].wtop);
++       XDrawPoints(dpy, d, white_gc, tmpsym, fast_syms[sym].nwhite,
++ 		  CoordModeOrigin);
++ #else
+        fast_syms[sym].white[0].x = left + fast_syms[sym].wleft;
+        fast_syms[sym].white[0].y = top + fast_syms[sym].wtop;
+        XDrawPoints(dpy, d, white_gc, 
+  		  fast_syms[sym].white, fast_syms[sym].nwhite,
+  		  CoordModePrevious);
++ #endif
+      }
+    }
+  }
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/X11listitem.c ./X11listitem.c
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/X11listitem.c	Thu Aug 16 10:27:05 1990
+--- ./X11listitem.c	Fri Feb  1 16:15:56 1991
+***************
+*** 604,609 ****
+--- 604,618 ----
+       LVAL item, index;
+       char *text;
+  {
++ #ifdef DODO
++ /* 
++ 
++   this is not needed since the matrix in the internals is eq to the
++   one in the list-data slot already modified by the portable part of
++   the code.  Besides, this code is wrong since it permutes the intex
++   (as on the Mac).
++ 
++ */
+    LVAL internals, data;
+    Point p, ddims;
+    int i;
+***************
+*** 619,624 ****
+--- 628,634 ----
+    if (0 <= i && i < getsize(data))
+      setelement(data, i, cvstring(text));
+    else xlerror("index out of range", index);
++ #endif
+    draw_fields(item);
+  }
+  
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/X11scroll.c ./X11scroll.c
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/X11scroll.c	Thu Aug 16 10:27:06 1990
+--- ./X11scroll.c	Wed Feb 20 09:31:46 1991
+***************
+*** 68,75 ****
+--- 68,77 ----
+  	if (action != nil)
+  	  (*action)(object, s, 'M', report.xbutton.x, report.xbutton.y);
+  	XSync(dpy, FALSE);
++ #ifdef DODO
+  	XGrabPointer(dpy, s, TRUE, ButtonMotionMask,
+  		     GrabModeAsync, GrabModeAsync, s, None, CurrentTime);
++ #endif /* DODO */
+  
+  	x = report.xbutton.x;
+  	y = report.xbutton.y;
+***************
+*** 88,94 ****
+--- 90,98 ----
+  	    old_y = y;
+  	  }
+  	}
++ #ifdef DODO
+  	XUngrabPointer(dpy, CurrentTime);
++ #endif /* DODO */
+  	break;
+        }
+        break;
+***************
+*** 114,120 ****
+  
+    s = XCreateSimpleWindow(dpy, w, left, top, width, height, 1,
+  			  BlackPixel(dpy, screen), WhitePixel(dpy, screen));
+!   XSelectInput(dpy, s, ExposureMask | ButtonPressMask | ButtonReleaseMask);
+  
+    thumb = XCreateSimpleWindow(dpy, s, left, top, width, height, 0,
+  			      WhitePixel(dpy, screen), 
+--- 118,126 ----
+  
+    s = XCreateSimpleWindow(dpy, w, left, top, width, height, 1,
+  			  BlackPixel(dpy, screen), WhitePixel(dpy, screen));
+!   XSelectInput(dpy, s, 
+! 	       ExposureMask | ButtonMotionMask |
+! 	       ButtonPressMask | ButtonReleaseMask);
+  
+    thumb = XCreateSimpleWindow(dpy, s, left, top, width, height, 0,
+  			      WhitePixel(dpy, screen), 
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/X11slider.c ./X11slider.c
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/X11slider.c	Thu Aug 16 10:27:06 1990
+--- ./X11slider.c	Wed Feb 20 09:31:46 1991
+***************
+*** 133,141 ****
+--- 133,143 ----
+      val = low + x * (high - low);
+      val = max(low, min(val, high));
+      DialogScrollItemValue(item, TRUE, val);
++ #ifdef DODO
+      XGrabPointer(dpy, win, TRUE, ButtonMotionMask,
+                   GrabModeAsync, GrabModeAsync, win, 
+  		 DoubleArrowCursor, CurrentTime);
++ #endif /* DODO */
+      while (! done) {
+        XNextEvent(dpy, &report);
+        switch (report.type) {
+***************
+*** 152,158 ****
+--- 154,162 ----
+  	break;
+        }
+      }
++ #ifdef DODO
+      XUngrabPointer(dpy, CurrentTime);
++ #endif /* DODO */
+      send_message(item, sk_do_action);
+      XSync(dpy, FALSE);
+      break;
+***************
+*** 268,274 ****
+  			       dialog_border_width, 
+  			       DialogBorderColor, DialogC.back);
+    XSelectInput(dpy, slider, 
+! 	       ExposureMask | ButtonPressMask | ButtonReleaseMask);
+    XDefineCursor(dpy, slider, DoubleArrowCursor);
+  
+    button1 = XCreateSimpleWindow(dpy, slider, 
+--- 272,279 ----
+  			       dialog_border_width, 
+  			       DialogBorderColor, DialogC.back);
+    XSelectInput(dpy, slider, 
+! 	       ExposureMask | ButtonMotionMask | 
+! 	       ButtonPressMask | ButtonReleaseMask);
+    XDefineCursor(dpy, slider, DoubleArrowCursor);
+  
+    button1 = XCreateSimpleWindow(dpy, slider, 
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/X11text.c ./X11text.c
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/X11text.c	Thu Aug 16 10:27:06 1990
+--- ./X11text.c	Wed Feb  6 11:33:34 1991
+***************
+*** 68,73 ****
+--- 68,74 ----
+      *bp = '\0';
+      sz = DialogStringSize(buf);
+      w = max(w, sz.h);
++     if (*s == '\0') break;
+    }
+    return(w);
+  }
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/commonmath.c ./commonmath.c
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/commonmath.c	Thu Aug 16 10:27:10 1990
+--- ./commonmath.c	Tue Feb 12 15:08:17 1991
+***************
+*** 9,14 ****
+--- 9,55 ----
+  #include "xmath.h"
+  #include "statfloat.h"
+  
++ /*
++  * The stuff enclosed in NEWFIXARITH defines an attempt to provide
++  * extended precision by having integer arithmetic overflow into
++  * floating point when necessary. It is not true extended precision,
++  * since subsequent results that fit in the fixed point range are not
++  * demoted. The system assumes a FIXTYPE (C long) is 32 bits, and
++  * two's complement integer arithmetic. Systems with other sizes for 
++  * FIXTYPE may be handled by changing the definitions of
++  * MOST_NEGATIVE_FIX, MOST_POSITIVE_FIX and ROOT_BIG_FIX (which should
++  * be such that MOST_NEGATIVE_FIX = (-2 * ROOT_BIG_FIX * ROOT_BIG_FIX)
++  * is representable as a FIXTYPE). Changes can be made through the
++  * UCFLAGS in the Makefile or in statfloat.h.
++  *
++  * The system for handling addition and subtraction is adapted from
++  * kcl. It should slow these operations a little but not too much.
++  * Division only requires a check for -MOST_NEGATIVE_FIX / -1 (I think).
++  * The system used for multiplication is a hack. Some pretests are used
++  * to determine if the result will be representable as a FIXTYPE. If
++  * these tests fail, the result is computed in floating point and
++  * checked to see if it falls between MOST_NEGATIVE_FIX and
++  * MOST_POSITIVE_FIX compared. If so, then the result is an integer.
++  * Otherwise, the arguments are promoted to floating point and the
++  * result is re-computed in floating point. (If I got things right, the
++  * pretests should only fail if the result needs to be promoted or if
++  * the result would be equal to MOST_NEGATIVE_FIX.
++  */
++ 
++ #ifndef OLDFIXARITH
++ #define NEWFIXARITH
++ #endif
++ 
++ #ifdef NEWFIXARITH
++ #ifndef MOST_NEGATIVE_FIX
++ #define MOST_NEGATIVE_FIX -2147483648
++ #define MOST_POSITIVE_FIX  2147483647
++ #endif
++ #ifndef ROOT_BIG_FIX
++ #define ROOT_BIG_FIX 32768
++ #endif
++ #endif
++ 
+  /* external variables */
+  extern LVAL true;
+  
+***************
+*** 150,155 ****
+--- 191,296 ----
+    xlerror("bad argument type", arg);
+  }
+  
++ #ifdef NEWFIXARITH
++ #define goodsum(a,b,c) (((a)==0)||(((a)>0)&&(((b)<0)||((c)>0)))||(((a)<0)&&(((b)>0)||((c)<0))))
++ #define gooddif(a,b,c) (((b)!=MOST_NEGATIVE_FIX)&&((a)==0)||(((a)>0)&&(((b)>0)||((c)>0)))||(((a)<0)&&(((b)<0)||((c)<0))))
++ #define smallfac(x) (((-ROOT_BIG_FIX<(x))&&((x)<ROOT_BIG_FIX)))
++ #endif
++ 
++ #ifdef NEWFIXARITH
++ static int_add(x, y, good)
++ 	FIXTYPE *x, *y;
++ 	int *good;
++ {
++   FIXTYPE temp;
++   
++   temp = *x + *y;
++   if (goodsum(*x, *y, temp)) {
++     *good = TRUE;
++ 	*x = temp;
++   }
++   else *good = FALSE;
++ }
++ 
++ static int_sub(x, y, good)
++ 	FIXTYPE *x, *y;
++ 	int *good;
++ {
++   FIXTYPE temp;
++   
++   temp = *x - *y;
++   if (gooddif(*x, *y, temp)) {
++     *good = TRUE;
++ 	*x = temp;
++   }
++   else *good = FALSE;
++ }
++ 
++ static int_mul(x, y, good)
++ 	FIXTYPE *x, *y;
++ 	int *good;
++ {    
++   FIXTYPE temp, xt, yt, c, d;
++   double ftemp;
++   int small_x, small_y, sgn;
++   
++   small_x = smallfac(*x);
++   small_y = smallfac(*y);
++   
++   /* handle cases where result is "obviously" going to be OK */
++   if (small_x && small_y) {
++     *x *= *y;
++     *good = TRUE;
++     return;
++   }
++   else if (small_x) {
++     temp = *y / (2 * ROOT_BIG_FIX);
++     temp = *x * temp;
++     if (smallfac(temp)) {
++       *x *= *y;
++       *good = TRUE;
++       return;
++     }
++   }
++   else if (small_y) {
++     temp = *x / (2 * ROOT_BIG_FIX);
++     temp = *y * temp;
++     if (smallfac(temp)) {
++       *x *= *y;
++       *good = TRUE;
++       return;
++     }
++   }
++   else {
++     sgn = ((*x < 0 && *y < 0) || (*x > 0 && *y > 0)) ? 1 : -1;
++     xt = (*x > 0) ? *x : -(*x);
++     yt = (*y > 0) ? *y : -(*y);
++     if (xt < 2 * ROOT_BIG_FIX && yt < 2 * ROOT_BIG_FIX) {
++       xt -= ROOT_BIG_FIX;
++       yt -= ROOT_BIG_FIX;
++       c = ROOT_BIG_FIX * (xt + yt);
++       d = xt * yt;
++       if (d < ((ROOT_BIG_FIX * ROOT_BIG_FIX) - c)) {
++         temp = (ROOT_BIG_FIX * ROOT_BIG_FIX) + c + d;
++ 	*x = (sgn == 1) ? temp : -temp;
++ 	*good = TRUE;
++ 	return;
++       }
++     }
++   }
++   
++   /* Drop through to here if none of the cases is matched. */
++   /* Should only happen on overflow and when result is     */
++   /* MOST_NEGATIVE_FIX                                     */
++   ftemp = ((double) *x) * ((double) *y);
++   if (MOST_NEGATIVE_FIX <= ftemp && ftemp <= MOST_POSITIVE_FIX) {
++     *x = ftemp;
++     *good = TRUE;
++   }
++   else *good = FALSE;
++ }
++ #endif /* NEWFIXARITH */
++ 
+  LVAL binary(which)
+  	int which;
+  {
+***************
+*** 157,162 ****
+--- 298,307 ----
+    Number val, arg;
+    FIXTYPE rtemp, itemp;
+    FLOTYPE frtemp, fitemp, magn;
++ #ifdef NEWFIXARITH
++   FIXTYPE temp;
++   int good;
++ #endif /* NEWFIXARITH */
+    
+    if (xlargc == 1 && (which == '-' || which == '/')) {
+      val.mode = IN;
+***************
+*** 172,200 ****
+--- 317,445 ----
+      switch (which) {
+      case '+':
+        switch (val.mode) {
++ #ifdef NEWFIXARITH
++       case IN:
++         int_add(&val.val, &arg.val, &good);
++         if (good) break;
++         /* else */
++         setmode(&val, FL);
++         setmode(&arg, FL);
++         /* drop through */
++ #else
+        case IN: val.val   += arg.val;  break;
++ #endif /* NEWFIXARITH */
+        case FL: val.fval  += arg.fval; break;
++ #ifdef NEWFIXARITH
++       case CI:
++ 	    rtemp = val.crval; itemp = val.cival;
++ 	    int_add(&rtemp, &arg.crval, &good);
++ 	    if (good) {
++ 	      int_add(&itemp, &arg.cival, &good);
++ 		  if (good) {
++ 	        val.crval = rtemp;
++ 	        val.cival = itemp;
++ 	        break;
++ 		  }
++ 	    }
++ 	    /* else */
++ 	    setmode(&val, CF);
++ 	    setmode(&arg, CF);
++ 	    /* drop through */
++ #else
+        case CI: val.crval += arg.crval;   val.cival += arg.cival;   break;
++ #endif /* NEWFIXARITH */
+        case CF: val.cfrval += arg.cfrval; val.cfival += arg.cfival; break;
+        }
+        break;
+      case '-':
+        switch (val.mode) {
++ #ifdef NEWFIXARITH
++       case IN:
++ 	    int_sub(&val.val, &arg.val, &good);
++         if (good) break;
++         /* else */
++         setmode(&val, FL);
++         setmode(&arg, FL);
++         /* drop through */
++ #else
+        case IN: val.val   -= arg.val;  break;
++ #endif /* NEWFIXARITH */
+        case FL: val.fval  -= arg.fval; break;
++ #ifdef NEWFIXARITH
++       case CI:
++         rtemp = val.crval; itemp = val.cival;
++         int_sub(&rtemp, &arg.crval, &good);
++         if (good) {
++           int_sub(&itemp, &arg.cival, &good);
++           if (good) {
++             val.crval = rtemp;
++             val.cival = itemp;
++             break;
++           }
++         }
++         /* else */
++         setmode(&val, CF);
++         setmode(&arg, CF);
++         /* drop through */
++ #else
+        case CI: val.crval -= arg.crval;   val.cival -= arg.cival;   break;
++ #endif /* NEWFIXARITH */
+        case CF: val.cfrval -= arg.cfrval; val.cfival -= arg.cfival; break;
+        }
+        break;
+      case '*':
+        switch (val.mode) {
++ #ifdef NEWFIXARITH
++       case IN:
++ 	    int_mul(&val.val, &arg.val, &good);
++         if (good) break;
++         /* else */
++         setmode(&val, FL);
++         setmode(&arg, FL);
++         /* drop through */
++ #else
+        case IN: val.val   *= arg.val;  break;
++ #endif /* NEWFIXARITH */
+        case FL: val.fval  *= arg.fval; break;
+        case CI:
++ #ifdef NEWFIXARITH
++         temp = val.crval;
++         int_mul(&temp, &arg.crval, &good);
++         if (good) {
++           rtemp = temp;
++           temp = val.cival;
++           int_mul(&temp, &arg.cival, &good);
++           if (good) {
++             int_sub(&rtemp, &temp, &good);
++             if (good) {
++               temp = val.cival;
++               int_mul(&temp, &arg.crval, &good);
++               if (good) {
++                 itemp = temp;
++                 temp = val.crval;
++                 int_mul(&temp, &arg.cival, &good);
++                 if (good) {
++                   int_add(&itemp, &temp, &good);
++                   if (good) {
++                     val.crval = rtemp;
++                     val.cival = itemp;
++                     break;
++ 				  }
++ 				}
++ 			  }
++ 			}
++ 		  }
++         }
++         /* else */
++         setmode(&val, CF);
++         setmode(&arg, CF);
++         /* drop through */
++ #else
+          rtemp = val.crval * arg.crval - val.cival * arg.cival;
+          itemp = val.cival * arg.crval + val.crval * arg.cival;
+          val.crval = rtemp; val.cival = itemp;
+          break;
++ #endif /* NEWFIXARITH */
+        case CF:
+          frtemp = val.cfrval * arg.cfrval - val.cfival * arg.cfival;
+          fitemp = val.cfival * arg.cfrval + val.cfrval * arg.cfival;
+***************
+*** 206,215 ****
+--- 451,468 ----
+        switch (val.mode) {
+        case IN:
+          checkizero(arg.val);
++ #ifdef NEWFIXARITH
++         if ((val.val != MOST_NEGATIVE_FIX || arg.val != -1)
++ 	    && val.val % arg.val == 0) {
++           val.val /= arg.val;
++           break;
++         }
++ #else
+          if (val.val % arg.val == 0) {
+            val.val /= arg.val;
+            break;
+          }
++ #endif /* NEWFIXARITH */
+          else {
+            setmode(&val, FL);
+            setmode(&arg, FL);
+***************
+*** 269,288 ****
+    else badarg(arg);
+  }
+  
+! LVAL xrem()
+  {
+    int mode1, mode2;
+!   FLOTYPE fval1, fval2, fres;
+    
+    get_rem_arg(&fval1, &mode1);
+    get_rem_arg(&fval2, &mode2);
+    xllastarg();
+  
+!   fres = fval1 - fval2 * floor(fval1 / fval2);
+    return((mode1 == IN && mode2 == IN) ? cvfixnum((FIXTYPE) fres)
+                                        : cvflonum((FLOTYPE) fres));
+  }
+  
+  LVAL logbinary(which)
+  	int which;
+  {
+--- 522,553 ----
+    else badarg(arg);
+  }
+  
+! static LVAL xremmod(which)
+!      int which;
+  {
+    int mode1, mode2;
+!   FLOTYPE fval1, fval2, fres, rat, sgn;
+    
+    get_rem_arg(&fval1, &mode1);
+    get_rem_arg(&fval2, &mode2);
+    xllastarg();
+  
+!   checkfzero(fval2);
+!   switch (which) {
+!   case 'R':
+!     rat = fval1 / fval2;
+!     sgn = (rat > 0) ? 1.0 : -1.0;
+!     fres = fval1 - fval2 * sgn * floor(fabs(rat));
+!     break;
+!   case 'M': fres = fval1 - fval2 * floor(fval1 / fval2); break;
+!   }
+    return((mode1 == IN && mode2 == IN) ? cvfixnum((FIXTYPE) fres)
+                                        : cvflonum((FLOTYPE) fres));
+  }
+  
++ LVAL xrem() { return(xremmod('R')); }
++ LVAL xmod() { return(xremmod('M')); }
++ 
+  LVAL logbinary(which)
+  	int which;
+  {
+***************
+*** 457,462 ****
+--- 722,738 ----
+    xlfail("illegal zero argument");
+  }
+  
++ #ifdef NEWFIXARITH
++ /* return FIXTYPE or FLOTYPE if too large for FIXTYPE */
++ static LVAL cvfixorflo(x)
++      double x;
++ {
++   FIXTYPE temp = x;
++   if (x == temp) return(cvfixnum((FIXTYPE) temp));
++   else return(cvflonum((FLOTYPE) x));
++ }
++ #endif /* NEWFIXARITH */
++ 
+  /* unary functions */
+  LVAL xlognot() { return (unary('~')); } /* lognot */
+  LVAL xabs()    { return (unary('A')); } /* abs */
+***************
+*** 483,489 ****
+  	int which;
+  {
+    FLOTYPE fval;
+!   FIXTYPE ival;
+    Complex cval;
+    LVAL arg, real, imag;
+    int mode;
+--- 759,765 ----
+  	int which;
+  {
+    FLOTYPE fval;
+!   FIXTYPE ival, itemp;
+    Complex cval;
+    LVAL arg, real, imag;
+    int mode;
+***************
+*** 518,524 ****
+--- 794,808 ----
+      break;
+    case 'A':
+      switch (mode) {
++ #ifdef NEWFIXARITH
++     case IN: 
++       itemp = ival < 0 ? -ival : ival;
++       if (0 <= itemp) return(cvfixnum((FIXTYPE) itemp));
++       else fval = ival;
++       /* drop through */
++ #else
+      case IN: return(cvfixnum((FIXTYPE) (ival < 0   ? -ival : ival)));
++ #endif /* NEWFIXARITH */
+      case FL: return(cvflonum((FLOTYPE) (fval < 0.0 ? -fval : fval)));
+      case CI:
+      case CF: return(cvflonum((FLOTYPE) modulus(cval)));
+***************
+*** 526,543 ****
+--- 810,864 ----
+      break;
+    case '+':
+      switch (mode) {
++ #ifdef NEWFIXARITH
++     case IN: 
++       itemp = ival + 1;
++       if (ival < 0 || itemp > 0) return(cvfixnum((FIXTYPE) itemp));
++       else fval = ival;
++       /* drop through */
++ #else
+      case IN: return(cvfixnum((FIXTYPE) ival + 1));
++ #endif /* NEWFIXARITH */
+      case FL: return(cvflonum((FLOTYPE) fval + 1.0));
++ #ifdef NEWFIXARITH
++     case CI:
++       ival = getfixnum(real);
++       itemp = ival + 1;
++       if (ival < 0 || itemp > 0)
++ 	return(newicomplex(itemp, getfixnum(imag)));
++       /* else drop through */
++     case CF: return(newdcomplex(makedouble(real) + 1.0, makedouble(imag)));
++ #else
+      case CI: return(newicomplex(getfixnum(real) + 1, getfixnum(imag)));
+      case CF: return(newdcomplex(getflonum(real) + 1.0, getflonum(imag)));
++ #endif /* NEWFIXARITH */
+      }
+      break;
+    case '-':
+      switch (mode) {
++ #ifdef NEWFIXARITH
++     case IN: 
++       itemp = ival - 1;
++       if (ival != MOST_NEGATIVE_FIX && (ival > 0 || itemp < 0))
++ 	return(cvfixnum((FIXTYPE) itemp));
++       else fval = ival;
++       /* drop through */
++ #else
+      case IN: return(cvfixnum((FIXTYPE) ival - 1));
++ #endif /* NEWFIXRITH */
+      case FL: return(cvflonum((FLOTYPE) fval - 1.0));
++ #ifdef NEWFIXARITH
++     case CI:
++       ival = getfixnum(real);
++       itemp = ival - 1;
++       if (ival != MOST_NEGATIVE_FIX && (ival > 0 || itemp < 0))
++ 	return(newicomplex(itemp, getfixnum(imag)));
++       /* else drop through */
++     case CF: return(newdcomplex(makedouble(real) - 1.0, makedouble(imag)));
++ #else
+      case CI: return(newicomplex(getfixnum(real) - 1, getfixnum(imag)));
+      case CF: return(newdcomplex(getflonum(real) - 1.0, getflonum(imag)));
++ #endif /* NEWFIXARITH */
+      }
+      break;
+    case 'S':
+***************
+*** 584,590 ****
+--- 905,915 ----
+    case 'I':
+      switch (mode) {
+      case IN: return (cvfixnum((FIXTYPE) ival));
++ #ifdef NEWFIXARITH
++     case FL: return (cvfixorflo((fval < 0.0) ? ceil(fval) : floor(fval)));
++ #else
+      case FL: return (cvfixnum((FIXTYPE) fval));
++ #endif /* NEWFIXARITH */
+  	default: badcop();
+  	}
+  	break;
+***************
+*** 609,615 ****
+--- 934,944 ----
+    case '_':
+      switch (mode) {
+      case IN: return (cvfixnum((FIXTYPE) ival));
++ #ifdef NEWFIXARITH
++     case FL: return (cvfixorflo(floor(fval)));
++ #else
+      case FL: return (cvfixnum((FIXTYPE) floor(fval)));
++ #endif /* NEWFIXARITH */
+  	default: badcop();
+  	}
+  	break;
+***************
+*** 616,622 ****
+--- 945,955 ----
+    case '^':
+      switch (mode) {
+      case IN: return (cvfixnum((FIXTYPE) ival));
++ #ifdef NEWFIXARITH
++     case FL: return (cvfixorflo(ceil(fval)));
++ #else
+      case FL: return (cvfixnum((FIXTYPE) ceil(fval)));
++ #endif /* NEWFIXARITH */
+  	default: badcop();
+  	}
+  	break;
+***************
+*** 623,629 ****
+--- 956,966 ----
+    case 'r':
+      switch (mode) {
+      case IN: return (cvfixnum((FIXTYPE) ival));
++ #ifdef NEWFIXARITH
++     case FL: return (cvfixorflo(floor(fval + 0.5)));
++ #else
+      case FL: return (cvfixnum((FIXTYPE) floor(fval + 0.5)));
++ #endif /* NEWFIXARITH */
+  	default: badcop();
+  	}
+  	break;
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/compound.c ./compound.c
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/compound.c	Thu Aug 16 10:27:11 1990
+--- ./compound.c	Fri Feb  1 16:15:56 1991
+***************
+*** 219,228 ****
+  
+    if (first_compound == NIL) result = (*f)();
+    else {
+! 	xlstkcheck(2);
+      xlsave(arglist);
+      xlsave(fcn);
+! 	fcn = cvsubr(f, SUBR, 0);
+      type = compoundseqtype(first_compound);
+      arglist = makearglist(xlargc, xlargv);
+      rlen = findrlen(arglist);
+--- 219,229 ----
+  
+    if (first_compound == NIL) result = (*f)();
+    else {
+!     xlstkcheck(3);
+      xlsave(arglist);
+      xlsave(fcn);
+!     xlsave(result);
+!     fcn = cvsubr(f, SUBR, 0);
+      type = compoundseqtype(first_compound);
+      arglist = makearglist(xlargc, xlargv);
+      rlen = findrlen(arglist);
+***************
+*** 229,235 ****
+      fixuparglist(arglist);
+      result = map(type, fcn, arglist, rlen);
+      result = makecompound(first_compound, result);
+!     xlpopn(2);
+    }
+    return(result);
+  }
+--- 230,236 ----
+      fixuparglist(arglist);
+      result = map(type, fcn, arglist, rlen);
+      result = makecompound(first_compound, result);
+!     xlpopn(3);
+    }
+    return(result);
+  }
+Common subdirectories: /NOKOMIS/users/luke/working/xlispstat2.1R1/emacs and ./emacs
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/linalg.c ./linalg.c
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/linalg.c	Thu Aug 16 10:27:17 1990
+--- ./linalg.c	Wed Feb  6 11:33:33 1991
+***************
+*** 588,598 ****
+--- 588,601 ----
+    mat = data_to_matrix(data, mode);
+  
+    choldecomp(mat, n, maxoffl, &maxadd);
++ 
++   xlsave1(result);
+    result = mklist(2, NIL);
+    rplaca(result, matrix_to_data(mat, n, n, mode));
+    rplaca(cdr(result), cvflonum((FLOTYPE) maxadd));
+  
+    free_matrix(mat, m);
++   xlpop();
+    return(result);
+  }
+  
+Common subdirectories: /NOKOMIS/users/luke/working/xlispstat2.1R1/machines and ./machines
+Common subdirectories: /NOKOMIS/users/luke/working/xlispstat2.1R1/macintosh and ./macintosh
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/math.c ./math.c
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/math.c	Thu Aug 16 10:27:18 1990
+--- ./math.c	Thu Feb  7 21:28:26 1991
+***************
+*** 24,30 ****
+  /* contain compound data items the mapping proceeds down to the next     */
+  /* level.                                                                */
+  
+! extern LVAL xadd(), xsub(), xmul(), xdiv(), xrem(), xmin(), xmax(),
+    xexpt(), xlog();
+  
+  extern LVAL xlogand(), xlogior(), xlogxor(), xlognot();
+--- 24,30 ----
+  /* contain compound data items the mapping proceeds down to the next     */
+  /* level.                                                                */
+  
+! extern LVAL xadd(), xsub(), xmul(), xdiv(), xrem(), xmod(), xmin(), xmax(),
+    xexpt(), xlog();
+  
+  extern LVAL xlogand(), xlogior(), xlogxor(), xlognot();
+***************
+*** 41,46 ****
+--- 41,47 ----
+  LVAL xsrmul()   { return (recursive_subr_map_elements(xmul, xsrmul)); }
+  LVAL xsrdiv()   { return (recursive_subr_map_elements(xdiv, xsrdiv)); }
+  LVAL xsrrem()   { return (recursive_subr_map_elements(xrem, xsrrem)); }
++ LVAL xsrmod()   { return (recursive_subr_map_elements(xmod, xsrmod)); }
+  LVAL xsrmin()   { return (recursive_subr_map_elements(xmin, xsrmin)); }
+  LVAL xsrmax()   { return (recursive_subr_map_elements(xmax, xsrmax)); }
+  LVAL xsrexpt()  { return (recursive_subr_map_elements(xexpt, xsrexpt));}
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/osdefs.h ./osdefs.h
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/osdefs.h	Thu Aug 16 10:21:04 1990
+--- ./osdefs.h	Thu Feb  7 21:28:26 1991
+***************
+*** 109,116 ****
+    xssweepoperator();
+  
+  /* math.c */
+! extern LVAL xsradd(), xsrsub(), xsrmul(), xsrdiv(), xsrrem(), xsrmin(),
+!   xsrmax(), xsrexpt(), xsrlog();
+  
+  extern LVAL xsrlogand(), xsrlogior(), xsrlogxor(), xsrlognot();
+  
+--- 109,116 ----
+    xssweepoperator();
+  
+  /* math.c */
+! extern LVAL xsradd(), xsrsub(), xsrmul(), xsrdiv(), xsrrem(), xsrmod(),
+!   xsrmin(), xsrmax(), xsrexpt(), xsrlog();
+  
+  extern LVAL xsrlogand(), xsrlogior(), xsrlogxor(), xsrlognot();
+  
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/osptrs.h ./osptrs.h
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/osptrs.h	Thu Aug 16 10:21:05 1990
+--- ./osptrs.h	Thu Feb  7 21:28:27 1991
+***************
+*** 601,606 ****
+--- 601,607 ----
+  {	"*",				S, xsrmul			},
+  {	"/",				S, xsrdiv			},
+  {	"REM",				S, xsrrem			},
++ {	"MOD",				S, xsrmod			},
+  {	"PMIN",				S, xsrmin			},
+  {	"PMAX",				S, xsrmax			},
+  {	"^",				S, xsrexpt			},
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/postscript.c ./postscript.c
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/postscript.c	Thu Aug 16 10:27:22 1990
+--- ./postscript.c	Fri Feb  1 16:15:56 1991
+***************
+*** 61,74 ****
+       int cols, rows;
+       double scale;
+  {
+!   int scols, srows;
+    
+    fp = file;
+  
+    scols = cols * scale * 0.96 + 0.5;	/*   0.96 is the multiple of   */
+    srows = rows * scale * 0.96 + 0.5;	/* 72/300 that is closest to 1 */
+! 
+    fprintf(fp, "%%! XLISP-STAT postscript image\n");
+    fprintf(fp, "\n" );
+    fprintf(fp, "/rlestr1 1 string def\n" );
+    fprintf(fp, "/rlestr 128 string def\n" );
+--- 61,79 ----
+       int cols, rows;
+       double scale;
+  {
+!   int scols, srows, left, bottom, top, right;
+    
+    fp = file;
+  
+    scols = cols * scale * 0.96 + 0.5;	/*   0.96 is the multiple of   */
+    srows = rows * scale * 0.96 + 0.5;	/* 72/300 that is closest to 1 */
+!   left = 300 - ( scols/2 );
+!   bottom = 400 - ( srows/2 );
+!   right = left + scols;
+!   top = bottom + srows;
+!   
+    fprintf(fp, "%%! XLISP-STAT postscript image\n");
++   fprintf(fp, "%%%%BoundingBox: %d %d %d %d\n", left, bottom, right, top);
+    fprintf(fp, "\n" );
+    fprintf(fp, "/rlestr1 1 string def\n" );
+    fprintf(fp, "/rlestr 128 string def\n" );
+***************
+*** 87,93 ****
+    fprintf(fp, "\n" );
+    fprintf(fp,
+  	 "%d %d translate\t%% move to lower left corner of box\n",
+! 	 300 - ( scols/2 ), 400 - ( srows/2 ) );
+    fprintf(fp, "%d %d scale\t\t%% scale box\n", scols, srows );
+    fprintf(fp, "\n" );
+    fprintf(fp, "%d %d 1\t\t\t%% width height bits/sample\n", cols, rows );
+--- 92,98 ----
+    fprintf(fp, "\n" );
+    fprintf(fp,
+  	 "%d %d translate\t%% move to lower left corner of box\n",
+! 	 left, bottom );
+    fprintf(fp, "%d %d scale\t\t%% scale box\n", scols, srows );
+    fprintf(fp, "\n" );
+    fprintf(fp, "%d %d 1\t\t\t%% width height bits/sample\n", cols, rows );
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/version.h ./version.h
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/version.h	Tue Sep 11 07:17:50 1990
+--- ./version.h	Fri Feb  1 16:23:28 1991
+***************
+*** 1 ****
+! #define XLISPSTAT_VERSION "2.1 Release 1"
+--- 1 ----
+! #define XLISPSTAT_VERSION "2.1 Release 2"
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/xlisp.help ./xlisp.help
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/xlisp.help	Wed Feb 20 10:58:48 1991
+--- ./xlisp.help	Fri Feb  8 14:55:33 1991
+***************
+*** 1428,1434 ****
+  "Method args: (&optional (double nil))
+  Funcalls value of ACTION slot, if it is not NIL, with argument DOUBLE."
+  (LIST-ITEM-PROTO  OBJECT :SET-TEXT)
+! "Method args: (string index)
+  Sets text at INDEX to STRING. INDEX should be a number or a list of two numbers,
+  depending on whether the list cas constructed with a sequence or an array."
+  (LIST-ITEM-PROTO  OBJECT :SELECTION)
+--- 1428,1434 ----
+  "Method args: (&optional (double nil))
+  Funcalls value of ACTION slot, if it is not NIL, with argument DOUBLE."
+  (LIST-ITEM-PROTO  OBJECT :SET-TEXT)
+! "Method args: (index string)
+  Sets text at INDEX to STRING. INDEX should be a number or a list of two numbers,
+  depending on whether the list cas constructed with a sequence or an array."
+  (LIST-ITEM-PROTO  OBJECT :SELECTION)
+***************
+*** 2605,2610 ****
+--- 2605,2613 ----
+  REM
+  "Args: (x y)
+  Returns the remainder of dividing x by y. Vectorized."
++ MOD
++ "Args: (x y)
++ Returns x mod y. Vectorized."
+  PMIN
+  "Args: (&rest items)
+  Parallel minimum of ITEMS. Vectorized."
+***************
+*** 2943,2984 ****
+  "Args: (symbol image &optional mask x-hot y-hot)
+  Allocates cursor and associates it with SYMBOL. IMAGE and MASK are matrices of
+  0's and 1's, x-hot and y-hot are integers representing the hot spot."
+- #|
+- (GRAPH-PROTO  OBJECT :ADD-STRINGS)
+- "Method args: (locations strings)
+- Adds strings to plot. LOCATIONS is a list of sequences, the coordinates of the
+- strings. If DRAW is true the new lines are added to the screen."
+- (GRAPH-PROTO  OBJECT :CLEAR-STRINGS)
+- "Method args: (&key (draw t))
+- Removes all strings from the plot. If DRAW is true the :REDRAW-CONTENT
+- message is sent."
+- (GRAPH-PROTO  OBJECT :NUM-STRINGS)
+- "Method args: ()
+- Returns the number of strings in the plot."
+- (GRAPH-PROTO  OBJECT :STRING-COORDINATE)
+- "Method args: (var line &optional value)
+- Sets or retrieves coordinate for variable VAR and string STRING in the original
+- coordinate system. Vectorized."
+- (GRAPH-PROTO  OBJECT :STRING-SCREEN-COORDINATE)
+- "Method args: (var line)
+- Returns rounded coordinate for variable VAR and string STRING in the screen
+- coordinate system. Vectorized."
+- (GRAPH-PROTO  OBJECT :STRING-TRANSFORMED-COORDINATE)
+- "Method args: (var line)
+- Returns coordinate for variable VAR and string STRING in the transformed
+- coordinate system. Vectorized."
+- (GRAPH-PROTO  OBJECT :STRING-MASKED)
+- "Method args: (line &optional masked)
+- Sets or retrieves masked state (true or NIL) of string STRING. Vectorized."
+- (GRAPH-PROTO  OBJECT :STRING-COLOR)
+- "Method args: (line &optional color)
+- Sets or retrieves color of string STRING. Vectorized."
+- (GRAPH-PROTO  OBJECT :STRING-MODIFIERS)
+- "Method args: (line &optional up h v)
+- Sets or retrieves positioning modifiers for string STRING. Up (true or NIL) indicates
+- vertical or horizontal drawing. H and V are as in :DRAW-TEXT."
+- (GRAPH-PROTO  OBJECT :DRAW-DATA-STRINGS)
+- "Method args: (var1 var2 m n)
+- Draws strings with indices between m (inclusive) and n (exclusive) using VAR1 and VAR2 
+- coordinates."
+- |#
+--- 2946,2948 ----
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/xlisp.help.small ./xlisp.help.small
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/xlisp.help.small	Wed Feb 20 11:00:11 1991
+--- ./xlisp.help.small	Thu Feb  7 21:28:31 1991
+***************
+*** 0 ****
+--- 1,532 ----
++ (*OBJECT* OBJECT PROTO)
++ "The root object."
++ (WINDOW-PROTO  OBJECT PROTO)
++ "Window prototype."
++ (GRAPH-WINDOW-PROTO  OBJECT PROTO)
++ "Basic graphics window prototype."
++ (GRAPH-PROTO  OBJECT PROTO)
++ "Basic graphics window prototype."
++ (SPIN-PROTO  OBJECT PROTO)
++ "Rotating plot"
++ (SCATMAT-PROTO  OBJECT PROTO)
++ "Scatterplot matrix"
++ (NAME-LIST-PROTO  OBJECT PROTO)
++ "Name list"
++ (HISTOGRAM-PROTO  OBJECT PROTO)
++ "Histogram"
++ (SCATTERPLOT-PROTO  OBJECT Proto)
++ "Scatterplot"
++ +
++ "Args: (&rest numbers)\nReturns the sum of its arguments.  With no args, returns 0. Vectorized."
++ -
++ "Args: (number &rest more-numbers)\nSubtracts the second and all subsequent NUMBERs from the first. With one arg,\nnegates it. Vectorized."
++ *
++ "Args: (&rest numbers)\nReturns the product of its arguments. With no args, returns 1. Vectorized."
++ /
++ "Args: (number &rest more-numbers)\nDivides the first NUMBER (element-wise) by each of the subsequent NUMBERS.\nWith one arg, returns its reciprocal. Vectorized."
++ ^
++ "Args: (base-number power-number)\nReturns BASE-NUMBER raised to the power POWER-NUMBER. Vectorized."
++ **
++ "Args: (base-number power-number)\nReturns BASE-NUMBER raised to the power POWER-NUMBER. Vectorized."
++ <
++ "Args: (&rest numbers)\nReturns T if NUMBERS are in strictly increasing order; NIL otherwise.\nVectorized."
++ <=
++ "Args: (&rest numbers)\nReturns T if NUMBERS are in nondecreasing order; NIL otherwise. Vectorized."
++ =
++ "Args: (&rest numbers)\nReturns T if NUMBERS are all equal; NIL otherwise. Vectorized."
++ /=
++ "Args: (&rest numbers)\nReturns T if NUMBERS no two adjacent numbers are equal; NIL otherwise. Vectorized."
++ >=
++ "Args: (&rest numbers)\nReturns T if NUMBERS are in nonincreasing order; NIL otherwise. Vectorized."
++ >
++ "Args: (&rest numbers)\nReturns T if NUMBERS are in strictly decreasing order; NIL otherwise. Vectorized."
++ ABS
++ "Args: (number)\nReturns the absolute value or modulus of NUMBER. Vectorized."
++ ACOS
++ "Args: (number)\nReturns the arc cosine of NUMBER. Vectorized."
++ ASIN
++ "Args: (number)\nReturns the arc sine of NUMBER. Vectorized."
++ ATAN
++ "Args: (number)\nReturns the arc tangent of NUMBER. Vectorized."
++ CEILING
++ "Args: (number)\nReturns the smallest integer(s) not less than or NUMBER. Vectorized."
++ COMPLEX
++ "Args: (realpart &optional (imagpart 0))\nReturns a complex number with the given real and imaginary parts."
++ CONJUGATE
++ "Args: (number)\nReturns the complex conjugate of NUMBER."
++ COS
++ "Args: (radians)\nReturns the cosine of RADIANS. Vectorized."
++ EXP
++ "Args: (x)\nCalculates e raised to the power x, where e is the base of natural\nlogarithms. Vectorized."
++ EXPT
++ "Args: (base-number power-number)\nReturns BASE-NUMBER raised to the power POWER-NUMBER. Vectorized."
++ FLOAT
++ "Args: (number)\nConverts real number to a floating-point number.  If NUMBER is\nalready a float, FLOAT simply returns NUMBER. Vectorized."
++ FLOOR
++ "Args: (number)\nReturns the largest integer( not larger than the NUMBER. Vectorized."
++ IMAGPART
++ "Args: (number)\nExtracts the imaginary part of NUMBER."
++ LOG
++ "Args: (number)\nReturns the natural logarithm(s) of NUMBER. Vectorized."
++ LOG-GAMMA
++ "Args: (x)\nReturns the log gamma function of X. Vectorized."
++ MAX
++ "Args: (number &rest more-numbers)\nReturns the greatest of its arguments. Vector reducing"
++ MIN
++ "Args: (number &rest more-numbers)\nReturns the least of its arguments. Vector reducing"
++ PHASE
++ "Args: (number)\nReturns the angle part of the polar representation of a complex number.\nFor non-complex numbers, this is 0."
++ PMAX
++ "Args: (&rest items)\nParallel maximum of ITEMS. Vectorized."
++ PMIN
++ "Args: (&rest items)\nParallel minimum of ITEMS. Vectorized."
++ PROD
++ "Args: (&rest number-data)\nReturns the product of all the elements of its arguments. Returns 1 if there\nare no arguments. Vector reducing."
++ RANDOM
++ "Args: (number)\nGenerates a uniformly distributed pseudo-random number between zero (inclusive)\nand NUMBER (exclusive). Vectorized."
++ REALPART
++ "Args: (number)\nExtracts the real part of NUMBER."
++ REM
++ "Args: (x y)\nReturns the remainder of dividing x by y. Vectorized."
++ MOD
++ "Args: (x y)\nReturns x mod y. Vectorized."
++ ROUND
++ "Args: (number)\nRounds NUMBER to nearest integer. Vectorized."
++ SIN
++ "Args: (radians)\nReturns the sine of RADIANS. Vectorized."
++ SQRT
++ "Args: (number)\nReturns the square root of NUMBER. Vectorized."
++ SUM
++ "Args: (&rest number-data)\nReturns the sum of all the elements of its arguments. Returns 0 if there\nare no arguments. Vector reducing."
++ TAN
++ "Args: (radians)\nReturns the tangent of RADIANS. Vectorized."
++ TRUNCATE
++ "Args: (number)\nReturns real NUMBER as an integer, rounded toward 0. Vectorized."
++ DEF
++ "Syntax: (def var form)\nVAR is not evaluated and must be a symbol.  Assigns the value of FORM to\nVAR and adds VAR to the list *VARIABLES* of def'ed variables. Returns VAR.\nIf VAR is already bound and the global variable *ASK-ON-REDEFINE*\nis not nil then you are asked if you want to redefine the variable."
++ ISEQ
++ "Args: (n &optional m)
++ With one argumant returns a list of consecutive integers from 0 to N - 1.
++ With two returns a list of consecutive integers from N to M.
++ Examples: (iseq 4) returns (0 1 2 3)
++           (iseq 3 7)  returns (3 4 5 6 7)
++           (iseq 3 -3) returns (3 2 1 0 -1 -2 -3)"
++ LIST
++ "Args: (&rest args)\nReturns a list of its arguments"
++ REPEAT
++ "\nArgs: (vals times)\nRepeats VALS. If TIMES is a number and VALS is a non-null, non-array atom, a list\nof length TIMES with all elements eq to VALS is returned. If VALS is a list and\nTIMES is a number then VALS is appended TIMES times. If TIMES is a list of numbers\nthen VALS must be a list of equal length and the simpler version of repeat is\nmapped down the two lists.\nExamples: (repeat 2 5)                 returns (2 2 2 2 2)\n          (repeat '(1 2) 3)            returns (1 2 1 2 1 2)\n\t  (repeat '(4 5 6) '(1 2 3))   returns (4 5 5 6 6 6)\n\t  (repeat '((4) (5 6)) '(2 3)) returns (4 4 5 6 5 6 5 6)"
++ SAMPLE
++ "Args: (x n &optional (replace nil))
++ Returns a list of a random sample of size N from sequence X drawn with or
++ without replacement."
++ SELECT
++ "\nArgs: (a &rest indices)\nA can be a list or an array. If A is a list and INDICES is a single number\nthen the appropriate element of A is returned. If  is a list and INDICES is\na list of numbers then the sublist of the corresponding elements is returned.\nIf A in an array then the number of INDICES must match the ARRAY-RANK of A.\nIf each index is a number then the appropriate array element is returned.\nOtherwise the INDICES must all be lists of numbers and the corresponding\nsubmatrix of A is returned. SELECT can be used in setf."
++ UNDEF
++ "Args: (symbol)\nIf SYMBOL is a defined variable it is unbound and removed from the list of\ndefined variables and returns SYMBOL."
++ VECTOR
++ "Args: ({item}*)\nReturns a vector with ITEMs as elements."
++ WHICH
++ "Args: (x)\nX is an array or a list. Returns a list of the indices where X is not NIL."
++ BETA-CDF
++ "Args: (x alpha beta)\nReturns the value of the Beta(ALPHA, BETA) distribution function at X.\nVectorized."
++ BETA-DENS
++ "Args: (x alpha beta)\nReturns the density at X of the Beta(ALPHA, BETA) distribution. Vectorized."
++ BETA-QUANT
++ "Args: (p alpha beta)\nReturns the P-th quantile of the Beta(ALPHA, BETA) distribution. Vectorized."
++ BINOMIAL-CDF
++ "Args (x n p)\nReturns value of the Binomial(N, P) distribution function at X. Vectorized."
++ BINOMIAL-PMF
++ "Args (k n p)\nReturns value of the Binomial(N, P) pmf function at integer K. Vectorized."
++ BINOMIAL-QUANT
++ "Args: (x n p)\nReturns x-th quantile (left continuous inverse) of Binomial(N, P) cdf.\nVectorized."
++ BINOMIAL-RAND
++ "Args: (k n p)\nReturns list of K draws from the Binomial(N, P) distribution. Vectorized."
++ CAUCHY-CDF
++ "Args: (x)\nReturns the value of the standard Cauchy distribution function at X.\nVectorized."
++ CAUCHY-DENS
++ "Args: (x)\nReturns the density at X of the standard Cauchy distribution. Vectorized."
++ CAUCHY-QUANT
++ "Args (p)\nReturns the P-th quantile(s) of the standard Cauchy distribution. Vectorized."
++ CHISQ-CDF
++ "Args: (x df)\nReturns the value of the Chi-Square(DF) distribution function at X. Vectorized."
++ CHISQ-DENS
++ "Args: (x alpha)\nReturns the density at X of the Chi-Square(DF) distribution. Vectorized."
++ CHISQ-QUANT
++ "Args: (p df)\nReturns the P-th quantile of the Chi-Square(DF) distribution. Vectorized."
++ F-CDF
++ "Args: (x ndf ddf)\nReturns the value of the F(NDF, DDF) distribution function at X. Vectorized."
++ F-DENS
++ "Args: (x ndf ddf)\nReturns the density at X of the F(NDF, DDF) distribution. Vectorized."
++ F-QUANT
++ "Args: (p ndf ddf)\nReturns the P-th quantile of the F(NDF, DDF) distribution. Vectorized."
++ GAMMA-CDF
++ "Args: (x alpha)\nReturns the value of the Gamma(alpha, 1) distribution function at X.\nVectorized."
++ GAMMA-DENS
++ "Args: (x alpha)\nReturns the density at X of the Gamma(ALPHA, 1) distribution. Vectorized."
++ GAMMA-QUANT
++ "Args: (p alpha)\nReturns the P-th quantile of the Gamma(ALPHA, 1) distribution. Vectorized."
++ NORMAL-CDF
++ "Args: (x)\nReturns the value of the standard normal distribution function at X.\nVectorized."
++ BIVNORM-CDF
++ "Args: (x y r)\nReturns the value of the standard bivariate normal distribution function \nwith correlation R at (X, Y). Vectorized."
++ NORMAL-DENS
++ "Args: (x)\nReturns the density at X of the standard normal distribution. Vectorized."
++ NORMAL-QUANT
++ "Args (p)\nReturns the P-th quantile of the standard normal distribution. Vectorized."
++ ORDER
++ "Args (x)\nReturns a sequence of the indices of elements in the sequence of numbers\nor strings X in order."
++ POISSON-CDF
++ "Args (x mu)\nReturns value of the Poisson(MU) distribution function at X. Vectorized."
++ POISSON-PMF
++ "Args (k mu)\nReturns value of the Poisson(MU) pmf function at integer K. Vectorized."
++ POISSON-QUANT
++ "Args: (x mu)\nReturns x-th quantile (left continuous inverse) of Poisson(MU) cdf.\nVectorized."
++ POISSON-RAND
++ "Args: (k mu)\nReturns list of K draws from the Poisson(MU) distribution. Vectorized."
++ RANK
++ "Args (x)\nReturns a sequence with the elements of the list or array of numbers or\nstrings X replaced by their ranks."
++ SORT-DATA
++ "Args: (sequence)\nReturns a sequence with the numbers or strings in the sequence X in order."
++ T-CDF
++ "Args: (x df)\nReturns the value of the T(DF) distribution function at X. Vectorized."
++ T-DENS
++ "Args: (x alpha)\nReturns the density at X of the T(DF) distribution. Vectorized."
++ T-QUANT
++ "Args: (p df)\nReturns the P-th quantile of the T(DF) distribution. Vectorized."
++ UNIFORM-RAND
++ "Args: (n)\nReturns a list of N uniform random variables from the range (0, 1).\nVectorized."
++ NORMAL-RAND
++ "Args: (n)
++ Returns a list of N standard normal random numbers. Vectorized."
++ CAUCHY-RAND
++ "Args: (n)
++ Returns a list of N standard Cauchy random numbers. Vectorized."
++ T-RAND
++ "Args: (n df)
++ Returns a list of N T(DF) random variables. Vectorized."
++ F-RAND
++ "Args: (n ndf ddf)
++ Returns a list of N F(NDF, DDF) random variables. Vectorized."
++ GAMMA-RAND
++ "Args: (n a)
++ Returns a list of N Gamma(A, 1) random variables. Vectorized."
++ CHISQ-RAND
++ "Args: (n df)
++ Returns a list of N Chi-Square(DF) random variables. Vectorized."
++ BETA-RAND
++ "Args: (n a b)
++ Returns a list of N beta(A, B) random variables. Vectorized."
++ HISTOGRAM
++ "Args: (data &key (title "Histogram"))\nOpens a window with a histogram of DATA. TITLE is the window title. The number\nof bins used can be adjusted using the histogram menu. The histogram can be\nlinked to other plots with the link-views command. Returns a plot object."
++ LINK-VIEWS
++ "Args: (&rest plots)\nLinks the argument plots: any change in hiliting or visibility of points in\nthe current plot is propagated to the other plots."
++ NAME-LIST
++ "Args: (names &key (title "Name List"))\nNAMES is a number or a list of character strings. Opens a window with a list\nof the supplied character strings or entries numbered from 0 to NAMES - 1.\nThis display can be linked to plots with the link-views function. Returns a\nplot object."
++ PLOT-FUNCTION
++ "Args: (f xmin xmax &optional (num-points 50))\nPlots function F of one real variable over the range between xmin and xmax.\nThe function is evaluated at NUM-POINTS points."
++ PLOT-LINES
++ "Args: (x y &key (title "Line Plot") variable-labels type width color)\nOpens a window with a connected line plot of X vs Y, where X and Y are\ncompound number-data. VARIABLE-LABELS, if supplied, should be lists of\ncharacter strings. TITLE is the window title. The plot can be linked to\nother plots with the link-views command. Returns a plot object."
++ PLOT-POINTS
++ "Args: (x y &key (title "Scatter Plot") variable-labels point-labels symbol color)\nOpens a window with a scatter plot of X vs Y, where X and Y are compound\nnumber-data. VARIABLE-LABELS and POINT-LABELS, if supplied, should be lists of\ncharacter strings. TITLE is the window title. The plot can be linked to\nother plots with the link-views command. Returns a plot object."
++ SCATTERPLOT-MATRIX
++ "Args: (data &key (title "Spinning Plot") variable-labels point-labels\n                 (scale t))\nDATA is a list of two or more compound number-data objects of equal length.\nOpens a window with a brushable scatter plot matrix of the elements of DATA.\nVARIABLE-LABELS and POINT-LABELS, if supplied, should be lists of character strings.\nTITLE is the window title. If scale is NIL data are assumed to be between -1\nand 1.The plot can be linked to other plots with the link-views command.\nReturns a plot object."
++ SPIN-PLOT
++ "Args: (data &key (title "Spinning Plot") variable-labels point-labels\n                 (scale t))\nDATA is a list of three compound number-data objects of equal length. Opens\na window with a rotating plot of the three elements of DATA. VARIABLE-LABELS\nand POINT-LABELS, if supplied, should be lists of character strings. TITLE\nis the window title. If scale is NIL data are assumed to be between -1 and 1.\nThe plot can be linked to other plots with the link-views command. Returns\na plot object."
++ (GRAPH-PROTO OBJECT :ADD-LINES)
++ "Method args: (lines &key type (draw t))\nAdds lines to plot. LINES is a list of sequences, the coordinates of the line starts.\nTYPE is normal or dashed. If DRAW is true the new lines are added to the screen."
++ (GRAPH-PROTO OBJECT :ADD-POINTS)
++ "Method args: (points &key point-labels (draw t))\nAdds points to plot. POINTS is a list of sequences, POINT-LABELS a list of\nstrings. If DRAW is true the new points are added to the screen."
++ (GRAPH-PROTO OBJECT :ADJUST-TO-DATA)
++ "Method args: (&key (draw t))\nSets ranges to the actual range of variables in the original coordinate\nsystem. If DRAW is true sends :RESIZE and :REDRAW messages."
++ (GRAPH-PROTO OBJECT :APPLY-TRANSFORMATION)
++ "Method args: (a &key draw)\nApplies matrix A to current transformation. If draw is true the :REDRAW-CONTENT\nmessage is sent."
++ (GRAPH-PROTO OBJECT :CLEAR)
++ "\nMessage args: (&optional (draw t))\nClears the plot data. If DRAW is nil the plot is redrawn; otherwise its\ncurrent screen image remains unchanged."
++ (GRAPH-PROTO OBJECT :CLEAR-LINES)
++ "Method args: (&key (draw t))\nRemoves all lines from the plot. If DRAW is true the :REDRAW-CONTENT\nmessage is sent."
++ (GRAPH-PROTO OBJECT :CLEAR-POINTS)
++ "Method args: (&key (draw t))\nRemoves all points from the plot. If DRAW is true the :REDRAW-CONTENT\nmessage is sent."
++ (GRAPH-PROTO OBJECT :ERASE-SELECTION)
++ "Method args: ()\nSets selected points states to invisible and sends :ADJUST-POINT-SCREEN-STATES message."
++ (GRAPH-PROTO OBJECT :IDLE-ON)
++ "\nMethod args: (&optional on)\nSets or returns idling state. On means :do-idle method is sent each pass through\nthe event loop."
++ (GRAPH-PROTO OBJECT :LINKED)
++ "Method ars: (&optional on)\nSets or retrieves plot's linking state."
++ (GRAPH-PROTO OBJECT :NUM-LINES)
++ "Method args: ()\nReturns the number of line starts in the plot."
++ (GRAPH-PROTO OBJECT :NUM-POINTS)
++ "Method args: ()\nReturns the number of points in the plot."
++ (GRAPH-PROTO OBJECT :NUM-VARIABLES)
++ "Method args: ()\nReturns the number of variables in the plot."
++ (GRAPH-PROTO OBJECT :POINT-HILITED)
++ "Method args: (point &optional hilited)\nSets or returns highlighting status (true or NIL) of POINT. Sends \n:ADJUST-POINT-SCREEN-STATES message if states are set. Vectorized."
++ (GRAPH-PROTO OBJECT :POINT-LABEL)
++ "Method args: (point &optional label)\nSets or retrieves label of point POINT. Vectorized."
++ (GRAPH-PROTO OBJECT :POINT-SELECTED)
++ "Method args: (point &optional selected)\nSets or returns selection status (true or NIL) of POINT. Sends \n:ADJUST-POINT-SCREEN-STATES message if states are set. Vectorized."
++ (GRAPH-PROTO OBJECT :POINT-SHOWING)
++ "Method args: (point &optional selected)\nSets or returns visibility status (true or NIL) of POINT. Sends \n:ADJUST-POINT-SCREEN-STATES message if states are set. Vectorized."
++ (GRAPH-PROTO OBJECT :POINT-SYMBOL)
++ "Method args: (point &optional symbol)\nSets or retrieves symbol of point POINT. Vectorized."
++ (GRAPH-PROTO OBJECT :RANGE)
++ "Method args: (index &optional low high)\nSets or retrieves variable's original coordinate range. Vectorized."
++ (GRAPH-PROTO OBJECT :ROTATE-2)
++ "Method args: (var1 var2 angle &key (draw t))\nRotates int the plane of variables with indices VAR1 and VAR2 by ANGLE, in\nradians. sends the :REDRAW-CONTENT message if DRWA is true."
++ (GRAPH-PROTO OBJECT :SELECTION)
++ "Method args: ()\nReturn indices of current selection."
++ (GRAPH-PROTO OBJECT :SHOW-ALL-POINTS)
++ "Method args: ()\nSets all point states to normal and sends :ADJUST-POINT-SCREEN-STATES message "
++ (GRAPH-PROTO OBJECT :SHOWING-LABELS)
++ "Method args: (&optional showing)\nSets or retrieves current labeling state (true or NIL)."
++ (GRAPH-PROTO OBJECT :TITLE)
++ "Method args: (&optional string)\nSets or retrieves window title."
++ (GRAPH-PROTO OBJECT :TRANSFORMATION)
++ "Method args: (&optional a &key (draw t))\nSets or retrieves transformation. A should be a matrix or NIL. If draw is true\nthe :REDRAW-CONTENT message is sent."
++ (GRAPH-PROTO OBJECT :VARIABLE-LABEL)
++ "Method args: (var &optional label)\nSets or returns label for variable with index VAR. Vectorized."
++ (HISTOGRAM-PROTO OBJECT :ADD-POINTS)
++ "Method args: (points (draw t))\nAdds points to plot. POINTS is a sequence or a list of sequences. If DRAW is\ntrue the new points are added to the screen."
++ (HISTOGRAM-PROTO OBJECT :NUM-BINS)
++ "Method args: (&optional bins &key (draw t))\nSets or retrieves number of bins in the histogram. Sends :REDRAW-CONTENT message\nif DRAW is true."
++ (NAME-LIST-PROTO OBJECT :ADD-POINTS)
++ "Method args: (points &key point-labels (draw t))\nAdds points to plot. POINTS is a number or a list of sequences, POINT-LABELS a list of\nstrings. If DRAW is true the new points are added to the screen."
++ (SCATTERPLOT-PROTO OBJECT :ADD-LINES)
++ "Method args: (lines &key type (draw t))
++ or:          (x y  &key point-labels (draw t))
++ Adds lines to plot. LINES is a list of sequences, the 
++ coordinates of the line  starts. TYPE is normal or dashed. If
++ DRAW is true the new lines are added to the screen. For a 2D
++ plot POINTS can be replaced by two sequences X and Y."
++ (SCATTERPLOT-PROTO OBJECT :ADD-POINTS)
++ "Method args: (points &key point-labels (draw t))
++ or:          (x y  &key point-labels (draw t))
++ Adds points to plot. POINTS is a list of sequences, 
++ POINT-LABELS a list of strings. If DRAW is true the new points
++ are added to the screen. For a 2D plot POINTS can be replaced
++ by two sequences X and Y."
++ (SPIN-PROTO OBJECT :ANGLE)
++ "Method args: (&optional angle)\nSets or retrieves current rotation angle, in radians."
++ (SPIN-PROTO OBJECT :DO-IDLE)
++ "Method args: ()\nSends :ROTATE message."
++ (SPIN-PROTO OBJECT :ROTATE)
++ "Method args: ()\nRotates once in the current plane by the current angle."
++ (SPIN-PROTO OBJECT :SHOWING-AXES)
++ "Method args: (&optional cuing)\nSets or retrieves cuing status (true or NIL)."
++ %*
++ "Args: (a b)\nReturns the matrix product of matrices a and b. If a is a vector it is treated\nas a row vector; if b is a vector it is treated as a column vector."
++ BIND-COLUMNS
++ "Args (&rest args)\nThe ARGS can be matrices, vectors, or lists. Arguments are bound into a matrix\nalong their columns.\nExample: (bind-columns #2a((1 2)(3 4)) #(5 6)) returns #2a((1 2 5)(3 4 6))"
++ BIND-ROWS
++ "Args (&rest args)\nThe ARGS can be matrices, vectors, or lists. Arguments are bound into a matrix\nalong their rows.\nExample: (bind-rows #2a((1 2)(3 4)) #(5 6)) returns #2a((1 2)(3 4)(5 6))"
++ CHOL-DECOMP
++ "Args: (a)\nModified Cholesky decomposition. A should be a square, symmetric matrix.\nComputes lower triangular matrix L such that L L^T = A + D where D is a diagonal\nmatrix. If A is strictly positive definite D will be zero. Otherwise D is as\nsmall as possible to make A + D numerically strictly positive definite. Returns\na list (L (max D))."
++ COLUMN-LIST
++ "Args: (m)\nReturns a list of the columns of M as vectors"
++ COPY-ARRAY
++ "Args: (array)\nReturns a copy of ARRAY with elements eq to the elements of ARRAY."
++ COPY-LIST
++ "Args: (list)\nReturns a new copy of LIST."
++ COPY-VECTOR
++ "Args: (VECTOR)\nReturns a copy of VECTOR with elements eq to the elements of VECTOR"
++ COUNT-ELEMENTS
++ "Args: (number &rest more-numbers)\nReturns the number of its arguments. Vector reducing"
++ CROSS-PRODUCT
++ "Args: (x)\nIf X is a matrix returns (%* (TRANSPOSE X) X). If X is a vector returns\n(INNER-PRODUCT X X)."
++ DETERMINANT
++ "Args: (m)\nReturns the determinant of the square matrix M."
++ DIAGONAL
++ "Args: (x)\nIf X is a matrix, returns the diagonal of X. If X is a sequence, returns a\ndiagonal matrix of rank (length X) with diagonal elements eq to the elements\nof X."
++ IDENTITY-MATRIX
++ "Args: (n)\nReturns the identity matrix of rank N."
++ INNER-PRODUCT
++ "Args: (x y)\nReturns inner product of sequences X and Y."
++ INVERSE
++ "Args: (m)\nReturns the inverse of the the square matrix M; signals an error if M is ill\nconditioned or singular"
++ LU-DECOMP
++ "Args: (a)\nA is a square matrix of numbers (real or complex). Computes the LU\ndecomposition of A and returns a list of the form (LU IV D FLAG), where\nLU is a matrix with the L part in the lower triangle, the U part in the \nupper triangle (the diagonal entries of L are taken to be 1), IV is a vector\ndescribing the row permutation used, D is 1 if the number of permutations\nis odd, -1 if even, and FLAG is T if A is numerically singular, NIL otherwise.\nUsed bu LU-SOLVE."
++ LU-SOLVE
++ "Args: (lu b)\nLU is the result of (LU-DECOMP A) for a square matrix A, B is a sequence.\nReturns the solution to the equation Ax = B. Signals an error if A is singular."
++ MAKE-SWEEP-MATRIX
++ "Args: (x y &optional weights)\nX is a matrix, Y and WEIGHTS are sequences. Returns the sweep matrix for the\n(possibly weighted) regression of Y on X."
++ MAP-ELEMENTS
++ "Args: (function data &rest more-data)\nFUNCTION must take as many arguments as there are DATA arguments supplied.\nDATA arguments must either all be sequences or all be arrays of the same\nshape. The result is of the same type and shape as the first DATA argument,\nwith elements the result of applying FUNCTION elementwise to the DATA\narguments"
++ MATMULT
++ "Args: (a b)\nReturns the matrix product of matrices a and b. If a is a vector it is treated\nas a row vector; if b is a vector it is treated as a column vector."
++ MATRIXP
++ "Args: (m)\nReturns T if M is a matrix, NIL otherwise."
++ MEAN
++ "Args: (x)
++ Returns the mean of the elements x. Vector reducing."
++ OUTER-PRODUCT
++ "Args: (x y &optional (fcn #'*))\nReturns the generalized outer product of x and y, using fcn. Tat is, the result\nis a matrix of dimension ((length x) (length y)) and the (i j) element of the\nresult is computed as (apply fcn (aref x i) (aref y j))."
++ PERMUTE-ARRAY
++ "Args: (a p)\nReturns a copy of the array A permuted according to the permutation P."
++ QR-DECOMP
++ "Args: (a &optional pivot)
++ A is a matrix of real numbers with at least as many rows as columns. Computes
++ the QR factorization of A and returns the result in a list of the form (Q R).
++ If PIVOT is true the columns of X are first permuted to place insure the
++ absolute values of the diagonal elements of R are nonincreasing. In this case
++ the result includes a third element, a list of the indices of the columns in
++ the order in which they were used."
++ RCONDEST
++ "Args: (a)\nReturns an estimate of the reciprocal of the L1 condition number of an upper\ntriangular matrix a."
++ ROW-LIST
++ "Args: (m)\nReturns a list of the rows of M as vectors"
++ SOLVE
++ "Args: (a b)\nSolves A x = B using LU decomposition and backsolving. B can be a sequence\nor a matrix."
++ SV-DECOMP
++ "Args: (a)\nA is a matrix of real numbers with at least as many rows as columns.\nComputes the singular value decomposition of A and returns a list of the form\n(U W V FLAG) where U and V are matrices whose columns are the left and right\nsingular vectors of A and W is the sequence of singular values of A. FLAG is T\nif the algorithm converged, NIL otherwise."
++ SWEEP-OPERATOR
++ "Args: (a indices &optional tolerances)\nA is a matrix, INDICES a sequence of the column indices to be swept. Returns\na list of the swept result and the list of the columns actually swept. (See\nMULTREG documentation.) If supplied, TOLERANCES should be a list of real\nnumbers the same length as INDICES. An index will only be swept if its pivot\nelement is larger than the corresponding element of TOLERANCES."
++ TRANSPOSE
++ "Args: (m)\nReturns the transpose of the matrix M."
++ VECTORP
++ "Args: (m)\nReturns T if M is a vector, NIL otherwise."
++ LOAD
++ "Args: (filename &key (verbose t) (print nil))\nLoads the file named by FILENAME into XLISP. Returns T if load succeeds,\nNIL if file does not exist."
++ ROOM
++ "Args: ()\nShows memory allocation statistics. Returns nil."
++ AND
++ "Syntax: (and {form}*)\nEvaluates FORMs in order from left to right.  If any FORM evaluates to NIL,\nreturns immediately with the value NIL.  Else, returns the value of the\nlast FORM."
++ APPEND
++ "Args: (&rest lists)\nConstructs a new list by concatenating its arguments."
++ APPLY
++ "Args: (function &rest args)\nConses all arguments but the last onto the last and applies FUNCTION to \nthe resulting argument list. Last argument must be a list."
++ APROPOS
++ "Args: (string)\nPrints symbols whose print-names contain STRING as substring.\nIf STRING is a symbol its print name is used."
++ ASSOC
++ "Args: (item alist &key (test #'eql) test-not)\nReturns the first pair in ALIST whose car is equal (in the sense of TEST) to\nITEM."
++ ATOM
++ "Args: (x)\nReturns T if X is not a cons; NIL otherwise."
++ CAR
++ "Args: (list)\nReturns the car of LIST.  Returns NIL if LIST is NIL."
++ CASE
++ "Syntax: (case keyform {({key | ({key}*)} {form}*)}*)\nEvaluates KEYFORM and tries to find the KEY that is EQL to the value of\nKEYFORM.  If one is found, then evaluates FORMs that follow the KEY and\nreturns the value of the last FORM.  If not, simply returns NIL."
++ CDR
++ "Args: (list)\nReturns the cdr of LIST.  Returns NIL if LIST is NIL."
++ CLOSE
++ "Args: (stream)\nClose file stream STREAM."
++ COERCE
++ "Args: (x type)\nCoerces X to an object of the type TYPE."
++ COND
++ "Syntax: (cond {(test {form}*)}*)\nEvaluates each TEST in order until one evaluates to a non-NIL value.  Then\nevaluates the associated FORMs in order and returns the value of the last\nFORM.  If no forms follow the TEST, then returns the value of the TEST.\nReturns NIL, if all TESTs evaluate to NIL."
++ CONS
++ "Args: (x y)\nReturns a new cons (list node) whose car and cdr are X and Y, respectively."
++ CONSP
++ "Args: (x)\nReturns T if X is a cons; NIL otherwise."
++ DEFUN
++ "Syntax: (defun name lambda-list [doc] {form}*)\nDefines a function as the global definition of the symbol NAME. The\ncomplete syntax of a lambda-list is:\n\t({var}*\n\t [&optional {var}*]\n\t [&rest var]\n\t [&aux {var}*])\nThe doc-string DOC, if supplied, is saved as a FUNCTION doc and can be\nretrieved by (documentation 'NAME 'function)."
++ DO
++ "Syntax: (do ({(var [init [step]])}*) (endtest {result}*) {tag | statement}*)\nCreates a NIL block, binds each VAR to the value of the corresponding INIT,\nand then executes STATEMENTs repeatedly until ENDTEST is satisfied.  After\neach iteration, assigns to each VAR the value of the corresponding STEP.  When\nENDTEST is satisfied, evaluates RESULTs as a PROGN and returns the value of\nthe last RESULT (or NIL if no RESULTs are supplied).  Performs variable\nbindings and assignments all at once, just like LET does."
++ DO*
++ "Syntax: (do* ({(var [init [step]])}*) (endtest {result}*) {tag | statement}*)\nJust like DO, but performs variable bindings and assignments in serial, just\nlike LET* and SETQ do."
++ DOLIST
++ "Syntax: (dolist (var listform [result]) {tag | statement}*)\nExecutes STATEMENTs, with VAR bound to each member of the list value of\nLISTFORM.  Then returns the value of RESULT (which defaults to NIL)."
++ DOTIMES
++ "Syntax: (dotimes (var countform [result]) {tag | statement}*)\nExecutes STATEMENTs, with VAR bound to each number between 0 (inclusive) and\nthe value of COUNTFORM (exclusive).  Then returns the value of RESULT\n(which defaults to NIL)."
++ ELT
++ "Args: (a &rest indices)\nReturns element I of sequence A. ELT can be used in setf."
++ EQ
++ "Args: (x y)\nReturns T if X and Y are the same identical object; NIL otherwise."
++ EQL
++ "Args: (x y)\nReturns T if X and Y are EQ, or if they are numbers of the same type with\nthe same value, or if they are identical strings.  Returns NIL otherwise."
++ EQUAL
++ "Args: (x y)\nReturns T if X and Y are EQL or if they are of the same type and corresponding\ncomponents are EQUAL.  Returns NIL otherwise. Arrays must be EQ to be EQUAL."
++ EQUALP
++ "Args: (x y)\nReturns T if (equal x y), or x, y are numbers and (= x y), or\nx and y are strings and (string-equal x y)."
++ FORMAT
++ "Args: (destination control &rest args)\nVery basic implementation of Common Lisp format function. Only A, S, D, F, E,\nG, %, and ~ directives are supported. D, % and ~ can take one argument, R, E\nand G can take two."
++ FUNCALL
++ "Args: (function &rest arguments)\nApplies FUNCTION to the ARGUMENTs"
++ IF
++ "Syntax: (if test then [else])\nIf TEST evaluates to non-NIL, then evaluates THEN and returns the result.\nIf not, evaluates ELSE (which defaults to NIL) and returns the result."
++ LAST
++ "Args: (list)\nReturns the last cons in LIST"
++ LENGTH
++ "Args: (sequence)\nReturns the length of SEQUENCE."
++ LET
++ "Syntax: (let ({var | (var [value])}*) {form}*)\nInitializes VARs, binding them to the values of VALUEs (which defaults to NIL)\nall at once, then evaluates FORMs as a PROGN."
++ LET*
++ "Syntax: (let* ({var | (var [value])}*) {form}*)\nInitializes VARs, binding them to the values of VALUEs (which defaults to NIL)\nfrom left to right, then evaluates FORMs as a PROGN."
++ LISTP
++ "Args: (x)\nReturns T if X is either a cons or NIL; NIL otherwise."
++ MAP
++ "Args: (result-type function sequence &rest more-sequences)\nFUNCTION must take as many arguments as there are sequences provided. RESULT-TYPE\nmust be the either the symbol VECTOR or the symbol LIST. The result is a \nsequence of the specified type such that the i-th element of the result is the\nresult of applying FUNCTION to the i-th elements of the SEQUENCEs."
++ MAPCAR
++ "Args: (fun list &rest more-lists)\nApplies FUN to successive cars of LISTs and returns the results as a list."
++ MEMBER
++ "Args: (item list &key (test #'eql) test-not)\nReturns the tail of LIST beginning with the first ITEM."
++ NTH
++ "Args: (n list)\nReturns the N-th element of LIST, where the car of LIST is the zero-th\nelement."
++ NTHCDR
++ "Args: (n list)\nReturns the result of performing the CDR operation N times on LIST."
++ NULL
++ "Args: (x)\nReturns T if X is NIL; NIL otherwise."
++ NUMBERP
++ "Args: (x)\nReturns T if X is any kind of number; NIL otherwise."
++ OBJECTP
++ "Args: (x)\nReturns T if X is an object, NIL otherwise."
++ OR
++ "Syntax: (or {form}*)\nEvaluates FORMs in order from left to right.  If any FORM evaluates to\nnon-NIL, quits and returns that value.  If the last FORM is reached,\nreturns whatever value it returns."
++ PRIN1
++ "Args: (object &optional (stream *standard-output*))\nPrints OBJECT in the most readable representation.  Returns OBJECT."
++ PRINC
++ "Args: (object &optional (stream *standard-output*))\nPrints OBJECT without escape characters.  Returns OBJECT."
++ PRINT
++ "Args: (object &optional (stream *standard-output*))\nOutputs a newline character, and then prints OBJECT in the most readable\nrepresentation.  Returns OBJECT."
++ REMOVE
++ "Args: (item list &key (test #'eql) test-not)\nReturns a copy of LIST with ITEM removed."
++ RETURN
++ "Syntax: (return [result])\nReturns from the lexically surrounding PROG construct.  The value of RESULT,\nwhich defaults to NIL, is returned as the value of the PROG construct."
++ REVERSE
++ "Args: (list)\nReturns a new list containing the same elements as LIST but in\nreverse order."
++ SETF
++ "Syntax: (setf {place newvalue}*)\nReplaces the value in PLACE with the value of NEWVALUE, from left to right.\nReturns the value of the last NEWVALUE.  Each PLACE may be any one of the\nfollowing:\n  * A symbol that names a variable.\n  * A function call form whose first element is the name of the following\n    functions:\n\tnth\n\taref subarray sublist select elt\n\tget\n\tsymbol-value\n\tsymbol-plist\n\tdocumentation\n\tslot-value\n\tc?r\tc??r\tc???r\tc????r\n    where '?' stands for either 'a' or 'd'."
++ SETQ
++ "Syntax: (setq {var form}*)\nVARs are not evaluated and must be symbols.  Assigns the value of the first\nFORM to the first VAR, then assigns the value of the second FORM to the second\nVAR, and so on.  Returns the last value assigned."
++ STRING
++ "\nArgs: (sym)\nReturns print-name of SYM if SYM is a symbol, or SYM if SYM is a string."
++ STRINGP
++ "Args: (x)\nReturns T if X is a string; NIL otherwise."
++ SYMBOLP
++ "Args: (x)\nReturns T if X is a symbol; NIL otherwise."
++ TERPRI
++ "Args: (&optional (stream *standard-output*))\nOutputs a newline character."
++ UNLESS
++ "Syntax: (unless test {form}*)\nIf TEST evaluates to NIL evaluates FORMs as a PROGN.  If not, returns NIL."
++ KIND-OF-P
++ "Args: (x y)
++ Returns T is X and Y are objects and X inherits from Y, NIL otherwise."
++ SLOT-VALUE
++ "Args: (slot &optional value)
++ Must be used in a method. Returns the value of current objects slot named SLOT.
++ If Value is supplied SLOT is set to VALUE. Can be used in setf."
++ MAKE-OBJECT
++ "Args: (&rest parents)
++ Returns a new object with parents PARENTS. If PARENTS is NIL (list *OBJECT*)
++ is used."
++ SEND
++ "Args: (object selector &rest args)
++ Applies first method for SELECTOR found in OBJECT's precedence list to
++ OBJECT and ARGS."
++ SEND-SUPER
++ "Args: (selector &rest args)
++ Apply inherited method. Must be used within a method. Specifically, Applies 
++ first method for SELECTOR found in the cdr of the precedence list of the owner
++ of the current method to the current object and args."
++ CALL-METHOD
++ "Args (object selector &rest args)
++ Funcalls method for SELECTOR found in OBJECT to SELF. Can only be used in a method."
++ CALL-NEXT-METHOD
++ "Args (&rest args)
++ Funcalls next method for current selector and precedence list. Can only be used in a method."
++ DEFMETH
++ "Syntax: (defmeth object name lambda-list [doc] {form}*)
++ OBJECT must evaluate to an existing object. Installs a method for NAME in
++ the value of OBJECT and installs DOC in OBJECTS's documentation."
++ DEFPROTO
++ "Syntax (defproto name &optional ivars cvars (parent *object*) doc)
++ Makes a new object prototype with instance variables IVARS, 'class'
++ variables CVARS and parents PARENT. PARENT can be a single object or
++ a list of objects. IVARS and CVARS must be lists."
+Common subdirectories: /NOKOMIS/users/luke/working/xlispstat2.1R1/machines/decstation and ./machines/decstation
+Common subdirectories: /NOKOMIS/users/luke/working/xlispstat2.1R1/machines/encore and ./machines/encore
+Common subdirectories: /NOKOMIS/users/luke/working/xlispstat2.1R1/machines/generic and ./machines/generic
+Common subdirectories: /NOKOMIS/users/luke/working/xlispstat2.1R1/machines/ibmrt_bsd and ./machines/ibmrt_bsd
+Common subdirectories: /NOKOMIS/users/luke/working/xlispstat2.1R1/machines/pmax and ./machines/pmax
+Common subdirectories: /NOKOMIS/users/luke/working/xlispstat2.1R1/machines/sun3 and ./machines/sun3
+Common subdirectories: /NOKOMIS/users/luke/working/xlispstat2.1R1/machines/sun4 and ./machines/sun4
+Common subdirectories: /NOKOMIS/users/luke/working/xlispstat2.1R1/machines/vax and ./machines/vax
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/machines/decstation/README ./machines/decstation/README
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/machines/decstation/README	Wed Feb 20 11:00:48 1991
+--- ./machines/decstation/README	Fri Feb  1 11:03:00 1991
+***************
+*** 0 ****
+--- 1 ----
++ For DECstation information, see the information in the `pmax' directory.
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/machines/pmax/README ./machines/pmax/README
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/machines/pmax/README	Tue Sep 11 08:48:36 1990
+--- ./machines/pmax/README	Fri Feb  1 11:03:45 1991
+***************
+*** 3,17 ****
+  
+  -G 0 -T 10000000 -Wl,-D,12000000 -x
+  
+! to the ULDFLAGS (but not the ULDRFLAGS) to get things to compile with
+! the text and data segments close enough together to jump between. (The
+! -W stuff passes a -D flag on to ld but is needed to avoid having this
+! flag interpreted as a C preprocessor define.)
+  
+  In addition, code that is to be loaded dynamically must be compiled
+  with the `-G 0' flag.
+  
+! Under the ULTRIX 4.0 X release it may be necessary to define the
+! variable USE_FAST_SYMBOLS_DEFAULT as FALSE in StX11options.h. For
+! color machines it may also be necessary to define
+! SERVER_COLOR_FREE_PROBLEM in the same file.
+--- 3,56 ----
+  
+  -G 0 -T 10000000 -Wl,-D,12000000 -x
+  
+! to the ULDFLAGS to get things to compile with the text and data
+! segments close enough together to jump between. (The -W stuff passes a
+! -D flag on to ld but is needed to avoid having this flag interpreted
+! as a C preprocessor define.)
+  
+  In addition, code that is to be loaded dynamically must be compiled
+  with the `-G 0' flag.
+  
+! If you want to display xlispstat on a DECstation running ULTRIX 4.0
+! you may run into two bugs in the ULTRIX X servers:
+! 
+! 	On monochrome 3100's plot-points produces strange-looking
+! 	symbols. This is caused by a bug in the server response to an
+! 	XDrawPoints request.
+! 
+! 	On greyscale 5000's (and possibly other machines) exiting
+! 	from xlispstat causes an infinite loop of error messages.
+! 	This is due to a bug in handling XFreeColor requests.
+! 
+! To fix these problems, uncomment the defines of the variables
+! SERVER_COLOR_FREE_PROBLEM and DRAWPOINTSBUG in the file
+! StX11options.h.
+! 
+! If you plan on using DEC's dxwm window manager there is another
+! problem: modal dialog windows do not appear. This seems to be due to
+! lack of ICCCM compliance in dxwm (and improper ICCCM compliance in
+! xlispstat). You can cure this by turning ICCCM compliance off in
+! xlispstat. You can do this in three ways:
+! 
+! 	1) You can set USE_ICCCM_DEFAULT to FALSE in StX11options.h and
+! 	recompile the system.
+! 
+! 	2) You can set the icccm resource to off with a line like
+! 
+! 		xlisp*icccm: off
+! 
+! 	in the .Xdefaults file
+! 
+! 	3) You can use the expression
+! 
+! 		(x11-options :icccm nil)
+! 
+! 	in xlispstat.
+! 
+! If you are only going to use xlispstat on DECstations runing dxwm then
+! 1) is probably the simplest choice. If you may display xlispstat on
+! other workstations or other window managers then it may be better to
+! set the icccm resource in a resource file used when dxwm starts up.
+! 
+! The version of StX11options.h provided in this directory here should
+! work for a DECstation running Ultrix 4.0 and the dxwm window manager.
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/machines/pmax/StX11options.h ./machines/pmax/StX11options.h
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/machines/pmax/StX11options.h	Wed Feb 20 11:00:51 1991
+--- ./machines/pmax/StX11options.h	Fri Feb  1 16:22:21 1991
+***************
+*** 0 ****
+--- 1,31 ----
++ /* StX11options - X11 compile options                                  */
++ /* XLISP-STAT 2.1 Copyright (c) 1990, by Luke Tierney                  */
++ /* Additions to Xlisp 2.1, Copyright (c) 1989 by David Michael Betz    */
++ /* You may give out copies of this software; for conditions see the    */
++ /* file COPYING included with this distribution.                       */
++ 
++ 
++ /* Default values for options settable by x11-options. Values should   */
++ /* be TRUE or FALSE.                                                   */
++ 
++ #define USE_FAST_LINES_DEFAULT   TRUE
++ #define USE_FAST_SYMBOLS_DEFAULT TRUE
++ #define MOTION_SYNC_DEFAULT      TRUE
++ #define DO_CLIPPING_DEFAULT      TRUE
++ #define USE_ICCCM_DEFAULT        FALSE
++ #define WAIT_FOR_MAP_DEFAULT     TRUE
++ 
++ 
++ /* If you get X errors when you quit from xlispstat on a color or      */
++ /* greyscale workstation this might be due to a possible server bug    */
++ /* related to freeing color resources. Defining the preprocessor       */
++ /* variable SERVER_COLOR_FREE_PROBLEM may help.                        */
++ 
++ #define SERVER_COLOR_FREE_PROBLEM
++ 
++ /* On Ultrix 4.0 there is a bug in the Xmfb server's handling of the   */
++ /* XDrawPoints request used in drawing fast symbols. To enable a       */
++ /* workaround define the preprocessor variable DRAWPOINTSBUG.          */
++ 
++ #define DRAWPOINTSBUG
++ 
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/machines/sun3/README ./machines/sun3/README
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/machines/sun3/README	Wed Jan 17 11:52:36 1990
+--- ./machines/sun3/README	Fri Feb  8 14:26:58 1991
+***************
+*** 4,8 ****
+  
+  	-Bstatic
+  
+! to the ULDFLAGS and ULDRFLAGS variables in the Makefile to disable
+! shared labraries.
+--- 4,17 ----
+  
+  	-Bstatic
+  
+! to the ULDFLAGS variable in the Makefile to disable shared labraries.
+! To use Sun's OpenLook vesion of X11 distributed with OS 4.1 and up
+! you need to add
+! 
+! 	-I/usr/openwin/include
+! 
+! to the UCFLAGS variable, and define the X11LIBDIR variable as
+! 
+! 	/usr/openwin/lib
+! 
+! (assuming your openwin stuff is installed in the standard place).
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/machines/sun4/README ./machines/sun4/README
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/machines/sun4/README	Wed Jan 17 11:52:38 1990
+--- ./machines/sun4/README	Fri Feb  1 11:03:45 1991
+***************
+*** 2,7 ****
+  
+  	-Bstatic
+  
+! to the ULDFLAGS and ULDRFLAGS variables in the Makefile to disable
+! shared labraries.  Otherwise sun4 a.out seems to be close enough to
+! standard BSD to use the same foreign.h files as sun3 and vax.
+--- 2,18 ----
+  
+  	-Bstatic
+  
+! to the ULDFLAGS variable in the Makefile to disable shared labraries.
+! Otherwise sun4 a.out seems to be close enough to standard BSD to use
+! the same foreign.h files as sun3 and vax.
+! 
+! To use Sun's OpenLook vesion of X11 distributed with OS 4.1 and up
+! you need to add
+! 
+! 	-I/usr/openwin/include
+! 
+! to the UCFLAGS variable, and define the X11LIBDIR variable as
+! 
+! 	/usr/openwin/lib
+! 
+! (assuming your openwin stuff is installed in the standard place).
+diff -c -r /NOKOMIS/users/luke/working/xlispstat2.1R1/macintosh/macdialogs2.c ./macintosh/macdialogs2.c
+*** /NOKOMIS/users/luke/working/xlispstat2.1R1/macintosh/macdialogs2.c	Thu Aug 16 10:14:17 1990
+--- ./macintosh/macdialogs2.c	Wed Feb  6 11:33:48 1991
+***************
+*** 781,786 ****
+--- 781,787 ----
+      *bp = '\0';
+      sz = StringSize(buf);
+      w = max(w, sz.h);
++     if (*s == '\0') break;
+    }
+    return(w);
+  }

@@ -1,0 +1,196 @@
+;; sgml2lisp  -- sgml output formatting tool using SGMLS, EMACS and Lisp
+;; posted to comp.lan.lisp by ucc02aa@sun3.LRZ-Muenchen.DE (Pilch) 
+;; on Sun, 10 Oct 1993 23:04:46 GMT
+ 
+; PURPOSE
+
+ ; Generate a lisp program that acts as a filter
+ ; in converting SGML text to any user-specified format.
+ ; The generated converter operates on the output of
+ ; the SGML parser SGMLS (copyleft by J. Clarke) and
+ ; performs the same task as SGMLSASP.
+ ; But conversion algorithms needn't any longer conform to
+ ; the restricted code of the Amsterdam Parser (ASP), 
+ ; but are free to draw on the vast resources of a
+ ; leading artificial intelligence language.
+
+;; SOFTWARE DEPENDENCY
+
+ ; Both SGMLS and EMACS are needed for generating the lisp-data.
+ ; The executable file sgmls V 1.0 must be accessible via the PATH. 
+ ; EMACS generates an optional dummy converter and performs the conversion.
+ ; It can be in interactive, editing mode or be run on an e-lisp batch 
+ ; as a commadline interpreter.
+
+ ; Any LISP interpreter should be able to output the lisp-data to the 
+ ; user-specified format.  Therefore interpreters of other Lisp 
+ ; dialects than E-Lisp can be used to write the converter.
+
+;; HOW IT WORKS
+
+ ; 1. run sgm-to-lisp on your sgml-document, save the output in lisp-data.el
+ ; 2. run dtd-to-lisp on your dtd, save the output in converter.el
+ ; 3. do M-x-load-file on converter.el and lisp-data.el in sequence. 
+ ;    Now you have performed your first dummy conversion generating
+ ;    the empty string as output.
+ ; 4. Make a copy of converter.el for each application for which you
+ ;    want to write a converter, e.g. converter-LaTeX.el, converter-lout.el,
+ ;    converter-nroff.el, converter-ps.el.  Modify these files until you
+ ;    get the wanted output.  
+ ; 
+ ;    For a converter-LaTeX.el you may write something like this: 
+ ;
+ ;    (defun DOC (arg)
+ ;      (insert 
+ ;        "\\documentstyle[" APTSIZE "," ALANGUAGE "]{" AFORMAT "}" (newline)
+ ;        "\\begin{document}" (newline)
+ ;        arg 
+ ;        (newline) 
+ ;        "\\end{document}" (newline)
+ ;     )
+ ;
+ ;    or, for a converter-bourneshell.el, a syntagm such as 
+ ;
+ ;     <ftpalias>
+ ;       <name> ostasien
+ ;       <adr> ftp.lrz-muenchen.de
+ ;       <comment> major ftp site for East-Asian software applications, 
+ ;         administered by a group of German scholars 
+ ;      </ftpalias>
+ ;
+ ;    may be formatted by the following e-lisp functions:
+ ;
+ ;    (defun FTPALIAS (arg)         ; compound
+ ;      (setq SNAME "nosite")       ; initialize components
+ ;      (setq SADR "site.nowhere") 
+ ;      (setq SCOMMENT "")  
+ ;      (arg)                       ; read component values
+ ;	(concat                     ; format compound
+ ;	  (concat (newline) SNAME "=\"" SADR "\";export " SNAME)
+ ;	  (if (not (equal SCOMMENT "")) 
+ ;	    (concat (newline) "# " (remove-linebreaks SCOMMENT))
+ ;	    "")
+ ;     )
+ ;    (defun NAME (arg) (setq SNAME arg))       
+ ;    (defun ADR (arg) (setq SADR arg))         
+ ;    (defun COMMENT (arg) (setq SCOMMENT arg)) 
+ ;
+ ;   so as to produce the shell-script entry
+ ;
+ ;   ostasien=ftp.lrz-muenchen.de;export ostasien
+ ;   # major ftp site for East-Asian software applications, administered by a group of German scholars 
+ ;
+ ;   Some basic principles to be induced from the examples are:
+ ;
+ ;     1.  "(insert (concat .. arg ..)" 
+ ;         is used in the topmost GI node and only there,
+ ;         as in the above example DOC.
+ ;     2.  "(setq ..) (arg) (concat *template*)" 
+ ;         is used in complex (i.e. non-#pcdata) elements.  
+ ;         The lower level GIs are initialized, then read in, then
+ ;         formatted according to the *template*,
+ ;         as in the above example FTPALIAS
+ ;     3.  "(concat arg)" can be simplified to "(arg)" in simple (i.e.
+ ;         #pcdata) elements.  The lisp functions for these elements 
+ ;         have no other form than that of NAME and ADR above.
+
+;; BUGS / TO-DO-LIST
+
+;   The dummy converter that you have to start with is rather
+;   primitive.  It would not be very difficult to generate a more 
+;   sophisticated dummy converter, that would already fully apply 
+;   the above principles.
+;
+;   The macros invoke regexp replacement commands over and over again
+;   rather than doing an optimized replacement at a lower
+;   programming level.  That makes them easy to write but time-consuming
+;   to execute.  The best way to solve this problem will be to discard
+;   the present tool and incorporate its functions in sgmls itself, 
+;   i.e. to allow sgmls to be invoked with a commandline syntax like
+;
+;       sgmls [--lispprog] [--lispdata] [sgmlfile]
+;
+;   where "--lispprog" would produce the output of function dtd-to-lisp,
+;         "--lispdata"                          of function sgm-to-lisp.
+
+;; AUTHOR
+
+; <adr id=PilchH>
+; <person mf=m>
+;  <surn>Pilch<givn>Hartmut
+;  <titles>M.A., staatl.gepr. Dolmetscher f&ue;r Chinesisch
+; <place>
+;  <pmail><country>D<zip>80687<str>Von-der-Pfordten-Str.<nr>9
+;  <tele><country>49<area>89<phone>5804845<fax>567642
+;  <email>ucc02aa@lrz.lrz-muenchen.de
+; </adr>
+
+;;PROGRAM TEXT
+
+(setq case-replace nil)
+(defun replace-regexp-all (a b) 
+  (beginning-of-buffer)
+  (replace-regexp a b nil)
+ )
+(defun shell-command-on-buffer (kmd)
+  (interactive "scommand: ")     
+  (shell-command-on-region (beginning-of-buffer) (end-of-buffer) kmd nil 1))
+(defun convert-simple-functions ()
+  (interactive)
+  (replace-regexp-all "\\([^\\\\]\\)\"" "\\1\\\\\"") ;protect quotation marks
+  (replace-regexp-all "^-\\(.*\\)$" "\"\\1\"")       ;convert field delimiters
+  (replace-regexp-all "^(\\(\\w+\\)$
+^\"\\(.*\\)\"$
+^)\\1$" 
+    "(\\1 \"\\2\")"
+   )                                                 ;convert functions
+  )
+(defun convert-tokens () 
+  (replace-regexp-all "^\\(\\w+\\) TOKEN \\(\\w+\\)$" "(setq \\1 \"\\2\")")
+ )
+(defun convert-endmark () 
+  (end-of-buffer) (previous-line 3) 
+  (replace-regexp "^C" "(sgmls-output-end)")
+ )
+
+(defun convert-remaining-functions () 
+  (replace-regexp-all "^(\\(\\w+\\)$" "(\\1 (concat ")
+  (replace-regexp-all "^)\\(\\w+\\)$" " )) ;\\1")
+ )
+
+(defun sgmls-to-lisp () "
+
+  convert sgmls output to a series of lisp functions, to whom
+  application-specific meanings must defined in a series of
+  defun-statements, before they can generate input for the
+  intended application.
+
+  " (interactive)
+  (convert-simple-functions)
+  (convert-remaining-functions)
+  (convert-tokens)
+  (convert-endmark)  
+ )
+
+(defun sgm-to-lisp () "
+  parse sgml doc using external parser sgmls and 
+  produce e-lisp code using e-lisp function sgmls-to-lisp
+  " (interactive)
+  (shell-command-on-buffer "sgmls")
+  (switch-to-buffer "*Shell Command Output*")
+  (sgmls-to-lisp))
+(defun dtd-to-lisp () "
+  generate dummy defun statements from a dtd, which must be
+  in the current buffer, and write them to the *occur* buffer 
+  " (interactive)
+  (list-matching-lines "!element" nil)
+  (switch-to-buffer "*Occur*")
+  (beginning-of-buffer) (kill-line 1) 
+  (replace-regexp-all "^.*!element \\(\\w*\\) .*$" "\\1")
+  (mark-whole-buffer) (upcase-region (region-beginning) (region-end))
+  (replace-regexp-all "^\\(\\w+\\)$" "(defun \\1 (arg) (concat arg))")
+  (end-of-buffer)
+  (insert "(defun sgmls-output-end () (setq ok \"ok\"))")
+ )
+
+

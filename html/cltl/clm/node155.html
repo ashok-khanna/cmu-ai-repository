@@ -1,0 +1,288 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node155.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:46:47 GMT -->
+<HEAD>
+<TITLE>16.1. Hash Table Functions</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Hash Table Functions">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3461 HREF="node156.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3459 HREF="node154.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3453 HREF="node154.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3463 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3464 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3462 HREF="node156.html"> Primitive Hash Function</A>
+<B>Up:</B> <A NAME=tex2html3460 HREF="node154.html"> Hash Tables</A>
+<B> Previous:</B> <A NAME=tex2html3454 HREF="node154.html"> Hash Tables</A>
+<HR> <P>
+<H1><A NAME=SECTION002010000000000000000>16.1. Hash Table Functions</A></H1>
+<P>
+This section documents the functions for hash tables, which
+use <i>objects</i> as keys and associate other objects with them.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>make-hash-table &amp;key :test :size :rehash-size :rehash-threshold</tt><P>This function creates and returns a new hash table.
+The <tt>:test</tt> argument determines how keys are compared;
+it must be one of the three values <tt>#'eq</tt>, <tt>#'eql</tt>, or <tt>#'equal</tt>,
+or one of the three symbols <tt>eq</tt>, <tt>eql</tt>, or <tt>equal</tt>.
+If no test is specified, <tt>eql</tt> is assumed.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(HASH-TABLE-TESTS) <A NAME=17330>&#160;</A> 
+to add a fourth type of hash table:
+the value of <tt>#'equalp</tt> and the symbol <tt>equalp</tt> are to be additional
+valid possibilities for the <tt>:test</tt> argument.
+<P>
+Note that one consequence of
+the vote to change the rules of
+floating-point contagion
+(CONTAGION-ON-NUMERICAL-COMPARISONS) <A NAME=17334>&#160;</A> 
+(described in section <A HREF="node122.html#PRECISIONCONTAGIONCOERCIONSECTION">12.1</A>)
+is to require <tt>=</tt>, and therefore also <tt>equalp</tt>,
+to compare the values of numbers exactly and not approximately, making
+<tt>equalp</tt> a true equivalence relation on numbers.
+<P>
+Another valuable use of <tt>equalp</tt> hash tables is case-insensitive
+comparison of keys that are strings.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+The <tt>:size</tt> argument
+sets the initial size of the hash table, in entries.
+(The actual size may be rounded up from the size
+you specify to the next ``good'' size, for example to make it a prime number.)
+You won't necessarily be able to store precisely
+this many entries into the table
+before it overflows and becomes bigger, but this argument does serve
+as a hint to the implementation of approximately
+how many entries you intend to store.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(ARGUMENTS-UNDERSPECIFIED) <A NAME=17343>&#160;</A> 
+to clarify that the <tt>:size</tt> argument
+must be a non-negative integer.
+<P>
+X3J13 voted in June 1989 (HASH-TABLE-SIZE) <A NAME=17347>&#160;</A>  to regard the
+preceding description of the <tt>:size</tt> argument as definitive: it
+is approximately the number of entries that can be inserted
+without having to enlarge the hash table.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+The <tt>:rehash-size</tt> argument
+specifies how much to increase the size of the hash table when it becomes
+full.  This can be an integer greater than zero,
+which is the number of entries to add, or
+it can be a floating-point number greater than 1,
+which is the ratio of the new size to the old size.
+The default value for this argument is implementation-dependent.
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+The <tt>:rehash-threshold</tt> argument
+specifies how full the hash table can get before it must grow.
+This can be an integer greater than zero and less than the <tt>:rehash-size</tt>
+(in which case it will be scaled whenever the table is grown),
+or it can be a floating-point number between zero and 1.
+The default value for this argument is implementation-dependent.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (HASH-TABLE-SIZE) <A NAME=17356>&#160;</A>  to replace
+the preceding specification of the <tt>:rehash-threshold</tt> argument
+with the following:
+The <tt>:rehash-threshold</tt> argument
+specifies how full the hash table can get before it must grow.
+It may be any <tt>real</tt> number between <tt>0</tt> and <tt>1</tt>, inclusive.
+It indicates the maximum desired level of hash table occupancy.
+An implementation is permitted to ignore this argument.
+The default value for this argument is implementation-dependent.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+An example of the use of <tt>make-hash-table</tt>:
+<P><pre>
+(make-hash-table :rehash-size 1.5 
+                 :size (* number-of-widgets 43))
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>hash-table-p <i>object</i></tt><P><tt>hash-table-p</tt> is true if its argument is a hash table,
+and otherwise is false.
+<P><pre>
+(hash-table-p x) == (typep x 'hash-table)
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>gethash <i>key</i> <i>hash-table</i> &amp;optional <i>default</i></tt><P><tt>gethash</tt> finds the entry in <i>hash-table</i> whose key is <i>key</i>
+and returns the
+associated value.  If there is no such entry, <tt>gethash</tt> returns <i>default</i>,
+which is <tt>nil</tt> if not specified.
+<P>
+<tt>gethash</tt> actually returns two values, the second being a predicate
+value that is true if an entry was found, and false if no entry was found.
+<P>
+<tt>setf</tt> may be used with <tt>gethash</tt> to make new entries in a hash
+table.  If an entry with the specified <i>key</i> already exists, it is
+removed before the new entry is added.  The <i>default</i> argument may be
+specified to <tt>gethash</tt> in this context; it is ignored by <tt>setf</tt>
+but may be useful in such macros as <tt>incf</tt> that are related to <tt>setf</tt>:
+<P><pre>
+(incf (gethash a-key table 0))
+</pre><P>
+means approximately the same as
+<P><pre>
+(setf (gethash a-key table 0) 
+      (+ (gethash a-key table 0) 1))
+</pre><P>
+which in turn would be treated as simply
+<P><pre>
+(setf (gethash a-key table) 
+      (+ (gethash a-key table 0) 1))
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>remhash <i>key</i> <i>hash-table</i></tt><P><tt>remhash</tt> removes
+any entry for <i>key</i> in <i>hash-table</i>.  This is a predicate
+that is true if there was an
+entry or false if there was not.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>maphash <i>function</i> <i>hash-table</i></tt><P>For each entry in <i>hash-table</i>, <tt>maphash</tt> calls
+<i>function</i> on two arguments:
+the key of the entry and the value of the entry; <tt>maphash</tt> then returns <tt>nil</tt>.
+If entries are added to or deleted from the hash table while a <tt>maphash</tt>
+is in progress, the results are unpredictable, with one exception:
+if the <i>function</i> calls <tt>remhash</tt> to remove the entry currently
+being processed by the <i>function</i>, or performs a <tt>setf</tt> of
+<tt>gethash</tt> on that entry to change the associated value, then those
+operations will have the intended effect.
+For example:
+<P><pre>
+;;; Alter every entry in MY-HASH-TABLE, replacing the value with 
+;;; its square root.  Entries with negative values are removed. 
+(maphash #'(lambda (key val) 
+             (if (minusp val) 
+                 (remhash key my-hash-table) 
+                 (setf (gethash key my-hash-table) (sqrt val)))) 
+         my-hash-table)
+</pre><P>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=17415>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>clrhash <i>hash-table</i></tt><P>This removes all the entries from <i>hash-table</i>
+and returns the hash table itself.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>hash-table-count <i>hash-table</i></tt><P>This returns the number of entries in the <i>hash-table</i>.
+When a hash table is first created or has been cleared,
+the number of entries is zero.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<BR><b>[Macro]</b><BR>
+<tt>with-hash-table-iterator (<i>mname</i> <i>hash-table</i>) {<i>form</i>}*</tt><P>X3J13 voted in January 1989
+(HASH-TABLE-PACKAGE-GENERATORS) <A NAME=17428>&#160;</A> 
+to add the macro <tt>with-hash-table-iterator</tt>.
+<P>
+The name <i>mname</i> is bound and defined as if by <tt>macrolet</tt>,
+with the body <i>form</i>s as its lexical scope, to be a ``generator macro''
+such that successive invocations <tt>(<i>mname</i>)</tt> will
+return entries, one by one, from the hash table that is the value of the
+expression <i>hash-table</i> (which is evaluated exactly once).
+<P>
+At each invocation of the generator macro, there are two possibilities.
+If there is yet another unprocessed entry in the hash table, then
+three values are returned: <tt>t</tt>,
+the key of the hash table entry, and
+the associated value of the hash table entry.
+On the other hand, if there are no more unprocessed entries in the
+hash table, then one value is returned: <tt>nil</tt>.
+<P>
+The implicit interior state of the iteration over the hash table
+entries has dynamic extent.  While the name <i>mname</i> has
+lexical scope, it is an error to invoke the generator macro
+once the <tt>with-hash-table-iterator</tt> form has been exited.
+<P>
+Invocations of <tt>with-hash-table-iterator</tt>
+and related macros may be nested, and the generator macro of an
+outer invocation may be called from within an inner invocation
+(assuming that its name is visible or otherwise made available).
+<P>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=17441>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<P>
+<hr>
+<b>Rationale:</b> This facility is a bit more flexible than <tt>maphash</tt>.
+It makes possible a portable and efficient implementation of <tt>loop</tt>
+clauses for iterating over hash tables (see chapter <A HREF="node235.html#LOOP">26</A>).
+<hr>
+<P>
+<P><pre>
+(setq turtles (make-hash-table :size 9 :test 'eq)) 
+(setf (gethash 'howard-kaylan turtles) '(musician lead-singer)) 
+(setf (gethash 'john-barbata turtles) '(musician drummer)) 
+(setf (gethash 'leonardo turtles) '(ninja leader blue)) 
+(setf (gethash 'donatello turtles) '(ninja machines purple)) 
+(setf (gethash 'al-nichol turtles) '(musician guitarist)) 
+(setf (gethash 'mark-volman turtles) '(musician great-hair)) 
+(setf (gethash 'raphael turtles) '(ninja cool rude red)) 
+(setf (gethash 'michaelangelo turtles) '(ninja party-dude orange)) 
+(setf (gethash 'jim-pons turtles) '(musician bassist)) 
+
+(with-hash-table-iterator (get-turtle turtles) 
+  (labels ((try (got-one &amp;optional key value) 
+             (when got-one      ;Remember, keys may show up in any order 
+               (when (eq (first value) 'ninja) 
+                 (format t &quot;~%~:(~A~): ~{~A~^, ~}&quot; 
+                         key (rest value))) 
+               (multiple-value-call #'try (get-turtle))))) 
+    (multiple-value-call #'try (get-turtle))))     ;Prints 4 lines 
+Michaelangelo: PARTY-DUDE, ORANGE 
+Leonardo: LEADER, BLUE 
+Raphael: COOL, RUDE, RED 
+Donatello: MACHINES, PURPLE 
+  => nil
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<BR><b>[Function]</b><BR>
+<tt>hash-table-rehash-size <i>hash-table</i> <BR></tt><tt>hash-table-rehash-threshold <i>hash-table</i> <BR></tt><tt>hash-table-size <i>hash-table</i> <BR></tt><tt>hash-table-test <i>hash-table</i></tt><P>X3J13 voted in March 1989 (HASH-TABLE-ACCESS) <A NAME=17468>&#160;</A> 
+to add four accessor functions that return values suitable for use in a call to
+<tt>make-hash-table</tt> in order to produce a new hash table with state
+corresponding to the current state of the argument hash table.
+<P>
+<tt>hash-table-rehash-size</tt> returns the current rehash size of a hash table.
+<P>
+<tt>hash-table-rehash-threshold</tt> returns the current rehash threshold.
+<P>
+<tt>hash-table-size</tt> returns the current size of a hash table.
+<P>
+<tt>hash-table-test</tt> returns the test used for comparing keys.
+If the test is one of the standard test functions, then the result
+will always be a symbol, even if the function itself was specified
+when the <i>hash-table</i> was created.  For example:
+<P><pre>
+(hash-table-test (make-hash-table :test #'equal)) => equal
+</pre><P>
+Implementations that extend <tt>make-hash-table</tt> by providing additional
+possibilities for the <tt>:test</tt> argument may determine how the
+value returned by <tt>hash-table-test</tt> is related to such additional tests.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html3461 HREF="node156.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3459 HREF="node154.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3453 HREF="node154.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3463 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3464 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3462 HREF="node156.html"> Primitive Hash Function</A>
+<B>Up:</B> <A NAME=tex2html3460 HREF="node154.html"> Hash Tables</A>
+<B> Previous:</B> <A NAME=tex2html3454 HREF="node154.html"> Hash Tables</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

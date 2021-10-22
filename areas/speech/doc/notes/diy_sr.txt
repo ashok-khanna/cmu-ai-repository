@@ -1,0 +1,159 @@
+Newsgroups: comp.speech
+Path: pavo.csi.cam.ac.uk!pipex!uunet!convex!darwin.sura.net!spool.mu.edu!agate!ames!riacs!danforth
+From: danforth@riacs.edu (Douglas G. Danforth)
+Subject: Re: Very simple speech recognition Alg. wanted.
+Message-ID: <1992Nov12.180625.13886@riacs.edu>
+Sender: news@riacs.edu
+Organization: RIACS, NASA Ames Research Center
+References: <MHALL.92Nov9152432@occs.cs.oberlin.edu>
+Distribution: comp.speech
+Date: Thu, 12 Nov 92 18:06:25 GMT
+Lines: 120
+
+In <MHALL.92Nov9152432@occs.cs.oberlin.edu> mhall@occs.cs.oberlin.edu (Matthew Hall) writes:
+
+>Hello-
+>	I asked this question before, and recieved no replies.
+>However I did recieve at least five requests to pass information on.
+>If you can help, please do.  Many people want to know.
+
+>Simply the question is this - How does one implement a speaker
+>dependant, discrete recognition system?  For my purposes, the
+>vocabulary can be very small (<100 commands), but others have shown
+>interest in larger vocabularies.
+
+>Specifically, what data should one store - what patterns are unique to
+>different words.  How does one search a "dictionary" for a specific
+>word, and how does one quickly and somewhat accurately match a word
+>spoken to it's saved (pattern?)  The sound, at least in my case, is
+>stored in a raw waveform.  I am using pascal on a Macintosh, but I am
+>pretty flexible.
+
+>If you can help me and the other querents out, either by source code
+>or pointers to information, please do. There seems to be a great
+>interest in this.
+
+>Thank you,
+>-matt hall
+>--
+>-------------------------------------------------------------------------------
+>Matt Hall.    mhall@occs.oberlin.edu  OR  SMH9666@OBERLIN.BITNET
+>              (216)-775-6613 (That's a Cleveland Area code. Lucky Me)
+
+>"Life's good, but not fair at all"  -Lou Reed
+
+QUICKY RECOGNIZER sketch:
+
+Here is a simple recognizer that should give you 85%+ recognition
+accuracy.  The accuracy is a function of WHAT words you have in
+your vocabulary.  Long distinct words are easy.  Short similar
+words are hard.  You can get 98+% on the digits with this recognizer.
+
+Overview:
+(1) Find the begining and end of the utterance.
+(2) Filter the raw signal into frequency bands.
+(3) Cut the utterance into a fixed number of segments.
+(4) Average data for each band in each segment.
+(5) Store this pattern with its name.
+(6) Collect training set of about 3 repetitions of each pattern (word).
+(7) Recognize unknown by comparing its pattern against all patterns
+    in the training set and returning the name of the pattern closest
+    to the unknown.
+
+This type of recognizer has been used by several companies such as
+Interstate Electronics.  There are many variations on this theme:
+Use Mel-Ceptral rather than frequency bands, dynamic time warping
+rather than linear segment rule, Hidden Markov Models with no
+specific end point determination, etc.
+
+If you use filter bands then you need to know how to construct a
+filter which has a center frequency and band width.  There are many
+signal processing books that describe how to do this but can get
+quite technical very fast.  I have found that a simple "second
+order state space" filter works very well.  By this I mean that
+each filter is represented by a 2x2 matrix which specifies its
+center frequency and bandwidth along with a 2x1 vector, its state.
+The state is modified from sample to sample by first adding the
+input signal from whatever hardware board you have to one of the
+components of the state and then multiplying that state by the
+2x2 matrix:  add and rotate.  The output of the filter is just
+one of the components of the state (it doesn't really matter which,
+the phase is just shifted slightly).
+
+The 2x2 matrix is contructed as following:
+
+              |a  -b|
+	R = r |     |
+              |b   a|
+
+where 0 < r < 1,  a=cos(t), b=sin(t).
+
+The parameter r determines the width of the filter.  If r is close to 1
+then the width is very narrow and the output can grow very large for
+inputs with frequency in resonance with the filter.  For r small the
+width is broad and the amplitude grows less strongly.
+
+The parameter t is the frequency of the filter, small t low frequency,
+large (near pi) t high frequency.  You should spread your filters
+over the range 200Hz to 4000Hz.  The spread should be heavy near the
+low frequency with fewer filters near the high (critical bands).
+
+The output of a filter will look choppy and irregular just like the
+input but will be large for resonance input signals.  One needs to
+smooth the output of each band filter by "lowpass" filtering the 
+rectified fullwave (absolute value of)(make all negative values positive).
+This entails using a second stage with a single 1x1 state scalar that
+adds a fraction of the rectified bandpass filter output to a fraction
+of its value:  Lowpass := (1-u)*Lowpass + u*|Bandpass|,  where  0 < u < 1.
+
+Resample the Lowpass at about 200 times a second to use for the other
+parts of the pattern generation.
+
+How many filters?  How many segments?  Well 16 for both works quite
+nicely.  This gives a pattern of 256 numbers.  That's what you store.
+
+How do you find the begining and end of an utterance?  Use a threshold
+for the total energy (square of the input signal) and remember that
+just because the signal drops below the threshold does not mean that
+the word is finished.  It may come up again!  Consider the word "it".
+There is a long pause between the "i" and the release of the "t" so
+you need allow for this.  Again, other more sophisticated techniques
+can avoid having to make these "end point" decisions in this way but
+take more work to implement.
+
+I think I have provided enough information for you to begin building
+your first speech recognition system.  Oh yes, just use a Euclidean
+distance between the 256 elements of two patterns (other metrics
+also work).
+
+Good luck,
+
+Doug Danforth
+
+Newsgroups: comp.speech
+Path: pavo.csi.cam.ac.uk!doc.ic.ac.uk!agate!ames!riacs!danforth
+From: danforth@riacs.edu (Douglas G. Danforth)
+Subject: Re: Very simple speech recognition Alg. wanted.
+Message-ID: <1992Nov12.232526.17013@riacs.edu>
+Sender: news@riacs.edu
+Organization: RIACS, NASA Ames Research Center
+References: <MHALL.92Nov9152432@occs.cs.oberlin.edu> <1992Nov12.180625.13886@riacs.edu>
+Distribution: comp.speech
+Date: Thu, 12 Nov 92 23:25:26 GMT
+Lines: 15
+
+
+Addendum to QUICKY:
+
+Amplitude normalization: 
+  Forgot to mention that the amplitude in each segment should be normalized
+otherwise loud sounds will look different from  soft sounds even though
+the same word is spoken.  The Interstate Algorithm actually just
+uses the amplitude difference (1 bit) from one lowpass filter to the
+next higher frequency within a segment.  For 16 filters there are
+15 differences.  An increase gets a 1 bit.  No change or decrease gets
+a 0 bit.  The result is a 256 bit (pad low frequency with zeros) pattern.
+You can try other schemes as well.
+
+Doug Danforth
+

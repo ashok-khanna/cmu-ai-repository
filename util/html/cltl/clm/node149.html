@@ -1,0 +1,525 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node149.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:31:35 GMT -->
+<HEAD>
+<TITLE>15.2. Lists</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Lists">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3389 HREF="node150.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3387 HREF="node147.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3381 HREF="node148.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3391 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3392 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3390 HREF="node150.html"> Alteration of List </A>
+<B>Up:</B> <A NAME=tex2html3388 HREF="node147.html"> Lists</A>
+<B> Previous:</B> <A NAME=tex2html3382 HREF="node148.html"> Conses</A>
+<HR> <P>
+<H1><A NAME=SECTION001920000000000000000>15.2. Lists</A></H1>
+<P>
+The following functions perform various operations on lists.
+<p>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+The list is one of the original Lisp data types.  The very name ``Lisp''
+is an abbreviation for ``LISt Processing.''
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>endp <i>object</i></tt><P>The predicate <tt>endp</tt> is the recommended way to test for the end
+of a list.  It is false of conses, true of <tt>nil</tt>, and an error for
+all other arguments.
+<P>
+<hr>
+<b>Implementation note:</b> Implementations are encouraged to signal an
+error, especially in the interpreter, for a non-list argument.
+The <tt>endp</tt> function is defined so as to allow compiled code
+to perform simply an atom check or a null check if speed is more
+important than safety.
+<hr>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>list-length <i>list</i></tt><P><tt>list-length</tt> returns, as an integer, the length of <i>list</i>.
+<tt>list-length</tt> differs from <tt>length</tt> when the <i>list</i> is
+circular; <tt>length</tt> may fail to return, whereas <tt>list-length</tt>
+will return <tt>nil</tt>.
+For example:
+<P><pre>
+(list-length '<tt>()</tt>) => 0 
+(list-length '(a b c d)) => 4 
+(list-length '(a (b c) d)) => 3 
+(let ((x (list 'a b c))) 
+  (rplacd (last x) x) 
+  (list-length x)) => <tt>nil</tt>
+</pre><P>
+<tt>list-length</tt> could be implemented as follows:
+<P><pre>
+(defun list-length (x) 
+  (do ((n 0 (+ n 2))            ;Counter 
+       (fast x (cddr fast))     ;Fast pointer: leaps by 2 
+       (slow x (cdr slow)))     ;Slow pointer: leaps by 1 
+      (nil) 
+    ;; If fast pointer hits the end, return the count. 
+    (when (endp fast) (return n)) 
+    (when (endp (cdr fast)) (return (+ n 1))) 
+    ;; If fast pointer eventually equals slow pointer, 
+    ;;  then we must be stuck in a circular list. 
+    ;; (A deeper property is the converse: if we are 
+    ;;  stuck in a circular list, then eventually the 
+    ;;  fast pointer will equal the slow pointer. 
+    ;;  That fact justifies this implementation.) 
+    (when (and (eq fast slow) (&gt; n 0)) (return nil))))
+</pre><P>
+See <tt>length</tt>, which will return the length of any sequence.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>nth <i>n</i> <i>list</i></tt><P><tt>(nth <i>n</i> <i>list</i>)</tt> returns the <i>n</i>th element of <i>list</i>, where
+the <i>car</i> of the list is the ``zeroth'' element.
+The argument <i>n</i> must be a non-negative integer.
+If the length of the list is not greater than <i>n</i>, then the result
+is <tt>()</tt>, that is, <tt>nil</tt>.
+(This is consistent with the idea that the <i>car</i> and <i>cdr</i>
+of <tt>()</tt> are each <tt>()</tt>.)
+For example:
+<P><pre>
+(nth 0 '(foo bar gack)) => foo 
+(nth 1 '(foo bar gack)) => bar 
+(nth 3 '(foo bar gack)) => <tt>()</tt>
+</pre><P>
+<P>
+<hr>
+<b>Compatibility note:</b> This is not
+the same as the Interlisp function called <tt>nth</tt>,
+which is similar to but not exactly the same as the Common Lisp function
+<tt>nthcdr</tt>.  This definition of <tt>nth</tt> is compatible
+with Lisp Machine Lisp and NIL (New Implementation of Lisp).
+Also, some people have used macros and functions called <tt>nth</tt> of their own in
+their old MacLisp programs, which may not work the same way.
+<hr>
+<P>
+<tt>nth</tt> may be used to specify a <i>place</i> to <tt>setf</tt>;
+when <tt>nth</tt> is used in this way, the argument <i>n</i> must be less
+than the length of the <i>list</i>.
+<P>
+Note that the arguments to <tt>nth</tt> are reversed from the order
+used by most other sequence selector functions such as <tt>elt</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>first <i>list</i> <BR></tt><tt>second <i>list</i> <BR></tt><tt>third <i>list</i> <BR></tt><tt>fourth <i>list</i> <BR></tt><tt>fifth <i>list</i> <BR></tt><tt>sixth <i>list</i> <BR></tt><tt>seventh <i>list</i> <BR></tt><tt>eighth <i>list</i> <BR></tt><tt>ninth <i>list</i> <BR></tt><tt>tenth <i>list</i></tt><P>These functions are sometimes convenient for accessing particular
+elements of a list.  <tt>first</tt> is the same as <tt>car</tt>,
+<tt>second</tt> is the same as <tt>cadr</tt>, <tt>third</tt> is the
+same as <tt>caddr</tt>, and so on.
+Note that the ordinal numbering used here is one-origin,
+as opposed to the zero-origin numbering used by <tt>nth</tt>:
+<P><pre>
+(fifth x) == (nth 4 x)
+</pre><P>
+<P>
+<tt>setf</tt> may be used with each of these functions to store
+into the indicated position of a list.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>rest <i>list</i></tt><P><tt>rest</tt> means the same as <tt>cdr</tt> but mnemonically complements <tt>first</tt>.
+<tt>setf</tt> may be used with <tt>rest</tt> to replace the <i>cdr</i> of a list
+with a new value.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>nthcdr <i>n</i> <i>list</i></tt><P><tt>(nthcdr <i>n</i> <i>list</i>)</tt> performs the <tt>cdr</tt> operation <i>n</i> times
+on <i>list</i>, and returns the result.
+For example:
+<P><pre>
+(nthcdr 0 '(a b c)) => (a b c) 
+(nthcdr 2 '(a b c)) => (c) 
+(nthcdr 4 '(a b c)) => <tt>()</tt>
+</pre><P>
+In other words, it returns the <i>n</i>th <i>cdr</i> of the list.
+<P>
+<hr>
+<b>Compatibility note:</b> This is similar to the Interlisp function <tt>nth</tt>,
+except that the Interlisp function is one-based instead of zero-based.
+<hr>
+<P>
+<P><pre>
+(car (nthcdr n x)) == (nth n x)
+</pre><P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(ARGUMENTS-UNDERSPECIFIED) <A NAME=16375>&#160;</A> 
+to clarify that the argument <i>n</i>
+must be a non-negative integer.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<BR><b>[Function]</b><BR>
+<tt>last <i>list</i></tt><P><tt>last</tt> returns the last cons (<i>not</i> the last element!) of <i>list</i>.
+If <i>list</i> is <tt>()</tt>, it returns <tt>()</tt>.
+For example:
+<P><pre>
+(setq x '(a b c d)) 
+(last x) => (d) 
+(rplacd (last x) '(e f)) 
+x => '(a b c d e f) 
+(last '(a b c . d)) => (c . d)
+</pre><P>
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1988
+(LAST-N) <A NAME=16392>&#160;</A> 
+to extend the <tt>last</tt> function to accept
+an optional second argument.  The effect is to make <tt>last</tt>
+complementary in operation to <tt>butlast</tt>.
+The new description (with some additional examples) would be as follows.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>last <i>list</i> &amp;optional (<i>n</i> 1)</tt><P><tt>last</tt> returns the tail of the <i>list</i>
+consisting of the last <i>n</i> conses of <i>list</i>.  The <i>list</i> may
+be a dotted list.  It is an error if the <i>list</i> is circular.
+<P>
+The argument <i>n</i> must be a non-negative integer.
+If <i>n</i> is zero, then the atom that terminates the <i>list</i>
+is returned.  If <i>n</i> is not less than the number of cons cells
+making up the <i>list</i>, then the <i>list</i> itself is returned.
+<P>
+For example:
+<P><pre>
+(setq x '(a b c d)) 
+(last x) => (d) 
+(rplacd (last x) '(e f)) 
+x => '(a b c d e f) 
+(last x 3) => (d e f) 
+(last '()) => () 
+(last '(a b c . d)) => (c . d) 
+(last '(a b c . d) 0) => d 
+(last '(a b c . d) 2) => (b c . d) 
+(last '(a b c . d) 1729) => (a b c . d)
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>list &amp;rest <i>args</i></tt><P><tt>list</tt> constructs and returns a list of its arguments.
+For example:
+<P><pre>
+(list 3 4 'a (car '(b . c)) (+ 6 -2)) => (3 4 a b 4)
+</pre><P>
+<P>
+<P><pre>
+(list) => () 
+(list (list 'a 'b) (list 'c 'd 'e)) => ((a b) (c d e))
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>list* <i>arg</i> &amp;rest <i>others</i></tt><P><tt>list*</tt> is like <tt>list</tt> except that the last <i>cons</i>
+of the constructed list is ``dotted.''  The last argument to <tt>list*</tt>
+is used as the <i>cdr</i> of the last cons constructed;
+this need not be an atom.  If it is not an atom,
+then the effect is to add several new elements to the front of a list.
+For example:
+<P><pre>
+(list* 'a 'b 'c 'd) => (a b c . d)
+</pre><P>
+This is like
+<P><pre>
+(cons 'a (cons 'b (cons 'c 'd)))
+</pre><P>
+Also:
+<P><pre>
+(list* 'a 'b 'c '(d e f)) => (a b c d e f) 
+(list* x) == x
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>make-list <i>size</i> &amp;key :initial-element</tt><P>This creates and returns a list containing <i>size</i> elements, each
+of which is initialized to the <tt>:initial-element</tt>
+argument (which defaults to <tt>nil</tt>).
+<i>size</i> should be a non-negative integer.
+For example:
+<P><pre>
+(make-list 5) => (<tt>nil nil nil nil nil</tt>) 
+(make-list 3 <tt>:initial-element</tt> 'rah) => (rah rah rah)
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>append &amp;rest <i>lists</i></tt><P>The arguments to <tt>append</tt> are lists.  The result is a list that is the
+concatenation of the arguments.
+The arguments are not destroyed.
+For example:
+<P><pre>
+(append '(a b c) '(d e f) '<tt>()</tt> '(g)) => (a b c d e f g)
+</pre><P>
+Note that <tt>append</tt> copies the top-level list structure of each of its
+arguments <i>except</i> the last.
+The function <tt>concatenate</tt> can perform a similar operation, but always
+copies all its arguments.  See also <tt>nconc</tt>, which is like <tt>append</tt>
+but destroys all arguments but the last.
+<P>
+The last argument actually need not be a list but may be any Lisp object,
+which becomes the tail end of the constructed list.
+For example, <tt>(append '(a b c) 'd)</tt> => <tt>(a b c . d)</tt>.
+<P>
+<tt>(append <i>x</i> '<tt>()</tt>)</tt> is an idiom once frequently used to copy the
+list <i>x</i>, but the <tt>copy-list</tt> function is more appropriate to this
+task.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>copy-list <i>list</i></tt><P>This returns a list that is <tt>equal</tt> to <i>list</i>, but not <tt>eq</tt>.
+Only the top level of list structure is copied; that is, <tt>copy-list</tt>
+copies in the <i>cdr</i> direction but not in the <i>car</i> direction.
+If the list is ``dotted,'' that is, <tt>(cdr (last <i>list</i>))</tt>
+is a non-<tt>nil</tt> atom, this will be true of the returned list also.
+See also <tt>copy-seq</tt> and <tt>copy-tree</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>copy-alist <i>list</i></tt><P><tt>copy-alist</tt> is for copying association lists.  The top level of
+list structure of <i>list</i> is copied, just as for <tt>copy-list</tt>.
+In addition, each element of <i>list</i> that is a cons is replaced
+in the copy by a new cons with the same <i>car</i> and <i>cdr</i>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>copy-tree <i>object</i></tt><P><tt>copy-tree</tt> is for copying trees of conses.
+The argument <i>object</i> may be any Lisp object.
+If it is not a cons, it is returned; otherwise
+the result is a new cons of the results of calling <tt>copy-tree</tt>
+on the <i>car</i> and <i>cdr</i> of the argument.  In other words,
+all conses in the tree are copied recursively, stopping
+only when non-conses are encountered.
+Circularities and the sharing of substructure are <i>not</i> preserved.
+<P>
+<hr>
+<b>Compatibility note:</b> This function is called <tt>copy</tt> in Interlisp.
+<hr>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>revappend <i>x</i> <i>y</i></tt><P><tt>(revappend <i>x</i> <i>y</i>)</tt> is exactly the same as 
+<tt>(append (reverse <i>x</i>) <i>y</i>)</tt> except that it is potentially more
+efficient.  Both <i>x</i> and <i>y</i> should be lists.
+The argument <i>x</i> is copied, not destroyed.
+Compare this with <tt>nreconc</tt>, which destroys its first argument.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>nconc &amp;rest <i>lists</i></tt><P><tt>nconc</tt> takes lists as arguments.  It returns a list that is the arguments
+concatenated together.  The arguments are changed rather than copied.
+(Compare this with <tt>append</tt>, which copies arguments rather than
+destroying them.)
+For example:
+<P><pre>
+(setq x '(a b c)) 
+(setq y '(d e f)) 
+(nconc x y) => (a b c d e f) 
+x => (a b c d e f)
+</pre><P>
+Note, in the example, that the value of <tt>x</tt> is now different,
+since its last cons has been <tt>rplacd</tt>'d to the value of <tt>y</tt>.
+If one were then to evaluate <tt>(nconc x y)</tt> again,
+it would yield a piece of ``circular'' list
+structure, whose printed representation would be
+<tt>(a b c d e f d e f d e f ...)</tt>, repeating forever;
+if the <tt>*print-circle*</tt> switch were non-<tt>nil</tt>,
+it would be printed as <tt>(a b c . #1=(d e f . #1#))</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (REMF-DESTRUCTION-UNSPECIFIED) <A NAME=16521>&#160;</A> 
+to clarify the permissible side effects of certain operations.
+The side-effect behavior of <tt>nconc</tt> is specified by a recursive relationship
+outlined in the following table, in which a call to <tt>nconc</tt> matching
+the earliest possible
+pattern on the left is required to have side-effect behavior
+equivalent to the corresponding expression on the right.
+<pre>
+(nconc)                 nil     ;No side effects 
+(nconc nil . <i>r</i>)         (nconc . <i>r</i>) 
+(nconc <i>x</i>)               <i>x</i> 
+(nconc <i>x</i> <i>y</i>)             (let ((p <i>x</i>) (q <i>y</i>)) 
+                          (rplacd (last p) q) 
+                          p) 
+(nconc <i>x</i> <i>y</i> . <i>r</i>)         (nconc (nconc <i>x</i> <i>y</i>) . <i>r</i>)
+</pre>
+<P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+
+<P>
+<BR><b>[Function]</b><BR>
+<tt>nreconc <i>x</i> <i>y</i></tt><P><tt>(nreconc <i>x</i> <i>y</i>)</tt> is exactly the same as 
+<tt>(nconc (nreverse <i>x</i>) <i>y</i>)</tt> except that it is potentially more
+efficient.  Both <i>x</i> and <i>y</i> should be lists.
+The argument <i>x</i> is destroyed.
+Compare this with <tt>revappend</tt>.
+<P>
+<P><pre>
+(setq planets '(jupiter mars earth venus mercury)) 
+(setq more-planets '(saturn uranus pluto neptune)) 
+(nreconc more-planets planets) 
+=> (neptune pluto uranus saturn jupiter mars earth venus mercury) 
+  and now the value of <tt>more-planets</tt> is not well defined
+</pre><P>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (REMF-DESTRUCTION-UNSPECIFIED) <A NAME=16566>&#160;</A> 
+to clarify the permissible side effects of certain operations;
+<tt>(nreconc <i>x</i> <i>y</i>)</tt> is permitted and
+required to have side-effect behavior
+equivalent to that of <tt>(nconc (nreverse <i>x</i>) <i>y</i>)</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>push <i>item</i> <i>place</i></tt><P>The form <i>place</i> should be the name of a generalized variable
+containing a list; <i>item</i> may refer to any Lisp object.  The <i>item</i>
+is consed onto the front of the list, and the augmented list is stored
+back into <i>place</i> and returned.
+The form <i>place</i> may be any form acceptable as a
+generalized variable to <tt>setf</tt>.  If the list held in <i>place</i> is
+viewed as a push-down stack, then <tt>push</tt> pushes an element onto the top
+of the stack.
+For example:
+<P><pre>
+(setq x '(a (b c) d)) 
+(push 5 (cadr x)) => (5 b c)  and now x => (a (5 b c) d)
+</pre><P>
+The effect of <tt>(push <i>item</i> <i>place</i>)</tt>
+is roughly equivalent to
+<P><pre>
+(setf <i>place</i> (cons <i>item</i> <i>place</i>))
+</pre><P>
+except that the latter would evaluate any subforms of <i>place</i>
+twice, while <tt>push</tt> takes care to evaluate them only once.
+Moreover, for certain <i>place</i> forms <tt>push</tt> may be
+significantly more efficient than the <tt>setf</tt> version.
+<p>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988 (PUSH-EVALUATION-ORDER) <A NAME=16598>&#160;</A> 
+to clarify order of evaluation (see section <A HREF="node80.html#SETFSECTION">7.2</A>).
+Note that <i>item</i> is fully evaluated before any part of <i>place</i>
+is evaluated.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>pushnew <i>item</i> <i>place</i>  &amp;key :test :test-not :key</tt><P>The form <i>place</i> should be the name of a generalized variable
+containing a list; <i>item</i> may refer to any Lisp object.  If the
+<i>item</i> is not already a member of the list (as determined by
+comparisons using the <tt>:test</tt> predicate, which defaults to <tt>eql</tt>),
+then the <i>item</i> is consed onto the front of the list, and
+the augmented list is stored back into <i>place</i> and returned; otherwise
+the unaugmented list is returned.  The form <i>place</i> may be
+any form acceptable as a generalized variable to <tt>setf</tt>.  If the
+list held in <i>place</i> is viewed as a set, then <tt>pushnew</tt> adjoins an
+element to the set; see <tt>adjoin</tt>.
+<P>
+The keyword arguments to <tt>pushnew</tt>
+follow the conventions for the generic sequence
+functions.  See chapter <A HREF="node141.html#KSEQUE">14</A>.
+In effect, these keywords are simply passed on to the <tt>adjoin</tt> function.
+<P>
+<tt>pushnew</tt> returns the new contents of the <i>place</i>.
+For example:
+<P><pre>
+(setq x '(a (b c) d)) 
+(pushnew 5 (cadr x)) => (5 b c)   and now x => (a (5 b c) d) 
+(pushnew 'b (cadr x)) => (5 b c)  and <tt>x</tt> is unchanged
+</pre><P>
+The effect of
+<P><pre>
+(pushnew <i>item</i> <i>place</i> <tt>:test</tt> <i>p</i>)
+</pre><P>
+is roughly equivalent to
+<P><pre>
+(setf <i>place</i> (adjoin <i>item</i> <i>place</i> <tt>:test</tt> <i>p</i>))
+</pre><P>
+except that the latter would evaluate any subforms of
+<i>place</i> twice, while <tt>pushnew</tt> takes care to evaluate them only once.
+Moreover, for certain <i>place</i> forms <tt>pushnew</tt> may be
+significantly more efficient than the <tt>setf</tt> version.
+<p>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988 (PUSH-EVALUATION-ORDER) <A NAME=16645>&#160;</A> 
+to clarify order of evaluation (see section <A HREF="node80.html#SETFSECTION">7.2</A>).
+Note that <i>item</i> is fully evaluated before any part of <i>place</i>
+is evaluated.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>pop <i>place</i></tt><P>The form <i>place</i> should be the name of a generalized variable
+containing a list.  The result of <tt>pop</tt> is the <tt>car</tt> of the contents
+of <i>place</i>, and as a side effect the <tt>cdr</tt> of the contents is stored
+back into <i>place</i>.  The form <i>place</i> may be any form acceptable as a
+generalized variable to <tt>setf</tt>.  If the list held in <i>place</i> is
+viewed as a push-down stack, then <tt>pop</tt> pops an element from the top of
+the stack and returns it.
+For example:
+<P><pre>
+(setq stack '(a b c)) 
+(pop stack) => a  and now stack => (b c)
+</pre><P>
+The effect of <tt>(pop <i>place</i>)</tt> is roughly equivalent to
+<P><pre>
+(prog1 (car <i>place</i>) (setf <i>place</i> (cdr <i>place</i>)))
+</pre><P>
+except that the latter would evaluate any subforms of <i>place</i>
+three times, while <tt>pop</tt> takes care to evaluate them only once.
+Moreover, for certain <i>place</i> forms <tt>pop</tt> may be
+significantly more efficient than the <tt>setf</tt> version.
+<p>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988 (PUSH-EVALUATION-ORDER) <A NAME=16677>&#160;</A> 
+to clarify order of evaluation (see section <A HREF="node80.html#SETFSECTION">7.2</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>butlast <i>list</i> &amp;optional <i>n</i></tt><P>This creates and returns a list with the same elements as <i>list</i>,
+excepting the last <i>n</i> elements.
+<i>n</i> defaults to 1.  The argument is not destroyed.
+If the <i>list</i> has fewer than <i>n</i> elements, then <tt>()</tt> is returned.
+For example:
+<P><pre>
+(butlast '(a b c d)) => (a b c) 
+(butlast '((a b) (c d))) => ((a b)) 
+(butlast '(a)) => <tt>()</tt> 
+(butlast nil) => <tt>()</tt>
+</pre><P>
+The name is from the phrase ``all elements but the last.''
+<P>
+<BR><b>[Function]</b><BR>
+<tt>nbutlast <i>list</i> &amp;optional <i>n</i></tt><P>This is the destructive version of <tt>butlast</tt>; it changes the <i>cdr</i> of
+the cons <i>n</i>+1 from the end of the <i>list</i> to <tt>nil</tt>.  <i>n</i> defaults to 1.
+If the <i>list</i> has fewer than <i>n</i> elements, then <tt>nbutlast</tt>
+returns <tt>()</tt>, and the argument is not modified.  (Therefore
+one normally writes <tt>(setq a (nbutlast a))</tt> rather than simply
+<tt>(nbutlast a)</tt>.)
+For example:
+<P><pre>
+(setq foo '(a b c d)) 
+(nbutlast foo) => (a b c) 
+foo => (a b c) 
+(nbutlast '(a)) => <tt>()</tt> 
+(nbutlast '<tt>nil</tt>) => <tt>()</tt>
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>ldiff <i>list</i> <i>sublist</i></tt><P><i>list</i> should be a list, and <i>sublist</i> should be a sublist
+of <i>list</i>, that is, one of the conses that make up <i>list</i>.
+<tt>ldiff</tt> (meaning ``list difference'') will return a new (freshly consed)
+list, whose elements are those elements of <i>list</i> that appear before
+<i>sublist</i>.  If <i>sublist</i> is not a tail of <i>list</i>
+(and in particular if <i>sublist</i> is <tt>nil</tt>),
+then a copy of the entire <i>list</i> is returned.
+The argument <i>list</i> is not destroyed.
+For example:
+<P><pre>
+(setq x '(a b c d e)) 
+(setq y (cdddr x)) => (d e) 
+(ldiff x y) => (a b c) 
+
+but (ldiff '(a b c d) '(c d)) => (a b c d)
+</pre><P>
+since the sublist was not <tt>eq</tt> to any part of the list.
+<P>
+<BR> <HR><A NAME=tex2html3389 HREF="node150.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3387 HREF="node147.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3381 HREF="node148.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3391 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3392 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3390 HREF="node150.html"> Alteration of List </A>
+<B>Up:</B> <A NAME=tex2html3388 HREF="node147.html"> Lists</A>
+<B> Previous:</B> <A NAME=tex2html3382 HREF="node148.html"> Conses</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

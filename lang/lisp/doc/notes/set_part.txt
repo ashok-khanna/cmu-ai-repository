@@ -1,0 +1,997 @@
+Article 12149 of comp.lang.lisp:
+Xref: glinda.oz.cs.cmu.edu comp.lang.lisp:12149
+Newsgroups: comp.lang.lisp
+Path: honeydew.srv.cs.cmu.edu!fs7.ece.cmu.edu!europa.eng.gtefsd.com!howland.reston.ans.net!EU.net!Germany.EU.net!eso!st53.hq.eso.org!user
+From: adorf@eso.org (Hans-Martin Adorf)
+Subject: challenge: set partitions and power set
+Message-ID: <adorf-280294132719@st53.hq.eso.org>
+Followup-To: comp.lang.lisp
+Sender: news@eso.org
+Organization: ST-ECF/ESO
+Date: Mon, 28 Feb 1994 13:27:19 +0100
+Lines: 288
+
+Dear LISPers,
+
+I need to compute all the partitions of a given set (i.e. all subdivisions
+of a given set into non-empty sets which cover the original set). Below I
+append my quick hack. It does the job; however, it is not very Lispish in
+style. 
+
+The challenge consists in implementing the partitions function more
+elegantly, preferrably using recursion. As you see my code uses a function
+which generates the power set of a given set, a subproblem, for which an
+elegant (and efficient) solution is also seeked.
+
+I will summarize the solutions for partition and power-set offered to me.
+
+In case you are interested in the original problem that stimulated the
+partitions/power-set problem above: I am engaged in calculations for a
+planned  astronomical hybrid interferometer within ESO's Very Large
+Telescope project on Mt. Paranal, Chile.
+
+If we will make use of any code forwarded to me, the author will be
+properly acknowledged in the planned scientific paper.
+
+Happy LISPing.
+
+Hans-Martin Adorf
+
+PS: Similar posting on comp.lang.lisp.mcl
+
+----------------- 
+Hans-Martin Adorf
+ST-ECF/ESO
+Karl-Schwarzschild-Str. 2
+D-85748 Garching b. Muenchen
+Germany
+Tel: +49-89-32006-261
+Fax: +49-89-32006-480
+Internet: adorf@eso.org
+
+
+================================================================================
+;;;;
+;;;; partitions.lisp
+;;;;
+;;;; Compute the power-set and all partitions of an arbitrary set
+;;;; 
+;;;; Hans-Martin Adorf, ST-ECF, 26-02-94
+;;;;
+
+(defvar *offset* 0 "offset value for generation of sets")
+(defvar *unique* nil "flag indicating whether only unique partitions should
+be returned")
+
+;;;-----------------------------------------------------------------------------
+;;; The following code is an application of partitions to the computation
+of 
+;;; the triple correlation function of an astronomical hybrid
+interferometer.
+;;; The idea is to generate Mathematica code which can further be evaluated
+
+;;; in Mathematica.
+;;;-----------------------------------------------------------------------------
+(defun to-file (file-name expr)
+  (with-open-file (stream file-name :direction :output :if-exists
+:supersede)
+    (princ expr stream)))
+#|
+(to-file #P"HMA_PB_i80:test.math" 
+         (format-partitions (partitions '(\u \v \w \x \y \z))))
+|#
+
+(defun format-partitions (partitions)
+  "Format partitions for Lisp or Mathematica evaluation"
+  (plus (mapcar #'format-partition partitions)))
+;; (format-partitions (partitions '(\u \v \w)))
+;; (format-partitions (partitions '(\u \v \w \x \y \z)))
+
+(defun format-partition (partition)
+  (times (mapcar #'(lambda (set) (f (plus set))) partition)))
+;; (format-partition '((a) (b c)))
+
+#|
+;;; for Lisp evaluation
+(defun f (set)
+  (list 'f set))
+
+(defun plus (set)
+  (if (< (length set) 2)
+    set
+    (cons '+ set)))
+
+(defun times (set)
+  (if (< (length set) 2)
+    set
+    (cons '* set)))
+|#
+
+;;; for Mathematica evaluation
+(defun f (set)
+  (format nil "f[~a]" set))
+;; (f '(a b c))
+;; (f (plus '(a b c)))
+
+(defun plus (set)
+  (if (< (length set) 2)
+    (format nil "~{~a~}" set)
+    (format nil "Plus[~{~a~^, ~}]" set)))
+;; (plus '(u v))
+
+(defun times (set)
+  (if (< (length set) 2)
+    (format nil "~{~a~}" set)
+    (format nil "Times[~{~a~^, ~}]" set)))
+;; (times '(u v w))
+          
+;;;-----------------------------------------------------------------------------
+;;; Compute partitions
+;;;-----------------------------------------------------------------------------
+(defun partitions (set)
+  "Compute all partitions of a general n-element set"
+  (let ((result
+         (cond ((null set) nil)
+               ((= (length set) 1) (list (list set)))
+               (t (partitions-aux (base-set set)))
+               )))
+    (values result (length result))))
+;; (partitions '())
+;; (partitions '(u))
+;; (partitions '(u v))
+;; (partitions '(u v w))
+;; (partitions '(u v w x))
+;; (partitions '(u v w x y))
+;; (partitions '(u v w x y z))
+
+(defun base-set (set)
+  "Auxiliary function for partitions"
+  (let* ((head (first set))
+         (tail (rest set))
+         (power-set (power-set tail))
+         (base-set (mapcar #'(lambda (x) (cons head x)) power-set)))
+    (mapcar #'(lambda (x) (list x (set-complement x set))) base-set)))
+;; (base-set '(a b c))
+
+(defun partitions-aux (base-set)
+  (mapcan #'(lambda (pair)
+              (new-partitions (first pair) (partitions (second pair))))
+          base-set))
+;; (partitions '(a b c))
+
+(defun new-partitions (head partitions)
+  (if (null partitions)
+    (list (list head))
+    (mapcar #'(lambda (x) (append (list head) x)) partitions)))
+
+#|
+;;;-----------------------------------------------------------------------------
+;; dead code; works, but unused
+;;;-----------------------------------------------------------------------------
+(defun 2-set-partitions (n)
+  "Generate all partitions of an n-element set (of intergers) into 2
+subsets"
+  (let ((result 
+         (mapcan #'(lambda (k) (k-partitions k n))
+                 (if *unique*
+                   (integers 0 (ceiling (/ (1+ n) 2)))    ; don't compute
+duplicates
+                   (integers 0 (1+ n))
+                   ))))
+    (values result (length result))))
+;; (2-set-partitions 2)
+;; (setf *unique* nil)
+;; (2-set-partitions 3)
+;; (2-set-partitions 4)
+
+(defun k-partitions (k n)
+  "Generate all partitions of an n-element set (of integers) into 2 subsets
+
+   with k elements and n-k elements, respectively"
+  (let* ((set (make-set n))
+         (result 
+          (if (zerop k)
+            (list (list nil set))
+            (mapcar #'(lambda (subset) 
+                        (list subset 
+                              (set-complement subset set)))
+                    (k-subsets k n)))))
+    ;; for a proper partion one must remove duplicates from the result
+    (when (and *unique* (= n (* 2 k))) 
+      (setf result (half-seq result)))      ; cut half
+    (values result (length result))))
+;; (k-partitions 1 2)
+;; (k-partitions 2 4)
+;; (k-partitions 3 5)
+;; (k-partitions 0 3)
+;; (k-partitions 3 3)
+|#
+
+;;;-----------------------------------------------------------------------------
+;;; Compute power set
+;;;-----------------------------------------------------------------------------
+(defun power-set (set)
+  "Generate the power-set (i.e. the set of all subsets) for an arbitrary
+n-element set"
+  (let* ((n (length set))
+         (*offset* 0)
+         (power-set (power-set-n n))   ; generate power-set for integers
+         (result (dotimes (i n power-set)
+                   (nsubst (elt set i) i power-set)))) ; replace integers
+by set-elements
+    (values result (length result))))
+;; (power-set '(a b c d))
+
+(defun power-set-n (n)
+  "Generate the power-set (i.e. the set of all subsets) for an n-element
+set of integers"
+  (let ((result (mapcan #'(lambda (k) (k-subsets k n))
+                        (integers 0 (1+ n)))))
+    (push nil result)                   ; the empty set is missing
+    (values result (length result))))
+;; (power-set-n 2)
+;; (setf *offset* 0)
+;; (power-set-n 3)
+;; (power-set-n 4)
+
+(defun k-subsets (k n &optional (subsets-so-far (append-elements nil n)))
+  "Generate all k-element subsets for a set of n elements"
+  (let ((result 
+         (if (= (length (first subsets-so-far)) k) 
+           subsets-so-far
+           (k-subsets k n 
+                      (mapcan #'(lambda (subset) (append-elements subset
+n))
+                              subsets-so-far)))))
+    (values result (length result))))
+;; (setf *offset* 1)
+;; (k-subsets 0 3)
+;; (k-subsets 1 3)
+;; (k-subsets 2 3)
+;; (k-subsets 3 3)
+;; (k-subsets 4 7)
+;; (k-subsets 2 3 '((0) (1) (2)))
+;; (k-subsets 5 7 '((0 3 4) (0 3 5) (0 3 6)))
+
+(defun append-elements (subset n)
+  "Append indices up to n + *offset* (exclusively) to a given subset of
+indices, 
+  e.g. for n + *offset* = 6: (1 3) -> ((1 3 4) (1 3 5))"
+  (if (null subset)
+    (mapcar #'list (make-set n))      ; return list of parenthesized
+integers
+    (do ((i (1+ (last-elt subset)) (1+ i))
+         (nn (+ n *offset*))
+         (result))
+        ((= i nn) (reverse result))
+      (push (append subset (list i)) result))))
+;; (append-elements nil 5)
+;; (append-elements '(1 3) 6)
+;; (append-elements '(1 4) 4)
+
+;;;-----------------------------------------------------------------------------
+;;; Auxiliary functions
+;;;-----------------------------------------------------------------------------
+(defun half-seq (seq)
+  "Return the first half of a sequence, middle element inclusive"
+  (subseq seq 0 (ceiling (/ (length seq) 2))))
+;; (half-seq '(1 2 3 4))
+;; (half-seq '(1 2 3 4 5))
+
+(defun make-set (n)
+  "Generate a set of integers"
+  (integers *offset* (+ *offset* n)))
+
+(defun integers (m n)
+  "Generate a list of integers in the range of m (inclusively) to n
+(exclusively)"
+  (do ((i m (1+ i))
+       result)
+      ((= i n) (reverse result))
+    (push i result)))
+;; (integers 3 7)
+
+(defun set-complement (subset set)
+  "MCL returns the reverse of the set-difference"
+  (reverse (set-difference set subset)))        ; revert result for
+aesthetical reasons
+;; (set-complement '(a) '(a b c))
+
+(defun last-elt (seq)
+  (first (last seq)))
+
+
+
+
+Article 12152 of comp.lang.lisp:
+Xref: glinda.oz.cs.cmu.edu comp.lang.lisp:12152
+Newsgroups: comp.lang.lisp
+Path: honeydew.srv.cs.cmu.edu!CARMEN.KBS.CS.CMU.EDU!valdes
+From: valdes+@CS.CMU.EDU (Raul Valdes-Perez)
+Subject: Re: challenge: set partitions and power set
+Message-ID: <CLxwr3.KnF.3@cs.cmu.edu>
+Sender: news@cs.cmu.edu (Usenet News System)
+Nntp-Posting-Host: carmen.kbs.cs.cmu.edu
+Organization: Carnegie Mellon University
+References:  <adorf-280294132719@st53.hq.eso.org>
+Date: Mon, 28 Feb 1994 15:09:02 GMT
+Lines: 47
+
+In article <adorf-280294132719@st53.hq.eso.org>, adorf@eso.org (Hans-Martin Adorf) writes:
+|> Dear LISPers,
+|> 
+|> I need to compute all the partitions of a given set (i.e. all subdivisions
+|> of a given set into non-empty sets which cover the original set). Below I
+|> append my quick hack. It does the job; however, it is not very Lispish in
+|> style. 
+|> 
+|> The challenge consists in implementing the partitions function more
+|> elegantly, preferrably using recursion. As you see my code uses a function
+|> which generates the power set of a given set, a subproblem, for which an
+|> elegant (and efficient) solution is also seeked. [...]
+
+The two functions below do what you want.  I've used power-set for a while
+myself, but I wrote the function for partitioning in reply to your post,
+so it could have an error not caught by my brief testing (I doubt it).  
+Both make use of the (non-null) LOOP macro.
+
+;;; finds all the partitions of the input <set>, returning them
+;;; in the obvious canonical format
+;;;
+(defun part (set)
+  (if (null set) (list nil)
+    (loop for partition in (part (cdr set))
+	  nconc
+	  (cons `((,(car set)) ,@partition)
+		(loop for piece in partition
+		      for i from 0
+		      collect
+		      (nconc `(,(cons (car set) piece))
+			     (subseq partition 0 i)
+			     (subseq partition (1+ i)))))))))
+
+
+;;; allow an optional stipulation of the maximum size of a resulting
+;;; set in the power-set
+;;;
+(defun power-set (set &optional (maxsize 10))
+  (if (null set) (list nil)
+    (loop for entry in (power-set (cdr set) maxsize)
+	  collect entry
+	  when (< (length entry) maxsize)
+	  collect (cons (car set) entry))))
+
+
+-- Raul Valdes-Perez  (valdes@cs.cmu.edu)
+-- Carnegie Mellon University
+
+
+
+Article 12159 of comp.lang.lisp:
+Xref: glinda.oz.cs.cmu.edu comp.lang.lisp:12159
+Path: honeydew.srv.cs.cmu.edu!das-news.harvard.edu!noc.near.net!MathWorks.Com!europa.eng.gtefsd.com!howland.reston.ans.net!torn!utnut!utcsri!newsServ.csri!qobi
+Newsgroups: comp.lang.lisp
+From: qobi@qobi.ai.toronto.edu (Jeffrey Mark Siskind)
+Subject: Re: challenge: set partitions and power set
+Message-ID: <QOBI.94Feb28163352@qobi.ai.toronto.edu>
+Reply-To: Qobi@CS.Toronto.EDU
+Followup-To: comp.lang.lisp
+In-reply-to: adorf@eso.org's message of Mon, 28 Feb 1994 13:27:19 +0100
+Organization: Department of Computer Science, University of Toronto
+References: <adorf-280294132719@st53.hq.eso.org>
+Date: 28 Feb 94 21:33:55 GMT
+Lines: 19
+
+If you use Screamer (available by anonymous FTP from
+ftp.ai.mit.edu:/pub/screamer.tar.Z) you can write:
+
+(defun a-subset-of (x)
+ (if (null x)
+     nil
+     (let ((y (a-subset-of (rest x)))) (either (cons (first x) y) y))))
+
+(defun power-set (x) (all-values (a-subset-of x)))
+
+(defun a-partition-of (x)
+ (if (null x)
+     x
+     (let ((y (a-partition-of (rest x))))
+      (either (cons (list (first x)) y)
+	      (let ((z (a-member-of y)))
+	       (cons (cons (first x) z) (remove z y :test #'eq :count 1)))))))
+
+(defun set-of-all-partitions (x) (all-values (a-partition-of x)))
+
+
+
+Article 12172 of comp.lang.lisp:
+Xref: glinda.oz.cs.cmu.edu comp.lang.lisp:12172
+Newsgroups: comp.lang.lisp
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!birdie-blue.cis.pitt.edu!gatech!howland.reston.ans.net!cs.utexas.edu!convex!convex!constellation!hardy.math.okstate.edu!mmcconn
+From: mmcconn@math.okstate.edu (Mark McConnell)
+Subject: Re: challenge: set partitions and power set
+Message-ID: <CM3oK3.1tx@math.okstate.edu>
+Organization: /etc/organization
+References: <adorf-280294132719@st53.hq.eso.org>
+Date: Thu, 3 Mar 1994 17:57:38 GMT
+Lines: 33
+
+In article <adorf-280294132719@st53.hq.eso.org> adorf@eso.org (Hans-Martin Adorf) writes:
+>Dear LISPers,
+>
+>I need to compute all the partitions of a given set (i.e. all subdivisions
+>of a given set into non-empty sets which cover the original set).
+>...As you see my code uses a function
+>which generates the power set of a given set, a subproblem, for which an
+>elegant (and efficient) solution is also seeked.
+
+To find the partitions, it is not necessary to find the whole power
+set.  The partition problem has a very elegant recursive solution by
+itself.  I see that another poster has given this solution, using the
+loop macro.
+
+The number of partitions of {1,...,n} is called Bell's number B_n.
+The B_n 's have many beautiful properties:
+
+B_{n+1} = sum( binomial(n,i) * B_i , i=0..n )     for n>0
+
+The Taylor series for exp(exp(x)-1) is the sum for n=0..infinity of
+( B_n / n! ) * x^n.  (Set B_0 = 1.)
+
+If B_{n,k} is the number of partitions of {1,...,n} into exactly k
+pieces, then B_{n,k} is defined recursively by
+   B_{n,k} = B_{n-1,k-1} + k*B_{n-1,k}.
+(Note that B_{n,1} = B_{n,n} = 1 for all n.)  This is proved by the
+method underlying the solution mentioned in my first paragraph.
+
+Also, B_n is the number of rhyming schemes in a stanza of n lines.
+
+For more information, see the help file on  bell  in Maple (the source
+for much of what I've said), or a math encyclopedia.
+
+
+
+Article 12176 of comp.lang.lisp:
+Xref: glinda.oz.cs.cmu.edu comp.lang.lisp:12176
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!birdie-blue.cis.pitt.edu!gatech!howland.reston.ans.net!math.ohio-state.edu!jussieu.fr!univ-lyon1.fr!swidir.switch.ch!scsing.switch.ch!news.dfn.de!news.coli.uni-sb.de!sbusol.rz.uni-sb.de!news.dfki.uni-sb.de!mod-serv!trenz
+From: trenz@mod-serv.NoSubdomain.NoDomain (Thomas Trenz)
+Newsgroups: comp.lang.lisp
+Subject: Re: challenge: set partitions and power set
+Date: 4 Mar 1994 09:18:59 GMT
+Organization: DFKI - German Research Center for AI
+Lines: 61
+Sender: trenz@mod-serv (Thomas Trenz)
+Distribution: world
+Message-ID: <2l6ue3$lmq@hitchcock.dfki.uni-sb.de>
+NNTP-Posting-Host: mod-serv.dfki.uni-sb.de
+
+K-PARTITIONS:
+
+The function k-partition enumerates k-partitions of a given set and
+calls for every partition a user defined function.
+The enumeration stops when the user defined function returns a non-nil value.
+
+The user defined function gets two parameters:
+
+1. The partition as a list of lists (e.g. ((a b) (c) (d e f)) for a 3-partition
+   of the set (a b c d e f)).
+2. A list of additional arguments (optional).
+
+
+
+(Defun User-Defined (Partition Optional-Args)
+  (Print Partition)
+  nil)                     ; return value nil to continue enumeration
+
+
+
+(Defun K-Partition-Help (K Stack Partition Function Args)
+  (If (And (>= (+ (Length Stack) (Length Partition)) K) 
+	   (<= (Length Partition) K))                   
+      (If (Null Stack)
+	  (Progn
+	   (If (= (Length Partition) K)
+	       (Progn
+		(Funcall Function Partition Args))))
+	  
+	  (Let ((Element (Pop Stack))
+		(Temp-Partition Partition))
+
+	       (Or (Progn
+		    (Push (List Element) Temp-Partition)
+		    (K-Partition-Help K Stack Temp-Partition Function Args))
+		   
+		   (Some #'(Lambda (Set)
+				   (Setq Temp-Partition Partition)
+				   (Setq Temp-Partition (Remove Set Temp-Partition :Test #'Equal))
+				   (Push (Union (List Element) Set) Temp-Partition)
+				   (K-Partition-Help K Stack Temp-Partition Function Args))
+			 Partition))))))
+
+
+; Computes all k-partitions of a given set and
+; calls for every k-partition a Function given by the parameter FUNCTION.
+; The enumeration of partitions stops, when FUNCTION return a non-nil value.
+
+(Defun k-partition (Set K Function &Optional (ArgForFunction nil))
+  (K-Partition-Help K (Rest Set) (List (List (First Set))) Function ArgForFunction))
+
+
+
+; Demo call:
+
+(k-partition '(a b c d e f) 3 (function User-Defined))
+
+
+
+Thomas Trenz
+mail: trenz@dfki.uni-sb.de
+
+
+From adorf@eso.org Fri Mar  4 13:10:14 EST 1994
+Article: 12181 of comp.lang.lisp
+Xref: glinda.oz.cs.cmu.edu comp.lang.lisp:12181
+Newsgroups: comp.lang.lisp
+Path: honeydew.srv.cs.cmu.edu!rochester!udel!MathWorks.Com!europa.eng.gtefsd.com!howland.reston.ans.net!cs.utexas.edu!uunet!Germany.EU.net!eso!st53.hq.eso.org!user
+From: adorf@eso.org (Hans-Martin Adorf)
+Subject: Re: challenge: set partitions and power set
+Message-ID: <adorf-040394150157@st53.hq.eso.org>
+Followup-To: comp.lang.lisp
+Sender: news@eso.org
+Organization: ST-ECF/ESO
+Date: Fri, 04 Mar 1994 15:01:57 +0100
+Lines: 453
+
+Dear Lispers,
+
+below is the promised collection of submissions to the power-set and
+set-partition problem. The file contains those submissions which I received
+in my personal mail account.
+
+Enjoy.
+
+Hans-Martin Adorf
+ST-ECF/ESO
+Karl-Schwarzschild-Str. 2
+D-85748 Garching b. Muenchen
+Germany
+Tel: +49-89-32006-261
+Fax: +49-89-32006-480
+Internet: adorf@eso.org
+
+;;;;----------------------------------------------------------------------
+;;;; set partition and power set - submissions to a request for Lisp code 
+;;;;
+;;;; collected by 
+;;;; Hans-Martin Adorf
+;;;; ST-ECF/ESO
+;;;; Karl-Schwarzschild-Str. 2
+;;;; D-85748 Garching b. Muenchen
+;;;; adorf@eso.org
+;;;;
+;;;; submissions ordered according to their local submission dates/times
+;;;;
+;;;;----------------------------------------------------------------------
+
+;;;-----------------------------------------------------------------------
+;;; Andrew Houghton
+;;; (ah0i@andrew.cmu.edu)
+;;; 28-02-94 13:07
+;;;-----------------------------------------------------------------------
+;; POWER-SET
+;;
+;; Returns the power set of a list.
+;; Arguments:
+;;  lst : a list
+;; Result:
+;;  the power set of the passed list.  This does not check sub-lists, so
+;;  lists within the top-level list will be treated as atomic elements
+;;  of the set.
+;;
+;; Method:  Imagine a list, set, which
+;;  contains the symbols A and B. The power-set of set can be defined as 
+;;  appending (first set) to each element of the power-set of (rest set), 
+;;  then appending the resultant set to the power-set of (rest set).
+;;  So we call (power-set '(a b))..  which calls (power-set '(b)).. which
+;;  calls (power-set '()).. which returns (NIL).  Now, b is appended to NIL
+;;  giving us (b), and (NIL) is appended, so it returns ((b) NIL).  Now a
+is 
+;;  appended to each element, giving us ((a b) (a)), which is appended to
+the
+;;  originally returned list, giving us ((a b) (a) (b) NIL).
+
+;; original
+(defun ps (lst)
+  (cond
+   ((endp lst) '(nil))
+   (t (append 
+       (mapcar #'(lambda (x) (cons (first lst) x)) (ps (rest lst)))
+       (ps (rest lst))))))
+
+;; slightly reworked syntactically
+(defun power-set (lst)
+  (if (endp lst) 
+    '(nil)
+    (let ((head (first lst))
+          (ps (power-set (rest lst))))
+      (append (mapcar #'(lambda (x) (cons head x)) 
+                      ps)
+              ps))))
+#|
+(with-count (power-set '(a b c d e f)))
+|#
+
+;;;-----------------------------------------------------------------------
+;;; Espen J. Vestre,                                  espen@coli.uni-sb.de
+;;; Universitt des Saarlandes,
+;;; Computerlinguistik, Gebude 17.2
+;;; Postfach 1150,                                 tel. +49 (681) 302 4501
+;;; D-66041 SAARBRCKEN, Germany                   fax. +49 (681) 302 4351
+;;; 28-02-94 14:26; modification 01-03-94 16:14; power-set 02-03-94
+;;;-----------------------------------------------------------------------
+;; elegant, brief implementation
+(defun partitions (set)
+  "Compute all partitions of a general n-element set"
+  (if (= (length set) 1)
+    (list (list set))
+    (let ((first-elem (first set))
+          (partitions-rest (partitions (rest set))))
+      (append
+       (mapcar #'(lambda (partition)
+                   (cons (list first-elem) partition))
+               partitions-rest)
+       (mapcan #'(lambda (partition)
+                   (mapcar #'(lambda (set)
+                               (subst (cons first-elem set)
+                                      set
+                                      partition))
+                           partition))
+               partitions-rest)))))
+
+;; faster, but less elegant implementation
+(defun partitions (set)
+  "Compute all partitions of a general n-element set"
+  (if (= (length set) 1)
+    (list (list set))
+    (let ((first-elem (first set))
+          (partitions-rest (partitions (rest set))))
+      (append
+       (mapcar #'(lambda (partition)
+                   (cons (list first-elem) partition))
+               partitions-rest)
+       (mapcan #'(lambda (partition)
+                   (let ((before nil)
+                         (after (rest partition))
+                         (new-partitions nil))
+                     (mapc #'(lambda(set)
+                               (push (cons (cons first-elem set)
+                                           (append before after))
+                                     new-partitions)
+                               (push set before)
+                               (setf after (rest after)))
+                           partition)
+                     new-partitions))
+               partitions-rest)))))
+#|
+(with-count (partitions '(a b c d e f)))
+|#
+
+(defun power-set (set)
+  (sort (2^set (reverse set))
+        #'(lambda (x y) (< (length x) (length y)))))
+
+(defun 2^set (set)
+  (let ((ps nil)
+        (n (length set)))
+    (dotimes (i (expt 2 n))
+      (let ((subset nil))
+        (dotimes (j n)
+          (when (logbitp j i)
+            (push (nth j set) subset)))
+        (push subset ps)))
+    ps))
+|#
+(with-count (power-set '(a b c d e f)))
+(with-count (power-set '(a b c d e f g h i j k l)))
+(with-count (2^set '(a b c d e f)))
+|#
+
+;;;-----------------------------------------------------------------------
+;;; Dominique Bernardi
+;;; Theorie des nombres, Mathematiques
+;;; Universite P. et M Curie 4 place Jussieu P-75005 Paris France
+;;; bernardi@mathp7.jussieu.fr
+;;; 28-02-94 16:07; addition 03-03-94 15:50
+;;;-----------------------------------------------------------------------
+(defun power-set (s)
+  (if s 
+    (let ((a (car s)) 
+          (b (power-set (cdr s))))
+      (append (mapcar #'(lambda (x) (cons a x)) b) 
+              b))
+    '(())))
+#|
+(with-count (power-set '(a b c d e f)))
+|#
+
+(defun part (s)
+  (if s 
+    (let ((a (car s)) (b (part (cdr s))))
+      (append (mapcar #'(lambda (x) (cons (list a) x)) b)
+              (mapcan #'(lambda (x) (amplify a x)) b)))
+      '(())))
+
+(defun amplify (x s)
+  (if s 
+    (let ((a (car s)) (b (amplify x (cdr s))))
+      (cons (cons (cons x a) (cdr s))
+            (mapcar #'(lambda (y) (cons a y)) b)))))
+
+#|
+(with-count (part '(a b c d e f)))
+|#
+
+;;;-----------------------------------------------------------------------
+;;; Tom Kramer
+;;; kramer@cme.nist.gov
+;;; 28-02-94 18:19
+;;;-----------------------------------------------------------------------
+;; original
+(defun powerset (liz)
+  (cond ((null liz)
+         (list nil))
+        (t
+         (let ((bottom (powerset (cdr liz))))
+           (merge 'list
+                  (mapcar #'(lambda (subset) (cons (first liz) subset))
+                          bottom)
+                  bottom
+                  #'(lambda (set1 set2) (> (length set1) (length
+set2))))))))
+
+;; slightly reworked syntactically
+(defun power-set (set)
+  (if (null set)
+    (list nil)
+    (let ((bottom (power-set (cdr set))))
+      (merge 'list
+             (mapcar #'(lambda (subset) (cons (first set) subset))
+                     bottom)
+             bottom
+             #'(lambda (set1 set2) (> (length set1) (length set2)))))))
+#|
+(with-count (power-set '(a b c d e f)))
+|#
+
+;;;-----------------------------------------------------------------------
+;;; Geert-Jan van Opdorp
+;;; Computer/Law Institute
+;;; Vrije Universiteit
+;;; Amsterdam, The Netherlands
+;;; geertjan@cca.vu.nl
+;;; 01-03-94 15:45
+;;;
+;;; I think for efficiency it is safe to change the append into
+;;; nconc, provided that you change the initial-value from
+;;; '(()) into (list nil).
+;;;-----------------------------------------------------------------------
+(defun power-set (set)
+  (reduce #'(lambda (result new-el)
+              (append (mapcar #'(lambda (result-elem)
+                                  (cons new-el result-elem))
+                              result)
+                      result))
+          set
+          :initial-value '(()) ))
+;; (with-count (power-set '(a b c d e f)))
+
+;;;-----------------------------------------------------------------------
+;;; Phil Chu
+;;; Internet: pchu@bbn.com
+;;;-----------------------------------------------------------------------
+(defun pset (new pset)
+  "Adjust list of partitions to take into account new element."
+  (if (null pset)
+      (list (list (list new)))
+    (let ((new-pset nil))
+      (dolist (set pset)
+        (push (cons (list new)  ;case 1: new element is singleton set
+                    set)
+              new-pset)
+        (dolist (s set)         ;case 2: new element is member of some
+subset in a partition
+          (push (subst (cons new s) s set) new-pset)))
+      new-pset)))
+
+(defun make-pset (set)
+  "Given a list of items, return all possible partitions, i.e. a list of
+list of lists."
+  (let ((result nil))
+    (dolist (item set)
+      (setq result (pset item result)))
+    result))
+
+(defun print-pset (set)
+  "Given a list of items, print all the possible partitions"
+  (dolist (item (make-pset set))
+    (print item)))
+
+;;; e.g. (print-pset '(a b c d))
+
+;;;-----------------------------------------------------------------------
+;;; Pete Steggles
+;;; pjs@upper.ist.co.uk
+;;; 02-03-94 14:29
+;;;
+;;; partition below does not compute all partitions of a set - hma
+;;;-----------------------------------------------------------------------
+;;; Here is an implementation of powerset and partition which uses an
+;;; `abstract data type' to represent sets. Is the order in which 
+;;; elements are produced important? If so, there probably aren't any
+;;; good recursive definitions. If not, this is the easiest recursive
+;;; definition I know.
+
+;;; `Abstract Data Type' definition for sets
+
+;;; We use a binary tree representation of sets so that the union
+;;; operation is complexity O(1). Note that with this specific
+;;; representation there is no empty set -- in general this would
+;;; be another constructor.
+
+;;; Number of cons cells required is 2*O(n) where n is the number 
+;;; of elements in the set.
+
+;;; Constructor functions
+
+(defmacro set-elem (x) `(list 'set-elem ,x))
+(defmacro set-union (x y) `(list 'set-union ,x ,y))
+
+;;; Predicate on sets -- does it have more than one element?
+
+(defmacro set-unionp (x) `(eq (car ,x) 'set-union))
+
+;;; Selector functions
+
+(defmacro get-lhs (x) `(cadr ,x))
+(defmacro get-rhs (x) `(caddr ,x))
+(defmacro get-set-elem (x) `(cadr ,x))
+
+;;; Set counterpart of `mapcar'
+
+(defun mapset (f x)
+   (if (set-unionp x)
+       (set-union (mapset f (get-lhs x)) (mapset f (get-rhs x)))
+       (set-elem (funcall f (get-set-elem x)))))
+
+;;; List the elements of a set from left to right
+
+(defun set2list (x xs)
+   (if (set-unionp x)
+       (set2list (get-lhs x) (set2list (get-rhs x) xs))
+       (cons (get-set-elem x) xs)))
+
+;;; Make powerset, ensuring that the null set is the leftmost element
+;;; of the powerset.
+;;;
+;;; Asymptotic Complexity (n is number of elements in argument):
+;;; Time:  O(2^n)    (you can't do better than this)
+;;; Space: O(n*(2^n))  (hard to do better and keep nil on the lhs)
+;;;
+;;; If space becomes a problem, a better approach is to lazily evaluate
+;;; the powerset; but that is more work in Lisp.
+
+(defun powerset (xs)
+   (if (null xs)
+       (set-elem nil)
+       (let ((ps (powerset (cdr xs))))
+            (set-union ps (mapset #'(lambda (x) (cons (car xs) x)) ps)))))
+
+;;; Make powerset and convert it to a list -- the first element will
+;;; be NIL
+
+(defun powerlist (xs)
+   (set2list (powerset xs) nil))
+
+;;; Make the list of all partitions (partitions x = set2list(powerset x -
+{}))
+
+(defun partition (xs)
+   (cdr (powerlist xs)))
+
+;;; Alternatively, throw away your lisp system and use the lazy
+;;; functional language Haskell, where
+;;;
+;;; powerset [] = [[]]
+;;; powerset (x:xs) = ps ++ map (x :) ps where ps = powerset xs
+;;;
+;;; partition = tail . powerset
+;;; 
+;;; Will do exactly the same job with lazy evaluation thrown in !
+;;; You might be interested to know that you can get public-domain
+;;; (ie free) implementations of Haskell.
+
+#|
+(with-count (powerset '(a b c d e f)))
+(with-count (powerlist '(a b c d e f)))
+(with-count (partition '(a b c c d e f)))
+|#
+
+;;;-----------------------------------------------------------------------
+;;; Tom Kramer
+;;; kramer@cme.nist.gov
+;;; 03-03-94 11:19
+;;;-----------------------------------------------------------------------
+; all_partitions returns all partitions of a set liz into subsets.
+; It concatenates all the partitions of liz with n subsets.
+
+(defun all_partitions (liz)
+  (do* ((how_long (length liz))
+        (how_many how_long (1- how_many))
+        (answer (list (list liz))))
+       ((eq how_many 1) answer)
+       (nconc answer (partition_into_n liz how_long how_many))))
+
+
+; partition_into_n returns all partitions of a set liz into how_many
+; subsets. The length of liz must be equal to how_long.
+; Let A be the first element of liz.
+; Observe that all partitions of liz into how_many subsets may be
+; divided into two groups: those partitions in which A appears by itself
+; in a subset, and those partitions of in which A does not appear
+; by itself. The function finds those two groups and concatenates them.
+
+; The first group is formed by finding all the partitions of the rest
+; of liz into (how_many minus 1) subsets and adding (A) to each such
+; partition.
+
+; The second group is formed by finding all the partitions of the rest
+; of liz in how_many subsets and, for each partition P, creating how_many
+; new partitions by sticking A into each subset of P, one at a time
+; and concatenating the resulting partitions together.
+
+(defun partition_into_n (liz how_long how_many)
+  (cond ((eq how_many 1)
+         (list (list liz)))
+        ((eq how_many how_long)
+         (list (mapcar #'list liz)))
+        (t
+         (nconc (mapcar #'(lambda (partition)
+                            (cons (list (first liz)) partition))
+                        (partition_into_n (rest liz)
+                                          (1- how_long) (1- how_many)))
+                (mapcan #'(lambda (partition)
+                            (fill_each_one partition (first liz)))
+                          (partition_into_n (rest liz)
+                                            (1- how_long) how_many))))))
+
+; fill_each_one takes a partition and an item and returns a list of 
+; partitions. If the input partition has m sublists, a list of m partitions
+; is returned. Each partition in the returned list is the same as the
+; input partition, except that the item has been added to one of the
+; sublists.
+
+; example: (fill_each_one '((B C) (D)) 'A) => (((A B C) (D)) ((B C) (A D)))
+
+(defun fill_each_one (partition item)
+  (do ((partition_list (mapcar #'(lambda (subset) (copy-tree partition))
+                               partition))
+       (k (1- (length partition)) (1- k))
+       focus)
+      ((minusp k) partition_list)
+      (setq focus (nth k (nth k partition_list)))
+      (rplacd focus (cons (first focus) (rest focus)))
+      (rplaca focus item)))
+#|
+(with-count (all_partitions '(a b c d e f)))
+|#
+
+;;;-----------------------------------------------------------------------
+;;; An auxiliary output function
+;;;-----------------------------------------------------------------------
+(defmacro with-count (expr)
+  `(let ((result (time ,expr)))
+    (values result (length result))))
+
+(defmacro with-count (expr)
+  `(let ((result (time ,expr)))
+     (length result)))

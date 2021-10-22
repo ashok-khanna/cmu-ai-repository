@@ -1,0 +1,1039 @@
+;;;  -*- Mode:Common-Lisp; Package:(COMPRESS USE (LISP TICL)); Base:10 -*-
+;;;
+;;;  Common Lisp version of the Unix compress program, transliterated very literally,
+;;;  though I've tried to give it a more Lisp-like interface.
+;;;
+;;;  Comments taken from the C code generally have * in front of each line.
+;;;  Many of the variable documentation strings are taken from the C code.
+;;;
+;;;  Translated to Explorer Common Lisp by Paul Fuqua, Apr-May, 1988.
+;;;
+;;;  * compress.c - File compression ala IEEE Computer, June 1984.
+;;;  *
+;;;  * Authors:	Spencer W. Thomas	(decvax!harpo!utah-cs!utah-gr!thomas)
+;;;  *		Jim McKie		(decvax!mcvax!jim)
+;;;  *		Steve Davies		(decvax!vax135!petsd!peora!srd)
+;;;  *		Ken Turkowski		(decvax!decwrl!turtlevax!ken)
+;;;  *		James A. Woods		(decvax!ihnp4!ames!jaw)
+;;;  *		Joe Orost		(decvax!vax135!petsd!joe)
+;;;  *
+;;;  * $Header: compress.c,v 4.0 85/07/30 12:50:00 joe Release $
+;;;  * $Log:	compress.c,v $
+;;;  * Revision 4.0  85/07/30  12:50:00  joe
+;;;
+;;;  Unix is a trademark of Bell something-or-other.
+
+(export '(compress-file decompress-file uncompress-file convert-8-to-16) 'ticl)
+(export '(*verbose* *delete-after* *no-16-bit-flag*))
+(proclaim '(optimize speed))
+
+;;  Option variables.
+(defvar *debug* nil
+   "T to turn on special debugging checks.")
+(defvar *no-magic* nil
+   "T for compatibility with compress 2.0, which has no
+three-byte magic-number header.")
+(defvar *block-compress* t
+  "T means to check the compression ratio when we're up to 16-bit codes, and
+flush the table if it isn't decreasing.  NIL is for compatibility with older
+versions, and doesn't do that.")
+(defvar *verbose* t
+   "T to print compression ratio, NIL for silent operation.")
+(defvar *delete-after* t
+  "T means delete the original after writing the compressed or uncompressed
+file.  NIL means leave the original alone.  The original is never deleted if
+the output is a stream instead of a file.")
+(defvar *no-16-bit-flag* nil
+  "T to avoid using the lispm 16-bit-byte hack, for strict Unix compatibility.")
+
+(defconstant bits 16)				; Maximum number of bits per code, ever.
+(defconstant hsize 69001)			; Size of hash table.
+(defconstant magic-header (make-array 2
+				      :element-type 'string-char
+				      :initial-contents (list (code-char #o37)
+							      (code-char #o235))))
+
+;;  These three masks are for the third byte of the header.  I'm usurping #x40
+;;  to mean that the original file was a 16-bit-byte file -- the C source
+;;  recommends leaving #x20 free to possibly indicate a fourth header byte.
+(defconstant bit-mask #x1f)
+(defconstant block-mask #x80)
+(defconstant 16-bit-mask #x40)			; Nonstandard hack for lispms.
+
+(defconstant init-bits 9 "Initial number of bits per code.")
+
+(defvar *n-bits* 0 "Number of bits per code.")
+(defvar *maxbits* bits "User-settable maximum number of bits per code.")
+(defvar *maxcode* 0 "Maximum code, given *n-bits*.")
+(defvar *maxmaxcode* (lsh 1 bits) "Should NEVER generate this code.")
+
+;;  The next five macros may look a little strange, but they're Lisp
+;;  implementations of the C #defines.
+
+(defmacro maxcode (nbits)
+   `(1- (lsh 1 ,nbits)))
+
+(defvar *htab* (make-array hsize :initial-element 0))
+(defvar *codetab* (make-array hsize :initial-element 0))
+(proclaim '(vector *htab* *codetab*))
+
+(defmacro htabof (i)
+   `(aref *htab* ,i))
+
+(defmacro codetabof (i)
+   `(aref *codetab* ,i))
+
+(defvar *hsize* hsize "For dynamic table sizing.")
+
+;;  * To save much memory, we overlay the table used by compress() with those
+;;  * used by decompress().  The tab_prefix table is the same size and type
+;;  * as the codetab.  The tab_suffix table needs 2**BITS characters.  We
+;;  * get this from the beginning of htab.  The output stack uses the rest
+;;  * of htab, and contains characters.  There is plenty of room for any
+;;  * possible stack (stack used to be 8000 characters).
+
+(defmacro tab-prefixof (i)
+   `(codetabof ,i))
+
+(defmacro tab-suffixof (i)
+   `(aref *htab* ,i))
+
+(defmacro de-stack (i)			; de-stack is a pointer in C.
+   `(aref *htab* (+ ,(lsh 1 bits) ,i)))
+
+(defvar *free-ent* 0 "First unused entry.")
+
+;;  * block compression parameters -- after all codes are used up,
+;;  * and compression rate changes, start over.
+(defvar *clear-flg* nil)
+(defvar *ratio* 0)
+(defconstant check-gap 10000 "Ratio check interval.")
+(defvar *checkpoint* check-gap)
+
+;;  * the next two codes should not be changed lightly, as they must not
+;;  * lie within the contiguous general code space.
+(defconstant first-code 257 "First free entry.")
+(defconstant clear-code 256 "Table-clear output code.")
+
+(defun compress-file (infile &key outfile
+				  ((:debug *debug*) *debug*)
+				  ((:verbose *verbose*) *verbose*)
+				  (delete-after *delete-after*)
+				  ((:block-compress *block-compress*) *block-compress*)
+				  ((:bits *maxbits*) *maxbits*)
+				  ((:no-magic *no-magic*) *no-magic*)
+				  ((:no-16-bit-flag *no-16-bit-flag*) *no-16-bit-flag*))
+  "   Compress INFILE to OUTFILE, using Lempel-Ziv compression.  If OUTFILE is
+not supplied, it defaults to INFILE with a .Z suffix.  OUTFILE may be a stream,
+e.g. *STANDARD-OUTPUT*, if you really want that.  INFILE's author and creation
+date are copied to OUTFILE, if possible, unless OUTFILE is a stream.
+   INFILE may contain wildcards, in which case all the files will be compressed.
+Wildcarded INFILE has not been tested with a non-null OUTFILE, so don't specify
+OUTFILE when using wildcards.
+   BITS (Unix -b) is the maximum number of bits per code, and defaults to 16.
+It may need to be less (say, 12) when compressing files destined for smaller
+machines.
+   VERBOSE (Unix -v) controls whether the compression ratio is printed (to
+*ERROR-OUTPUT*) -- if NIL, or if OUTFILE is a stream, no message is printed.
+   DELETE-AFTER controls whether the original file is deleted after the
+compressed file is written.  It defaults to T, but the original file will not
+be deleted if OUTFILE is a stream.
+   The undocumented options BLOCK-COMPRESS (-C), NO-MAGIC (-n), and
+NO-16-BIT-FLAG are available for compatibility with (older versions of) Unix
+compress.
+   The lispm control characters BACKSPACE, NEWLINE, TAB, CLEAR-SCREEN, and
+RUBOUT are swapped with their Unix/ASCII equivalents \\b, \\n, \\t, \\f, and
+\\127, so a text file compressed on an Explorer will be identical to one
+compressed on a Unix machine (unless it contains #\lambda, #\gamma, #\delta,
+#\plus-minus, or #\integral).  Binary files won't work quite so well, but
+won't be harmed if uncompressed on a lispm.
+
+ * Algorithm from \"A Technique for High Performance Data Compression\",
+ * Terry A. Welch, IEEE Computer Vol 17, No 6 (June 1984), pp 8-19.
+ * Algorithm:
+ * 	Modified Lempel-Ziv method (LZW).  Basically finds common
+ * substrings and replaces them with a variable size code.  This is
+ * deterministic, and can be done on the fly.  Thus, the decompression
+ * procedure needs no input table, but tracks the way the table was built."
+   (declare (arglist infile &key outfile (bits 16) (verbose *verbose*) (delete-after *delete-after*)))
+
+   (file-retry-new-pathname (infile fs:file-error)
+     (let* ((parsed-pathname (pathname infile))
+	    (merged-pathname (send parsed-pathname
+				   :new-pathname
+				   :directory (or (send parsed-pathname :send-if-handles :directory) :wild)
+				   :name (or (send parsed-pathname :send-if-handles :name) :wild)
+				   :type (or (send parsed-pathname :send-if-handles :type) :wild)
+				   :version (or (send parsed-pathname :send-if-handles :version) :wild))))
+       (send merged-pathname :wildcard-map #'internal-compress-file nil nil outfile delete-after))))
+
+(defun internal-compress-file (infile outfile delete-after)
+   ;;  Truename instead of pathname so we keep version.  Also happens to catch
+   ;;  wildcarding, which isn't supported here (maybe compress-directory-files?).
+   (setq infile (truename infile))
+   (cond ((null outfile)
+	  (setq outfile (make-pathname :defaults infile
+				       :type (let ((otype (pathname-type infile)))
+					       (if (stringp otype)
+						   ;;  Note lowercase -- use "unusual" case
+						   ;;  in pathname.
+						   (string-append otype ".z")
+						   "z")))))
+	 ((streamp outfile))
+	 ((stringp outfile)
+	  (setq outfile (merge-pathnames outfile infile))))
+   (when (and (not (streamp outfile))
+	      (fs:pathname-equal infile outfile))
+     (error "Won't overwrite infile -- already has .Z suffix."))
+   (with-open-stream (outstream (if (streamp outfile)
+				    outfile
+				    (open outfile :direction :output :characters nil :byte-size 8 :if-exists :rename)))
+     ;;  Probe once to find the true byte size, so lispm 16-bit files can be noted
+     ;;  and later decompressed back to 16 bits.
+     (let ((16-bits? (and (not *no-16-bit-flag*)
+			  (with-open-file (probe infile :direction nil)
+			    (and (send probe :operation-handled-p :byte-size)
+				 (= (send probe :byte-size) 16))))))
+       (with-open-file (instream infile :byte-size 8)
+	 (unless (or (streamp outfile)
+		     (not *verbose*))
+	   (format *error-output* "~&Compressing ~A -- " infile))
+	 (do-compression instream outstream 16-bits?)
+	 ;;  Copy author and creation date (wish we had reference date).
+	 ;;  Won't work over FTP, unfortunately.
+	 (when (typep outstream 'sys:file-data-stream-mixin)
+	   (send outstream :change-properties nil	; Don't error if can't change them.
+		 :creation-date (send instream :creation-date)
+		 :author (or (send instream :get :author)
+			     "Unknown"))))))
+   (when (and delete-after
+	      (not (streamp outfile)))
+     (delete-file infile))
+   (unless (streamp outfile)
+     outfile))
+
+(defvar *offset* 0 "Offset into *buf* for output and getcode.")
+(defvar *bytes-out* 3 "Length of compressed output.")
+(defvar *out-count* 0 "Number of codes output (for debugging).")
+(defvar *in-count* 1 "Length of input.")
+
+(defvar *col* 0)			; For code-dumping, a column counter.
+
+(defun tune-hash-table (instream)
+  "* tune hash table size for small files -- ad hoc, but useful."
+   (setq *hsize* hsize)
+   (let ((size (file-length instream :element-type '(unsigned-byte 8))))
+     (when (numberp size)			; In case of strange errors.
+       ;;  These sizes are taken from the C code's hash-table sizes for
+       ;;  BITS smaller than 16.
+       (cond ((< size (lsh 1 12))
+	      (setq *hsize* (min 5003 hsize)))
+	     ((< size (lsh 1 13))
+	      (setq *hsize* (min 9001 hsize)))
+	     ((< size (lsh 1 14))
+	      (setq *hsize* (min 18013 hsize)))
+	     ((< size (lsh 1 15))
+	      (setq *hsize* (min 35023 hsize)))
+	     ((< size 47000.)
+	      (setq *hsize* (min 50021 hsize)))))))
+
+(proclaim '(inline swap-with-ascii))
+(defun swap-with-ascii (char)
+   "Swap the lispm equivalents of certain ascii control chars with their ascii
+codings, and vice versa to preserve the one-to-one mapping.  Useful since I
+want Unix \\n to still show up in the compressed file as 10."
+   ;;  This range-check is an efficiency hack, since the otherwise clause
+   ;;  of the CASE is the common case but the slow path.
+   (if (< 12 char 127)
+       char
+       (case char
+	 (8. #.(char-int #\BACKSPACE))
+	 (9. #.(char-int #\TAB))
+	 (10. #.(char-int #\newline))
+	 (12. #.(char-int #\PAGE))
+	 (127. #.(char-int #\RUBOUT))
+	 (#.(char-int #\BACKSPACE) 8.)
+	 (#.(char-int #\TAB) 9.)
+	 (#.(char-int #\newline) 10.)
+	 (#.(char-int #\PAGE) 12.)
+	 (#.(char-int #\RUBOUT) 127.)
+	 (otherwise char))))
+
+;; * Algorithm:  use open addressing double hashing (no chaining) on the 
+;; * prefix code / next character combination.  We do a variant of Knuth's
+;; * algorithm D (vol. 3, sec. 6.4) along with G. Knott's relatively-prime
+;; * secondary probe.  Here, the modular division first probe is gives way
+;; * to a faster exclusive-or manipulation.  Also do block compression with
+;; * an adaptive reset, whereby the code table is cleared when the compression
+;; * ratio decreases, but after the table fills.  The variable-length output
+;; * codes are re-sized at this point, and a special CLEAR code is generated
+;; * for the decompressor.  Late addition:  construct the table according to
+;; * file size for noticeable speed improvement on small files.  Please direct
+;; * questions about this implementation to ames!jaw.
+
+(defun do-compression (instream outstream 16-bits?)
+   (tune-hash-table instream)
+   ;;  Write out the three-byte magic-number header.
+   (unless *no-magic*
+     (send outstream :string-out magic-header)
+     (send outstream :tyo (logior *maxbits*
+				  (if *block-compress* block-mask 0)
+				  (if 16-bits? 16-bit-mask 0))))
+   (setq *clear-flg*  nil
+	 *ratio*      0
+	 *checkpoint* check-gap
+	 *n-bits*     init-bits
+	 *maxcode*    (maxcode *n-bits*)
+	 *free-ent*   (if *block-compress* first-code 256)
+	 *offset*     0
+	 *bytes-out*  3				; * Includes the three-byte header.
+	 *out-count*  0
+	 *in-count*   1)
+   (let ((ent (swap-with-ascii (send instream :tyi)))
+	 (hshift 0)
+	 fcode
+	 i)
+     (loop as fcode = *hsize* then (* fcode 2)
+	   while (< fcode 65536)
+	   doing (incf hshift)
+	   finally (setq hshift (- 8 hshift)))	; * Set hash code range bound.
+     (cl-hash *hsize*)				; * Clear hash table.
+     (when (and *debug* *verbose*)
+       (setq *col* 0)
+       (fresh-line *error-output*))
+     (loop with disp = 0
+	   as c = (send instream :tyi nil)
+	   until (null c)
+	   doing (setq c (swap-with-ascii c))
+		 (tagbody
+		     (incf *in-count*)
+		     (setq fcode (+ (lsh c *maxbits*) ent))
+		     (setq i (logxor (lsh c hshift) ent))	; * xor hashing.
+		     (cond ((= (htabof i) fcode)
+			    (setq ent (codetabof i))
+			    (go continue))
+			   ((< (htabof i) 0)	; * empty slot.
+			    (go nomatch)))
+		     (setq disp (- *hsize* i))	; * secondary hash (after G. Knott).
+		     (when (zerop i)
+		       (setq disp 1))
+		  probe
+		     (when *debug*
+		       (format *error-output* "~&probe ~D, disp ~D" i disp))
+		     (decf i disp)
+		     (when (< i 0)
+		       (incf i *hsize*))
+		     (when (= (htabof i) fcode)
+		       (setq ent (codetabof i))
+		       (go continue))
+		     (when (> (htabof i) 0)
+		       (go probe))
+		  nomatch
+		     (output ent outstream)
+		     (incf *out-count*)
+		     (setq ent c)
+		     (cond ((< *free-ent* *maxmaxcode*)
+			    (setf (codetabof i) *free-ent*)
+			    (incf *free-ent*)
+			    (setf (htabof i) fcode))
+			   ((and *block-compress*
+				 (>= *in-count* *checkpoint*))
+			    (cl-block outstream)))
+		  continue
+		     ))
+     ;;  * Put out the final code.
+     (output ent outstream)
+     (incf *out-count*)
+     (output nil outstream)
+
+     ;;  * Print out stats on *error-output*.
+     (when *verbose*
+       (when *debug*
+	 (format *error-output* "~&~D chars in, ~D codes (~D bytes) out, "
+		 *in-count* *out-count* *bytes-out*))
+       (format *error-output* "compression factor: ")
+       (prratio *error-output* (- *in-count* *bytes-out*) *in-count*)
+       (when *debug*
+	 (format *error-output* "~&Largest code (of last block) was ~D (~D bits)~%"
+		 (1- *free-ent*) *n-bits*)))))
+
+;; * Output the given code.
+;; * Inputs:
+;; * 	code:	A *n-bits*-bit integer.  If NIL, then EOF.
+;; * Outputs:
+;; * 	Outputs code to the file.
+;; * Assumptions:
+;; *	Chars are 8 bits long.
+;; * Algorithm:
+;; * 	Maintain a BITS character long buffer (so that 8 codes will
+;; * fit in it exactly).  When the buffer fills up empty it and start over.
+
+(defparameter *lmask* (make-array 9 :initial-contents '(#xff #xfe #xfc #xf8 #xf0 #xe0 #xc0 #x80 #x00)))
+(defparameter *rmask* (make-array 9 :initial-contents '(#x00 #x01 #x03 #x07 #x0f #x1f #x3f #x7f #xff)))
+
+;;  The extra byte gets around a bug in the C code that references off the end of *buf*,
+;;  but then ANDs away all the bits (so it doesn't matter what was there) on the last
+;;  code in *buf* when codes are 16 bits.  Can't get away with that in Lisp.  An extra
+;;  byte for the odd case is probably better than a (> getcode-bits 0) test before the
+;;  last *buf* reference on almost all cases.
+(defvar *buf* (make-array (1+ bits) :initial-value 0))
+
+(defun output (code outstream)
+   ;;  * Translation: Insert BITS bits from the argument starting at
+   ;;  * *offset* bits from the beginning of *buf*.
+   ;;  Believe it or not, most of this is one instruction on a Vax.
+   (let ((r-off *offset*)
+	 (output-bits *n-bits*)
+	 (bp 0))
+     (when (and *debug* *verbose*)
+       (format *error-output* "~5D~:[ ~;~%~]" code (>= (incf *col* 6) 74))
+       (when (>= *col* 74)
+	 (setq *col* 0)))
+     (cond ((numberp code)			; NIL at EOF.
+	    (incf bp (lsh r-off -3))		; * Get to the first byte.
+	    (setq r-off (logand r-off 7))
+	    ;; * Since code is always >= 8 bits, only need to mask the first
+	    ;; * hunk on the left.
+	    (setf (aref *buf* bp)
+		  (logior (logand (aref *buf* bp)
+				  (aref *rmask* r-off))
+			  (logand (lsh code r-off)
+				  (aref *lmask* r-off))))
+	    (incf bp)
+	    (decf output-bits (- 8 r-off))
+	    (setq code (lsh code (- r-off 8)))
+	    ;; * Get any 8 bit parts in the middle (<=1 for up to 16 bits).
+	    (when (>= output-bits 8)
+	      (setf (aref *buf* bp) code)	; *bp++ = code
+	      (incf bp)
+	      (setq code (lsh code -8))
+	      (decf output-bits 8))
+	    ;; * Last bits.
+	    (when (> output-bits 0)
+	      (setf (aref *buf* bp) code))
+	    (incf *offset* *n-bits*)
+	    (when (= *offset* (lsh *n-bits* 3))
+	      (send outstream :string-out *buf* 0 *n-bits*)
+	      (incf *bytes-out* *n-bits*)
+	      (when (and *debug* *verbose*)
+		(format *error-output* "~&(1)Bytes-out now ~D" *bytes-out*))
+	      (setq *offset* 0))
+
+	    ;; * If the next entry is going to be too big for the code size,
+	    ;; * then increase it, if possible.
+	    (when (or (> *free-ent* *maxcode*)
+		      *clear-flg*)
+	      ;; * Write the whole buffer, because the input side won't
+	      ;; * discover the size increase until after it has read it.
+	      (when (> *offset* 0)
+		(send outstream :string-out *buf* 0 *n-bits*)
+		(incf *bytes-out* *n-bits*)
+		(when (and *debug* *verbose*)
+		  (format *error-output* "~&(2)Bytes-out now ~D" *bytes-out*)))
+	      (setq *offset* 0)
+	      (cond (*clear-flg*
+		     (setq *n-bits* init-bits)
+		     (setq *maxcode* (maxcode *n-bits*))
+		     (setq *clear-flg* nil))
+		    (:else
+		     (incf *n-bits*)
+		     (if (= *n-bits* *maxbits*)
+			 (setq *maxcode* *maxmaxcode*)
+			 (setq *maxcode* (maxcode *n-bits*)))))
+	      (when *debug*
+		(format *error-output* "~&Change to ~D bits~%" *n-bits*)
+		(setq *col* 0))))
+	   (:else				; code is NIL at EOF.
+	    ;; * At EOF, write the rest of the buffer.
+	    (when (> *offset* 0)
+	      (send outstream :string-out *buf* 0 (floor (+ *offset* 7) 8)))
+	    (incf *bytes-out* (floor (+ *offset* 7) 8))
+	    (when (and *debug* *verbose*)
+	      (format *error-output* "~&(3)Bytes-out now ~D" *bytes-out*))
+	    (setq *offset* 0)
+	    (force-output outstream)))))
+
+;; * table clear for block compress
+(defun cl-block (outstream)
+   (let ((rat 0))
+     (setq *checkpoint* (+ *in-count* check-gap))
+     (when *debug*
+       (format *error-output* "~&count: ~D, ratio: " *in-count*)
+       (prratio *error-output* *in-count* *bytes-out*)
+       (terpri *error-output*))
+     (cond ((> *in-count* #x7fffff)		; * shift will overflow
+	    (setq rat (lsh *bytes-out* -8))
+	    (if (zerop rat)			; * Don't divide by zero
+		(setq rat #x7fffffff)
+		(setq rat (floor *in-count* rat))))
+	   (:else
+	    (setq rat (floor (lsh *in-count* 8) *bytes-out*))))	; * 8 fractional bits
+     (if (> rat *ratio*)
+	 (setq *ratio* rat)
+	 (setq *ratio* 0))
+;     (when (and *debug* *verbose*)
+;       (dump-tab))
+     (cl-hash *hsize*)
+     (setq *free-ent* first-code)
+     (setq *clear-flg* t)
+     (output clear-code outstream)
+     (when *debug*
+       (format *error-output* "~&clear"))))
+
+;;  * reset code table
+(defun cl-hash (cl-hsize)
+   (fill *htab* -1 :end cl-hsize))
+
+(defun prratio (stream num den)
+   (format stream "~5,2F%" (/ (* 100.0 num) den)))
+
+;;  Strip the Z off the type field.  A more general routine would take it off
+;;  the name portion if necessary, but I haven't seen the need for that yet.
+(defun z-less-type (pathname)
+   (let ((otype (pathname-type pathname)))
+     (cond ((eq otype :unspecific)
+	    (error "~A should have a type of Z to avoid overwriting it."
+		   pathname))
+	   ((string-equal otype "z")
+	    :unspecific)
+	   ((string-equal otype ".z"
+			  :start1 (- (length otype) 2))
+	    (subseq otype 0 (- (length otype) 2)))
+	   (:else
+	    otype))))
+
+(deff uncompress-file 'decompress-file)
+(defun decompress-file (infile &key outfile
+			              ((:debug *debug*) *debug*)
+				      ((:verbose *verbose*) *verbose*)
+				      (delete-after *delete-after*)
+				      16-bit-output)
+  "   Uncompress the compressed file INFILE to OUTFILE.  If OUTFILE is not
+supplied, it defaults to INFILE without its .Z suffix.  If INFILE has no .Z
+suffix, there will be an error and the file will not be uncompressed.  OUTFILE
+may be a stream, e.g. *STANDARD-OUTPUT* (analogous to Unix zcat).  INFILE's
+author and creation date are copied to OUTFILE, if possible.
+   INFILE may contain wildcards, in which case all the files will be uncompressed.
+Wildcarded INFILE has not been tested with a non-null OUTFILE, so don't specify
+OUTFILE when using wildcards.
+   VERBOSE controls whether messages are printed (to *ERROR-OUTPUT*) -- if NIL,
+or if OUTFILE is a stream, no message is printed.
+   DELETE-AFTER controls whether the original file is deleted after the
+compressed file is written.  It defaults to T, but the original file will not
+be deleted if OUTFILE is a stream.
+   16-BIT-OUTPUT, if true, means to write the uncompressed file in 16-bit
+bytes -- this is useful for uncompressing Explorer binaries that for whatever
+reason couldn't be compressed with the 16-bit-byte flag.
+   See COMPRESS-FILE for comments on the algorithm used."
+   (declare (arglist infile &key outfile (verbose *verbose*) (delete-after *delete-after*) 16-bit-output))
+
+   (file-retry-new-pathname (infile fs:file-error)
+     (let* ((parsed-pathname (pathname infile))
+	    (merged-pathname (send parsed-pathname
+				   :new-pathname
+				   :directory (or (send parsed-pathname :send-if-handles :directory) :wild)
+				   :name (or (send parsed-pathname :send-if-handles :name) :wild)
+				   :type (or (send parsed-pathname :send-if-handles :type) :wild)
+				   :version (or (send parsed-pathname :send-if-handles :version) :wild))))
+       (send merged-pathname :wildcard-map #'internal-decompress-file nil nil outfile delete-after 16-bit-output))))
+
+(defun internal-decompress-file (infile outfile delete-after 16-bit-output)
+   (setq infile (truename infile))		; Truename instead of pathname so we keep version.
+   (cond ((null outfile)
+	  (setq outfile (make-pathname :defaults infile :type (z-less-type infile))))
+	 ((streamp outfile))
+	 ((stringp outfile)
+	  (setq outfile (merge-pathnames outfile (send infile :new-pathname :type (z-less-type infile))))))
+   (when (and (not (streamp outfile))
+	      (fs:pathname-equal infile outfile))
+     (error "Won't overwrite infile -- no .Z suffix."))
+   (with-open-file (instream infile :characters nil :byte-size 8)
+     (internal-decompress-stream instream outfile 16-bit-output))
+   (when (and delete-after
+	      (not *debug*)
+	      (not (streamp outfile)))
+     (delete-file infile))
+   ;;  Return the new file's pathname because that's useful for Dired commands.
+   (unless (streamp outfile)
+     outfile))
+
+;;  This decomposition is so I can use it to decompress a Zmacs buffer in place.
+;;  Unfortunately, ascii-translation over TCP/IP streams makes that idea unworkable.
+(defun internal-decompress-stream (instream outfile 16-bit-output)
+   ;;  Check the magic number.
+   (unless *no-magic*
+     (let* ((ch0 (or (send instream :tyi nil) -1))
+	    (ch1 (or (send instream :tyi nil) -1)))
+       (unless (and (= ch0 (aref magic-header 0))
+		    (= ch1 (aref magic-header 1)))
+	 (error "Not in compressed format."))))
+   ;;  Set bits, etc, from file.
+   (let ((bits-header (send instream :tyi)))
+     (setq *block-compress* (logtest bits-header block-mask))
+     (setq *maxbits* (logand bits-header bit-mask))
+     (setq *maxmaxcode* (lsh 1 *maxbits*))
+     (when (> *maxbits* bits)
+       (error "Compressed with ~D bits, can only handle ~D bits."
+	      *maxbits* bits))
+     (let ((16-bits? (or 16-bit-output
+			 (logtest bits-header 16-bit-mask))))
+       (with-open-stream (outstream (cond ((streamp outfile)
+					   outfile)
+					  (16-bits?
+					   (make-8-to-16-output-stream	; Described below.
+					     (open outfile :direction :output :characters nil :byte-size 16)))
+					  (:else
+					   (open outfile :direction :output :characters t :byte-size 8))))
+	 (cond (*debug*
+		(printcodes instream)
+;;  Unimplemented debugging function.
+;;	          (dump-tab instream outstream)
+		)
+	       (:else
+		(when (and *verbose*
+			   (not (streamp outfile)))
+		  (format *error-output* "~&Decompressing ~A" (truename instream)))
+		(do-decompression instream outstream)
+		;;  Copy creation date and author to new file.
+		(typecase outstream
+		  (sys:file-data-stream-mixin
+		   (send outstream :change-properties nil	; Don't error if can't change them.
+			 :creation-date (send instream :creation-date)
+			 :author (or (send instream :get :author)
+				     "Unknown")))
+		  (8-to-16-output-stream
+		   (send (send outstream :outstream) :change-properties nil	; Don't error if can't change them.
+			 :creation-date (send instream :creation-date)
+			 :author (or (send instream :get :author)
+				     "Unknown")))
+		  (otherwise
+		   nil))))))))
+
+(defvar *size* 0)
+
+;; * Decompress instream to outstream.  This routine adapts to the codes in the
+;; * file building the "string" table on-the-fly; requiring no table to
+;; * be stored in the compressed file.  The tables used herein are shared
+;; * with those of the do-compression routine.  See the definitions above.
+
+(defun do-decompression (instream outstream)
+   (tune-hash-table instream)
+   (setq *n-bits* init-bits)
+   (setq *maxcode* (maxcode *n-bits*))
+   ;; * As above, initialize the first 256 entries in the table.
+   (loop for code from 255 downto 0
+	 doing (setf (tab-prefixof code) 0)
+	 doing (setf (tab-suffixof code) code))
+   (setq ; *clear-flg* nil
+	 *free-ent* (if *block-compress* first-code 256)
+	 *offset* 0
+	 *size* 0)
+   (setq *free-ent* (if *block-compress* first-code 256))
+   (let* ((finchar (getcode instream))
+	  (oldcode finchar)
+	  (stackp 0))				; Stackp is a C pointer variable, simulated here by an array index.
+     (when (null oldcode)			; * If EOF already, get out.
+       (return-from do-decompression))
+     (send outstream :tyo (swap-with-ascii finchar))	; * First code must be 8 bits = char.
+     (loop as code = (getcode instream)
+	   until (null code)
+	   doing (let ((incode 0))
+		   (when (and (= code clear-code)
+			      *block-compress*)
+		     (loop for code from 255 downto 0
+			   doing (setf (tab-prefixof code) 0))
+		     (setq *clear-flg* t)
+		     (setq *free-ent* (1- first-code))
+		     (setq code (getcode instream))
+		     (when (null code)
+		       (error "O, untimely death!")))
+		   (setq incode code)
+		   ;; * Special case for KwKwK string.
+		   (when (>= code *free-ent*)
+		     (setf (de-stack stackp) finchar)	; *stackp++ = finchar
+		     (incf stackp)
+		     (setq code oldcode))
+		   ;; * Generate output characters in reverse order
+		   (loop while (>= code 256)
+			 doing (setf (de-stack stackp) (tab-suffixof code))
+			       (incf stackp)
+			       (setq code (tab-prefixof code)))
+		   (setq finchar (tab-suffixof code))
+		   (setf (de-stack stackp) finchar)
+		   (incf stackp)
+		   ;; * And put them out in forward order
+		   (loop for i from (1- stackp) downto 0
+			 doing (send outstream :tyo (swap-with-ascii (de-stack i)))
+			 finally (setq stackp 0))
+		   ;; * Generate the new entry.
+		   (setq code *free-ent*)
+		   (when (< code *maxmaxcode*)
+		     (setf (tab-prefixof code) oldcode)
+		     (setf (tab-suffixof code) finchar)
+		     (setq *free-ent* (1+ code)))
+		   ;; * Remember previous code.
+		   (setq oldcode incode)))
+     (force-output outstream)))
+
+(defun getcode (instream)
+   "* Read one code from the standard input.  If EOF, return NIL."
+   (when (or *clear-flg*
+	     (>= *offset* *size*)
+	     (> *free-ent* *maxcode*))
+     ;; * If the next entry will be too big for the current code
+     ;; * size, then we must increase the size.  This implies reading
+     ;; * a new buffer full, too.
+     (when (> *free-ent* *maxcode*)
+       (incf *n-bits*)
+       (if (= *n-bits* *maxbits*)
+	   (setq *maxcode* *maxmaxcode*)	; * Won't get any bigger now.
+	   (setq *maxcode* (maxcode *n-bits*))))
+     (when *clear-flg*
+       (setq *n-bits* init-bits)
+       (setq *maxcode* (maxcode *n-bits*))
+       (setq *clear-flg* nil))
+     ;;  This bit is equivalent to:
+     ;;    size = fread( buf, 1, n_bits, stdin );
+     ;;    if ( size <= 0 )
+     ;;       return -1;			/* end of file */
+     (let ((eof nil))
+       (multiple-value-setq (*size* eof)
+	 (send instream :string-in nil *buf* 0 *n-bits*))
+       (when (and eof (zerop *size*))
+	 (return-from getcode nil)))
+     (setq *offset* 0)
+     ;; * Round size down to integral number of codes
+     (setq *size* (- (lsh *size* 3) (1- *n-bits*))))
+   ;;  This is another code chunk that is one instruction on a Vax.
+   (let ((r-off *offset*)
+	 (getcode-bits *n-bits*)
+	 (bp 0)
+	 (code 0))
+     ;; * Get to the first byte.
+     (incf bp (lsh r-off -3))
+     (setq r-off (logand r-off 7))
+     ;; * Get first part (low order bits).
+     (setq code (lsh (aref *buf* bp) (- r-off)))
+     (incf bp)
+     (decf getcode-bits (- 8 r-off))
+     (setq r-off (- 8 r-off))			; * now, offset into code word
+     ;; * Get any 8 bit parts in the middle (<=1 for up to 16 bits).
+     (when (>= getcode-bits 8)
+       (setq code (logior code (lsh (logand (aref *buf* bp) #xff) r-off)))
+       (incf bp)
+       (incf r-off 8)
+       (decf getcode-bits 8))
+     ;; * high order bits.
+     (setq code (logior code (lsh (logand (aref *buf* bp) (aref *rmask* getcode-bits)) r-off)))
+     (incf *offset* *n-bits*)
+     code))
+
+;; * Just print out codes from input file.  For debugging.
+(defun printcodes (instream)
+   (let ((col 0)
+	 (printcode-bits init-bits))
+     (setq *n-bits* init-bits)
+     (setq *maxcode* (maxcode *n-bits*))
+     (setq *free-ent* (if *block-compress* first-code 256))
+     (terpri *error-output*)
+     (loop as code = (getcode instream)
+	   until (null code)
+	   if (and (= code clear-code)
+		   *block-compress*)
+	   do (setq *free-ent* (1- first-code)
+		    *clear-flg* t)
+	   else if (< *free-ent* *maxmaxcode*)
+	   do (incf *free-ent*)
+	   when (/= printcode-bits *n-bits*)
+	   do (format *error-output* "~&Change to ~D bits~%" *n-bits*)
+	      (setq printcode-bits *n-bits*)
+	      (setq col 0)
+	   doing (format *error-output* "~5D~:[ ~;~%~]" code (>= (incf col 6) 74))
+		 (when (>= col 74)
+		   (setq col 0)))
+     (terpri *error-output*)))
+
+;;  Dump-tab isn't implemented because it uses lots of C & operations to take addresses,
+;;  and it's truly a pain to simulate that efficiently in Lisp.
+
+(defun convert-8-to-16 (filename)
+   "Read a file in 8-bit bytes and write it out in 16-bit bytes, packing two
+8-bit bytes little-endian style into one 16-bit byte.  Useful for turning
+uncompressed lispm binary files back into usable form."
+   (with-open-file (in filename)
+     (with-open-file (out filename :direction :output :byte-size 16 :characters nil)
+       (loop as ch0 = (read-byte in nil nil)
+	     as ch1 = (read-byte in nil nil)
+	     when (or (null ch0) (null ch1))
+	     return nil
+	     doing (write-byte (dpb ch1 (byte 8 8) ch0) out)))))
+
+;;  Here's a stream flavor to do the 8-bit to 16-bit conversion on the fly
+;;  while writing out the uncompressed file.
+(defflavor 8-to-16-output-stream
+	   ((outstream nil)
+	    (char-buffer nil))
+	   (sys:output-stream)
+  (:documentation "Output stream that packs two 8-bit bytes into one 16-bit byte while writing.")
+  (:gettable-instance-variables outstream)
+  (:initable-instance-variables outstream))
+
+(defmethod (8-to-16-output-stream :tyo) (char)
+   (cond (char-buffer
+	  (send outstream :tyo (dpb char (byte 8 8) char-buffer))
+	  (setq char-buffer nil))
+	 (:else
+	  (setq char-buffer char))))
+
+(defun pass-on-to-outstream (op &rest args)
+   (declare (:self-flavor 8-to-16-output-stream))
+   (lexpr-send outstream op args))
+
+(defmethod (8-to-16-output-stream :clear-output) pass-on-to-outstream)
+(defmethod (8-to-16-output-stream :force-output) pass-on-to-outstream)
+(defmethod (8-to-16-output-stream :finish)	 pass-on-to-outstream)
+
+(defmethod (8-to-16-output-stream :close) (&optional mode)
+   (when char-buffer				; If odd number of bytes, pad with 0.
+     (send outstream :tyo char-buffer))
+   (send outstream :close mode))
+
+(compile-flavor-methods 8-to-16-output-stream)
+
+(defun make-8-to-16-output-stream (stream)
+   (make-instance '8-to-16-output-stream :outstream stream))
+
+;;;
+;;;  Zwei commands to use this stuff.  Dired commands for compressing, decompressing,
+;;;  and viewing compressed files (plus the stream support required by the latter).
+;;;  (This used to be in a separate file, so the error-checking is a little redundant.)
+
+zwei:
+(defcom com-compress-file "Compress a file." ()
+  (if (fboundp 'compress-file)
+      (let ((pathname (read-defaulted-pathname "Compress file:" (pathname-defaults)))
+	    (*error-output* *query-io*))
+	(compress-file pathname))
+      (barf "COMPRESS-FILE isn't loaded in this band."))
+  dis-none)
+
+zwei:
+(w:add-typeout-item-type *typeout-command-alist* zmacs-buffer
+			  "Compress File" typeout-compress-file
+			  nil "Compress this buffer's source file.") 
+
+zwei:
+(defun typeout-compress-file (buffer)
+  (unless (buffer-pathname buffer)
+    (barf "This buffer is not visiting a source file."))
+  (if (fboundp 'compress-file)
+      (compress-file (buffer-pathname buffer))
+      (barf "COMPRESS-FILE isn't loaded in this band."))
+  dis-none)
+
+zwei:
+(defcom com-decompress-file "Decompress a file." ()
+  (if (fboundp 'decompress-file)
+      (let ((pathname (read-defaulted-pathname "Decompress file:" (pathname-defaults)))
+	    (*error-output* *query-io*))
+	(decompress-file pathname))
+      (barf "DECOMPRESS-FILE isn't loaded in this band."))
+  dis-none)
+
+zwei:
+(defcom com-uncompress-file "Uncompress a file." ()
+  (if (fboundp 'uncompress-file)
+      (let ((pathname (read-defaulted-pathname "Uncompress file:" (pathname-defaults)))
+	    (*error-output* *query-io*))
+	(uncompress-file pathname))
+      (barf "UNCOMPRESS-FILE isn't loaded in this band."))
+  dis-none)
+
+zwei:
+(set-comtab *zmacs-comtab* nil
+	    (make-command-alist '(com-compress-file com-decompress-file com-uncompress-file)))
+
+zwei:
+(defcom com-dired-compress "Compress the file." ()
+   (WHEN (GETF (LINE-PLIST (BP-LINE (POINT))) :DELETED)
+     (BARF "Can't compress a deleted file."))
+   (if (fboundp 'compress-file)
+       (LET* ((LINE (BP-LINE (POINT)))
+	      (DIR-P (GETF (LINE-PLIST LINE) :DIRECTORY)))
+	 (IF DIR-P
+	     (barf "Can't compress a directory.")
+	     (let* ((*error-output* *query-io*)	; For compression-factor message.
+		    (infile (dired-file-line-pathname-or-barf line))
+		    (outfile (compress-file infile)))
+	       (setf (aref line 0) #\d)
+	       (dired-insert-line infile)
+	       (when outfile
+		 (if (listp outfile)
+		     (dired-insert-line (car outfile))
+		     (dired-insert-line outfile))))))
+       (barf "COMPRESS-FILE isn't loaded in this band."))
+   dis-text)
+
+zwei:
+(defcom com-dired-decompress "Decompress the file." ()
+   (WHEN (GETF (LINE-PLIST (BP-LINE (POINT))) :DELETED)
+     (BARF "Can't decompress a deleted file."))
+   (if (fboundp 'decompress-file)
+       (LET* ((LINE (BP-LINE (POINT)))
+	      (DIR-P (GETF (LINE-PLIST LINE) :DIRECTORY)))
+	 (IF DIR-P
+	     (barf "Can't decompress a directory.")
+	     (let* ((*error-output* *query-io*)	; For compression-factor message.
+		    (infile (dired-file-line-pathname-or-barf line))
+		    (outfile (decompress-file infile)))
+	       (setf (aref line 0) #\d)
+	       (dired-insert-line infile)
+	       (when outfile
+		 (if (listp outfile)
+		     (dired-insert-line (car outfile))
+		     (dired-insert-line outfile))))))
+       (barf "DECOMPRESS-FILE isn't loaded in this band."))
+   dis-text)
+
+zwei:
+(DEFCOM COM-DIRED-zcat "Uncompress and view the current file" ()
+   (WHEN (GETF (LINE-PLIST (BP-LINE (POINT))) :DELETED)
+     (BARF "Can't view a deleted file."))
+   (LET* ((LINE (BP-LINE (POINT)))
+	  (DIR-P (GETF (LINE-PLIST LINE) :DIRECTORY))
+	  (PATHNAME (DIRED-LINE-PATHNAME-OR-BARF LINE)))
+     (IF DIR-P
+	 (barf "Can't uncompress a directory.")
+	 (with-open-stream (s (make-instance 'compress:decompressing-stream :pathname pathname))
+	   (PROMPT-LINE "Uncompressing ~A" pathname)
+	   (VIEW-stream s))))
+   DIS-NONE)
+
+zwei:
+(defun dired-compress-commands ()
+   (macrolet ((hook-eval (mode &body forms)
+		 ;;  The set-comtab is easy, but making sure it gets undone requires a little work.
+		 `(let* ((undos (evaluate-forming-undo-list
+				  '(,@forms)))
+			 (mode-element (assoc ',mode *mode-list*)))
+		    (assert mode-element () "Didn't find ~A in *mode-list*." ',mode)
+		    (setf (second mode-element)
+			  (nconc (second mode-element) undos)))))
+     (hook-eval dired-mode
+		(set-comtab *mode-comtab* '(#\c-sh-c com-dired-compress
+					    #\c-sh-d com-dired-decompress
+					    #\c-sh-u com-dired-decompress
+					    #\Z com-dired-zcat
+					    #\z (0 #\Z))))))
+
+(eval-when (load)
+  (cond ((boundp 'zwei:dired-mode-hook)
+	 (format *error-output*
+		 "~2&ZWEI:DIRED-MODE-HOOK is already bound to ~S.~@
+		     If you want to do both, define a function of no arguments that calls both~@
+		     and setq ZWEI:DIRED-MODE-HOOK to it."
+		 zwei:dired-mode-hook))
+	(:else
+	 (setq zwei:dired-mode-hook 'zwei:dired-compress-commands)))
+  )
+
+;;;
+;;;  I want a stream takes a compressed file at one end and gives me
+;;;  the uncompressed file at the other, but I have a function that reads
+;;;  from one stream and writes to another.  Solution:  make a stream that
+;;;  looks like both an input stream and an output stream, and let decompress
+;;;  write to it (blocking when its buffer is full) while view-file (for
+;;;  example) reads from it, blocking when the buffer is empty.  I guess I'll
+;;;  have to run decompress in a separate process, handing it the filename and
+;;;  queueing-stream.
+
+(export '(one-buffered-queueing-stream) 'sys)
+
+(defflavor one-buffered-queueing-stream
+	   ((buffer (make-string 256))
+	    (read-pointer 0)			; Index of the next character read.
+	    (write-pointer 0)			; Index of the next character written.
+	    (eof-flag nil)
+	    (input-process nil)			; Process doing the reading.
+	    (output-process nil))		; Process doing the writing.
+	   (sys:buffered-character-stream)
+  (:settable-instance-variables input-process output-process))
+
+(defmethod (one-buffered-queueing-stream :around :close) (cont mt args &optional abort-p)
+   (declare (ignore abort-p))
+   ;;  Since this is both an input stream and an output stream, it will be closed
+   ;;  twice.  Since the output side might close first, and since closing causes things
+   ;;  to happen to the input side's state that we don't want to happen before we're
+   ;;  ready (like doing sys:return-readstring while we're still doing :line-in), we
+   ;;  don't do anything but set a flag when the output side closes, and do the real
+   ;;  closing when the input side closes.  I suppose I should check for the right
+   ;;  input-process, too, but it doesn't seem necessary now and also could cause
+   ;;  problems with fs:close-all-files.
+   (if (eq current-process output-process)
+       (setq eof-flag t)
+       (lexpr-funcall-with-mapping-table cont mt args)))
+
+(defmethod (one-buffered-queueing-stream :next-input-buffer) (&optional no-hang-p)
+   (setq input-process current-process)
+   (block :next-input-buffer
+     (when (= read-pointer write-pointer)
+       (cond ((or eof-flag no-hang-p)
+	      (return-from :next-input-buffer nil))
+	     (:else
+	      (process-wait tv:*default-read-whostate*
+			    #'(lambda (a b) (> (contents a) (contents b)))
+			    (locf write-pointer)
+			    (locf read-pointer)))))
+     (values buffer read-pointer write-pointer)))
+
+(defmethod (one-buffered-queueing-stream :discard-input-buffer) (buffer-to-discard)
+   (declare (ignore buffer-to-discard))
+   ;;  All input used up, so advance the read-pointer.  If the write-pointer is at
+   ;;  the end of the buffer, start both over at the beginning.
+   (if (= write-pointer (length buffer))
+       (setq read-pointer 0
+	     write-pointer 0)
+       (setq read-pointer write-pointer)))
+
+(defmethod (one-buffered-queueing-stream :new-output-buffer) ()
+   (setq output-process current-process)
+   ;;  End of the buffer, and input waiting to be read, so wait for it to be read,
+   ;;  then start the pointers over and write some more.
+   (when (and (> write-pointer read-pointer)
+	      (= write-pointer (length buffer)))
+     (process-wait "Output Block"
+		   #'(lambda (a b) (= (contents a) (contents b)))
+		   (locf write-pointer)
+		   (locf read-pointer))
+     (setq read-pointer 0
+	   write-pointer 0))
+   (values buffer write-pointer (length buffer)))
+
+(defmethod (one-buffered-queueing-stream :send-output-buffer) (buffer-to-write end)
+   (declare (ignore buffer-to-write))
+   ;;  Advance the write-pointer to indicate some output has been sent.
+   (setq write-pointer end))
+
+(defmethod (one-buffered-queueing-stream :discard-output-buffer) (buffer-to-discard)
+   (declare (ignore buffer-to-discard))
+   ;;  Flush any pending output by backing up the write-pointer.
+   (setq write-pointer read-pointer))
+
+
+(defflavor decompressing-stream
+	   (pathname)
+	   (one-buffered-queueing-stream)
+  :gettable-instance-variables			; Viewing a file wants to send the :pathname message.
+  :initable-instance-variables)
+
+(defmethod (decompressing-stream :after :close) (&optional mode)
+   (declare (ignore mode))
+   (send output-process :kill))			; Don't want the spun-off process hanging around.
+
+(defmethod (decompressing-stream :after :init) (init-plist)
+   (declare (ignore init-plist))
+   (setq pathname (pathname pathname))
+   (process-run-function (string (gentemp "Decompress-"))
+			 #'decompress-file pathname :outfile self))
+
+(compile-flavor-methods one-buffered-queueing-stream decompressing-stream)

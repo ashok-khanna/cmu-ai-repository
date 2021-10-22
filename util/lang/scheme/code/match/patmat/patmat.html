@@ -1,0 +1,131 @@
+;
+; from: Programming in MacScheme
+;       Eisenberg, Hartheimer, Clinger, Abelson
+; chapter 15, pattern matching
+;
+
+(define (try-depending-on-type pattern dictionary-list assertions)
+  (cond	((eq? (car pattern) 'and)
+         (do-and-clauses (cdr pattern) dictionary-list assertions))
+        ((eq? (car pattern) 'or)
+         (do-or-clauses (cdr pattern) dictionary-list assertions))
+        ((eq? (car pattern) 'dont-keep)
+         (use-dont-keep-proc (cdr pattern) dictionary-list))
+        (else (check-assertions-for-each-dictionary
+               pattern dictionary-list assertions))))
+
+(define (do-and-clauses clauses dictionary-list assertions)
+  (if (null? clauses)
+      dictionary-list
+      (do-and-clauses (cdr clauses)
+                      (try-depending-on-type (car clauses)
+                                             dictionary-list
+                                             assertions)
+                      assertions)))
+
+(define (do-or-clauses clauses dictionary-list assertions)
+  (if (null? clauses)
+      '()
+      (append (do-or-clauses (cdr clause)
+                             dictionary-list
+                             assertions)
+              (try-depending-on-type (car clauses)
+                                     dictionary-list
+                                     assertions))))
+
+(define (use-dont-keep-proc clause dictionary-list)
+  (let ((dont-keep-proc (car clause))
+        (clause-variables (cdr clause)))
+    (throw-away (lambda (dictionary)
+                  (apply dont-keep-proc
+                         (get-list-of-values clause-variables dictionary)))
+                dictionary-list)))
+
+(define (get-list-of-values list-of-variables dictionary)
+  (map (lambda (var) (get-value var dictionary)) list-of-variables))
+
+(define (get-value variable dictionary)
+  (let ((vname (variable-name variable)))
+    (let ((dictionary-entry (assq vname dictionary)))
+      (if (not dictionary-entry)
+          '()
+          (cadr dictionary-entry)))))
+
+(define (try-all-assertions pattern assertion-list starting-dictionary)
+  (throw-away (lambda (dictionary)
+                (eq? dictionary 'failed))
+              (map (lambda (assertion)
+                     (match pattern assertion starting-dictionary))
+                   assertion-list)))
+
+(define (check-assertions-for-each-dictionary 
+         pattern dictionary-list assertions)
+  (map-append (lambda (dictionary)
+                (try-all-assertions pattern assertions dictionary))
+              dictionary-list))
+
+(define (map-append procedure lst)
+  (if (null? lst)
+      '()
+      (append (procedure (car lst))
+              (map-append procedure (cdr lst)))))
+
+(define (throw-away predicate lst)
+  (cond ((null? lst) '())
+        ((predicate (car lst)) (throw-away predicate (cdr lst)))
+        (else (cons (car lst) (throw-away predicate (cdr lst))))))
+
+(define (extend-dictionary variable expression dictionary)
+  (let ((vname (variable-name variable)))
+    (let ((v (assq vname dictionary)))
+      (cond ((not v) (cons (list vname expression) dictionary))
+            ((equal? (cadr v) expression) dictionary)
+            (else 'failed)))))
+
+(define (match pattern expression dictionary)
+  (cond ((eq? dictionary 'failed) 'failed)
+        ((atom? pattern)
+         (if (eqv? expression pattern)
+             dictionary
+             'failed))
+        ((null? expression) 'failed)
+        ((variable? pattern)
+         (extend-dictionary pattern expression dictionary))
+        ((atom? expression) 'failed)
+        (else
+         (match (cdr pattern)
+                (cdr expression)
+                (match (car pattern) (car expression) dictionary)))))
+
+(define (variable? pattern)
+  (eq? (car pattern) '?v))
+
+(define variable-name cadr)
+
+;(define (atom? x)
+; (not (pair? x)))
+
+(define (try pattern)
+  (try-depending-on-type pattern (list '()) *the-assertions*))
+
+(define *the-assertions*
+  '(
+    (group (becker walter) steely-dan)
+    (group (fagen donald) steely-dan)
+    (plays (becker walter) quitar)
+    (plays (fagen donald) keyboards)
+    (plays (fagen donald) vocals)
+    (group (banks tony) genesis)
+    (group (collins philip) genesis)
+    (group (rutherford mike) genesis)
+    (plays (banks tony) keyboards)
+    (plays (collins philip) drums)
+    (plays (collins philip) vocals)
+    (plays (rutherford mike) guitar)
+    (plays (rutherford mike) bass)
+    (album genesis abacab)
+    ))
+
+(try `(and (plays (?v person) quitar)
+           (group (?v person) (?v group))
+           (dont-keep ,(lambda (g) (eq? g 'genesis)) (?v group))))

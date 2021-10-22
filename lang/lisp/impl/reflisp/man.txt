@@ -1,0 +1,2187 @@
+
+
+
+
+
+
+
+
+                   Reference-Counting Lisp (RefLisp)
+		      
+                        USER'S REFERENCE MANUAL
+                           and DOCUMENTATION
+
+			     Version 2.67
+			    
+			      27 Feb 1993
+
+
+
+
+         Copyright (c) 1989,1990,1991,1992 Peter William Birch
+		   
+                          All rights Reserved.
+
+
+
+                           23 Marlins Turn,
+                              Gadebridge,
+                            Hemel Hempstead,
+                         HP1 3LQ, Great Britian
+			     
+                          Tel: +44 442 230 654
+
+                   Internet: B.Birch@uk03.hemel.co.uk
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+	Table of Contents
+	
+		0  COPYRIGHT
+		1  INTRODUCTION
+		2  LEXICAL AND SYNTACTIC CONVENTIONS
+		3  THE TOP LEVEL
+			3.1 Installing RefLisp on MS-DOS
+			3.2 Starting RefLisp
+			3.3 RefLisp Execution
+			3.4 Scope and Extent
+ 		4  LIST PROCESSING FUNCTIONS
+		5  SYMBOL FUNCTIONS
+		6  CONTROL FUNCTIONS
+		7  EVALUATION FUNCTIONS
+		8  PREDICATE FUNCTIONS
+		9  MATHEMATICAL FUNCTIONS
+		10 RELATIONAL FUNCTIONS
+		11 PROPERTY LISTS
+		12 INPUT/OUTPUT FUNCTIONS	
+			12.1 File I/O
+			12.2 Graphics Functions
+			12.3 ATARI-ST Specific I/O
+				12.3.1 MIDI I/O
+		13 DEBUGGING FUNCTIONS
+		14 HISTORY & DESIGN NOTES
+		15 MEMORY MANAGEMENT
+		16 THE SOURCE CODE
+			16.1 List of Files
+			16.2 Portability
+			16.3 Metrics
+			16.4 List of Example Programs 
+		17 BIBLIOGRAPHY
+
+		APPENDIX A	ROUND TOITS
+		APPENDIX B	UPDATES
+		APPENDIX C	BUGS
+
+
+0 COPYRIGHT
+	
+	You may copy RefLisp, and this manual provided that:
+
+	1) Neither the manual or the program are modified in any way.
+		
+	2) Both the manual and the program are copied together.
+		
+	3) If you find a bug in this program, please notify the author
+           so that it can be fixed in subsequent releases.
+
+1  INTRODUCTION
+
+RefLisp is a portable Lisp interpreter written in 'C.' Reflisp is designed
+to investigate reference counting garbage collection, and as a useful tool
+for software development. It can be used as a base for writing portable
+programs. It is in the public domain for people to learn Lisp, and to
+answer the question "Reference counting is slow, but HOW slow?".
+
+RefLisp exists in MS-DOS, UNIX and ATARI-ST versions, the MS-DOS
+version is the base version, from which others are ported. Programs
+written for RefLisp can be ported to Standard Lisp or Common Lisp. The
+interpreter is built according to Standard Lisp principles. It also
+parses the Common Lisp quoting syntax, and  Common Lisp functions are
+provided in Lisp. Future versions will migrate towards inbuilt Common
+Lisp, with Standard Lisp as Lisp source.
+	
+This manual is written you have assuming some familiarity with Lisp. If
+you are learning Lisp,  read one of the excellent tutorials mentioned
+in the Bibliography. 
+	
+This manual contains a description of the  functions of the
+RefLisp interpreter grouped in subject headings. Beginners should try
+out every function in turn to get a feel for them. The rest of the
+document contains sections on design and other issues.
+	
+The interpreter is supplied with a number of demonstration programs
+which can be run by starting RefLisp with DEMOS.LSP as a command
+parameter: 
+	
+	C:\>REFLISP DEMOS.LSP 	; MS-DOS
+	$ reflisp demos.lsp 	; UNIX
+     	
+2  LEXICAL AND SYNTACTIC CONVENTIONS
+	
+The parser of the interpreter uses the (read) function to parse in the
+next s-expression to evaluate. Thus the syntax described here is
+essentially that of (read). The syntax of RefLisp follows Common Lisp.
+The special characters recognised are:
+
+	(		-- beginning of a list, or cons cell.
+	)		-- end of a list, or cons cell
+	.		-- separates the car and cdr halves of a cell.
+	'		-- quote character
+	`		-- backquote character
+	,		-- comma function
+	,@		-- comma-at function
+	#'		-- function character
+	#!		-- first user reader macro.
+	#?		-- second user reader macro.
+	"		-- start and end of strings
+	\		-- escape char for within strings (not Common Lisp)
+	;		-- starts a comment
+	\		-- escape for the next character in symbols.
+	-0123456789 	-- start an integer
+
+Whitespace characters are recognised as the separator between lexical
+tokens. 
+
+A more formal description of the s-expression syntax might be:
+
+	An <s-exp> can be an <atom> or a <list>
+
+	<atom>s can be:
+
+		nil	; nil is an atom
+	
+		positive or negative integers eg:
+
+                              545, -23
+
+		floating point numbers eg:
+
+                              13.4, -33.7, 12.4E8, 23.4e-2
+
+		unlimited length character strings delimited by "s
+		with special characters in strings:
+				"\n" = newline
+				"\e" = escape
+				"\t" = tab
+				"\r" = carriage return
+				"\f" = form feed
+				"\\" = \
+				"\"" = "
+				"\c" = c where c is any other charater.
+	symbols
+		- symbol names may include any character preceded
+		  by the \ character.
+			eg. A\(strange\.symbol
+
+		- alphabetic characters are all converted to
+		  lower case in the interpreter. Thus FOOBAR
+		  and foobar are the same.
+
+	- constants
+		
+		- special symbols whose value cannot be changed
+		  with set, and which are never garbage collected.
+		
+	<list>s can be either:
+		nil	; the null list
+		() 	; the null list which equals nil
+		( <s-exp> . <s-exp> ) ; a cons cell
+		( <s-exp> <s-exp> etc.... ) ; which is the same as
+		( <s-exp> . ( <s-exp> . (  <s-exp> etc.. . nil ))))
+
+	An s-expression preceded by the ' single quote character
+	is expanded by (read) to be quoted:
+
+		'<s-exp>  ==>	(quote <s-exp>)
+
+	Other characters have this effect also:
+
+		`<s-exp> ==>	(backquote <s-exp>)
+		,<s-exp> ==>	(comma <s-exp>)
+		,@<s-exp> ==>	(comma-at <s-exp>)
+		#'<s-exp> ==>	(function <s-exp>)
+
+	[The notation "==>" means "evaluates to".]
+
+	These functions are defined in the initialisation file and are
+	intended to provide compatibility with Common Lisp. 
+
+		#!<s-exp> ==>	(quser1 <s-exp>)
+		#?<s-exp> ==>	(quser2 <s-exp>)
+
+	These quote characters intended to be user-definable.
+	
+3  THE TOP LEVEL
+	
+3.1 Installing RefLisp on MS-DOS
+
+Assuming you have a full release disk, make a directory and copy the
+files on the release disk to it. (For example directory C:\BILL\LISP
+Add an entry in your PATH environment variable pointing to the
+directory. Set up the environment variable LISPINIT to point to the
+initialisation file. Include these lines in your AUTOEXEC.BAT file if
+you intend to use the program frequently. For example use:
+
+	PATH C:\BILL\LISP;%PATH%
+	SET LISPINIT=C:\BILL\LISP\INIT.LSP
+
+To run the demonstrations, change into the RefLisp directory and type
+the following into the DOS prompt:
+
+	REFLISP DEMOS.LSP 
+
+3.2 Starting RefLisp
+
+On your operating system, there will be a command or mouse-clicking
+operation which will get the program started. For MS-DOS the command
+is:
+
+	C:\>REFLISP [arg ...] 	
+
+and on UNIX:
+
+	reflisp [arg ...]
+
+If the program does not start on ATARI machines it probably means
+there is not enough memory.
+
+Once started, the program accumulates the command line parameters in a
+list in symbol ARGV. The program then reads and executes the
+initialisation file file. This filename is taken from the environment
+variable "LISPINIT". If the environment variable is missing RefLisp
+attempts to read "init.lsp" in the current directory. You should set up
+your environment variables to point to your initialisation file. On MS-DOS:
+
+	C:> SET LISPINIT=C:\BILL\LISP\INIT.LSP 
+
+The shipped initialisation file then processes the command line 
+parameters. Each is taken to be the name of a file to be read and
+executed. It processes each file in turn, skipping files it cannot
+open. You may prefer to use the command line arguments in a different
+way, if so you must alter your LISPINIT file.
+		
+3.3 RefLisp Execution
+
+This section describes what happens after you invoke Lisp. After the
+initialisation messages you will be presented with a > prompt:
+
+	C:\> REFLISP
+	; reading C:\bill\lisp\init.lsp
+	; ... some messages ...
+	1082>
+
+The prompt is the number of cons cells in use by your program followed  by >.
+This number will increase and decrease as you work, as cells are used
+and replaced in the free pool. If it reaches the maximum available on
+the machine you may be able to continue by reclaiming some memory 
+manually. (see Memory Management below.)
+
+Expressions are read in at the prompt, evaluated and the result being
+displayed on the terminal. The prompt is re-displayed after an
+evaluation.
+
+To halt execution type (exit). Also the interpreter returns control to
+the operating system when it sees end-of-file (or the *eof* symbol).
+The character used to signify this varies from one system to  another,
+on MS-DOS and the ATARI-ST it is Control-Z.
+
+The operation of the interpreter is a read-eval-print loop. Its
+operation is the same as (eval <s-exp>) and is as follows:
+
+Atoms which are not symbols such as: integer, float, string, subrs,
+fsubr, stream. evaluate to themselves. eg 
+
+	> 12
+	12 
+
+Symbols are tested to see if they have  a value, in which case that is
+returned. e.g. 
+	
+	> year
+	93
+	
+If a symbol has no bound value then an error is reported and processing
+stops.
+	
+Some symbols are regarded as constants, and should not be changed. They
+usually evaluate to themselves, or a string  constant.
+
+Important constants are:	nil, t, pname, unbound, *eof*
+		
+If the expression is a list, the first element of the list is evaluated
+until an atom or list is derived. If an atom is derived and it is a
+SUBR, the rest of the elements of the list are evaluated, [these are
+the actual arguments]. Then they are passed to the machine code pointed
+to  by the SUBR CELL. e.g.
+ 
+	(cons 2 3) ==> (<subr:2783823> 2 3) ==> (2 . 3)
+		
+If a FSUBR is derived, the actual arguments are
+not evaluated before application of the subroutine. e.g.
+
+	(quote foobar) ==> (<fsubr:989977> foobar) ==> foobar
+
+In the case where the first element evalutes to a list, and the first
+element of THAT list is "lambda", "macro" or  "lambdaq", this is taken
+to be a function call. The processing used is identical to that of
+(apply).
+
+If "lambda" is found, the actual arguments are evaluated. The
+function's parameter symbols are then (set) to these values, each one
+in turn. The previous values of the function parameter symbols are
+saved. e.g.
+
+	> ((lambda first (x) (car x)) (list 1 2 3 4))
+	1
+
+If "lambdaq" is found, the actual arguments are not evaluated.
+
+	> ((lambdaq first (x) (car x)) (list 1 2 3 4))
+	list
+
+If "macro" is found, the actual arguments are not evaluated, as for
+lambdaq, however the result of the apply is evaluated again. e.g.
+	
+	> ((macro first (x) `(car ,x)) '(1 2 3 4))
+	1
+ 
+If there are too many or two few arguments passed to the function, so
+they do not match the function parameters, then an error is reported. 
+
+If a formal parameter is the special symbol &rest, then all remaining
+actual parameters are set to the formal parameter following the &rest.
+For example:
+
+	> ((lambda (a &rest b) (list a b)) 1 2 3 4 5 6)
+	(1 (2 3 4 5 6))
+
+If a formal parameter is the symbol &optional, then any missing actual
+arguments are set to NIL. For example:
+
+	> ((lambda (a &optional b) (list a b)) 99)
+	(99 nil)
+
+If an optional parameter is expressed as a list of the form (<symbol>
+<initform>) then the <initform> is evaluated and used when no actual
+parameter is supplied.
+
+	> ((lambda (a &optional (b 27)) (list a b)) 99)
+	(99 27)
+
+The symbols &rest and &optional may be used in combination. For example:
+
+	> ((lambda (a &optional b &rest c) (list a b c)) 99)
+	(99 nil nil)
+
+In all cases the body of the function is then evaluated with the new
+bindings. The value of this evaluation is then returned. After
+execution of the function, the previous  values of the symbols used as
+parameters are restored. 
+
+3.4 Scope and Extent
+
+Reflisp is a "shallow" binding interpreter and as such it has no
+environments. The function arguments therefore have dynamic extent and
+global scope. This means that the formal parameters of a lambda-list
+are the same symbols available at the top level, and are effectively
+globals. It also means that when a function is applied, the formal
+arguments are shadowed, and are removed when the function finishes.
+
+In it's basic form then, the interpreter suffers from the "funarg"
+problem. The #' reader macro is provided to allow (function) to be
+defined in Lisp. 
+
+Lexical scope may be added to programs by re-defining DEFUN with a
+version that re-writes the formal arguments of defined functions. This
+facility is available in the file "lexical.lsp". Functions loaded
+after "lexical.lsp" will have lexical scope and dynamic extent. 
+
+Adding both lexical scope and indefinite extent can be achieved  by
+deferring the re-writing of functions until evaluation time. This
+facility is implemented in the file "extent.lsp" which provides an
+another alernative version of DEFUN. Programs will run significantly
+slower if they use indefinite extent.  Some Common Lisp functions
+require indefinite extent scope to run correctly, usually those that
+implement objects with local state.
+
+The file "scheme.lsp" provides "define" conforming to Scheme syntax
+which also has indefinite extent. 
+
+4  LIST PROCESSING FUNCTIONS
+
+The following sections describe the inbuilt functions provided in the	
+interpreter.
+
+(car <expr>) 
+ 	Returns the first element of the list <expr>, or more 
+	strictly, the A side of the cons cell.
+		
+	example: (car '(1 2 3 4)) ==> 1
+		 (car '()) ==> nil
+		
+(cdr <expr>) 
+	Returns everything except the first element of <expr>
+	
+	example: (cdr '(1 2 3 4)) ==> (2 3 4)
+		 (cdr '()) ==> nil
+		
+(cadr <expr>) 
+	Returns the second element of <expr>
+	
+	example: (cadr '(1 2 3 4)) ==> 2
+		
+(caddr <expr>) 
+	Returns the third element of <expr>
+	
+	example: (caddr '(1 2 3 4)) ==> 3
+		
+(nth <integer> <expr>) 
+	Returns the nth element of <expr>, numbering from zero. 
+	It returns NIL if <integer> is greater than the length of the list.
+	
+	example: (nth 3 '(0 1 2 3 4)) ==> 3
+		
+(cons <expr1> <expr2>) 
+  	Returns a new cons cell with <expr1> and <expr2> 
+	as its car and cdr.
+		
+	examples: (cons 1 2)   ==> (1 . 2)
+		  (cons 1 nil) ==> (1) ==> (1 . nil)
+		  (cons 1 '(8 9)) ==> (1 8 9)
+			  
+(length <expr>) 
+	  	Returns the number of elements in the list, or the number of
+		characters in a string or symbol name.
+	  	
+	  	examples: (length nil) ==> 0
+	  		  (length '(1 2 3 4)) ==> 4
+			  (length "foobar") ==> 6
+			  (length (symbol-name 'fred)) ==> 4
+	  		  	
+(member <expr> <list>)
+  	Returns a sublist if <expr> is a member of the list, nil
+  	otherwise. (equal) is used to compare the elements.
+	  	
+  	Definition:
+	  	
+  	(de member (expr list)
+  		(cond
+  			((null list) nil)
+	  			((equal expr (car list)) list)
+			(t (member expr (cdr list)))))
+	  			
+	Examples: (member '23 '(a s d f)) ==> nil
+		  (member '23 '(a b c 23 d)) ==> (23 d)
+
+(append <a> &rest <b>)
+	Appends one or more lists together, examples:
+	(append '(1 3) '(3 4) ==> (1 2 3 4)
+	(append '(1 2) '(3 4) '(5 6) ==> (1 2 3 4 5 6)
+
+(reverse <x>)
+	Reverses the top level of a list. example:
+	(reverse '(1 2 3 4)) ==> (4 3 2 1)
+
+(move <to-cell> <from-cell>)		
+
+	This function destructively modifies the to-cell by copying the
+	contents of from-cell into it. It attempts to discard the cells
+	pointed to by to-cell before the operation if it was a cons
+	cell. It checks to see if a circular structure would result
+	from the operation. It is an error to create circular
+	structures, because the reference counting garbage collector
+	cannot handle them.
+
+	
+	Examples:
+	
+	> (de rplaca (to from)		; define RPLACA
+		(move to (cons from (cdr to)))
+	> (setq A '(1 . 2))		; initialise a cell
+	> (setq B A)
+	> (rplaca A 99)			; overwrite it
+	> B
+	(99 . 2)
+
+5 SYMBOL FUNCTIONS
+
+The value of an symbol is *unbound* if none of these functions below have
+given it a value. If you (set) or (setq) a symbol to *unbound*, the
+cells used in the previous value are reclaimed if possible.
+	
+(set <symbol> <value>)
+	Assigns the free <symbol> the <value> specified.
+	Returns the value. <symbol> must be an identifier. 
+			
+	Examples:
+		(set 'x 21) ==> 21
+		x ==> 21
+			
+(symbol-value <symbol>)
+	Returns the current value of the symbol. An error occurs if
+	the symbol has no value.
+
+	Example:
+		(set 'foobar 21)
+		(symbol-value 'foobar) ==> 21
+
+(setq <symbol> <value>)
+	Performs the same as (set) however <symbol>
+	is not evaluated. This the usual assignment function
+	in Lisp.
+			
+	Example:
+		(setq x 89) ==> 89
+		x ==> 89
+
+(defconstant <symbol> <value)
+	The same as setq, however the type of the <symbol> is changed
+	into a constant. After which time the symbol us unchangeable.
+				
+(intern <string>)
+  	Creates a new symbol, with a printname of <string>. The
+	symbol is added to the symbol table, and can be found by
+	(read). If the symbol was already present it is returned. This
+	function is equivalent to (addsym).
+	 
+	Example: 
+		 > (set (intern "foobar") 23)
+		 23
+		 foobar
+		 23		 
+	
+(gensym)
+  	Creates a unique new symbol, with a printname of G<n>, where
+  	<n> is a unique number. The symbol is NOT added to the
+	symbol table, it is inaccessible to (read). eg:
+
+	>(gensym)
+	G123
+
+(outsym <s-exp> &optional <proforma>) This creates and interns
+	a symbol with a print name of <s-exp> even if a symbol with
+	that name is already present. The optional <proforma> is used
+	to derive the number of the hash bucket where the symbol is
+	stored. If <proforma> is absent, <s-exp> is used which is the
+	default. The symbol is returned. Note: RefLisp is different
+	from Common Lisp which only allows symbols to have string print
+	names. 
+
+(addsym <s-exp> &optional <proforma>) 
+	
+	This looks for a symbol with a name equal to <s-exp>, using
+	(rdpsym). If none is found it adds it. The optional  <proforma>
+	is  used to derive the number of the hash bucket where the
+	symbol  is looked for and stored. If <proforma> is absent,
+	<s-exp> is  used which is the default. (read) uses (addsym)
+	with no proforma. The symbol is	returned. If this operation 
+	duplicates an existing symbol, (read) will use the newest one.
+ 
+(rdpsym <s-exp> &optional <proforma>)
+
+	This looks for a symbol with a name equal to <s-exp>, if none
+	is found it returns nil. The optional <proforma> is  used to
+	derive the number of the hash bucket which is searched. If
+	<proforma> is absent, <s-exp> is  used by default. In addition,
+	if the proforma contains the wildcard * symbol, then (rdpsym)
+	matches on the symbol name. The symbol found is returned,
+	otherwise nil. 
+
+	Definition of the matching used: 
+		(de match (mask y)
+			(cond
+				((equal mask '*) t)
+				((equal mask y) t) 
+				(t  (cond
+					((and (consp mask) (consp y))
+					 (and (match (car mask) (car y)) 
+					 (match (cdr mask) (cdr y))))
+				(t nil)))))
+	Example:
+	> (or
+	> (setq person '(name * age *))			; create a proforma
+	  (outsym '(name (john doe) age 23) person) 	; and an instance
+	  (rdpsym * person))				; look for any person
+	(name (john doe) age 23) 			; found John Doe!
+
+	This function can be used in conjunction with one of the
+	user defined quote charaters to achieve a usable syntax:
+
+		> (de quser2 (name) (eval (rdpsym name)))
+		quser2
+		(setq w 2)
+		2
+		#?w	; (rdpsym "w") ==> 'w
+		2
+
+		;; make a new symbol
+		(set (addsym '(matrix 12 34)) 123.3) 
+		123.3
+		#?(matrix 12 34)	; access it
+		123.3
+
+		;; or if (quser1) is defined like (backquote):
+		#!(matrix ,x-cood ,y-coord ) ; x-coord is a symbol
+
+(inpsym <s-exp> &optional <proforma>)
+	This looks for a symbol using (rdpsym), if one is found,
+	it is removed from the symbol table, and an attempt is made
+	to garbage collect it. If a symbol is found, its print
+	name is returned.
+		
+(defun <function> <arglist> <expr>  .... )
+		
+	This macro is equivalent to:
+	(setq <function> '(lambda <arglist> <expr> .....))
+	and is used to declare new functions. Functions 
+	declared with (defun) will have all their arguments 
+	evaluated prior to being executed. (defun) is a macro.
+			
+	<arglist> can be either an atomic symbol or a 
+	list of symbols. In the first case all arguments
+	are passed as a list in the single parameter, 
+	otherwise the actual arguments are placed in the
+	corresponding symbol values using (set). The &optional and
+	&rest flags can also be used.
+			
+	The <function> symbol is returned.
+		
+	Examples:
+		(defun foo (&rest args) (length args)) ==> foo
+		(foo 1 2 3 4) ==> 4
+			
+		(defun bar (arg1 arg2) (cons arg1 arg2))==>bar
+		(bar 'a 'b) ==> (a . b)
+
+			
+(df <function> <arglist> <expr>  .... )
+		
+	This macro is equivalent to:
+	(setq <function> '(lambdaq <arglist> <expr> .....))
+	and is used to declare new functions. Functions 
+	declared with (df) do not have their arguments 
+	evaluated prior to being executed.(df) is a macro.
+			
+	<arglist> can be either an atomic symbol or a 
+	list of symbols. In the first case all arguments
+	are put into <arglist> with (set), otherwise the actual 
+	arguments are placed in the corresponding symbol values 
+	using (set). 
+			
+	The <function> symbol is returned.
+		
+	Examples:
+		(df foo (&rest args)  args) ==> foo
+		(foo a b c d) ==> (a b c d)
+		
+		(df if (c true false) 
+			(cond ((eval c) true) (t false))) ==> if
+
+		(if (zerop 9) (cons 1 2) (cons 3 4)) ==> (cons 3 4)
+			
+(defmacro <function> <arglist> <expr>  .... )
+		
+	This macro is equivalent to:
+	(setq <function> '(macro <arglist> <expr> .....))
+	and is used to declare macros. Functions 
+	declared with (defmacro) do not have their arguments 
+	evaluated prior to being executed. A macro
+	is evaluated like a (df) function, with the result
+	receiving an additional evaluation. 
+			
+	The <function> symbol is returned.
+		
+	Examples:
+		(defmacro if (c true false) 
+			(cond ((eval c) true) (t false))) ==> if
+
+		(if (zerop 9) (cons 1 2) (cons 3 4)) ==> (3 . 4)
+
+		(defmacro amacro (&rest args) args)
+		(amacro cons 1 2 ) ==> (1 . 2)
+
+			
+(oblist)
+	Returns a list of all the symbols in the symbol table, in hashed
+	order, whether bound or not. 	
+
+6  CONTROL FUNCTIONS
+	
+(cond (<predicate> <expr> .....)
+  	(<predicate> <expr> .....) 
+  	....)
+	  	
+	This is the main conditional control structure in Lisp.
+  	The predicates are evaluated in turn until one is 
+	found that returns a non-nil value. Then each of the 
+	expressions <expr> following are evaluated in turn.
+	The value returned from the (cond) is the value of
+	the final expression. If no <predicate> evaluates
+	to non-nil then the value of the (cond) is nil.
+	Likewise a null <expr> list renders nil.	  	
+	  	
+(do-while <condition> <expr> .....)
+  	The <condition> is evaluated, if it is not nil,
+  	the <expr> list is evaluated, each in turn. This process
+  	is repeated until the <condition> becomes nil.
+  	The last <expr> evaluated is returned, or nil.
+  	
+(do-until (<condition> <result> ... <lastresult>) <expr> .....)
+  	The <condition> is evaluated, if it is nil,
+  	the <expr> list is evaluated, each in turn. This process
+  	is repeated until the <condition> becomes non-nil.
+	Then the <result> forms are evaluated, the value of the <lastresult> 
+	is returned. If no <results> are present NIL is returned.
+
+	Example:
+	(defun test1 (n)
+		(do-until ((equal n 0) "finished")
+			(print n)
+			(setq n (- n 1))))
+  	
+(progn <expr> <expr> .......)
+  	This function evaluates each of the expressions in its
+  	arguments. The value of the last argument is returned.
+	  	
+(error <expr>)						[function]
+  	The expression is printed, and the interpreter jumps
+  	to the top level. This function can be used to jump out of
+  	a user program if a severe error is detected. Note that
+  	cells will be permanently lost from the free pool in the 
+	process.
+
+(catch <tag-symbol> <expr> ..... <expr-n>)
+	First half of no-local goto. The <tag-symbol> is (set) to the current
+	stack frame. The expressions following are executed and
+	the value of the last expression is returned. 
+
+	(catch) is equivalent to:
+	
+	(set <tag-symbol> current stack frame)
+	(progn <expr> ..... <expr-n)
+
+	The special tag 'error-tag is used by the interpreter. If it
+	finds an error it calls (throw 'error-tag <>). You can therfore
+	catch errors by enclosing functions in (catch 'error-tag ...). 
+
+(throw <tag-symbol> <return-expr>)
+	Second half of a non-local goto. The <tag-symbol> is evaluated,
+	and must result in a stack-frame object set up by a previous,
+	current (throw). The <return-exp> is evaluated, and execution then
+	jumps to the last (throw) with the <tag-symbol>. The (throw)
+	returns with <return-exp>. (throw 'error-tag <>) is a way of
+	signalling a user error.
+
+	Implementation note: catch and throw are implemented with the C
+	setjmp() and longjmp() functions. Therefore, references
+	to cells on the stack cannot be garbage-collected, and (throw)
+	will "leak" memory. Use (catch) and (throw) to catch user errors
+	or for circumstances that are infrequent.
+
+	Example:
+
+	; function to calculate Square-root safely.
+	(defun my-sqrt (x) 
+		(cond ((< x 0) (throw 'math-error "whoops!"))
+			  (t (exp (/ (log x) 2)))))
+
+	(catch 'math-error 
+		(print 1)
+		(my-sqrt -22)
+		(print 2))
+
+	; When executed this prints:
+	1 "whoops!"
+		
+7  EVALUATION FUNCTIONS
+	
+(eval <expr>)
+	The <expr> is evaluated, given that <expr> may have
+	been evaluated before (eval) was called, this would
+	make the second evaluation of <expr>. Since shallow binding
+	is used in the interpreter, the current bindings are used.
+	
+	Examples:
+		(eval '(cons 1 2)) ==> (1 . 2)
+		(eval ''x) ==> x
+		(setq ex '(* 2 3))
+		(eval ex) ==> 6
+			
+(apply <func> <actuals>)
+   	The <func> is applied to the argument list <actuals>. 
+   	<func> must be a SUBR or FSUBRP or a lambda expression, and
+   	<actuals> must be a list of arguments as required by 
+   	the <func> being invoked.
+	   	
+   	Examples:
+	   	
+   		(apply 'cons '(1 2)) ==> (1 . 2)
+   		(apply '(lambda x (cons x x) '(3)) ==> ((3) 3)
+	   		
+(quote <expr>)
+   	The <expr> is returned un-evaluated. (quote) could be written
+   	as: (df quote (x) x)
+   	The parser in (read) turns '<expr> into (quote <expr>) when 
+	it reads expressions.
+	   	
+   	Examples:
+   		(quote w) ==> w
+   		'w	==> w
+
+(backquote <expr>)
+	The back-quote function
+	provides an easy way to write macros. The (comma) and (comma-at)
+	markers are also supported. The description of the backquote
+	mechanism is rather complex, suffice it to say that it behaves
+	like (quote) with the addition that any expressions enclosed by 
+	the (comma) are evaluated, and those enclosed by (comma-at)
+	are evaluated and spliced into the result. Note that (read)
+	expands ` , and ,@ to (backquote) (comma) and (comma-at). 
+
+	Examples:
+
+	`(foo ,(* 2 3)) 	; evaluates to (foo 6)
+	`(bar ,@(list 3 4))	; ==> (bar 3 4)
+
+	;; example of backquote used to define a macro:
+	;;
+	(defmacro if (condition true-exp false-exp)
+		`(cond (,condition ,true-exp)
+			(t ,false-exp)))
+	(if (equal 1 2) 'equal 'not-equal)  ; ==> 'not-equal   
+
+	;; And used to define a macro with variable arguments.
+	(defmacro toto (&rest x)
+		`(cons ,@x))
+	(toto 1 2) ; ==> (1 . 2)
+ 		
+	   		
+8  PREDICATE FUNCTIONS
+	
+(atom <expr>)
+	Returns nil if <expr> is a list, else t.
+ 
+(consp <expr>)
+	Returns t if <expr> is a list, else nil.
+ 
+(null <expr>)
+	Returns t if <expr> is nil, else it returns nil.
+
+(symbolp <expr>)
+	Returns t if <expr> is an symbol, else nil.
+			
+	Example:
+		(symbolp 'car) ==> t
+		(symbolp car) ==> nil ; because car evaluates to a SUBRP
+			
+(stringp <expr>)
+	Returns t if <expr> is a string, else nil.
+			
+        Example:
+		(stringp "car") ==> t
+				(stringp 'car) ==> nil
+			
+(eq <expr1> <expr2>)
+	Returns t if the two expressions point to the same
+	object in memory. 
+			
+	Examples:
+		(eq 'foo 'foo) ==> t
+		(eq "foo" "foo") ==> nil
+		(eq 1 1) ==> nil
+
+(equal <expr1> <expr2>)
+	Returns t if the two expressions are equivalent, 
+	irrespective of their location in memory. This is
+	safer than (eq).
+			
+	Examples:
+		(eq 'foo 'foo) ==> t
+		(eq "foo" "foo") ==> t
+		(eq 1 1) ==> t
+
+(boundp <expr>)
+	Returns nil if <expr> is an symbol with no 
+	assigned value. Useful for testing a symbol's 
+	value without provoking an error.
+			
+	Examples:
+		(boundp x) ==> nil
+		(setq x 1)
+		(boundp x) ==> t
+				
+(integerp <expr>)
+	Returns t if <expr> is an integer, else nil.
+			
+		Examples:
+		(fixp 32) ==> t
+		(fixp 32.8) ==> nil
+	
+(floatp <expr>)
+	Returns t if <expr> is a floating point number , else nil.
+			
+	Examples:
+		(floatp 32.3) ==> t
+		(floatp 2) ==> nil
+	
+(numberp <expr>)
+	Returns t if <expr> is a number (float or integer), else nil.
+			
+	Examples:
+		(numberp 32) ==> t
+		(numberp 3.2) ==> t
+		(numberp "32") ==> nil
+	
+9  MATHEMATICAL FUNCTIONS
+	
+Mathematical functions may convert their arguments from integer types
+to floats before evaluation.
+
+
+(+ <num1> <num2> ..... <numN>)
+		Returns the sum of a list of integer arguments. Non-
+		integer arguments provoke an error message.
+
+(- <num1> &optional <num2>)
+		Returns <num1> - <num2>. If <num2> is absent it returns 
+		-1 * <num1>.  Non-numeric arguments provoke an error message.
+			
+(* <num1> ..... )
+		Returns the product of a list of numeric arguments. May float
+		if necesary. Non-integer arguments provoke an error message.
+
+(/ <num1> &optional <num2>)
+		Returns <num1> divided by <num2>. If <num2> is absent it 
+		returns 1/<num1>.  Non-numeric arguments provoke an error 
+		message. A float will be returned if <num1> is not divisible
+		by <num2>.
+
+(rem <num1> <num2>)
+		Returns the remainder when <num1> is divided by 
+		<num2>. Non-integer arguments provoke an error 
+		message.
+
+(floor <number>)
+		Converts its argument by truncating towards negative infinity.
+		i.e. the result is is the largest integer that is not larger
+		than the <number>. A integer data type is always returned.
+		
+(abs <num>)
+		Returns the absolute value of <num>.
+			
+(random <range>) 
+		Returns a pseudo-random number between 0 and <range>.
+			
+(seed <num>)
+		Sets the starting point of the random number 
+		generator sequence. The (rand) called directly after
+		(seed) will always generate the same sequence for
+		the same seed. (Not Common Lisp).
+
+(hash <sexp>)
+        Computes an hash index on the <sexp> input, 
+	returning an integer. This is used by (addsym) etc
+	to calculate the hash bucket to use for symbols.
+	[The function may change from one version to the next.]
+				     
+(float <integer>)
+	Returns float equivalent of its argument.
+
+(log <num>)
+	Returns natural logarithm of argument.
+
+(log10 <num>)
+	Returns log to base 10 of argument.
+
+(exp <num>)
+	Returns e raised to the power of argument.
+
+(sin <num>)
+	Returns trigonometric sine of <num> which 
+	is in radians..
+
+(cos <num>)
+	Returns trigonometric cosine of <num> which 
+	is in radians..
+
+(arc-sin <num>)
+	Returns trigonometric inverse sine of <num> which 
+	is between 0 and 1, returns radians.
+
+(arc-cos <num>)
+	Returns trigonometric inverse cosine of <num> which 
+	is between 0 and 1, returns radians.
+
+10  RELATIONAL FUNCTIONS
+	
+(and <expr1> <expr2> .... <exprN>)		[Macro]
+	Evaluates each expression in turn until one is found
+	that has a value of nil, in which case nil is
+	returned. The remaining expressions are not evaluated.
+	If none are nil then t is returned.
+			
+(or <expr1> <expr2> .... <exprN>)
+	Evaluates each expression in turn until one is found
+	that has a value of t, in which case t is
+	returned. The remainder are not evaluated.
+        If none are t then nil is returned.
+
+(> <num1> <num2>)
+	Returns t if <num1> is greater than <num2>, else nil
+	is returned. Numeric arguments only.
+			
+(< <num1> <num2>)
+	Returns t if <num1> is less than <num2>, else nil is
+	returned. Numeric arguments only.
+
+(string< <left> <right>)
+	Returns t if <left> is lexically less than <right>,
+	else nil is returned. A mixture of symbol and string
+	parameters is accepted.
+			
+	Example:
+		(string< 'a 'b) ==> t
+		(string< "b" 'a) == nil
+			
+		
+11 PROPERTY LISTS
+	
+Each symbol, with or without a value has a property list. The
+properties are stored as an "alist". ie  ((<prop1> . <value1>) (<prop2>
+. <valu2>) .........) All symbols have a property which is the text
+used when the symbol is printed, PNAME.
+	
+(put <symbol> <property> <value>)
+	Sets the symbol's property to the value given.
+	Returns the <value>.
+			
+	Examples:
+		(put 'mary 'age 21) ==> 21
+		(put 'foobar 'what "first")
+
+(get <symbol> <property> <value>)
+	Returns the value of the property attached to the
+	symbol. If this property is not attached nil is
+	returned.
+			
+	Examples:
+		(get 'john 'age) ==> 21
+
+(remprop U IND)
+	Removes the property with indicator IND from the 
+	property list of U.  Returns the removed property 
+	or NIL if there was no such indicator.
+
+(symbol-name <symbol>)
+	Returns a expression (string) containing the name of the symbol. 
+	
+	Example:
+		(symbol-name 'fred) ==> "fred"
+	
+(symbol-plist <symbol>)
+	Returns the entire property list of the symbol.
+			
+	Example:
+	> (symbol-plist 'john) 
+	(PNAME  john age  21)
+        > (symbol-plist (addsym '(plan 9))
+        (PNAME (plan 9))
+
+(slot <object> <slot>)
+	This facilitates Object-Oriented programming. All 
+	RefLisp objects are deemed to belong to a class. To find
+	the class of an object you call (slot) thusly:
+
+	(slot <object> 'class)
+
+	When <object> is not an symbol, or if the symbol has no 'class
+	property, the function returns a symbol corresponding to the
+	Lisp basic type, from this list:
+
+		cons, fixnum, subr, fsubr, string, stream, 
+		symbol, float
+
+	Example:
+		(slot 34.7 'class) ==> float
+		(slot '(1 2) 'class) ==> cons
+			
+	If the object is an symbol the class is assumed 
+	to be the value of its 'class property. If it has
+	no 'class property then (slot) returns SYMBOL.
+
+	If <slot> is not equal to 'class then (slot) looks
+	in the object's property list for it. If it
+	cannot find it, then it fetches the class of the 
+	object, and looks in the class object's property list, and so on.
+			
+	Example:
+		(put 'mammal 'skin 'fur)  	; mammals are furry
+		(put 'cat 'class 'mammal) 	; cats are mammals
+		(put 'dog 'class 'mammal) 	; so are dogs
+		(put 'felix 'class 'cat)  	; felix is a cat
+		; What is felix's skin like?
+		(slot 'felix 'skin) ==> fur
+
+	Example:
+		; Use green for all integers
+		(put 'INTEGER 'color 'green)
+		(slot 35 'color) ==> green
+		(slot 346 'color) ==> green
+				
+	Definition - handling of symbols:
+
+		IF <slot> is a property of the symbol <object> 
+		THEN
+			return the value; 
+			   ie return: (get <object> <slot>)
+		ELSE IF 'class is a property of <object> THEN
+			recursively call slot;
+				ie return: (slot (get <class> 'class) <slot>)
+		ELSE IF <slot> is 'class 
+			return the value 
+
+(type-of <obj>)
+	Returns a symbol indicating the type of the object. See (slot).
+	Definition:
+ 
+		(defun type-of (o) (slot o 'class))
+			
+		
+12  INPUT/OUTPUT FUNCTIONS
+	
+12.1 File I/O
+	
+(open <filename> &key :direction <direction>)
+	Opens the file specified, using the mode specified. 
+	<filename> can be an symbol or string.
+	<direction> is has the following meanings:
+			
+	:input  open for reading
+	:output  truncate or create for writing
+	
+	If no mode is specified, :input is assumed.			
+
+	(open) returns a stream, otherwise NIL.
+			
+	Examples:
+	(open "C:\\BILL\\LISP\\TEST.LSP" :direction :input) ==> <file:9823891>
+	(setq fd (open 'data :direction :output)) ==> <file:2829849>
+	(open "test.lsp") 
+				
+(close <fd>)
+	Closes a file opened by (open). <fd> must be a stream.
+			
+	Example:
+		(setq fd (open 'data 'input) ==> <file:2829849>
+		(close fd)
+				
+(force-output <fd>)
+	Forces all buffered data to be output on the file 
+	specified.  <fd> must be a file descriptor returned
+	by (open). 
+			
+	Example:
+		(setq fd (open 'data 'output) ==> <file:2829849>
+		(flush fd)
+				
+(read &optional <fd>)
+	Read parse the next s-expression from the file
+	specified. <fd> must have been returned from (open).
+	If <fd> is absent, then the standard
+	input is read. *eof* is returned at the end of file.
+			
+	Example:
+		(read)(hello world) ==> (hello world)
+		(read (open 'file 'input)) ==> eof
+				
+(load <filename-string> &key :verbose :print)
+	This function opens, reads, parses and evaluates the  input
+	file specified, <infilename> can be a symbol, string or
+	bigstring. If :verbose is t (default), then a comment is
+	printed to standard output. If :print is true, then the results
+	of evaluations are printed to standard output. :print nil is
+	the default.
+
+
+	Examples:
+		(load "demos.lsp" :verbose t :print nil) ; The default
+		(load "/usr/mcarthy/eliza" :print t) ; print results. 
+
+(chdir <pathname>)
+	This function changes the current working directory to that 
+	specified in <pathname>. This affects (open) and (directory)
+	which rely on the current working directory, if a relative
+	pathname is used.
+
+	It returns the current directory before the change was made,
+	or else NIL.
+
+	MS-DOS Examples:
+
+	(chdir "C:\\BILL\\LISP") ==> t 	; Does not affect current drive.
+	(chdir "..")
+	
+(directory <pathname>)
+	This function returns a list consisting of the names of the
+	files which match the <pathname> supplied. 
+
+	MS-DOS Example:
+	
+	(directory "c:\\*.bat") ==> (FOO.BAT BAR.BAT) 
+	(directory ".") ==> (BILL) ; The current directory
+
+	; On MS-DOS, pathname is a string with an optional drive specifier, 
+	; path, and file name of the file to be found. The file name portion 
+	; can contain wildcard match characters (such as ? or *).
+
+(princ <expr>)
+	Prints the <expr> on the standard output. Strings
+	are not quoted, nor are special characters. Returns
+	<expr>.
+			
+	Example:
+		(princ "string") string 
+		(princ ''foo)  (quote foo)
+				
+(prin1 <expr> &optional <fd>)
+	Prints the <expr> on the standard output. Strings
+	are quoted, and some quote forms are reduced. Returns
+	<expr>. This function is designed to output in a form
+	suitable to be (read) again.
+			
+	Example:
+		(prin1 "string") "string"
+		(prin1 weird\\symbol) weird\\symbol 
+		(prin1 ''foo)  'foo
+		(prin1 ',@bar) ,@bar
+				
+(write <fd> <expr> .....)
+	Prints the expressions to the file specified,
+	using (princ). If the first argument is not an <fd>
+	returned from (open) an error is reported.
+			
+(read-char <fd>)
+	Reads the next character from the file specified.
+	The value is returned as an integer less than 256.
+	<fd> must have been returned from (open), if absent
+	the standard input is read. *eof* is returned at the
+	end of file.
+			
+(write-char <char> <fd> )
+	Outputs one character from the file specified.
+	<char> is an integer which will be output.<fd> must
+	 have been returned from (open), if absent the 
+	 standard output is used. 
+		
+(atoi <string>)
+	ASCII to integer transformation. Returns an integer
+	corresponding to the value of the numeric string.
+			
+	Example:
+		(atoi "143") ==> 143
+				
+(itoa <number>)
+	Integer to ASCII convertion. Returns a string
+	with the ASCII representation of the integer.
+			
+	Example:
+		(stringp (itoa 678)) ==> t
+	
+(ftoa <number> <width> <precision> <leading 0s>)
+	Float to ASCII convertion. Returns a string
+	with the ASCII representation of the float.
+			
+	<width> is the number of characters in the output string
+	<precision> if the number of decimal places.
+	if <leading 0s> is eq to t then the number
+	is padded out with leading zeros.
+
+	Examples:
+		> (ftoa 50.0 3 0 t)
+                050
+		> (stringp (ftoa 678))
+		t
+	
+(system <program> <arg> <arg> ....)
+	This function allows you to call another program
+	from within Lisp. The result depends upon the base
+	operating system. In general it calls execv().
+			
+	Example: (MS-DOS)
+		(system "C:\BIN\EMACS.EXE" "FOOBAR.LSP") 
+
+	Example: (ATARI-TOS)
+		(system "C:\MEGAMAX\LS.TTP" "*.LSP") 
+
+	Example: (UNIX)
+		(system "emacs" "/usr/bill/lisp/man.txt") 
+		
+(getenv <string>)
+	This function returns the value of the environment variable 
+	named by <string>, or NIL if it is absent. 
+ 
+12.2 Graphics Functions
+
+The following functions relate to terminal graphics, available on
+MS-DOS and ATARI-ST. These are all provided in tgraph.c. A virtual
+co-ordinate system is used. The bottom left-hand corner is 0,0 and the
+virtual screen coordinates are roughly 10 times the physical ones. The
+virual to physical mapping accounts for differences between machines so
+the RefLisp code is portable.
+
+Practically the only thing that can be relied on for ports between
+machines is line drawing and placing of text. XOR mode is usally
+available also, but only for lines. Do not rely on (color) being
+portable.
+ 
+(GraphOpen &optional <driver> <mode> )
+	Initialises various parts of the underlying
+	graphics system. Clears the screen. Returns
+	the height and width of the screen in the form:
+			
+		(<width> . <height>)
+
+	The values returned are 6400 and 4800, but don't rely on it!
+
+	The optional arguments allow MS-DOS users to force a particular
+	graphics mode. If no arguments are given Autodetect is used.
+
+		    graphics_drivers  |
+				      |   Numeric value
+		------------------------------------------------------
+		    DETECT            |   0 (requests autodetection)
+		    CGA               |   1
+		    MCGA              |   2
+		    EGA               |   3
+		    EGA64             |   4
+		    EGAMONO           |   5
+		    VGA               |   9
+
+   Graphics|                |       | Column    |            |
+    driver | graphics_modes | Value |  x row    | Palette    | Pages
+  ------------------------------------------------------------------
+    CGA    | CGAC0          |  0    |  320 x 200|    C0      |  1
+           | CGAC1          |  1    |  320 x 200|    C1      |  1
+           | CGAC2          |  2    |  320 x 200|    C2      |  1
+           | CGAC3          |  3    |  320 x 200|    C3      |  1
+           | CGAHI          |  4    |  640 x 200|     2 color|  1
+   MCGA    | MCGAC0         |  0    |  320 x 200|    C0      |  1
+           | MCGAC1         |  1    |  320 x 200|    C1      |  1
+           | MCGAC2         |  2    |  320 x 200|    C2      |  1
+           | MCGAC3         |  3    |  320 x 200|    C3      |  1
+           | MCGAMED        |  4    |  640 x 200|     2 color|  1
+           | MCGAHI         |  5    |  640 x 480|     2 color|  1
+   EGA     | EGALO          |  0    |  640 x 200|    16 color|  4
+           | EGAHI          |  1    |  640 x 350|    16 color|  2
+   EGA64   | EGA64LO        |  0    |  640 x 200|    16 color|  1
+           | EGA64HI        |  1    |  640 x 350|     4 color|  1
+   EGA-MONO| EGAMONOHI      |  3    |  640 x 350|     2 color|  1*
+           | EGAMONOHI      |  3    |  640 x 350|     2 color|  2**
+   VGA     | VGALO          |  0    |  640 x 200|    16 color|  2
+           | VGAMED         |  1    |  640 x 350|    16 color|  2
+           | VGAHI          |  2    |  640 x 480|    16 color|  1
+
+ *   64K on EGAMONO card
+** 256K on EGAMONO card
+
+
+(mode <number>)
+	Changes the way graphics is written to the display. 
+	The modes are:
+
+		1 - Paint Mode, All source pixels are transferred.
+		3 - XOR Mode, the source and destination are XORed
+
+		The actual mode used is returned.
+
+(color <number>)
+	Changes the current line drawing colour. This
+	is machine dependant. The actual colour number used is returned.
+
+(fillarea <points>)
+		
+	<points> - ((h . v) (h . v) ... )
+			
+	h - horizontal coordinate
+	v - vertical coordinate
+	
+	Paints a complex polygon defined by the list of points. A maximum of
+	?? points is accepted.
+
+(fillstyle <pattern> <color>)
+
+        fillstyle sets the current fill pattern and fill color.
+	This function is machine dependant. For MS-DOS the values are:
+
+	The integer <pattern>, gives names for the predefined fill patterns:
+
+	       Name         | Value |  Description
+	  ------------------|-------|----------------------------
+	    EMPTY_FILL      |   0   |  Fill with background color
+	    SOLID_FILL      |   1   |  Solid fill
+	    LINE_FILL       |   2   |  Fill with ---
+	    LTSLASH_FILL    |   3   |  Fill with ///
+	    SLASH_FILL      |   4   |  Fill with ///, thick lines
+	    BKSLASH_FILL    |   5   |  Fill with \\\, thick lines
+	    LTBKSLASH_FILL  |   6   |  Fill with \\\
+	    HATCH_FILL      |   7   |  Light hatch fill
+	    XHATCH_FILL     |   8   |  Heavy crosshatch fill
+	    INTERLEAVE_FILL |   9   |  Interleaving line fill
+	    WIDE_DOT_FILL   |   10  |  Widely spaced dot fill
+	    CLOSE_DOT_FILL  |   11  |  Closely spaced dot fill
+
+	  All but EMPTY_FILL fill with the current fill color. EMPTY_FILL
+		uses the current background color.
+
+
+(textxy h v <text>)
+	Writes text onto the screen.
+
+		h - horizontal coordination
+		v - vertical coordinate
+		text - either a string, bigstring or identifier to be 
+			displayed
+
+	Prints the text DOWN from the location specified 
+	on the screen with a border around the text.
+	It returns a pair containing  width and height of 
+	the button in pixels.
+
+	eg	(textxy 123 50 'nottub) ==> (56 . 16)
+
+(line x1 y1 x2 y2)
+	Draws a line between (x1,y1) and (x2,y2), x being
+	the horizontal axis.
+			 
+(clear)
+	Clears the graphics screen.
+			 
+(setview <camera parameters>)
+	Sets the location of a camera in 3D space, as well
+	as the camera characteristics.
+			 
+	The parameters are as follows:
+
+	<camera position> (x y z) in metres from the origin
+
+	<camera orientation> : (xaxis yaxis zaxis) 
+		angles of camera rotation in degrees
+
+	<camera focal length in millimeters>
+	<horizontal camera backplane pixel density>
+	<vertical camera backplane pixel density>
+		Number of pixels in the film of the camera,
+		horizontal then vertical.
+
+	<central axis of camera, horizontal coord>
+	<central axis of camera, horizontal coord>
+		Location of camera lens axis on backplane,
+		horizontal then vertical. Usually the centre
+		of the screen.
+	)
+
+	Example: A 50.0 mm lens on a 35mm camera, looking towards
+		the origin from 1.5 metres up and 8 metres back. 
+		These are the default initial values.
+
+		    (setview 
+   			(list 0.0 1.50 -8.0) 	; camera position
+   			(list -6.0 0.0 0.0) 	; camera angle 6d down
+   			50.0			; camera focal length
+   			(quotient 6400.0 35e-3)	; pixels/meter of screen x
+   			(quotient 6400.0 35e-3)	; pixels/meter of screen y
+  			3200 2000
+  		     )
+
+
+(view (x y z))
+
+	Converts a point in 3D space into a screen location
+	using the rules of perspective, and the camera
+	parameters set by (setview). The inputs are 
+	distances from the origin in metres. Return
+	the horizontal and vertical screen coordinates.
+	The value of z should be positive.
+
+	Example:
+		(view '(1.0 1.0 1.0)) ==> (4215 . 4250)
+			 
+(show <3dlines>)
+	
+	Draws the list of 3d lines in perspective according
+	to the current (setview) parameters. It uses (view)
+	and (line) to draw the lines. Lines which fall
+	behind the camera are not draw correctly.
+
+	<3dlines> is a list of pairs of 3D points:
+
+	(((xa1 ya1 za1) (xa2 ya2 za2))
+	 ((xb1 yb1 zb1) (xb2 yb2 zb2)) ... )
+
+(GraphClose)
+	Tidies up the underlying graphics device after
+	a (GraphOpen) and subsequent operations.
+
+(getevent &optional <timeout>)
+	Returns a list representing an input event from 
+	outside the computer. Events can come from a mouse,
+	the keyboard, the MIDI IN port or an RS232 port.
+	If <timeout> is non-zero, and there was no event to report,
+	(getevent) returns *timeout*.
+
+	The list returned has the following format:
+		
+	(<event type> <event data> ....)
+	
+	<event type> can have the following values:
+			
+				*timeout*	No event occurred
+				*down*		Mouse Button Down
+				*sdown*		Shift Key + Mouse Button Down 
+				*up*		Mouse Button Up
+				*move*		Mouse moved
+				*keys*		Key pressed on Keyboard
+				*midi*		Midi Message received
+				*RS232*		Char received on RS232 port.
+
+			The <event data> format depends on the type:
+
+			*down*, *sdown*, *up*, *move*:
+
+				mouse button status <integer> 
+				horizontal coordinate <integer>
+				vertical coordinate <integer>
+
+				eg (*move* 0 125 49)
+		
+			*keys*
+				ASCII representation of key pressed <integer>
+			
+			*midi*
+				list of integers as read from the port
+				
+				eg (*midi* 144 64 60) ; note on
+	
+			*RS232*
+				integer as read.
+
+
+(get-decoded-time)
+	This routine reads the computer's clock and returns
+	the time and date. The return value is a list of
+	integers in the following format:
+			
+		(second		; 0-59 
+	 	minute 		; 0-59
+		hour 		; 0-23
+		date 		; 1-31
+		month		; 1-12
+		year 		; two digits
+		day-of-week	; 0-6 where 0 = Monday
+		daylight-saving ;
+		)
+	
+	NB
+	  The ATARI-ST clock only ticks every 2 seconds!
+			
+	Example:
+		(get-decoded-time) ==> (11 20 21 1 7 92 3)
+
+(get-universal-time)
+	This routine gets the number of seconds since the epoch (Jan 1
+	00:00:00 GMT 1970). It returns a float because integers are too
+	small to contain the value. Therefore the value doesn't change
+	very often!
+				
+12.4 ATARI-ST Specific I/O
+	
+12.4.1  MIDI I/O
+	
+(NoteOn <channel> <note> <velocity>)
+		Sends the note-on sequence to the MIDI-out port.
+		Channels are numbered from 0, note and velocity 
+		have the usual MIDI meanings.
+			Example: 
+			(NoteOn 0 60 64)	; Middle C
+
+(NoteOff <channel> <note> <velocity>)
+		Sends the note-off sequence to the MIDI-out port.
+		Channels are numbered from 0, note and velocity 
+		have the usual MIDI meanings.
+
+			Example: 
+				(NoteOff 0 60 0)	; Middle C
+
+(ProgramChange <channel> <value>)
+		Sends the program change sequence to the MIDI-out 
+		port.
+
+(PlayNote <channel> <note> <velocity> <length>)
+		Plays a single note uusing (NoteOn), (Delay) and
+		(NoteOff). The processor suspends while the note 
+		is played.
+			
+(PlayTune <notelist>)
+		Plays a list of notes using (PlayNote). The 
+		structure of the list is as follows:
+
+		<notelist> :== ( <note> <note> ...... )
+		<note> :== ( <channel> <note> <velocity> <length> )
+			
+		Example:
+			(PlayTune '((0 60 63 3) (0 62 63 3) ))
+				
+(Delay <length>)
+		Executes a wait loop of <length>. The processor
+		does nothing else in this loop. The actual
+		wait depends on processor speed and the value set
+		by (Tempo).
+			
+(Tempo <period>)
+		Sets the multiplyer used by the wait loop in
+		(Delay), (PlayNote) and (PlayTune).
+			
+		Example:
+			(Tempo 1000)
+				
+(Major <note> <note_adj> <key> <key_adj>)
+		Converts note numbers from the usual major scale
+		system into MIDI note numbers. Where:
+	
+		note -	note in the scale eg. 0-C, 1-D, 2-E ...
+		adj -	+1 = sharp, 0 = natural, -1 = flat
+		key -	starting point of the scale eg. 0-C, 1-D, 2-E  
+		adj -	+1 = sharp, 0 = natural, -1 = flat
+ 			
+		Returns the MIDI note number of the note given
+		in the scale given.
+ 			
+		Example:
+			(Major 	14	; Middle C
+				0	; natural
+ 				2	; Key is E
+ 				+1	; Key is E sharp
+ 				) ==>	; Midi note
+ 			
+(emu <filename>)
+		Provides a simple but effective dumb terminal
+		capability, with capture to disk of the received
+		data. [If the host is echoing, this means you get
+		both transmitted and received data, except 
+		non-echoed passwords.]
+
+		<filename> can be a string or a symbol or missing 
+		altogether, in which case the session is not 
+		logged to disk.
+
+		(emu) monitors what you type and can execute commands 
+		preceded by a tilde. Commands are:
+
+		~.	Return to the Lisp interpreter.
+		~~	Transmit a tilde character.
+			
+		Examples:
+			(emu "script")
+			(emu 'logfile)
+
+(bios <arg1> [<arg2>] [<arg3>] [<arg4>])
+		This function calls the BIOS operating system 
+		functions in the ATARI-ST ROM. The arguments must 
+		all be integers, the return value is the integer
+		as returned by BIOS.
+			
+		Example:
+			(bios 3 2 42) ; send 1 char to the screen
+			
+(xbios <arg1> [<arg2>] [<arg3>] [<arg4>])
+		This function calls the extended BIOS operating 
+		system functions in the ATARI-ST ROM. The arguments
+		must all be integers, the return value is the 
+		integer as returned by BIOS.
+			
+		Example:
+			(xbios 17) ; gets a random number
+			
+(putstr <port> <data>)
+		Outputs a string of bytes to the port specified
+		using BIOS. The port number values understood are:
+			
+		Printer 		0
+		Modem   		1
+		Keyboard/Screen 	2
+		MIDI 			3
+		<data> can be a string or a symbol.
+			
+		Example:
+			(putstr 1 "qix")
+				
+(getstr <port> <timeout>)
+		Reads the port specified using BIOS. The reading
+		process strips white space before the string.
+		If nothing is read for <timeout> seconds, the
+		function returns nil. 
+		
+		(Settime <hour> <min> <sec> <day> <month> <year>)
+			Allows you to set the time of the computer's clock.
+			The arguments must all be integers.
+			
+			Example:
+				(Settime 12 20 32 25 09 89)
+					 ==> (12 20 32 25 09 89)
+		
+13 DEBUGGING FUNCTIONS
+	
+(room)
+	Prints out a message about this RefLisp including 
+	the version number and memory usage. Memory is 
+	allocated from a fixed-size pool, when that becomes
+	full, memory is acquired from the operating system
+	heap via malloc(). The behaviour of the operating
+	system determines what happens when the heap is
+	all used up. ATARI-TOS aborts the program!
+	The program uses a lot of stack (16,384 bytes on the
+	ST, 64K on MS-DOS).
+
+(eroom)
+	Returns total number of cells currently used.
+			
+(dump <arg>)
+	(dump 1) instructs the interpreter to print every
+	argument to the main evaluation functions. The
+	return values are not printed. (The return values
+	from most executions of "eval" and "apply" will
+	usually appear as arguments to subsequent calls
+	to these functions.)
+			
+	(dump 0) switches tracing off.
+			
+(trace <symbol-function>)
+	This is defined in INIT.LSP, and prints the call and return of 
+	lambda functions. See INIT.LSP for details.
+	Example:
+		> (trace our-function)
+
+(untrace <symbol-function>) 
+	Removes the effects of (trace). INIT.LSP for details.
+
+14 EXTENSIONS TO LISP
+
+(extensions <boolean>)
+	This function switches on Bill Birch's extensions to Lisp if <boolean>
+	is T, and switches them off if NIL. The extensions activated are:
+
+	(apply): Before apply attempts to apply its functional argument to
+	the actual argument list, it checks to see if there exists a symbol
+	whose PNAME is of the form (<func> <actuals). If there is, (apply)
+	evaluates the symbol instead of normal application. The symbol
+	value is returned. This extension permits memoisation of functions,
+	and allows a more functional programming style. for example:
+
+
+	(extensions t)			; activate extensions
+
+	; handy function to create symbols which look like 
+	; function applications
+	(defun assert (form result)		
+		(set (addsym form) result))
+
+	; Fibonnacci Series
+	(defun fib (n)
+		; Note total lack of COND statements !!
+		(+ (fib (- n 1)) (fib (- n 2))) )
+	
+	; Declare the terminating conditions of fibonacci series.
+	; These are found by APPLY in preference to an application.
+	(assert `(,fib 1) 1)	
+	(assert `(,fib 0) 1)
+	
+	;; Here is a memoised version of the fibonnacci series 
+	;; which is very much faster than (fib)
+	(defun fib-fast (n)
+		; The assert statement saves the result for
+		; future executions of APPLY
+		(assert (list fib-fast n) 
+			(+ (fib-fast (- n 1)) (fib-fast (- n 2))) ))
+
+	(assert `(,fib-fast 1) 1)
+	(assert `(,fib-fast 0) 1)
+
+
+15 HISTORY & DESIGN NOTES
+
+This interpreter started out conforming to Standard Lisp [3] in the
+most part. This came about by accident, since the interpreter logic was
+copied from an older system than Standard Lisp see [1]. Later eval()
+was modified to be like Cambridge Lisp  for the Sinclair-QL and
+ATARI-ST. These two are derived are from Standard Lisp, hence this
+implementation was mostly compatabile with Standard Lisp. RefLisp is
+now moving towards Common Lisp as defined in [CLtL2].  
+
+There have been some fundamental design rules in force during the
+development of this interpreter. The main point is that this version of
+Lisp uses reference counting instead of mark and sweep garbage
+collection.
+
+Here is a list of the design goals:
+		
+1	The cell manipulation code must be a self-contained
+	module able to be used for thing other than a Lisp 
+	interpreter. (For example the first use of this code was
+	a simple assembler).
+		
+2	Only one data type is permitted, the CELL. All data is
+	stored in subfields of the CELL. This prevents list
+	manipulation code from being repeated for different data
+	types. (also, malloc is not always available) Eventually
+	this may come in handy for a multi-process version in
+	shared memory.
+	
+3	Only the cell manipulation module can access the
+	internals of CELLs directly. Other modules (such as the 
+	interpreter) must use function or macro calls.
+		
+4	The 'C' source code of the system must look as much like Lisp
+	as possible.
+		
+5	The 'C' source code must be portable.
+		
+6	The translation of Lisp code to 'C' must be as painless 
+	as possible, and eventually automated.
+		
+7	Garbage collection is to be done using reference-counting
+	rather than by mark & sweep. This allows 'C' variables to
+	point to CELLs, and promotes real-time list processing.
+		
+8 	The Interpreter is to be regarded as a first "bootstrap" 
+	version. Which means the source code is a bit of a mess!
+		
+These rules have (mostly) been beneficial: the code has survived major
+changes to the internal CELL structure, without mishap ; the symbol
+table has been changed three times without a problem ;  addition of new
+SUBR functions has been trivially easy.  This version has been run on
+the following:
+
+	  MS-DOS, AIX 3.2 (RS/6000), 
+	
+
+15 MEMORY MANAGEMENT	
+
+One of the best things about Lisp is that it manages memory allocation
+for you. Lisp folk refer to this as "garbage collection" because the
+first Lisp used this term for freeing of unused memory. The main
+methods of garbage collection used in Lisp are based on mark-sweep or
+stop-and-copy algorithms. These both can cause the interpreter to halt
+execution while the garbage is collected. On a small machine (like my
+old 64Kbyte Sinclair QL) the interpreter spends most of its energy
+collecting garbage. This makes it impossible to write anything that
+needs to run with deterministic response times.
+ 
+Reference counting has some advantages over mark-sweep  garbage
+collection.  The interpreter does not stop for a long time while
+garbage collection is executed. This means that soft real-time programs
+can be written in Lisp.  For example, programs have been written to
+implement point-and-click mouse driven user interfaces, and which play
+music. Both these would be un-usable if  a garbage sweep occurred
+mid-processing. See CLOCK.LSP and GOB.LSP for real-time programs.
+
+In addition, reference counting allows the internal memory cells to be
+accessed by anonymous 'C' pointers.  This allows for the compilation of
+Lisp source into C programs which use C variables, execution stack and
+function calling. The presence of a garbage collector would force such
+compiled programs to use Lisp cells as variables since garbage
+collector must know the address of every possible pointer in the
+system. 
+
+Reference counting is allegedly much slower than other schemes, the
+interpreter would appear to bear this out, however by re-compiling
+without reference counting functions, almost no speed-up is obtained.
+More work is still to be done bench-marking RefLisp against straight
+'C' and other Lisp interpreters.
+	
+It is usually easy to manually translate from RefLisp to 'C' which uses
+RefLisp support code. The only additional work required is to add the
+referencing and de-referencing of stored lists. (The functions in GC.C
+do all the reference counting garbage collection.)  Sometimes debugging
+memory allocation can be difficult! 
+
+A disadvantage of this implementation is that (catch) and (throw) leak
+memory. This is because the cell-references on the execution stack are
+lost; the cells they are pointing to cannot be freed.
+
+16 THE SOURCE CODE
+
+16.1 List of Files
+
+To be added.
+
+16.2 Portability
+
+In general the source code is moving from K&R to ANSI C. (This will
+cause problems for people without ANSI C compilers. The code is written
+to be portable, and has been checked by the UNIX "lint" utility.  So
+far this version has been compiled and run on the following machines
+and operating systems:
+
+
+	Machine				Operating System 
+	================================================ 
+	Zenith 386 SX/20 PC		MS-DOS 5.0 
+	Bull DPX/2 (68040)		UNIX (BOS) 
+	RS/6000				UNIX (AIX 3.2)
+
+In the past, the code has been run on the ATARI-ST and other UNIX
+systems. MINIX will not be a supported platform until it has a floating
+point compiler however. This version needs porting back to the ATARI. 
+
+16.3 Metrics
+
+In this section lists statistics about the interpreter source code and
+relative performance.
+
+16.3.1	Size of the Source Code
+
+The list below gives for each source file, the number of lines, the
+number of Format Independant Delivered Source Instructions (FIDSI) and
+the number of comments. FIDSI are defined as part of the COCOMO model
+defined in [5] and are a semi-defacto standard for measuring the size
+of a program. The program is too small to be modeled by COCOMO. Note
+the lack of comments!
+
+	  Lines	 FIDSI Comm.  Filename		
+
+	     86     47      3 lisp.c
+	   1014    517     75 commn.c
+	    514    333     20 eval.c
+	    108     60     16 gc.c
+	    508    272     19 tgraph.c
+	    511    277     20 graph.c
+	    394    245     38 lex.c
+	    346    210      4 math.c
+	    415    234     14 midi.c
+	    297    178     10 parse.c
+	    223    129      4 print.c
+	    619    353     45 symtab.c
+	    200    115      6 unix.c
+	    509    221     27 view.c
+	    176    116     20 cells.h
+	===============================
+	   5920   3307    321 total
+
+16.3.2	Internal Function Calling Profile
+
+The following table is the output from the UNIX "prof" utility run on
+Version 2.28 of RefLisp, compiled with the -p option. The test was run
+using sort.lsp and bignum.lsp.
+
+Subsequent versions will have the most used functions replaced by
+macros. Functions replaced with macros are indicated by a leading *.
+__mcount is the profiling subroutine, and should be excluded from
+discussions about resource usage. The less-frequently used functions
+are not listed.
+
+Name                 %Time     Seconds     Cumsecs  #Calls   msec/call
+.__mcount             37.0       30.46       30.46
+*car                   8.6        7.06       37.52 3569237      0.0020
+*cdr                   7.6        6.28       43.80 3208130      0.0020
+.eval                  5.4        4.43       48.23  471698      0.0094
+.dereference           5.3        4.38       52.61 1087608      0.0040
+*atom                  3.9        3.24       55.85 3509798      0.0009
+.purge                 3.7        3.05       58.90  745590      0.0041
+.reference             3.6        2.93       61.83 1852270      0.0016
+*subrp                 3.0        2.45       64.28  992799      0.0025
+*fsubrp                2.2        1.84       66.12  705840      0.0026
+*numberp               2.1        1.71       67.83  478750      0.0036
+*bigstringp            1.7        1.39       69.22  468474      0.0030
+*stringp               1.7        1.38       70.60  473896      0.0029
+.eval_list             1.6        1.34       71.94  323045      0.0041
+.ref_evlis             1.6        1.30       73.24  136037      0.0096
+.value                 1.5        1.23       74.47  678077      0.0018
+.get_cell              1.5        1.21       75.68  366122      0.0033
+*idp                   1.0        0.83       76.51  831715      0.0010
+.apply                 1.0        0.80       77.31  161523      0.0050
+.c_release             0.9        0.77       78.08  365852      0.0021
+.evprogn               0.7        0.58       78.66   65282      0.0089
+.savelis               0.6        0.51       79.17   40386      0.0126
+.cons                  0.6        0.51       79.68  347003      0.0015
+.setlis                0.4        0.35       80.03   40386      0.0087
+.cfr                   0.4        0.32       80.35  121137      0.0026
+.set                   0.3        0.24       80.59  131774      0.0018
+.ap_lambda             0.2        0.17       80.76   40386      0.0042
+.fixp                  0.2        0.13       80.89   50869      0.0026
+.cir                   0.1        0.09       80.98   47130      0.0019
+.restorlis             0.1        0.09       81.07   40386      0.0022
+*floatp                0.1        0.09       81.16   55894      0.0016
+.quotient              0.1        0.08       81.24    3378      0.024
+.evcond                0.1        0.08       81.32   24486      0.0033
+.equal                 0.1        0.07       81.39   12634      0.0055
+.bcar                  0.1        0.06       81.45   21787      0.0028
+.__mcount              0.1        0.06       81.51
+.lessp                 0.1        0.06       81.57    7232      0.008
+.newicell              0.1        0.06       81.63   14239      0.0042
+.eq                    0.1        0.06       81.69  121158      0.0005
+.plus                  0.1        0.06       81.75    5052      0.012
+._ptrgl                0.1        0.05       81.80
+
+
+
+17 BIBLIOGRAPHY
+		
+		
+	[1]	Timothy P. Hart and Thomas G. Evans, "Notes on 
+		Implementing Lisp for the M-460 Computer", in 
+		"THE PROGRAMMING LANGUAGE Lisp: Its Operation and 
+		Applications", Information International Inc. 
+		March 1964.
+						
+	[2]	Arthur Norman and Gillian Cattell, "Lisp on the BBC 
+		Microcomputer", Acornsoft, 1983.
+		
+	[3]	J. Marti, A. C. Hearn, M. L. Griss, C. Griss,
+		"Standard Lisp Report", SIGPLAN Notices, Vol 14,
+		Part 10, Pages 48-68, 1979
+			
+	[4]	Winston & Horn, "Lisp", 2nd edition, published by
+		Addison Wesley, 1980. (there's a third edition too.)
+	
+	[5]	"Software Engineering Economics", Barry Boehm
+	
+	[CLtL2]	"Common Lisp the Language", 2nd Edition, Guy L Steele,
+		Digital Press.	
+			
+[1] was used in the development of eval and read. Standard Lisp is
+defined in [3]. Beginners should read [4].  It is very readable and
+gives some quite varied and useful examples. Some of the examples in 
+the book are supplied with the interpreter. Examples are also taken
+from [2], which is a good primer for Standard Lisp. Common Lisp is
+defined in [CLtL2], all 1,030 pages of it!	
+		
+APPENDIX A	ROUND TOITS -- THE FUTURE
+
+The work on RefLisp has been done in the author's spare time, in the
+evenings on weekends. It is not a "professional" effort, usual
+standards of programming have given way to late-night hacking.  This a
+list of things that should be done when the author gets around to it.
+:-)  These are listed in decreasing  order of priority: 
+
+	-  Fix the Bugs! [A permanent entry.]
+	-  Add user breaks for aborting from infinite loops.
+	-  Run some benchmarks with and without GC enabled.
+	-  Change all functions to be a Common Lisp subset.
+	-  Produce a comprehensive regression test suite.
+	-  Document and clean up the source.
+	-  Add code to check overflowing refcounts and copy.
+	-  Spell check this document.
+	
+APPENDIX B	UPDATES -- THE PAST
+
+Version 2.08
+
+	Big strings added to: (button) text field; (open); (system)
+	and (rdf). This allows full operating system pathnames to
+	be used when reading or executing programs.
+
+	Updated the graphics demo to be mouse based.
+	
+Version 2.22
+
+	Added (inpsym)(outsym)(addsym)(rdpsym)(replace)
+
+Version 2.25
+
+	Changed many Standard Lisp function names to the Common 
+	Lisp equivalents. de,dm,plus,difference,quotient,minus,
+	times, etc...	
+
+Version 2.26
+	
+	Made NIL a symbol. Changed the internal NIL not to be a zero
+	pointer. Fixed (princ) memory leakage. Fixed *eof*.
+
+Version 2.34
+
+	Bug fixes: When memory runs out it complains properly instead of the
+	confusing "x not STRING for CSR" message.
+
+Version 2.38
+
+	Bug fixes: The backqoute "\" has been repaired, so that "\w" ==> "w"
+
+Version 2.39
+
+	Changed initialisation to use the LISPINIT environment variable. Added
+	(getenv). (open) now uses the &key :direction syntax.
+
+Version 2.41
+
+	Bug fixes for BSD 4.3 and GCC for Bryan.
+
+Version 2.51
+	
+	Added (do-until), &rest, &optional and initform in lambda lists.
+	Fixed user quotes in lex.c. Fixed GENSYM
+
+Version 2.58	
+
+	Added CONSTANT types. Cures a bug in which *unbound* was
+	being garbage collected in loops.
+
+Version 2.59
+
+	Added (errno), (strerrno), (fork), (semget), (semctl), (semop) 
+	and the source file "ipc.c".
+
+Version 2.67
+
+	Added (append), (reverse), (backquote), fixed memory leakage
+	of functions which are self-modifying or which required
+	further evaluation before application.
+
+APPENDIX C 	BUGS
+	
+1.	(move) does not take out all the garbage as it should.
+2.	The mouse misbehaves in the following following graphics modes:
+		CGA: 2 3
+		MCGA: 0,1,2,3
+3.	Some functions may not work as described in CLtL2. This 
+	results from their origins in Standard Lisp.
+4.	Reference counts are not checked for rollover through MAXINT.
+
+
+

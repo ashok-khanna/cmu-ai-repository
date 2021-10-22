@@ -1,0 +1,1903 @@
+% This is a LaTeX file.  To use it you must first process it with
+% LaTeX. Then you can render it with whatever printer you want.  If
+% you don't have TeX, then you should.  It is free and anyone doing
+% mathematics should have it.
+\documentstyle{article}
+\newcommand{\beq}{\begin{equation}}
+\newcommand{\eeq}{\end{equation}}
+\newcommand{\beqa}{\begin{eqnarray}}
+\newcommand{\eeqa}{\end{eqnarray}}
+\newcommand{\bvb}{\begin{verbatim}}
+\newcommand{\evb}{\end{verbatim}}
+\newcommand{\beqann}{\begin{eqnarray*}}
+\newcommand{\eeqann}{\end{eqnarray*}}
+\newcommand{\nn}{\mbox{${\nonumber}$}}
+\newcommand{\labeq}[1]{\label{eq:#1}}
+\newcommand{\refeq}[1]{(\ref{eq:#1})}
+\newcommand{\tc}[1]{\addcontentsline{toc}{subsection}{#1}}
+\newcommand{\tcc}[1]{\addcontentsline{toc}{subsubsection}{#1}}
+\title{XPP1.6 -- the differential equations tool}
+\author{Bard Ermentrout}
+\begin{document}
+\maketitle
+\tableofcontents
+\newpage
+\section{Introduction} XPP  is a tool for solving differential
+equations,
+ difference 
+equations, delay equations,functional equations, boundary value
+problems, and stochastic equations. 
+ It evolved 
+from a chapter written by John Rinzel and myself on the qualitative
+ theory of nerve membranes and eventually became a commercial product
+ for MSDOS computers called PHASEPLANE.  It is now available as a
+program running
+ under
+ X11 and UNIX.  It is free of charge and the source code is freely
+ distributed so if you don't like the way it works rewrite it.  The code 
+brings together a number of useful algorithms and is extremely portable. 
+ All the graphics and interface are written completely in Xlib which explains 
+the somewhat idiosyncratic and primitive widgets.  Indeed, I began this using
+ the OpenLook widget set and then found out that no one but SUN used it 
+so that most folks would not easily be able to use it.  The SPARC 
+that I purchased did not have the Athena widgets so I never bothered 
+to learn them.  After finally getting them, it was too late to learn 
+something new so I have stuck with the primitive widgets that I wrote. 
+ Its ugly but it works.
+
+There are a number of other such programs available, but they all seem to
+ require that your problems be compiled before using them.  XPP does not;
+ I have devised a simple and fairly fast formula compiler that is based
+ on the idea of the inner interpretor used in the language FORTH (which
+ remains my first love as far as language is concerned)  Fear not, the
+ differentiual equations and boundary conditions and other formulae are
+ written in usual algebraic notation. 
+
+XPP has been successfully compiled on a SPARC II under OpenLook, a SPARC
+ 1.5 running generic X, a NeXT running X11R4, a DEC 5000, a PC using
+Linux,
+and an HP 730.
+  I cannot vouch for other platforms particularly the rather picky 
+ IBM RS6000. Building XPP requires only the standard C compiler,
+ Xlib, and the Curses library.  The latter is only needed for reading in
+ files and can be modified to work with stdlib with a minimum of work.  
+
+XPP has the capabilities for handling up to 50 differential equations. 
+ There are solvers for delay and stiff differential equations a well as
+ some code for boundary value problems.  Difference equations are also
+ handled.  Up to 10 graphics windows can be visible at once and a variety
+ of color combinations is supported.  Primitive  PostScript capabilities
+ are supported.  Post processing is easy and includes the ability to make
+ histograms, FFTs and applying functions to columns of your data.
+(If not in this version, then in a later one...)  Equilibria
+ and linear stability as well as one-dimensional invariant sets can be
+ computed.  Nullclines and flow fields aid in the qualitative understanding
+ of two-dimensional models.  Poincare maps and equations on cylinders and
+ tori are also supported.  Some useful averaging theory tricks and various
+ methods for dealing with coupled oscillators are included primarily because
+ that is what I do for a living.
+I will assume that you are well versed in the theory of ordinary differential
+ equations although you need not be to use the program.  
+
+
+The basic unit for XPP is a single ASCII file that has the equations, parameters,
+ variables, boundary conditions, and functions for your model.The methods
+ of solving the equations, the graphics and postprocessing are all done within
+ the program using the mouse and various menus and buttons.  The impatient
+ user should look at some sample {\tt *.ODE} files instead of actually reading 
+the documentation.  In additions, XPP uses a file called {\tt default.opt} that
+ describes initialization and memory options for the program.
+\addcontentsline{toc}{subsection}{Interface}
+\begin{center}
+{\Large Notes on the Interface }
+\end{center}
+This interface is crude by most standards and it is rather ugly as
+well. I had originally thought to do the whole thing using the
+Openlook Widget Set but found that many of the systems to which I
+wanted to port XPP did not have the set.  The present design is
+completely portable.  
+
+The text editing has been improved over the original version of XPP.
+One can use the {\tt Home,End} keys to move the text cursor to the
+beginning and end of the line.  The left and right arrow keys let you
+move back and forth.  You can now insert or delet text at any point.
+I will eventually make it somewhat EMACS compatible.  
+
+Almost every command has a keyboard shortcut.  These are given below.
+
+
+\tc{Disclaimer}
+\begin{center} 
+
+\Large Disclaimer \\
+
+\end{center}
+
+XPP is distributed as is.  The author makes no claims as to the performance
+ of the program.  Anyone is allowed to modify and distribute XPP as long as
+ the original code is also made available.  
+
+\tc{Acknowledgments}
+\begin{center}
+Acknowledgements
+\end{center}
+The porting of XPP to UNIX and X has been partially supported by NSF
+in the sense that they gave me the SPARC 2.  MSRI in Berkeley gave me
+use of a lovely office facing the bay and a workstation on which the
+majority of the port was made in the Summer of 1992.  The original
+version of PhasePlane benefitted by countless colleagues whose endless
+requests for features and whose constant use led to the version that
+you see now.  Of these I would like to specifically cite John Rinzel and
+Artie Sherman at the NIH for being the main guinea pigs for the
+earliest versions.
+
+Please let me know of any bugs or other stuff that you'd like to see
+incorporated into XPP.  I will usually fix them quickly.  
+  
+My EMAIL address is bard@mthbard.math.pitt.edu.
+
+
+\section{ODE Files}
+
+ODE files are ASCII readable files that the XPP parser reads to create
+ machine useable code. They consist of combinations of lines each
+starting with a key letter.  Lines cannot presently be continued onto
+the next line but the length of the lines is 256 characters.  
+
+\bigskip
+\tc{Example}
+I will start with a very simple example:
+\beq
+x'=x(a+f(t)-x)
+\eeq
+the periodically varying logistic equation with $x(0)=.1,$
+ $f(t)=a\sin(\omega t),$ $a=1,b=.05,\omega=1.2$ 
+ The file is:
+\bvb
+1
+v x=.1
+p a=1,b=.05,omega=1.2
+u f 1 b*sin(omega*arg1)
+o x*(a+f(t)-x)
+d
+\end{verbatim}
+
+\medskip
+
+The first line says there is 1 variable.  The name of the variable and
+a starting initial value is given next.  Parameters are defined in the
+third line.  A user-defined function is then created.  The right-hand
+side of the equation is next and the last line tells XPP that the
+equation is done. 
+
+This can be explored by typing:
+\bvb
+ xpp <filename>
+\end{verbatim}
+at the terminal prompt. Here {\tt <filename>} is the name of the above
+file.  
+
+\bigskip
+
+\tc{ODE File format}
+
+More generally, the ODE files have the following format :
+
+\bvb
+<number>
+change <filename>
+variable <name>=<value>, ... 
+...
+fixed <name>,...
+...
+markov <name> <value> <nstates>
+...
+parameter <name>=<value>, ...
+...
+table <name> <filename>
+...
+table <name> % <npts> <xlo> <xhi> <function(t)>
+...
+user <name> <nargs> <expression>
+...
+kernel <name> <mu> <expression>
+...
+ode <expression>
+...
+integral <expression>
+...
+ode <expression>   (for fixed and auxilliary quantities)
+...
+bdry <expression>
+...
+r <name>
+{t01} {t02} ... {t0k-1}
+{t10} ...
+...
+{tk-1,0} ...
+
+# Comments      
+
+done
+\end{verbatim}
+
+Because the program has a long history and there are many old versions
+around, the syntax above has been maintained even though greatly
+improved syntax is easy to create (see for example my code for PDEs
+called XTC.) Thus, there are some confusing restrictions that are
+necessary in order to maintain backward compatibility with the
+hundreds of ODE files that I have already written.
+
+The typical ODE file contains some or all of the above types of lines.
+{\em The first line of the file contain a positive number.} This
+tells XPP how much space to allocate for the value of your variables
+and auxilliary functions that you might like to maintain. This can be 
+up to 50 columns. This number
+is the dimension of your system plus the number of extra quantities
+you record. (XPP cannot dynamically allocate more columns so that you 
+should allocate extra columns if you want to use them.  For each extra
+ column, a line of the form 
+\bvb
+	o 0
+\end{verbatim}
+should follow your main stuff before the last line.  This fills the columns
+ with zeros.)  
+
+Each of the remaining lines contains one of the above key words at its
+beginning.  Since only the first letter is used, you need only use the
+first letter.  
+
+\medskip
+
+XPP uses a bunch of defaults when it is started up by looking for a
+file called ``default.opt.'' If it cannot find it, it uses internal
+options.  Alternatively, you can tell XPP the name of the options file
+you want to use.  The description of these files is below.
+The format for such a statement is:
+\bvb
+c <filename>
+\end{verbatim}
+which loads the options file specified in {\tt<filename>}. 
+
+\medskip
+
+Variables are the quantities you wish to integrate in time.  They (as
+can all names in XPP) can have up to 9 letters each.  XPP is case
+insensitive. Any combination of letters and numbers is valid as is the
+underscore, ``\_''. 
+
+
+
+
+The order of statements is not too important however you must not
+refer to names that have yet to be defined as XPP compiles on the run.
+Generally, one declares in this order: change options file, variables, 
+fixed variables, parameters, kernels, tables, user functions,
+right-hand sides, boundary conditions.
+
+
+
+
+The right-hand sides are started with either ``o'' or with ``i''
+depending on whether or not you are solving an differential equation or
+a Volterra equation.  
+
+\medskip
+
+\tcc{Variables, Fixed, Markov}
+Variables can be declared one to a line or all on the same line
+separated by commas or spaces.  Initial conditions are optional since
+they can be set within XPP; there can be {\em no spaces} separating
+the ``='' sign, the variable, and the number. If no initial data are
+given, the variable is set to zero.
+
+\medskip
+
+
+Fixed quantities are declared on one line or on several with no
+initialization; this is done later via the right-hand-side operation
+starting with ``o.'' 
+
+\medskip
+
+Markov variables are finite state quantities that randomly flip from
+one state to another according to a given transition probability table
+that is given in the file. They are treated like variables in that
+they have initial conditions and are accessible to the user. The only
+requirement is that {\em they must be declared after all variables and
+fixed quantities are declared.}  If you do not follow this convention
+then the program will definitely screw up. Each Markov variable has
+its own line.  The name of the variable, the initial value, and the
+number of states are included on the line.  The states are 0,1, and so
+on up to $k-1$ where $k$ is the number of states.
+
+
+\medskip 
+
+\tcc{Parameters} 
+Parameters are like variables and can be on one or several lines.  The
+default for uninitialized parameters is 0.
+
+\medskip
+
+\tcc{Tables}
+
+The ``table'' declaration allows you to declare a function called {\tt
+<name>} that reads in values from the file, {\tt <filename>} or as a
+function of one variable over some interval and then
+is used in your program as a function of 1 variable interpolated from
+the tabulated values.  The values of this table are assumed to be
+equally spaced and the file is an ASCII file with the format:
+\bvb
+<number of values>
+<xlo>
+<xhi>
+y1
+y2
+.
+.
+.
+yn
+\end{verbatim}
+Thus, $f(xlo)=y1$ and $f(xhi)=yn.$ These tables can also be read in
+from within XPP but a valid table must be given to start the program.
+This table can be arbitrarily long (as memory permits) and thus you
+can use experimental data as inputs to differential equations or even
+sketch curves and use that as your nonlinearity.  Ypu can directly
+input tabulated functions as well to speed up computations with
+complicated functions.  In this case, after the table name put a
+parenthesis symbol followed by the number of points, the minimum
+argument and the maximum argument and then the function.  This should
+be written as a function of ``t''.  Thau, the statement
+\begin{verbatim}
+table f % 501 -10 10 tanh(t)
+\end{verbatim}
+will produce a table of the hyperbolic tangent function from -10 to 10
+consisting of 501 points.  
+
+
+\medskip
+
+\tcc{User defined functions}
+
+  User defined functions  have the following form:
+\bvb
+user <name> <nargs> <expression>
+\end{verbatim}
+{\tt <name>} is the name of the function.    Next, the number of
+arguments is given.  The maximum number  
+of arguments is 9.  Finally the expression for the function must be given.
+ Line breaks are not allowed so the expression must be typed on one line. 
+ The arguments are 
+\bvb
+arg1  arg2  ...  arg9
+\end{verbatim}
+and must be used as the formal arguments in a function.
+
+\medskip
+
+Integral equations are constructed in several different ways, the
+``kernel'' declaration is one such way.  This and the ``integral''
+construct are described in a section devoted to Volterra equations.
+
+\tcc{Boundary conditions}
+
+Boundary conditions can be placed anywhere in the file or ignored
+altogether if you dont plan on solving boundary value problems. They
+have the form:
+\bvb
+b <expression>
+\end{verbatim}
+where ``b'' stands for boundary condition. The expression is one
+ involving your variables and which will be set to zero. In order to
+ distinguish left and right boundary conditions, the following notation 
+is used.  For the values of the variables at the left, use the symbol for
+ the variable.  For the values at the right end of the interval, use the
+ symbol for the variable appended by a single quote, '.  Thus to
+ specify the boundary conditions $x(0)=1$, $y(1)=2$, the following is used:
+\bvb
+b x-1
+b y'-2
+\end{verbatim}
+Periodic boundary conditions would be written as:
+\bvb
+b x-x'
+b y-y'
+\end{verbatim}
+ Note that it is not necessary to specify the BCs at this point.  They can
+ easily be specified within the program. Also note that the notation I have
+ used allows the specification of mixed boundary conditions such as periodic
+ BCs. (XPP has some additional special commands for periodic boundary
+ conditions that enable the user to specify fewer equations than usual.)
+ The number of boundary conditions must match the number of variables in
+ your problem. 
+
+
+\medskip
+
+\tcc{Right-hand sides}
+
+The most important and most confusing part of XPP is the declaration
+of right-hand sides.  These are declared by starting the line with the
+letter ``o'' (historically for ODE) and following with some
+expression.  (For Volterra equations, you will use the letter ``i'';
+see the description of this below in the section on Volterra models.)
+
+The order of these is very important.  Basically
+the ``gross order'' is: RHS for variables, RHS for fixed quantities,
+RHS for auxilliary quantities.   Let me first distinguish between
+these three.  Variables refer to the quantities whose evolution
+determines the differential equation.  Fixed quantities are temporary
+combinations of variables (for example a very complicated function of
+the variables) that can be used repeatedly in the right-hand sides
+determining the differential equation.  These are like local
+quantities defined in a FORTRAN program. Auxilliary variables or
+quantities are additional combinations of the variables and fixed
+quantities whose values you want to keep during the simulation; things
+like energy or mean values.  
+
+Within each of these three classes, the ordering is also important.
+The first RHS you define must be that of the first dependent
+variable.  Continue defining each successive RHS until you have as
+many as there are variables. Then define the RHS for each of the fixed
+variables in the order in which they were declared.  Finally, define
+the auxilliary variables which have no internal names but are called
+``aux1,'' ``aux2,'' etc in the program.  The examples shown below
+should clarify these rules a bit.  The right-hand-sides of the ODEs
+can depend on any of the fixed variables as can the auxilliary
+quantities.  A fixed variable can depend on any parameter or variable
+as well as a previously defined fixed variable.  Thus, ordering is
+important.   Just remember that all of these start with the command
+``o'' and are in the order:
+\begin{verbatim}
+RHS1
+RHS2
+...
+FIXED1
+FIXED2
+...
+AUX1
+AUX2
+...
+\end{verbatim}   
+
+\medskip
+
+\tcc{Markov probabilities}
+
+The letter 'r' is used to tell XPP that you are ready to define a
+tRansition table for a Markov process whose name follows.
+ (The letter 'r' has no meaning
+and was used since it is the first free letter I happened upon.) A
+finite state Markov variable with $k$ states must have associated with
+it a $k\times k$ matrix, $T_{ij}$ which contains the probability of going from
+state $i$ to state $j$ per unit of time.  Thus the effective
+transition probability is {\tt DeltaT} times the one in the table; the
+large is {\tt DeltaT} the higher the probability.  Since the
+probabilities must add to 1 in any row, the diagonal terms are
+automatic. If there are $k$ states to the variable, then there must be
+$k$ rows following the declaration of the transition matrix.  Each row
+contains $k$ entries delimited by curly brackets ans separated by
+spaces; for example with $k=2$ the variable {\tt z} would have its
+matrix defined by':
+\begin{verbatim}
+r z
+{0} {P01}
+{P10} {0}
+\end{verbatim}
+where {\tt P01, P10} are any algebraic expression or number involving
+the parameters and variables of the XPP file.
+
+At each output time step, the probailities are computed, multiplied by
+the timestep, and a random number is chosen.  If it in the appropriate
+range, then the transition will be made.  Transitions of several such
+variables are made in parallel and then each is updates. The example
+below will help. 
+
+\medskip
+
+
+The last line contains the single letter `d' telling the formula compiler 
+that you are done.
+
+You should be aware of the following
+keywords that should not be used in your ODE files for anything other
+than their meaning here.
+
+\tc{Reserved words} 
+\begin{center}
+
+
+\Large Reserved words \\
+\normalsize
+\bvb
+sin cos tan atan atan2 sinh cosh tanh
+exp delay ln log log10 t pi if then else
+asin acos heav sign ceil flr ran 
+max min normal besselj bessely
+arg1 ... arg9 aux1 ... @ $ + - / * ^ **
+\end{verbatim}
+\end{center}
+
+
+
+These are mainly self-explanatory. The nonobvious ones are:
+\begin{itemize}
+\item {\tt heav(arg1)} the step function, zero if {\tt arg1<0} and 1 otherwise.
+\item {\tt sign(arg)} which is the sign of the argument (zero has sign 0)
+\item {\tt ran(arg)} produces a uniformly distributed random number
+between 0 and {\tt arg.}
+\item {\tt besselj, bessely } take two arguments, $n,x$ and return
+respectively, $J_n(x)$ and $Y_n(x),$ the Bessel functions.
+\item {\tt normal(arg1,arg2)} produces a normally distributed random number
+with mean {\tt arg1}  and variance {\tt arg2}.
+\item {\tt max(arg1,arg2)} produces the maximum of the two arguments
+and {\tt min}  is 
+the minimum of them.
+\item {\tt if(<exp1>)then(<exp2>)else(<exp3>)} evaluates {\tt <exp1> }
+If it is nonzero 
+it evaluates to {\tt <exp2>} otherwise it is { \tt <exp3>}.  E.g. {\tt if(x>1)then(ln(x))else(x-1)}
+will lead to {\tt ln(2)}  if {\tt x=2}  and { \tt -1 if x=0.}
+\item {\tt delay(<var>,<exp>)} returns variable {\tt <var>} delayed by the result of
+ evaluating {\tt <exp>}.  In order to use the delay you must inform
+the program of the maximal possible delay so it can allocate storage.
+(See the section on the NUMERICS menus.)
+\item {\tt  ceil(arg),flr(arg)}  are the integer parts of{\tt  <arg>} returning the
+ smallest integer greater than and the largest integer less than {\tt <arg>}.  
+\item  {\tt t } is the current time in the integration of the differential equation.
+\item {\tt  pi}  is $\pi.$ 
+\item {\tt arg1, ..., arg9} are the formal arguments for functions and
+{\tt auxn}  where {\tt n }
+is a positive integer are the names for auxilliary variables.
+
+
+
+\end{itemize}
+\section{ Examples}
+
+Nothing helps one understand how to use a program better than lots of
+examples.  I offer here a few files which you can explore.  
+\tc{Morris-Lecar}
+\begin{center}
+Morris-Lecar Equations
+\end{center}
+The Morris-Lecar equations arise as a simplification of a model for
+barnacle muscle oscillations.  They have the form:
+\beqann
+C\frac{dV}{dt} &=&
+g_L(V_L-V)+g_Kw(V_k-V)+g_{Ca}m_\infty(V)(V_{Ca}-V)+I \\
+\frac{dw}{dt} &=& \phi \lambda_w(V)(w_\infty(V)-w)
+\eeqann
+where
+\beqann
+m_\infty(V) &=& .5(1+\tanh((V-V_1)/V_2)) \\
+w_\infty(V) &=& .5(1+\tanh((V-V_3)/V_4)) \\
+\lambda_w &=& \cosh((V-V3)/(2V_4))
+\eeqann
+The ODE file for these equations (dimensionless,so that $C=1$ and the
+conductances are relative to $g_{Ca}=1$ and the reversal potentials to
+$V_{Ca}=1$) are:
+\begin{verbatim}
+2
+# Declare the variables
+v v,w
+# Declare the parameters
+p gk=.5,gca=1,gk=2
+p vk=-.7,vl=-.5,vca=1
+p v1=.01,v2=.145,v3=.1,v4=.15
+p i=.2,phi=.333     
+# Define some functions
+u minf 1 .5*(1+tanh((arg1-v1)/v2))
+u winf 1 .5*(1+tanh((arg1-v3)/v4))
+u lamw 1 cosh((v-v3)/(2*v4))
+# define the right-hand sides
+ov gl*(vl-v)+gk*w*(vk-v)+gca*minf(v)*(vca-v)+i
+ow phi*lamw(v)*(winf(V)-w)
+# Now we are done
+d
+\end{verbatim}
+
+This is a very straightforward model and so the equation file is
+pretty simple.  
+
+Suppose you want to keep track of the calcium current as an auxilliary
+variable.  Then the file looks like:
+\begin{verbatim}
+3
+# Want an extra quantity, ICa, so allocate 3 slots, v,w, and ICa
+#
+# Declare the variables
+v v,w
+# Declare the parameters
+p gk=.5,gca=1,gk=2
+p vk=-.7,vl=-.5,vca=1
+p v1=.01,v2=.145,v3=.1,v4=.15
+p i=.2,phi=.333     
+# Define some functions
+u minf 1 .5*(1+tanh((arg1-v1)/v2))
+u winf 1 .5*(1+tanh((arg1-v3)/v4))
+u lamw 1 cosh((v-v3)/(2*v4))
+# define the right-hand sides
+ov gl*(vl-v)+gk*w*(vk-v)+gca*minf(v)*(vca-v)+i
+ow phi*lamw(v)*(winf(V)-w)
+#
+# Now we simply keep ICa:
+o -gca*minf(v)*(vca-v)
+# Now we are done
+d
+\end{verbatim}
+This can be accessed in XPP by requesting ``AUX1'' as it is the first
+auxilliary variable.  Note that we are wasting computational time
+since we compute $I_{Ca}$ twice; once as a contribution to the
+potential change and once as an auxilliary variable.  In a FORTRAN or
+C program, one would compute it as a local variable and use it in both
+instances.  This is the purpose of fixed variables.  (For the present
+problem, the computational overhead is trivial, but for coupled arrays
+and other things, this can be quite substantial.)  The last program
+uses a fixed variable to reduce the computation:
+\begin{verbatim}
+3
+# Want an extra quantity, ICa, so allocate 3 slots, v,w, and ICa
+#
+# Declare the variables
+v v,w
+#
+# Declare a fixed quantity ICA, the calcium current
+#
+f ica
+# Declare the parameters
+p gk=.5,gca=1,gk=2
+p vk=-.7,vl=-.5,vca=1
+p v1=.01,v2=.145,v3=.1,v4=.15
+p i=.2,phi=.333     
+# Define some functions
+u minf 1 .5*(1+tanh((arg1-v1)/v2))
+u winf 1 .5*(1+tanh((arg1-v3)/v4))
+u lamw 1 cosh((v-v3)/(2*v4))
+# define the right-hand sides
+# Note that we include ICa as a computed quantity
+#
+ov gl*(vl-v)+gk*w*(vk-v)+i-ica
+ow phi*lamw(v)*(winf(V)-w)
+#
+# Now we need to define ICa.  Remember first RHS of ODEs, then 
+# fixed variables, then auxiliary
+#
+oica -gca*minf(v)*(vca-v) 
+# Now we simply keep ICa:
+o ica
+# Now we are done
+d
+\end{verbatim}
+The calcium current is computed once instead of twice.  This is why
+``fixed'' variables are useful.  
+\tc{Cable model} \begin{center}
+A linear cable equation with boundary conditions
+\end{center}
+In studying a dendrite, one is often interested in the steady-state
+voltage distribution.  Consider a case where the dendrite is held at
+$V=V_0$ at $x=0$ and has a leaky boundary condition at $x=1.$
+Then the equations are:
+\beqann
+\lambda^2\frac{d^2V}{dx^2} &=& V(x) \\
+V(0)&=& V0 \\
+a\frac{dV(1)}{dx} + b V(1) &=& 0
+\eeqann
+When $a=0,b\ne0$ the voltage at $x=1$ is held at 0.  When $a\ne0,b=0$
+there is no leak from the cable and the conditions are for sealed end.
+Since this is a second order equastion and XPP can only handle first
+order, we write it as a system of two first order equations in the
+file which is:
+\begin{verbatim}
+2
+# define the variable, v and its derivative vx
+v v=1,vx=0
+# define the 4 parameters, a,b,v0,lambda^2
+p a=1,b=0,v0=1,lam2=1
+# now do the right-hand sides
+o vx
+o v/lam2
+#
+# and finally, boundary conditions
+# First we want V(0)-V0=0
+b v-v0
+#
+# We also want aV(1)+bVX(1)=0
+b a*v'+b*vx'
+# Note that the primes tell XPP to evaluate at the right endpoint
+d
+\end{verbatim}
+Note that I have initialized $V$ to be 1 which is the appropriate
+value to agree with the first boundary condition.  
+
+\tc{Delayed feedback}\begin{center}
+The delayed inhibitory feedback net
+\end{center}
+A simple way to get oscillatory behavior is to introduce delayed
+inhibition into a neural network.  The equation is:
+\[
+\frac{dx(t)}{dt} = -x(t) + f(ax(t)-bx(t-\tau)+P)
+\]
+where $f(u)=1/(1+\exp(-u))$ and $a,b,\tau$ are nonnegative parameters.
+Here $p$ is an input.  The XPP file is:
+\begin{verbatim}
+1
+# declare the scalar x
+v x=1
+# declare all the parameters, initializing the delay to 3
+p tau=3,b=4.8,a=4,p=-.8
+# define the nonlinearity
+u f 1 1/(1+exp(-arg1))
+# define the right-hand sides; delaying x by tau
+o -x + f(a*x-b*delay(x,tau)+p)
+# done
+d
+\end{verbatim}
+Try this example after first going into the numerics menu and changing
+the maximal delay from 0 to say, 10.  Glass and Mackey describe a few
+other delay systems some of which have extremely complex behavior.
+Try them out.
+
+\tc{Random mutation}\begin{center}
+A population problem with random mutation
+\end{center}
+This example illustrates the use of Markov variables and is due to Tom
+Kepler.  There are two variables, $x_1,x_2$ and a Markov state
+variable, $z.$  The equations are:
+\beqann
+x_1' &=& x_1(1-x_1-x_2) \\
+x_2' &=& z(ax_2(1-x_1-x_2)+\epsilon x_1)
+\eeqann
+and $z$ switches from 0 to 1 proportionally to $x_1.$  The transition
+matrix is 0 everywhere except in the 0 to 1 switch where it is
+$\epsilon x_1.$ So z=1 is an absorbing state.
+
+Initial conditions should be $x_1(0)=1.e-4$ or so, $x_2(0)$ the same (this is just
+for convenience; we really want $x_2(0)=0$ and then have it jump discontinuously
+to $1.e-4$ or so when $z$ makes its transition, but this shouldn't matter that much)
+
+
+This models the population dynamics of two populations $x_1,x_2$ in competition
+with each other.  $x_2$, initially absent, is a mutant of $x_1.$  The mutation rate
+$\epsilon$ should be smaller than one.  The relative advantage, $a$,
+should be larger than one.
+
+One expects that $x_1$ grows for a while, eventually $z$ makes its transition,
+$x_2$ begins to grow and eventually overtakes $x_1.$ 
+
+The equation file for this is
+\begin{verbatim}
+3
+v x1=1.e-4,x2=1.e-4
+m z 0 2
+p eps=.1,a=1
+o x1*(1-x1-x2)
+o z*(a*x2*(1-x1-x2)+eps*x1)
+r z
+{0} {eps*x1}
+{0} {0}
+d
+\end{verbatim}
+
+The contiunuous variables are declared first, then the Markov variable
+with 2 states.  The parameters are defined.  The two differential
+equation are defined, and finally the transition matrix for $z.$
+
+\medskip
+
+
+XPP comes with some other examples that I urge you to look at. A
+Volterra example is shown below.
+
+\section{Using xpp}
+XPP runs from the command line by typing
+\bvb
+ xpp <filename>
+\end{verbatim}
+where {\tt <filename>} is an ODE file as described above.  This argument is optional. 
+ If you invoke XPP without the argument, you are asked whether you want to
+ read or create a file. Choosing {\tt (r)} to read the file prompts you for an ODE
+ file name.  You can get a directory by pressing {\tt <RETURN>}.  If you choose to 
+create a new file, you must write a set of commands such as above and then
+ save the file.  	It will bounce you out if you make any mistakes. 
+ It is not the recommended way to do it -- use an editor and read in the file. 
+ XPP will look at the extension of a file and if it is {\tt .dif } the program
+ will assume that the model is a difference equation and will treat it as a map. 
+ The solution, equilibria, stability and listing of difference equations 
+is treated differently from differential equations.  The default plot style 
+is also plotting of points instead of lines as for the continuous time case.
+
+\tc{Windows}
+\tcc{Main Window}
+
+Once you get a file loaded and it is valid, the program and all of the 
+windows will pop up.  There is the main window with the graphics and menus.  
+This has 4 regions on it: the graphics window, the menu window, the command
+ window across the top and the message window at the bottom.  Initial 
+conditions and parameters etc are input here as well as text labels.  The message 
+window gives the position of the pointer.  It used to give messages but this
+ action has been supplanted by the message widget and the error widget.  If 
+you click the second or third mouse button in the graphics window, the
+ coordinates of the pointer are shown in the message window.  The left 
+most region is the menu.  Pressing the mouse on a command is the same 
+as typing the hot letter for the command and will execute it.  The pointer is 
+a hand in the menu window. 
+
+\tcc{Initial data,delays,parameters}
+
+In addition to the main window, there is the initial data window which
+ contains the names of the variables and the current initial data.  The 
+delay window is similar containing the initial data for delay equations. 
+ The parameter window contains the list of all parameters and their current
+ values.  The boundary condition window is similar with the list of boundary
+ conditions given.  These 4 windows constitute the main user editable windows.
+  All of the quantities and formulae contained within these can be edited within
+ the program.  Clicking on any item in these windows will place the item on the
+ command line where you can edit it.  
+ Pressing
+{\tt Back Space} moves back one character. 
+ Pressing {\tt Esc}  exits without changing while pressing{\tt Return} accepts the current 
+value.  Clicking {\tt  DONE} in the relevant window accepts the present value and exits. 
+ If you have chosen ICs, BCs, or Delay ICs, then after accepting a value,
+ the program prompts you for the next one until until you have finished or 
+exited the process.  If you are changing parameters, then after accepting a
+ parameter, you will be prompted for the name of anew prameter.  Either type it
+ in or click on the name in the parameter window.  Click on {\tt
+DONE}, type {\tt Esc} or
+ type {\tt Return}  twice to exit.  
+
+\tcc{Equation window}
+
+Another window contains the listing of the differential equations. If
+ the file is a difference equation, the listing shows this.  These equations 
+can be scrolled up and down by pressing the mouse on the {\tt <Up> <Down>} buttons
+ or using the cursor keys. Resizing lets you see more and closing iconifies the
+ window. Once you are in XPP you cannot alter the differential equations.  Thus
+, to solve a different problem you must exit and start again.  I hope to change 
+this in the future.  All of these windows can be closed with no effect on the
+ performance of the program.   
+
+\tcc{Browse window}
+
+The other major window contains listings of the numerical values of the solutions 
+to the differential equations.  This browser window allows you to postprocess
+ data and save and load numbers to the disk.  Pressing the cursor keys, the
+ {\tt HOME, END, PgUp,PgDn}  keys scrolls you through tthe data either up and down or
+ left and right.  Resizing the window lets you see more data.  There are many
+ other keys and you can click on the buttons or use the keyboard if the mouse
+ pointer is in the Browser.  You can load or save data files by choosing the 
+{\tt Load}  and {\tt Sav} e keys.  You will be asked for a filename which you should enter.
+  Choosing {\tt Get} will load the top row of numbers into the initial data.
+ {\tt Find} will find the data row for which the specified variable is closest to
+ the specified value.   {\tt Replace} allows you to replace a column by some formula 
+involving the column itself and all other columns.  You are asked for the column 
+to replace.  Type in one of the names across the top row.  Then you are asked 
+for the formula.  Type it in and the entire column will be replaced.  For example 
+if the names of your variables are {\tt X}  and { \tt Y}  and you
+choose {\tt X } as the column
+ to replace and type 
+\bvb 
+       X^2 + T*Y
+\end{verbatim}
+then the column {\tt X } will be replaced by the function at each row.  If the first 
+character in the formula is the {\tt \& } symbol, an integral of the formula will be
+ placed in the specified column.  If the formula is anything of the form :
+\bvb
+	@<variable>
+\end{verbatim}
+the numerical derivative of the {\tt <variable> } will be computed ad placed in the
+ column. 
+Choosing {\tt Unreplace} will restore the most recent column.  Each time you integrate
+ the equations or solve a boundary value problem or look at a range of equilibria, 
+the numbers are replaced by the most recent.  You must save the data to a
+ file to use it again.  Pressing {\tt First}  and {\tt last} will mark the data so that you 
+can save a portion or restore a portion.  {\tt Home} takes you to the beginning and
+ {\tt End} to the end of the list. 
+
+Other windows are opened on occasion and can remain open throughout the
+ session.  The usual methods for resizing windows works on the graphics and
+ listing and browser windows.
+
+When there are multiple graphics windows, only one is active at a given time
+ and only one can be drawn to.  The window is made active by clicking the
+ left button when inside the window.  A little square appears in the upper left
+ corner of the window to indicae its activity.  The variables on the
+ axes are given in the title of the window and are Z-Axis vs Y-Axis vs X-Axis.  
+
+
+One other window appears permanently, when neeeded, the Equilibrium window
+ that gives values and stability of the most recently computed equilibrium.
+
+
+The main commands are on the first menu and the numerics menu.  Communication 
+to the program is via the keyboard and the mouse and through parameter boxes
+ that are displayed.  Almost all commands have keyboard shortcuts so that if
+ you know the original DOS version, you can use the X version with little help.  
+When you are prompted for floating point numbers at the command line, then 
+you can insert either numbers or mathematical expressions provided the first
+ character is the {\tt \%} symbol. Thus if you want to input {\tt sin(1.5)} as a floating 
+point number, you would write
+\bvb
+          %sin(1.5)
+\end{verbatim}
+at the command line.    
+
+\tc{Changing ICs and parameters} \begin{center}
+\Large Changing initial data and parameters \\
+\end{center}
+Click on the variable you want to change in the IC window.  The current value 
+and the name will appear in the command window.  Type {\tt Delete} to completely
+ start over or {\tt Back Space} to move back one character at a time.  Press {\tt Esc}
+ to abort.  Press {\tt Return} and the value will be accepted and the next IC will 
+come up.  If you are done, press {\tt <DONE>} in the IC window.  Otherwise XPP will 
+cycle through all of the variables. If you start the value of the initial
+ condition with a {\tt \%}  symbol, then you can put a formula in which will be
+ evaluated.  For example {\tt \%sqrt(pi) } will be evaluated to 1.772... . 
+
+The same technique works for delay equation data except that you put in 
+formulae that depend on time and this will create a list of initial data  
+for $t<t0$  No {\tt \%} sign is used.
+
+Parameters are changed similarly, but do not cycle through.  You can
+ either click on them in the Parameter window or type their names in the 
+command window followed by an {\tt Return}.  Pressing {\tt Return} twice results in 
+a dismissal of the parameter mode as does  clickin {\tt <DONE> } in the parameter 
+window.  You can press the letter {\tt p}  to change parameters or simply click
+ on the parameter command in the main menu.  Typing {\tt default } will load all 
+the parameters with their values when the program first fires up.  
+
+
+\section{The main commands}
+All commands can be invoked by typing the hot key for that command (capitalized
+ on the menu) or clicking on the menu with the mouse.  Usually most commands can
+ be aborted by pressing the {\tt Esc} key. Once one of these is chosen, the
+ program begins to calculate and draw the trajectories.  If you want to
+ stop prematurely, press the {\tt Esc} key and the integration will
+stop. 
+
+\begin{description}
+
+\tc{ICs}\item[(I)nitial conds] This invokes a short list of options for integrating the
+ differential equations.  The choices are:
+\begin{description}
+\item[(G)o] which uses the initial data in the IC window and the current
+ numerics parameters to solve the equation.  The output is drawn in the
+ current selected graphics window and the data are saved for later use.  The
+ solution continues until either the user aborts by pressing {\tt Esc}, the
+ integration is complete, or storage runs out.
+\item[(N)ew] This prompts you at the command line for each initial condition.
+ Press {\tt Return} to accept the value presented.
+\item[(L)ast]  This uses the end result of the most recent integration as the
+ starting point of the curret integration.
+\item[(S)hift] This is like Last except that the stating time is shifted to the 
+current integration time.  This is irrelevant for autonomous systems but is
+ useful for nonautonomous ODEs.
+\item[(O)ld] This uses the most recent initial data as the current initial 
+data.  It is essentially the same as Go.
+\item[(R)ange]  This lets you integrate multiple times with the results shown
+ in the graphics window.  Pressing this option produces a new window with
+ several boxes to fill in.  First choose the quantity you want to range
+ over.  It can be a parameter or a variable.  The integrator will be called
+ and this quantity will be changed at the beginning of each integration.
+  Then choose the starting and ending value and the number of steps. The
+ option Reset storage only stores the last integration.  If you choose not
+ to reset, each integraion is appended to storage.  Most likely, storage
+ will be exceeded and the integration will overwrite or stop. The option 
+to use last initial conditions will automatically use the final result of
+ the previous integration as initial dat for the next integration.  Otherwise,
+ the current ICs will be used at each step (except of course for the  variable
+ through wich you are ranging.) When you are happy with the parameters, simply
+ press the OK button.  Otherwise, press the Cancel button to abort.  Assuming
+ that you have accepted, the program will compute the trajectories and plot 
+them storing none of them or all of them.  If you press {\tt Esc} it will abort the 
+current trajectory and move on to the next.  Pressing the {\tt / } key will abort
+ the whole process. 
+\item[(M)ouse]  allows you to specify the values with the mouse.  Click at the
+ desired spot.
+\end{description}
+\tc{Continue}\item[(C)ontinue]  This allows you to continue integrating appending the data
+ to the 
+current curve. Type in the new ending time.
+\tc{Nullclines}\item[(N)ullclines]  This option allows you to draw the nullclines of systems.  
+They are most useful for two-dimensional models, but XPP lets you draw them for
+ any model.  The constraints are the same as in the direction fields option
+ above.  The menu has 4 items.
+\begin{description}
+\item[(N)ew] draws a new set of nullclines.
+\item[(R)estore] restores the most recently computed set.
+\item[(A)uto] turns on a flag that makes 
+XPP redraw them every time it is necessary because some other window obscured
+ them.
+\item[(M)anual] turns this flag off so that you must restore them manually.
+ The X-axis nullcline is blue and the Y-axis nullcline is red.
+\end{description}
+\tc{Direction Field/Flow}\item[(D)irection Field/Flow]
+This option is best used for two-dimensional systems however,
+ it can be applied to any system.  The current graphics view must be a
+ two-d plot in which both variables are different and neithet is the time
+ variable, T.  There are two items.
+\begin{description}
+\item[(D)irection fields] Choosing the direcion field option will prompt you for 
+a grid size.  The two dimensional plane is broken into a grid of the size
+ specified and lines are drwan at each point specifying the direction of 
+the flow at that point.  If the system is more than two-dimensional, the
+ other variables will be held at the values in the initial conditions
+window.
+\item[(F)low] Choosing the flow, you will be prompted for a grid size
+and
+ trajectories
+ started at each point on the grid will be integrated according to the
+ numerical parameters.  Any given trajectory can be aborted by pressing 
+{\tt Esc} and the whole process stopped by pressing {\tt /}.  The
+remaining
+ variables 
+if in more than two-dimensions are initialized with the values in the IC window.
+\end{description}
+
+
+\tc{Window}\item[(W)indow] allows you to rewindow the current graph.  Pressing this presents 
+another menu with the choices:
+\begin{description}
+	\item[(W)indow]  A parameter box pops up prompting you for the values.  
+Press OK or CANCEL when done.
+	\item[(Z)oom in]  Use the mouse to expand a region by clicking, dragging and 
+releasing.  The view in the rectangle will be expanded to the whole window.
+	\item[Zoom (O)ut]  As above but the whole window will be shrunk into the 
+rectangle.
+	\item[(F)it]  The most common command will automatically fit the window so 
+the entire curve is contained within it.  For three-D stuff the window data 
+will be scaled to fit into a cube and the cube scaled to fit in the window. 
+Use this often.
+\end{description}
+\tc{Phase Space}\item[ph(A)se space]  XPP allows for periodic domains so that you can solve 
+equations on a torus or cylinder.  You will be prompted to make (A)ll variables
+periodic, (N)o varibales periodic or (C)hoose the ones you want.  You will 
+be asked for the period which is the same for all periodic variables (if they 
+must be different, rescale them) Choose them by name or by clicking the 
+appropriate names from the list presented to you. An {\tt X} will
+appear next to the selected ones.  Clicking toggles the {\tt X}. 
+ Type {\tt Esc} when done or CANCEL or DONE.
+ XPP mods your variables by this period and is smart
+ enough when plotting to not join the two ends. 
+
+\tc{Kinescope}\item[(K)inescope]  This allows you to capture the bitmap of the active window and
+ play it back.  It works poorly in X, you cannot save the bitmaps, nor will
+ it run properly across the network.  This is not my fault, it is idiosyncratic
+ with X.  It is slow also.  My PC makes much smoother animations. In any case, 
+another menu pops up with the choices:
+\begin{description}
+\item[(C)apture] which takes a snapshot of the 
+currently active window
+\item[(K)ill] which deletes all the snapshots
+\item[(A)utoplay] which 
+continuously plays back snapshots until you press the middle mouse
+button
+\item[(P)layback] which cycles thru the pictures each time you click the left mouse 
+button and stops if you click the middle.  It will beep when done.
+\end{description}
+
+
+\tc{Graphics}\item[(G)raphic stuff]  This induces a popup menu with several
+choices.
+\begin{description}
+\item[(A)dd curve]  This lets you add another curve to the picture. A 
+parameter box will appear aking you for the variables on each axis, a color,
+ and line type (only 1 - solid and 0 - dotted are allowed currently) All 
+subsequent integrations and restorations will include the new graph.  Up to 
+10 per window are allowed.
+\item[(D)elete last]  Will remove most recent curve.
+\item[(A)ll but first] Deletes all curves but first.
+\item[(E)dit curve]  You will be asked for th curve to edit.  The first is 0,
+ the second 1, etc.  You will get a parameter box like the add curve
+option.
+\item[(P)ostscript]  This will ask you for a file name and write a postscript
+ representation of the current window.  Nullclines, text, and all graphs will be
+ plotted.  Color is not supported.
+\item[(F)reeze]  This will create a permanent curve in the window.  Usualy, 
+when you reintegrate the equations or load in some new data, the current curve 
+will be replace by the new data.  Freeze prevents this.  Up to 10 curves can be
+ frozen.  It is not implemented yet. Another menu will pop up with the options:
+\begin{description}
+\item[(F)reeze current] This freezes the current curve 0.
+\item[delete (A)ll]  This gets rid of all curves.
+\item[delete (L)ast]  This gets rid of the most recently frozen curve.
+\end{description}
+\end{description}
+
+\item[n(U)merics] This is so important that a section is devoted to
+it. See below.
+
+\tc{File}\item[(F)ile] 
+This brings up a menu with several options. Type {\tt Esc} to abort.
+\begin{description}
+\item[(Q)uit]  This exits XPP first asking if you are sure.
+\item[(P)rt info] This prints info about the current simulation to the
+console. The equations, the numerical parameters, the initial data,
+boundary conditions and all parameters are printed.
+\item[(W)rite set] This creates a file with all of the info about the
+current numerics, etc as well as all of the currently highlighted
+graphics window.  It is not meant to be readable by the user. It in
+some sense saves the current state of XPP and can be read in later.
+\item[(R)ead set]  This reads a set that you have previously written.
+ The files are very tightly connected
+ to the current ODE file so you should not load a saved file from one equation 
+for a different problem.
+\item[(S)ave info] This is like {\tt (P)rt info} but saves the info to
+a file.  It is human readable.
+\item[(C)alculator] This pops up a little window.  Type formulae in the command 
+line involving your variables and the results are displayed in the popup.  Click
+ on Quit or type {\tt Esc} to exit.
+\end{description}
+\tc{Parameters}\item[(P)arameters]  This is just like clicking on the parameter
+window.  Type the name
+ of a parameter to change or click on its name in the parameter window.  Type 
+{\tt default} to get back the values when you started XPP.  
+\tc{Erase}\item[(E)rase] erases the contents of the ative window, redraws the
+axes, 
+deletes all 
+text in the window, and sets the redraw flag to Manual.
+\tc{Multiple windows}\item[(H)alfwindow] This name is a holdover from the DOS version.  The option allows
+ you to create and destroy graphics windows. There are several
+choices.
+\begin{description}  
+\item[(C)reate] makes a copy of the currently active window and makes itself active.
+  You can change the graphs in this window without affecting the other windows. 
+
+\item[(K)ill all]  Removes all but the main graphics window.
+
+\item[(D)estroy]  This destroys the currently active window.  The main window
+ cannot be destroyed.  
+
+\item[(A)uto] turns on a flag so that the window will automatically be
+redrawn when needed.
+
+\item[(M)anual] turns off the flag and the user must restore the picture manually.
+
+\item[(B)ottom] puts the active window on the bottom.
+\end{description}
+\tc{Adding text}\item[(T)ext] allows you to write text to the display.  Type in the text and move
+ the mouse to the position and click the button.  The text is placed in the 
+window.  The text will only be drawn if you have clicked in the active window.
+  Text is remembered until you erase the screen.  If you resize or rewindow,
+ it is placed in the appropriate position.
+\tc{Equilibria}\item[(S)ing pts]  This allows you to calculate equilibria for a system. There
+ are three options.
+\begin{description} 
+	\item[(G)o] begins the calculation   using the values in the initial 
+data box as a first guess.  Newton's method is applied.  If a value is found XPP
+ tries to find the eigenvalues and asks you if you want them printed out.  If so,
+ they are written to the console.  Then if there is a single real positive or
+ real negative eigenvalue, the program asks you if you want the unstable or
+ stable manifolds to be plotted.  Answer yes if so and they will be
+ approximated. The calculation will continue until either a variable
+goes out
+ of bounds or you press {\tt Esc}.  If {\tt Esc} is pressed, the other
+branch is
+ computed. 
+ The program continues to find any other invariant sets until it has gotten 
+them all.  These are not stored. The program will continue integrating
+beyond the current numerical parameters until you press {\tt Esc}.
+Once an 
+equilibrium is computed a window 
+appears with info on the value of the point and its stability.  The top of 
+the window tells you the number of complex eigenvalues with positive,{\tt (c+)}, 
+negative {\tt (c-)}, zero {\tt (im)}  real parts and the number of
+real positive
+{\tt  (r+)}  and 
+real negative { \tt (r-)}  eigenvalues. If the equation is a difference equation, 
+then the symbols correspond the numbers of real or complex eigenvalues 
+outside {\tt (+)}  the unit circle or inside { \tt (-)}
+This window remains and can be iconified. 
+\item[(M)ouse]  This is as above but you can specify the initial guess by 
+clicking the mouse.  Only the two variables in the two-D window will reflect 
+the mouse values.  This is most useful for 2D systems.
+\item[(R)ange]  This allows you to find a set of equilibria over a range
+ of parameters.  A parameter box will prompt you for the parameter, starting
+ and ending values, number of steps.  Additionally, two other items are 
+requested.  Column for stability will record the stability of the equilibrium 
+point in the specified column.  If you elect to shoot at each, the invariant 
+manifolds will be drawn for each equilibrium computed.  The stability can be 
+read as a decimal number of the form {\tt  u.s } where {\tt s}  is the
+number of stable and {\tt u} 
+ the number of unstable eigenvalues. So {\tt 2.03} means 3 eigenvalues
+with negative real parts (or in the unit circle) and 2 with positive
+real parts (outside the unit circle.)  The result of a range calculation is saved 
+in the data array and replaces what ever was there.  The value of the parameter
+ is in the time column, the equilibria in the remaining columns and the 
+stability info in whatever column you have specified. 
+ {\tt Esc} aborts one step and 
+{\tt /}  aborts the whole procedure.
+\end{description} 
+\tc{Axes}\item[(V)iew axes]  This selects one of 9 different types of graphs. 
+The first 5 are two-d 
+and the last 4,three D. If you select a two-D curve, you will be asked for limits 
+as in the window command as well as the variables to place on the axes.  Three 
+D is more complicated.  You will be asked for the 3 variables for the 3 axes, 
+their max and min values and 4 more numbers, {\tt XLO},  etc.  XPP first scales the 
+data to fit into a cube with corners (-1,-1,-1) and (1,1,1).  Rotation of this
+ cube is performed and then projected into the two-D window.  {\tt XLO}, etc define
+ the scales of this projection and are thus unrelated to the values of your 
+data.  Use the {\tt (F)it } option if you don't know whats going on.
+Numbers appear
+ on the 2D axes but not the 3D, however the axes labels are drawn.
+\tc{Time plots}\item[(X)i vs t]  This chooses a certain 2D view and prompts you for the variable name. 
+ The window is automatically fitted and the data plotted.  It is a
+shortcut to choosing a view and windowing it.
+\tc{Redrawing}\item[(R)estore] redraws the most recent data in the browser in accordance with the
+ graphics parameters ofthe active window.
+\tc{3D Parameters}\item[(3)d params]  This lets you choose rotations of the axes and
+persepctive  planes. 
+ Play with this to see. You must be have a 3D view in the active graph
+to use this.
+\tc{Boundary values}\item[(B)ndry val]  This solves boundary value problems by numerical shooting. There
+ are 4 choices.
+\begin{description}
+\item[(S)how]  This shows the successive results of the shooting and 
+erases the screen at the end and redraws the last solution.  The program
+ uses the currently selected numerical integation method, the current starting
+ point, {\tt T0} as the left end time and  {\tt T0+TEND} as the right
+end. 
+ Thus, if the
+ interval of interest is {\tt (2.5,6)} then set {\tt T0=2.5} and {\tt
+TEND=3.5} in the numerics menu.  
+\item[(N)o show] This is as above but will not show succesive solutions.
+\item[(R)ange]  This allows you to range over a parameter keeping starting or
+ ending values of each of the variables.  A window will appear asking you for
+ the parameter, the start, end, and steps.  You will also be asked if you want 
+to cycle color which means that the results of each successful solution to the
+ BVP will appear in different colors. Finally the box labeled{\tt  side} tells the
+ program whether to save the initial {\tt (0)} or final{\tt (1)}
+values of 
+the solution. 
+ As the program progresses, you will see the current parameter in the info
+ window under the main screen.  You can abort the current step by
+pressing
+ {\tt Esc} 
+and the whole process by pressing {\tt /}. 
+\item[(P)eriodic] Periodic boundary conditions can be solved thru the
+usual methods, but one then must write an addition equation for the
+frequency parameter.  This option eliminates that need so that a 2-D
+autonomous system need not be suspended into a 3D one.  You will be
+asked for the name of the adjustable parameter for frequency.  You
+will also be asked for the section variable and section.  This is an additional
+condition that must be satisfied, namely, $x(0)=x_0$ where $x$ is the
+section variable and $x_0$ is the section.  Type {\tt yes} if you want
+the progress shown.  
+\end{description}
+\end{description}
+
+
+\section{Numerical parameters}
+When you click on the {\tt nUmerics} command in the main menu, a new
+list appears.  This is the numerics menu and allows you to set all of
+the numerical parameters as well as some post-processing.  Some of
+these may not yet be implemented. Press {\tt Esc} or click on the {\tt
+exit} to get the main menu back.
+
+The items on this menu are:
+\begin{description}
+\tc{Time control}\item[(T)otal] This is the amount of time to integrate. It is called
+{\tt TEND} in the documentation.  If it is
+negative 
+then it will be 
+made positive and no data will be stored. Thus you can integrate for very long 
+periods of time without being told that the storage is full.
+\item[(S)tart time] This is the initial time {\tt T0} For autonomous
+systems it is usually irrelevant. 
+\item[tRansient] The program will integrate silently for this amount
+of time before plotting output.  It is used to get rid of transients.
+\item[(D)t] This is the step size used by the fixed step integrators
+and the
+ output step
+ for Gear's algorithm.  It is positive or negative depending on the
+direction of integration.    
+ \tc{Iteration control} \item[n(C)line ctrl] will prompt you for the grid size for comptuing
+nullclines. 
+\item[s(I)ng pt ctrl]  This prompts you for errors and epsilons for eigenvalues 
+and equilibria calculations as well as the maximum iterates.
+\item[n(O)ut]  This sets the number of integration steps to perform
+between output 
+to
+ storage.  Thus, if you output every 10 steps with a {\tt Dt} of .05, XPP will yield
+ output at times that are $10*.05=.5$ timesteps apart.  The advantage of this 
+is that lengthier records of data can be made without losing accuracy of the 
+integrator.
+\item[(B)ounds]  This ses a global bound on the integrator.  If any variable exceeds
+ this value in magnitude, a message appears and the integration stops.
+\tc{Numerical method}\item[(M)ethod]  allows you to choose the methos of integration.
+Only Gear is
+ adaptive
+ and is the best to use for stiff problems.  If you choose Gear, you will be
+ asked for error tolerance, minimum step, and maximum step size.  The discrete
+ method should be used for difference equations.  If the method is GEAR, the
+ output {\tt NOUT} is set to 1.  Also Gear generates several possible error messages
+ that you may have to respond to.  These suggest how to fix the error.
+ Backward Euler prompts you for a tolerance and the maximum number of iterates
+ for each step. The Volterra method is described below; it prompts for
+a tolerance, maximum iterates, and a ``memory size.''  You will also
+be asked if you want the convolution kernels to be re-evaluated after
+any parameter is changed in either the range integration or through a
+manual change in parameters.  If this flag is 1 then the kernels will
+be re-computed.  The default is to not recompute them.  
+\item[d(E)lay]  This sets the upper bound for the maximum delay.  If in your delay
+ equations, the delay exceeds this, a message will appear and the integration 
+will stop.  Each time this is changed all previous delay data is destroyed and
+ you must begin your integration anew.  Thus, it should be the first thing you
+ set when solving a delay equation.  Since the storage depends on the size of
+ {\tt Dt} when you change this, then the delay storage will also be
+destroyed.  Delay equations require data for $t<t_0$ so that you
+should edit the {\tt Delay ICs} to achieve this.  Use the fixed step
+integrators and not GEAR for this.
+\tc{Color coding}\item[(C)olor code]  If you have a color system, XPP can code the 
+output according to
+ the magnitude of the velocity or the magnitude of the Z-axis variable.  A choice
+ pops up for these two options or for turning off the color.  This overides any
+ color on any other curves in your picture.  Once you choose to color code, you
+ are asked to either choose max and min values or have XPP do it for you via
+ optimize.  The latter will compute the max and min and set the scales accordingly.
+\tc{Poincare Section}\item[(P)oincare map] This sets up parameters for Poincare sections. A choice of
+ three items will appear:  the {\tt  Max/Min} option  the
+ {\tt Poincare section}
+ option
+ and the option to turn {\tt off}  all maps. In this version, only
+sections
+ orthogonal
+ to the coordinates are allowed, but this will change in subsequent versions.
+  A parameter box will pop up and you should type in the parameters.  They are
+ the variable to check and the section and the direction. That is, a point
+ will be recorded if the variable crosses the section such that it is 
+either positive going to negative or vice versa according to the direction
+ parameter.  If the direction is set to zero, the, the point will be recorded
+ from either direction.  The flag {\tt Stop on Section} instructs XPP to halt when
+ the section is crossed.  Note that automatic interpolation is done.  If the 
+section variable is {\tt Time, T} and the section is say {\tt T1},
+then 
+each time {\tt T=0 modulo T1} the point is recorded. 
+ This is useful for periodically driven 
+systems.  If you have opted for the {\tt Max/Min} option, then the section is 
+irrelevant and the point will be recorded when a local maximum (if the 
+direction is 1) minimum (direction=-1) or both (direction=0) of the variable
+ is encountered.
+\tc{Ruelle embedding plots}\item[R(U)elle plot]  This allows you to retard any of the axes by an integral
+ number of steps.  This is useful for chaotic orbits and delayed systems. 
+ Choosing a number for any of the axes will result in the variable associated
+ with that axis being delayed by the number of steps inputted.  Thus if you
+ plot X vs X then of course you will get a diagonal line, but if you make the 
+Y-axis delayed by say 50 and the output is every .1 timesteps, then the plot 
+will be X(t-5) vs X(t). This does not appear during integration of the equations
+ and is available only after a computation.  You set it up and then click 
+Restore from the main menu.
+\tc{Stochastic stuff}\item[stoc(H)astic]  This brings up a series of items that allow you
+to compute many trajectories and find their mean and variance.  It is
+most useful when used with systems that are either Markovian or have
+noise added to the right-hand sides.  The items are:
+\begin{description}
+	\item[New seed]  Use this to reseed the random number
+generator.  If you use the same seed then the results will not change
+from run to run.
+	\item[Compute] This will put up the same dialog box as the
+``Integrate'' ``Range'' choice.  Two new data sets will be created
+that will compute the mean and the variance of the point by point
+values of the trajectories over the number of trial runs you choose.
+If the system is completely deterministic and the parameters and
+initial conditions are identical for each run, then this is
+superfluous.  Otherwise, the mean and variance are computed.  You can
+then access these new arrays as described below.
+	\item[Data] This puts the results of the most recent run into
+the data browser and enables plotting of them.
+	\item[Mean] This puts the results of the mean value of the
+most recently computed set of trials.
+	\item[Variance] This does the same for the variance.
+\end{description}
+	
+Thus if you fire up the sample Markov problem, choose the ``Compute''
+option, and set keep the initial data constant over say 20 runs, then
+you can look at the mean trajectory and its variance for each of your
+variables.  
+
+\tc{Table lookup}\item[loo(K)up ] This allows you to change the definitions of
+tabulated functions by reading in a different file.  Thus, if you have
+many experimental sets of data, you can read them in one by one and
+integrate the equations. You are prompted for the name of a tabulated
+function.  Then you give the filename to read in.  You will continue
+to be prompted and can type a few carriage returns to get out. If the
+table was defined as a function instead of a file, then you will be
+prompted for the number of points, the limits of the range ({\tt
+Xhi,Xlo}) ad finally, the formula of for the function defining the
+table.  Note that it must be a function of {\tt t}.  Note that if the
+function contains parameters and these are changed, it will be
+automatically recomputed.
+
+
+\item[bndry(V)al] prompts you for the maximum iterates, the error tolerance, and the
+ deviation for the numerical Jacobian for the shooting method for solving BVPs.
+\tc{Averaging}\item[(A)djoint]  This allows you to compute the adjoint and do averaging for weakly
+ coupled oscillators.  To use this option, you must successfully compute
+ a periodic orbit using the periodic option of the BVP menu.
+Otherwise it
+ is unlikely that you will obtain anything but garbage. It does not
+work well with stiff systems so good luck. The menu that pops up is:
+\begin{description}
+	\item[(N)ew adj]  This makes the adjoint from the computed periodic
+ data.  Success or failure will be noted. Separate storage is
+maintained for the adjoint.  The program automatically puts the data
+from the adjoint into  the browser so it can be viewed and plotted or
+saved. 
+\item[(A)djoint]  This will place the adjoint data in the browser,
+\item[(O)rbit]  This places the periodic orbit in the browser.
+\item[(M)ake H] This will prompt you for the coupling function and the result
+ will be averaged and placed in 2 columns of storage, the first is the time, 
+then the H function. If there are enough columns, the odd and even
+parts of the averaged function will be retained. As with the adjoint,
+this list is automatically placed in the browser.  
+The user will be prompted for the coupling functions and 
+should type in the formulas. The coupling is between two identical
+units.  Say you want to couple two oscillators via a variable called
+{\tt V} Then, you {\tt V} refers to the oscillator getting the input
+and {\tt V'} refers to the oscillator providing it.
+  For example, suppose you want to study
+the behavior of two weakly diffusively coupled Fitzhugh-Nagumo
+equations:
+\beqa
+	dv_1/dt &=& f(v_1,w_1)+\epsilon (v_2-v_1) \\
+	dw_1/dt &=& g(v_1,w_1) \\
+	dv_2/dt &=& f(v_2,w_2)+\epsilon (v_1-v_2) \\
+	dw_2/dt &=& g(v_2,w_2) 
+\eeqa
+Then for the coupling you would input
+\bvb
+ v'-v
+\end{verbatim}
+\bvb
+ 0
+\end{verbatim}
+for the required coupling.  
+
+\item[(H) function]  This places the computed H function in the browser.
+\end{description}
+Anytime you integrate, etc, the data will be placed back into the storage area.
+\end{description}
+
+\section{The Data Browser}
+One window that pops up is the Data Browser that allows you to look at
+the numbers produced by the program as well as save them to a file and
+otherwise manipulate them.  It is a very primitive spread sheet.  Once
+you have computed a trajectory to an equation, you can use the Data
+Browser (here after, DB) to look at the data. There are some known
+``bugs.'' You must sometimes grab it with the mouse and shake it to
+get the data to show up (no kidding!) Also, sometimes it will not
+resize properly; in this case, you must continue the integration to
+the current starting point (in other words, do nothing but press C and
+then <Return>.) To activate the DB, bring the window to the top and
+put the pointer inside the box.  Across the top is a menu of commands
+and then there follows a list of titles for the variables, time and
+the auxiliary functions. Using the arrow keys, the page keys or
+clicking on the appropriate commands allows you to scroll through the
+data. By resizing the DB you can get more or less data.  Clicking on
+Left shifts the data window to the left and Right moves it to the
+right.  The time column always stays fixed.  If you do parametric or
+range calculations, the range variable is kept in the time column.
+Home takes you to the top of the data and End to the last row.  The
+remaining commands will be described separately. The keyboard
+shortcuts to invoke them are in parentheses.
+\begin{description}  
+\item[(F)ind] This pops up a window and asks for a variable and a
+value.  It then looks through the data until it comes to the closest
+value to the specified that the variable takes.  It only moves down
+the file so that you can find successive values by starting at the
+top.
+\item[(G)et] This makes the top row of data the initial coonditions
+for a new run.
+\item[Re(p)lace] This pops up a window asking you for a column to
+replace.  Then it prompts you for a formula.  Suppose you want to
+replace {\tt AUX1} with {\tt x+y-t} where {\tt x,y} are two variables.
+Then type this in when prompted and the column that held {\tt AUX1}
+will be replaced by the values in these columns. Any valid XPP
+function or user function can be used.  Two special symbols can also
+be used when applied to single variables:
+\tc{Numeric integration/differentiation}\begin{description}
+\item[@VARIABLE] replaces the column with the numerical derivative of
+the variable.  You cannot use this within a formula, but once the
+column is replaced, it can be treated as any other column.
+\item[\&VARIABLE] replaces the colmun with the numerical integral.
+Note that successive applications of the derivative and then the
+integral will result in the original plus a constant.
+\end{description}
+\item[(U)nreplace] This undoes the most recent replacement.
+\item[Fir(s)t] This marks the top row in the DB (nothing is shown)as
+the start or first row for saving or restoring.
+\item[Last (e)] This marks the top row as the last or end row for
+saving or restoring.
+\item[(R)estore] replots the data marked by First and Last.  The
+default is the entire data set
+\tc{Writing output}\item[(W)rite] prompts you for a filename and writes the marked data
+to a file.  The files are of the form:
+\begin{verbatim}
+t0 x1(t0) ... xn(t0)
+t1 x1(t0) ... xn(t0)
+.
+.
+.
+tf x1(tf) ... xn(tf)
+\end{verbatim}
+and reflect the current contents of the DB.  They are ASCII readable.
+\item[(L)oad] Will load in as much of a similarly formated data file
+as possible for graphing.
+\end{description}
+
+  
+\section{C Files} 
+For some types of problems that have lengthy and complicated
+right-hand sides, you would like to use directly compiled C code
+rather than using the built in interpreter.  I have found that one
+generally does not get as much speed up as merits the extra work of
+recompilation for each problem.  Nevertheless, I have included an
+option for doing that in XPP.  If you want to do this for a particular
+ODE file, simply append the call to XPP with the option {\tt -m} which
+means to make a C file.  XPP goes on as before but when you exit the
+program, there will be two files called {\tt my\_cfile.c} and {\tt
+my\_hfile.h.}  These files should help you in your creation of your own
+file.  Basically, you should replace the call to {\tt my\_rhs()} in
+ {\tt my\_rhs.c} with the contents of {\tt my\_cfile.c.} At this time,
+this is incompatible with functional equations, so dont use it if you
+are solving them. Nor is it compatible with tabulated stuff.
+
+
+For example,
+the Morris-Lecar model
+\begin{verbatim}
+2
+variables v,w
+fixed m
+params v1=-.01,v2=0.15,v3=0.1,v4=0.145,gna=1.33,phi=.333
+params vk=-.7,vl=-.5,iapp=.075,gk=2.0,gl=.5,om=1
+user minf 1 .5*(1+tanh((arg1-v1)/v2))
+user ninf 1 .5*(1+tanh((arg1-v3)/v4))
+user lamn 1 phi*cosh((arg1-v3)/(2*v4))
+odev  (iapp+gl*(vl-v)+gk*w*(vk-v)+gna*m*(1-v))*om
+odew (lamn(v)*(ninf(v)-w))*om
+odem minf(v)
+b v-v'
+b w-w'
+done
+\end{verbatim}
+produces the header file:
+\begin{verbatim}
+
+#define v y__y[0]
+#define w y__y[1]
+double m;
+#define v1 constants[1]
+#define v2 constants[2]
+#define v3 constants[3]
+#define v4 constants[4]
+#define gna constants[5]
+#define phi constants[6]
+#define vk constants[7]
+#define vl constants[8]
+#define iapp constants[9]
+#define gk constants[10]
+#define gl constants[11]
+#define om constants[12]
+double minf();
+double ninf();
+double lamn();
+
+\end{verbatim}
+and the C file
+\begin{verbatim}
+
+#include "my_hfile.h"
+extern double constants[];
+double minf(arg1)
+double arg1;
+{ 
+ return(.5*(1+tanh((arg1-v1)/v2))
+);
+}
+
+double ninf(arg1)
+double arg1;
+{ 
+ return(.5*(1+tanh((arg1-v3)/v4))
+);
+}
+
+double lamn(arg1)
+double arg1;
+{ 
+ return(phi*cosh((arg1-v3)/(2*v4))
+);
+}
+
+my_rhs(t,y__y,ydot,neq)
+ double t,*y__y,*ydot;
+int neq;
+ { 
+
+ do_fix();
+ydot[0]= (iapp+gl*(vl-v)+gk*w*(vk-v)+gna*m*(1-v))*om;
+ydot[1]=(lamn(v)*(ninf(v)-w))*om;
+
+}
+do_fix()
+{
+m=minf(v);
+
+}
+
+\end{verbatim}
+Copy the file, {\tt my\_rhs.c} to some backup.
+ Delete the function called {\tt my\_rhs(...)} and substitute
+the contents of {\tt my\_cfile.c} putting the top declarations of {\tt
+my\_cfile.c} at the beginning of {\tt my\_rhs.c}.  Then, remake XPP.
+Invoke it as before by typing {\tt xpp} followed by the file name. 
+
+\subsection{Warnings} This tool is only a guide to the production of C
+code.  There are several things to watch out for:
+\begin{enumerate}
+\item C is case sensitive and XPP is not so make sure you are
+consistent. 
+\item If your parameters are variables are the same as any of the
+local variables or key words in the C file {\tt my\_rhs.c} then there
+will be compilation errors.  For example, don't use {\tt i.}  When in
+doubt, capitalize all your parameters and variables in the ODE file
+keeping the system functions such as {\tt exp} in lower case.  
+\item Some XPP functions like {\tt heav} and {\tt max} are not known
+to C so you must define them.  I will probably fix this later.
+\item The expression {\tt y**x} or {\tt y\^x} makes no sense in C and
+should be replaced by {\tt pow(y,x)}.
+\end{enumerate}
+
+\section{The options file}
+You can have many options files.  They are useful for initializing
+XPP. They have the following format:
+\bvb
+9x15    BIG_FONT_NAME   <-- menu fonts
+fixed   SMALL_FONT_NAME <-- IC, browser, etc fonts
+0       BACKGROUND (1=white,0=black)
+0	IXPLT <--  X-axis variable (0=time)
+1	IYPLT <--  Y-axis variable
+1	IZPLT <--  Z-axis variable
+3	AXES <-- type of axis
+1	NJMP <-- nOutput
+40	NMESH <-- Nullcline mesh
+4	METHOD <-- Integration method
+1	TIMEPLOT <--- set to zero if one axis is not time
+8000	MAXSTOR <--- maximum rows stored
+20.0	TEND <-- total integration time
+.05	DT <--- time step
+0.0	T0 <-- start time
+0.0	TRANS <-- transient
+100.	BOUND <--- bounds
+.0001	HMIN <-- min step for GEAR
+1.0	HMAX <-- max ``   ``   ``
+.00001	TOLER <-- tolerance for GEAR
+0.0	DELAY <-- maximal delay
+0.0	XLO  <--- 2D window sizes
+20.0	XHI
+-2.0	YLO
+2.0	YHI
+\end{verbatim}
+
+Within an ODE file, you can call up a different options file by
+typing
+\bvb
+c <filename>
+\end{verbatim}
+where {\tt <filename>} is the name of an options file.
+
+
+\section{Functional equations}
+In the course of some research problems, I was pursuing, I ran into
+some Volterra equations of the form:
+\[
+	u(t)=f(t)+\int_0^t K(t,s,u(s))ds
+\]
+that I could not convert to ODES.  (If $K$ is a convolution with a 
+sum of powers and
+exponentials, then it can be converted to an ODE.  Since XPP is much
+more efficient with ODEs and has been thoroughly debugged with respect
+to them, you should always attempt this conversion first.)  Thus, I
+have added the capability to solve equations with this type of term in
+them.  This has necessitated the addition of two new commands for the
+ODE file and a solver for such problems. The solver is
+described below in the numerical section.  Since the equation above
+requires ``memory'' all the way back to $t=0$ and one often is
+interested in long time behavior, XPP truncates this to:
+\[
+	u(t)=f(t)+\int_{\max(t-T,0)}^t K(t,s,u(s))ds
+\]
+where {\tt T=DT*MaxPoints}, the latter being a parameter that you
+set in the numerics menu.  The default is 4000.  Thus, one
+assumes that the kernel function decays for large $t$ and so the tail
+will be small.  As {\tt MaxPoints} is a parameter, you can always make
+it larger at the price of taking longer to evaluate right-hand sides.
+Let us consider
+the following equation:
+\[
+ u(t) = \sin(t)+\frac{1}{2}(\cos(t)-\exp(t)-t\exp(t))+\int_0^t
+(t-s)\exp(-(t-s))u(s)ds
+\]
+whose solution is $u(t)=\sin(t).$  The following ODE file will create
+this model and also add an auxiliary variable with the solution for
+purposes of comparison.
+\begin{verbatim}
+2
+v u
+k w 0.0 (t-t')*exp(t'-t)*u
+i sin(t)+.5*cos(t)-.5*t*exp(-t)-.5*exp(-t)+w
+o sin(t)
+d
+\end{verbatim}
+There are two new ``commands'':
+The ``integral'' operator {\tt k}   
+declares that the symbol {\tt w} will denote an integral with respect
+to $t'$ of the expression. The number directly following the name
+``w'' denotes the amount of a weak singularity; thus:
+\begin{verbatim}
+k w <mu> K(t,t',u)
+\end{verbatim}
+will attempt to evaluate:
+\[
+\int_0^t (t-t')^{-mu} K(t,t',u(t')) dt'
+\]
+\tc{Convolution}If $mu=0$ then no special integration methods are used; otherwise, a
+product integration technique is utilized.  If your problem can be
+cast as a convolution problem, considerable speedup can be obtained
+since lookup tables are created.  For example, the present example is
+in fact a convolution problem, so that instead of the full
+declaration, one could instead write:
+\begin{verbatim}
+k w 0.0 t*exp(-t)#u
+\end{verbatim}
+which convolves the first expression (of $t$ {\bf only}) with $u.$ For
+this example, using a time step of .05 and integrating to 40, there is
+a 3-fold speed-up using the convolution.  For more complicated
+kernels, it will be more.  The ``k'' declaration is unnecesary and the
+above file can be written more simply as:
+\begin{verbatim}
+2
+v u
+i sin(t)+.5*cos(t)-.5*t*exp(-t)-.5*exp(-t)+int{t*exp(-t)#u}
+o sin(t)
+d
+\end{verbatim}
+Here the $mu$ is set to 0 by default.  If one wants to solve, say,
+\[
+ u(t) = exp(-t) + \int^t_0 (t-t')^{-mu} K(t,t',u(t'))dt'
+\]
+the file is:
+\begin{verbatim}
+2
+v u
+i exp(-t) + int[mu]{K(t,t',u}
+o sin(t)
+d
+\end{verbatim}
+Note that the ``mu'' must be a number.
+
+The expression
+\[
+ {\tt i <expr> }
+\]
+tells XPP to interpret the right-hand-side to mean 
+{\tt u(t) = <expr> } instead of
+$u'(t)={\tt <expr>}$ which is implied if the first letter is {\tt o}
+instead of {\tt i.}
+
+\tc{Auto evaluation}\begin{center}
+{\bf Warning}
+\end{center}
+If you have parameters in your definition of the kernel and you change
+them, then you will have to go into the numerics menu and recompute the
+kernels by calling the Method command which automatically recomputes
+the kernels. Alternatively, turn on the AutoEval flag and it will be
+done automatically.   
+
+\tc{Example}I close this section with an example of a pair of coupled
+oscillators in an infinite bath which has diffusion and passive decay.
+The equations are:
+\beqann
+u(t) &=&\int_0^t k(t-s)F(u(s),v(s))ds + \int_0^t
+k_d(t-s)F(u_1(s),v_1(s))ds \\
+v(t) &=&\int_0^t k(t-s)G(u(s),v(s))ds + \int_0^t
+k_d(t-s)G(u_1(s),v_1(s))ds \\
+u_1(t) &=&\int_0^t k(t-s)F(u_1(s),v_1(s))ds + \int_0^t
+k_d(t-s)F(u(s),v(s))ds \\
+v_1(t) &=&\int_0^t k(t-s)G(u_1(s),v_1(s))ds + \int_0^t
+k_d(t-s)G(u(s),v(s))ds 
+\eeqann
+where
+\beqann
+k(t) &=& \exp(-t)/\sqrt(\pi t) \\
+k_d(t) &=& \exp(-t)\exp(-d/t)/\sqrt(\pi t)
+\eeqann
+and 
+\beqann
+F(u,v) &=& \lambda u -v - (u+qv)(u^2+v^2) \\
+G(u,v) &=& \lambda v + u - (v-qu)(u^2+v^2). 
+\eeqann
+Note that the kernel $k$ is weakly singular and thus $\mu=.5.$
+
+There is a singularity at $t=0$ for the diffusive kernel; this can be
+rectified by adding a small amount to the denominator. 
+The XPP file is as follows
+\begin{verbatim}
+4
+# the four variables:   
+v u,v,u1,v1
+# the functions F(u,v), G(u1,v1)
+f f,g,f1,g1
+p lam=1.5,q=0.8,d=1,u0=1,u10=.95
+# 1/sqrt(pi)=
+p spi=.5641896
+# the integral equations; since (0,0,0,0) is a rest point, I
+# add a small quickly decaying transient
+i u0*exp(-5*t)+spi*(int[.5]{exp(-t)#f}+int[.5]{exp(-t-d/(t+.0001))#f1})
+i spi*(int[.5]{exp(-t)#g}+int[.5]{exp(-t-d/(t+.0001))#g1})
+i u10*exp(-5*t)+spi*(int[.5]{exp(-t)#f1}+int[.5]{exp(-t-d/(t+.0001))#f})
+i spi*(int[.5]{exp(-t)#g1}+int[.5]{exp(-t-d/(t+.0001))#g})
+# the four functions f,g,f1,g1
+o lam*u-v-(u*u+v*v)*(u+q*v)
+o lam*v+u-(u*u+v*v)*(v-q*u)
+o lam*u1-v1-(u1*u1+v1*v1)*(u1+q*v1)
+o lam*v1+u1-(u1*u1+v1*v1)*(v1-q*u1)
+d
+\end{verbatim}
+
+Try it.
+
+
+\section{Good luck}
+Look at the example ODE files to see how to write your own. Some
+things I will do shortly:
+\begin{enumerate}
+\item Better graphics including HPLG plotter support
+\item Interface to AUTO the bifurcation program
+\item PDE version of XPP. (This is now working and handles
+1-dimensional integral and partial differential equations)
+\item Better delay integrator.
+\item As always make it faster.
+\item FFTs anyone?
+\end{enumerate}
+
+
+\tc{Numerical methods}{\bf Some comments on the numerical methods}  Most are standard.  
+The BVP solve works 
+by shooting and using Newton's method.  All Jacobi matrices are computed 
+numerically.  The nullclines are found by dividing the window into a grid and 
+evaluating the vector field at each point.  Zero contours are found and plotted. 
+Equilibria are found with Newton's method and eigenvalues are found by the QR
+ algorithm.  Invariant sets are found by using initial data along an eigenvector
+ for the corresponding eigenvalue.  The eigenvector is computed by inverse 
+iteration.  The solvers are standard.  The Gear algorithm is out of Gear's text 
+on numerical methods.  Delay equations are solved by storing previous data and 
+linearly interpolating from this data.  Adjoints are computed for stable periodic
+ orbits by integrating the negative transpose of the numerically computed
+ variational equation backwards in time using backward Euler.
+
+The Volterra solver uses essentially an integrator (second order)
+based on the implicit product scheme described in Peter Linz's book on
+Volterra equations (SIAM,1985). For ODEs implicit schemes take
+considerably more time than explicit ones, but since most of the
+compute time for Volterra equations is in approximating the integral,
+this time penalty is minimal.  Performace is gained primarily by
+taking advantage of convolution type equations.
+
+Normally distributed noise is computed by the Box-Muller
+transformation of uniform noise.  
+
+
+
+\end{document}
+
+
+
+
+
+
+
+
+
+

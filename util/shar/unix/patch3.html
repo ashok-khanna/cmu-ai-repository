@@ -1,0 +1,405 @@
+Subject:  v15i041:  Tools to create and unpack shell archives, Patch3
+Summary: This is an official patch for cshar 2.0; please apply it.
+Newsgroups: comp.sources.unix,comp.sources.bugs
+Approved: rsalz@uunet.UU.NET
+
+Submitted-by: Rich Salz <rsalz@bbn.com>
+Posting-number: Volume 15, Issue 41
+Archive-name: cshar/patch3
+
+
+This patch introduces two new config parameters, BACKUP_PREFIX and
+NEED_RENAME.  If #define'd, the first is used by makekit as a prefix
+for the old manifest, so that "manifest.txt" could become "b-manife.txt"
+rather than "manifest.bak".  Makekit now uses the modern rename()
+call rather than a link()/unlink() combination.  If you don't have
+rename() in your C library, #define NEED_RENAME in your config.
+
+Description:
+    From: Steve Feldman <oliveb!tymix!feldman>
+    +There was a return(TRUE) missing after the if that checked for
+     "*.[ch]" files in findsrc, so that it wouldn't find sources.
+
+    From: Arch-Mage Ged <dalenber@e.cs.uiuc.edu>
+    +The makekit program thinks that the -p flag takes an argument.
+    +The makekit manpage had a formatting error, giving "[ [ -e ]" in
+     the synopsis.
+
+    From: Steve Creps <creps@silver.bacs.indiana.edu>
+    +MS-DOS uses rename(), not link()/unlink() combinations.
+    +Appending a ".BAK" to the old manifest could cause problems on some
+     systems.
+
+Fix:
+    To aid in robustness, patches are not shipped "raw".  If you have the
+    patch 10 of patch installed, you can feed this message directly to
+    patch, otherwise you will have to unshar it and feed the resulting
+    file to patch.  For example, from rn, say "|unshar -d DIR" where DIR
+    is your cshar source directory.  Outside of rn, say "cd DIR; unshar
+    <thisarticle".  This will create a file called patch03, which you can
+    then feed to the patch program.
+
+    If you don't have patch and unshar, you are doing things the hard way.
+
+    If patch indicates that patchlevel is the wrong version, you may need
+    to apply one or more previous patches, or the patch may already have
+    been applied.  See the patchlevel.h file to find out what has or has
+    not been applied.  In any event, don't continue with the patch.
+
+    If any patches are missing, they can be obtained from your nearest
+    comp.sources.unix archive.
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of shell archive."
+# Contents:  patch03
+# Wrapped by rsalz@fig.bbn.com on Mon Jun  6 22:22:31 1988
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'patch03' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'patch03'\"
+else
+echo shar: Extracting \"'patch03'\" \(10182 characters\)
+sed "s/^X//" >'patch03' <<'END_OF_FILE'
+Index: patchlevel.h
+Prereq: 2.2
+X*** /tmp/,RCSt1a01561	Mon Jun  6 22:11:26 1988
+X--- patchlevel.h	Mon Jun  6 22:04:35 1988
+X***************
+X*** 1,17 ****
+X  /*
+X  **  This file records official patches.  RCS records the edit log.
+X  **
+X  **  $Log:	patchlevel.h,v $
+X  **  Revision 2.2  88/06/03  16:08:37  rsalz
+X  **  patch02:  Fix order of chdir/mkdir commands for unshar.
+X  **  
+X  **  Revision 2.1  88/06/03  12:16:40  rsalz
+X! **  patch01:  Add config.x386 and config.sVr3; change "dirent.h" to <dirent.h>
+X  **  patch01:  In Makefile, use $(DIRLIB) only in actions, not dependencies;
+X  **  patch01:  add /usr/man/local option for MANDIR.
+X  **  patch01:  Put isascii() before every use of a <ctype.h> macro. 
+X  **  patch01:  Initialize Flist in shar.c/main().
+X! **  patch01:  Add -x to synopsis in makekit.man; improve the usage message and
+X  **  patch01:  put comments around note after an #endif (ANSI strikes again).
+X  **  patch01:  Remove extraneous declaration of Dispatch[] in parser.c
+X  **  patch01:  Add missing argument in fprintf call in findsrc.
+X--- 1,24 ----
+X  /*
+X  **  This file records official patches.  RCS records the edit log.
+X  **
+X+ **  $Header: patchlevel.h,v 2.3 88/06/06 22:04:33 rsalz Exp $
+X+ **
+X  **  $Log:	patchlevel.h,v $
+X+ **  Revision 2.3  88/06/06  22:04:33  rsalz
+X+ **  patch03:  Fix typo in makekit manpage, and getopt call in the program.
+X+ **  patch03:  Add NEED_RENAME and BACKUP_PREFIX to config.*; edit llib.c
+X+ **  patch03:  and makekit.c to use them.
+X+ **  
+X  **  Revision 2.2  88/06/03  16:08:37  rsalz
+X  **  patch02:  Fix order of chdir/mkdir commands for unshar.
+X  **  
+X  **  Revision 2.1  88/06/03  12:16:40  rsalz
+X! **  patch01:  Add config.x386 & config.sVr3; change "dirent.h" to <dirent.h>
+X  **  patch01:  In Makefile, use $(DIRLIB) only in actions, not dependencies;
+X  **  patch01:  add /usr/man/local option for MANDIR.
+X  **  patch01:  Put isascii() before every use of a <ctype.h> macro. 
+X  **  patch01:  Initialize Flist in shar.c/main().
+X! **  patch01:  Add -x to synopsis in makekit.man; improve the usage message &
+X  **  patch01:  put comments around note after an #endif (ANSI strikes again).
+X  **  patch01:  Remove extraneous declaration of Dispatch[] in parser.c
+X  **  patch01:  Add missing argument in fprintf call in findsrc.
+X***************
+X*** 19,22 ****
+X  **  Revision 2.0  88/05/27  13:32:13  rsalz
+X  **  First comp.sources.unix release
+X  */
+X! #define PATCHLEVEL 2
+X--- 26,29 ----
+X  **  Revision 2.0  88/05/27  13:32:13  rsalz
+X  **  First comp.sources.unix release
+X  */
+X! #define PATCHLEVEL 3
+X*** /tmp/,RCSt1a01561	Mon Jun  6 22:11:23 1988
+X--- findsrc.c	Mon Jun  6 22:04:07 1988
+X***************
+X*** 5,11 ****
+X  #include "shar.h"
+X  #ifdef	RCSID
+X  static char RCS[] =
+X! 	"$Header: findsrc.c,v 2.1 88/06/03 11:38:51 rsalz Exp $";
+X  #endif	/* RCSID */
+X  
+X  
+X--- 5,11 ----
+X  #include "shar.h"
+X  #ifdef	RCSID
+X  static char RCS[] =
+X! 	"$Header: findsrc.c,v 2.2 88/06/06 22:04:03 rsalz Exp $";
+X  #endif	/* RCSID */
+X  
+X  
+X***************
+X*** 96,101 ****
+X--- 96,102 ----
+X  
+X      /* C source (*.[ch])? */
+X      if ((p = d) && (*++p == 'c' || *p == 'h') && *++p == '\0')
+X+ 	return(TRUE);
+X  
+X      /* Manpage (*.[1234567890] or *.man)? */
+X      if ((p = d) && isascii(s[1]) && isdigit(*p))
+X*** /tmp/,RCSt1a01561	Mon Jun  6 22:11:29 1988
+X--- makekit.c	Mon Jun  6 22:04:50 1988
+X***************
+X*** 5,11 ****
+X  #include "shar.h"
+X  #ifdef	RCSID
+X  static char RCS[] =
+X! 	"$Header: makekit.c,v 2.1 88/06/03 11:38:58 rsalz Exp $";
+X  #endif	/* RCSID */
+X  
+X  
+X--- 5,11 ----
+X  #include "shar.h"
+X  #ifdef	RCSID
+X  static char RCS[] =
+X! 	"$Header: makekit.c,v 2.2 88/06/06 22:04:45 rsalz Exp $";
+X  #endif	/* RCSID */
+X  
+X  
+X***************
+X*** 160,166 ****
+X      /* Collect input. */
+X      Value = FALSE;
+X      Notkits = FALSE;
+X!     while ((i = getopt(ac, av, "1eh:i:k:n:mo:p:s:t:x")) != EOF)
+X  	switch (i) {
+X  	default:
+X  	    Fprintf(stderr, "usage: makekit %s\n        %s\n",
+X--- 160,166 ----
+X      /* Collect input. */
+X      Value = FALSE;
+X      Notkits = FALSE;
+X!     while ((i = getopt(ac, av, "1eh:i:k:n:mo:ps:t:x")) != EOF)
+X  	switch (i) {
+X  	default:
+X  	    Fprintf(stderr, "usage: makekit %s\n        %s\n",
+X***************
+X*** 343,348 ****
+X--- 343,351 ----
+X  	F = stdout;
+X      else {
+X  	if (GetStat(OutName)) {
+X+ #ifdef	BACKUP_PREFIX
+X+ 	    (void)sprintf(buff, "%s%s", BACKUP_PREFIX, OutName);
+X+ #else
+X  	    /* Handle /foo/bar/VeryLongFileName.BAK for non-BSD sites. */
+X  	    (void)sprintf(buff, "%s.BAK", OutName);
+X  	    p = (p = RDX(buff, '/')) ? p + 1 : buff;
+X***************
+X*** 349,358 ****
+X  	    if (strlen(p) > 14)
+X  		/* ... well, sort of handle it. */
+X  		(void)strcpy(&p[10], ".BAK");
+X  	    Fprintf(stderr, "Renaming %s to %s\n", OutName, buff);
+X! 	    (void)unlink(buff);
+X! 	    (void)link(OutName, buff);
+X! 	    (void)unlink(OutName);
+X  	}
+X  	if ((F = fopen(OutName, "w")) == NULL) {
+X  	    Fprintf(stderr, "Can't open '%s' for output, %s.\n",
+X--- 352,360 ----
+X  	    if (strlen(p) > 14)
+X  		/* ... well, sort of handle it. */
+X  		(void)strcpy(&p[10], ".BAK");
+X+ #endif	/* BACKUP_PREFIX */
+X  	    Fprintf(stderr, "Renaming %s to %s\n", OutName, buff);
+X! 	    (void)rename(OutName, buff);
+X  	}
+X  	if ((F = fopen(OutName, "w")) == NULL) {
+X  	    Fprintf(stderr, "Can't open '%s' for output, %s.\n",
+X*** /tmp/,RCSt1a01561	Mon Jun  6 22:11:33 1988
+X--- makekit.man	Mon Jun  6 22:05:05 1988
+X***************
+X*** 1,5 ****
+X  .TH MAKEKIT 1l
+X! .\" $Header: makekit.man,v 2.1 88/06/03 11:39:05 rsalz Exp $
+X  .SH NAME
+X  makekit \- split files up into shell archive packages
+X  .SH SYNOPSIS
+X--- 1,5 ----
+X  .TH MAKEKIT 1l
+X! .\" $Header: makekit.man,v 2.2 88/06/06 22:05:01 rsalz Exp $
+X  .SH NAME
+X  makekit \- split files up into shell archive packages
+X  .SH SYNOPSIS
+X***************
+X*** 7,13 ****
+X  [
+X  .B -1
+X  ] [
+X- [
+X  .B -e
+X  ] [
+X  .B -x
+X--- 7,12 ----
+X*** /tmp/,RCSt1a01561	Mon Jun  6 22:11:36 1988
+X--- llib.c	Mon Jun  6 22:05:18 1988
+X***************
+X*** 7,13 ****
+X  #include "shar.h"
+X  #ifdef	RCSID
+X  static char RCS[] =
+X! 	"$Header: llib.c,v 2.0 88/05/27 13:27:09 rsalz Exp $";
+X  #endif	/* RCSID */
+X  
+X  
+X--- 7,13 ----
+X  #include "shar.h"
+X  #ifdef	RCSID
+X  static char RCS[] =
+X! 	"$Header: llib.c,v 2.1 88/06/06 22:05:14 rsalz Exp $";
+X  #endif	/* RCSID */
+X  
+X  
+X***************
+X*** 32,37 ****
+X--- 32,53 ----
+X      return(buff);
+X  }
+X  
+X+ 
+X+ #ifdef	NEED_RENAME
+X+ /*
+X+ **  Give the file "from" the new name "to", removing an old "to"
+X+ **  if it exists.
+X+ */
+X+ int
+X+ rename(from, to)
+X+     char	*from;
+X+     char	*to;
+X+ {
+X+     (void)unlink(from);
+X+     (void)link(to, from);
+X+     return(unlink(to));
+X+ }
+X+ #endif	/* NEED_RENAME */
+X  
+X  
+X  #ifdef	NEED_MKDIR
+X*** /tmp/,RCSt1a01561	Mon Jun  6 22:11:39 1988
+X--- config.h	Mon Jun  6 22:05:30 1988
+X***************
+X*** 4,10 ****
+X  **  This is known to work on Ultrix1.2 and Sun3.4 machines; it may work
+X  **  on other BSD variants, too.
+X  **
+X! **  $Header: config.h,v 2.1 88/06/03 11:38:40 rsalz Exp $
+X  */
+X  
+X  
+X--- 4,10 ----
+X  **  This is known to work on Ultrix1.2 and Sun3.4 machines; it may work
+X  **  on other BSD variants, too.
+X  **
+X! **  $Header: config.h,v 2.2 88/06/06 22:05:27 rsalz Exp $
+X  */
+X  
+X  
+X***************
+X*** 25,33 ****
+X--- 25,35 ----
+X  #define RDX		rindex		/* Maybe strrchr?		*/
+X  /*efine NEED_MKDIR			/* Don't have mkdir(2)?		*/
+X  /*efine NEED_QSORT			/* Don't have qsort(3)?		*/
+X+ /*efine NEED_RENAME			/* Don't have rename(2 or 3)?	*/
+X  #define NEED_GETOPT			/* Need local getopt object?	*/
+X  #define CAN_POPEN			/* Can invoke file(1) command?	*/
+X  /*efine USE_MY_SHELL			/* Don't popen("/bin/sh")?	*/
+X+ /*efine BACKUP_PREFIX	"B-"		/* Instead of ".BAK" suffix?	*/
+X  typedef int		 sigret_t;	/* What a signal handler returns */
+X  typedef int		*align_t;	/* Worst-case alignment, for lint */
+X  /* typedef long		time_t		/* Needed for non-BSD sites?	*/
+X*** /tmp/,RCSt1a01561	Mon Jun  6 22:11:41 1988
+X--- config.sVr3	Mon Jun  6 22:05:43 1988
+X***************
+X*** 1,10 ****
+X  /*
+X  **  Configuration file for shar and friends.
+X  **
+X! **  This is known to work on Ultrix1.2 and Sun3.4 machines; it may work
+X! **  on other BSD variants, too.
+X  **
+X! **  $Header: config.sVr3,v 2.0 88/06/03 11:45:30 rsalz Exp $
+X  */
+X  
+X  
+X--- 1,9 ----
+X  /*
+X  **  Configuration file for shar and friends.
+X  **
+X! **  This is for System V release 3.1 and 3.2.
+X  **
+X! **  $Header: config.sVr3,v 2.1 88/06/06 22:05:40 rsalz Exp $
+X  */
+X  
+X  
+X***************
+X*** 25,33 ****
+X--- 24,34 ----
+X  #define RDX		strrchr		/* Maybe strrchr?		*/
+X  /*efine NEED_MKDIR			/* Don't have mkdir(2)?		*/
+X  /*efine NEED_QSORT			/* Don't have qsort(3)?		*/
+X+ #define NEED_RENAME			/* Don't have rename(2 or 3)?	*/
+X  /*efine NEED_GETOPT			/* Need local getopt object?	*/
+X  #define CAN_POPEN			/* Can invoke file(1) command?	*/
+X  /*efine USE_MY_SHELL			/* Don't popen("/bin/sh")?	*/
+X+ /*efine BACKUP_PREFIX	"B-"		/* Instead of ".BAK" suffix?	*/
+X  typedef void		 sigret_t;	/* What a signal handler returns */
+X  typedef int		*align_t;	/* Worst-case alignment, for lint */
+X  typedef long		time_t;		/* Needed for non-BSD sites?	*/
+X*** /tmp/,RCSt1a01561	Mon Jun  6 22:11:45 1988
+X--- config.x386	Mon Jun  6 22:05:55 1988
+X***************
+X*** 4,10 ****
+X  **  This config file is for Xenix on a 386.
+X  **  In the Makefile, set DIRLIB=-lx, and tweak the MANDIR and 1 variables.
+X  **
+X! **  $Header: config.x386,v 2.0 88/06/03 11:46:28 rsalz Exp $
+X  */
+X  
+X  
+X--- 4,10 ----
+X  **  This config file is for Xenix on a 386.
+X  **  In the Makefile, set DIRLIB=-lx, and tweak the MANDIR and 1 variables.
+X  **
+X! **  $Header: config.x386,v 2.1 88/06/06 22:05:52 rsalz Exp $
+X  */
+X  
+X  
+X***************
+X*** 25,33 ****
+X--- 25,35 ----
+X  #define RDX		strrchr		/* Maybe strrchr?		*/
+X  #define NEED_MKDIR			/* Don't have mkdir(2)?		*/
+X  /*efine NEED_QSORT			/* Don't have qsort(3)?		*/
+X+ #define NEED_RENAME			/* Don't have rename(2 or 3)?	*/
+X  /*efine NEED_GETOPT			/* Need local getopt object?	*/
+X  #define CAN_POPEN			/* Can invoke file(1) command?	*/
+X  /*efine USE_MY_SHELL			/* Don't popen("/bin/sh")?	*/
+X+ /*efine BACKUP_PREFIX	"B-"		/* Instead of ".BAK" suffix?	*/
+X  typedef int		 sigret_t;	/* What a signal handler returns */
+X  typedef int		*align_t;	/* Worst-case alignment, for lint */
+X  /* typedef long		time_t		/* Needed for non-BSD sites?	*/
+END_OF_FILE
+if test 10182 -ne `wc -c <'patch03'`; then
+    echo shar: \"'patch03'\" unpacked with wrong size!
+fi
+# end of 'patch03'
+fi
+echo shar: End of shell archive.
+exit 0

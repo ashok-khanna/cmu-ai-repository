@@ -1,0 +1,147 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node351.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:32:28 GMT -->
+<HEAD>
+<TITLE>A.2.2. Mapping</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Mapping">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html6092 HREF="node352.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html6090 HREF="node349.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html6084 HREF="node350.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html6094 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html6095 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html6093 HREF="node352.html"> Truncation and Other </A>
+<B>Up:</B> <A NAME=tex2html6091 HREF="node349.html"> Series Functions</A>
+<B> Previous:</B> <A NAME=tex2html6085 HREF="node350.html"> Scanners</A>
+<HR> <P>
+<H2><A NAME=SECTION003422000000000000000>A.2.2. Mapping</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+By far the most common kind of series operation is mapping.  In cognizance
+of this fact, four different ways are provided for specifying mapping:  one
+fundamental form (<tt>map-fn</tt>) and three shorthand forms that are more
+convenient in particular common situations.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>map-fn <i>type</i> <i>function</i> &amp;rest <i>series-inputs</i></tt><P>The higher-order function <tt>map-fn</tt> supports the general concept of
+mapping.   The <i>type</i> argument is a type specifier indicating
+the type of values returned by <i>function</i>.  The <tt>values</tt>
+construct can be used to indicate multiple types; however, <i>type</i>
+cannot indicate zero values.  If <i>type</i> indicates <b><i>m</i></b> types
+<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44125.gif">,
+then <tt>map-fn</tt> returns <b><i>m</i></b> series
+<i>T1</i>, <b>...</b>, <i>Tm</i>, where <i>Ti</i> has the
+type <tt>(series <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43969.gif">)</tt>.
+The argument
+<i>function</i> is a function.   The remaining arguments (if any) are all
+series.  Let these series be <i>S1</i>, <b>...</b>, <i>Sn</i> and suppose that
+<i>Si</i> has the type <tt>(series <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44051.gif">)</tt>.
+<P>
+The <i>function</i> must be of type
+<P><pre>
+(function (<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44145.gif"> ... <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44055.gif">) (values <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43961.gif"> ... <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44143.gif">))
+</pre><P>
+<P>
+The length of each output is the same as the length of the shortest input.
+If there are no bounded series inputs, the outputs are unbounded.
+The elements of the <i>Ti</i> are the results of applying <i>function</i> to
+the corresponding elements of the series inputs.
+<P><pre>
+(values <i>T1</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44030.gif"> ... <i>Tm</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44030.gif">) == (funcall <i>function</i> <i>S1</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44030.gif"> ... <i>Sn</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44030.gif">)
+</pre><P>
+<P>
+If <i>function</i> has side effects, it can count on being called first on
+the <i>Si</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44031.gif">, then on the <i>Si</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43885.gif">, and so on.  However, given
+the lazy evaluation nature of series, <i>function</i> will not be called on
+any group of input elements until the result is actually used (if ever).
+In addition, no assumptions can be made about the relative order of
+evaluation of the calls on <i>function</i> with regard to execution in other parts of a
+given series expression.
+<P><pre>
+(map-fn 'integer #'+ #Z(1 2 3) #Z(4 5)) => #Z(5 7) 
+(map-fn t #'gensym) => #Z(#:G3 #:G4 #:G5 ...) <BR>(map-fn '(values integer rational) #'floor #Z(1/4 9/5 12/3)) 
+  => #Z(0 1 4) and #Z(1/4 4/5 0)
+</pre><P>
+<P>
+The <tt>#</tt> macro character syntax <tt>#M</tt> makes it easy to specify uses of <tt>map-fn</tt>
+where <i>type</i> is <tt>t</tt> and the <i>function</i> is a named
+function.  The notation <tt>(#M<i>function</i> ...)</tt> is an
+abbreviation for <tt>(map-fn t #'<i>function</i> ...)</tt>.  The form <i>function</i> can
+be the printed representation of any Lisp object.  The notation
+<tt>#M</tt><i>function</i> can appear only in the
+function position of a list.
+<P><pre>
+(collect (#M1+ (scan '(1 2 3)))) => (2 3 4)
+</pre><P>
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>mapping ({({<i>var</i> | ({<i>var</i>}*)} <i>value</i>)}*) {<i>declaration</i>}* {<i>form</i>}*</tt><P>The macro <tt>mapping</tt> makes it easy to specify uses of <tt>map-fn</tt>
+where <i>type</i> is <tt>t</tt> and the <i>function</i> is a literal 
+<tt>lambda</tt>.  The syntax of <tt>mapping</tt> is analogous to that of <tt>let</tt>.
+The binding list specifies zero or more variables that are bound in parallel to
+successive values of series.  The <i>value</i> part of each pair is
+an expression that must produce a
+series.  The <i>declarations</i> and <i>forms</i> are
+treated as the body of a <tt>lambda</tt> expression
+that is mapped over the series values.  A series of the first values
+returned by this <tt>lambda</tt> expression is returned as the result of 
+<tt>mapping</tt>.
+<P><pre>
+(mapping ((x r) (y s)) ...) == 
+  (map-fn t #'(lambda (x y) ...) r s) <BR><BR>(mapping ((x (scan '(2 -2 3)))) 
+  (expt (abs x) 3)) 
+  => #Z(8 8 27)
+</pre><P>
+<P>
+The form <tt>mapping</tt> supports a special syntax that facilitates the
+use of series functions returning multiple values.  Instead of being
+a single variable, the variable part of a <i>var-value</i> pair can be a list of
+variables.  This list is treated the same way as the first argument to
+<tt>multiple-value-bind</tt> and can be used to access the elements of
+multiple series returned by a series function.
+<P><pre>
+(mapping (((i v) (scan-plist '(a 1 b 2)))) 
+  (list i v)) 
+  => #Z((a 1) (b 2))
+</pre><P>
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>iterate ({({<i>var</i> | ({<i>var</i>}*)} <i>value</i>)}*) {<i>declaration</i>}* {<i>form</i>}*</tt><P>The form <tt>iterate</tt> is the same as <tt>mapping</tt>, except that after
+mapping the <i>forms</i> over the <i>values</i>, the results are discarded and
+<tt>nil</tt> is returned.
+<P><pre>
+(let ((item (scan '((1) (-2) (3))))) 
+  (iterate ((x (#Mcar item))) 
+    (if (plusp x) (prin1 x)))) 
+  => nil (after printing ``<tt>13</tt>'')
+</pre><P>
+<P>
+To a first approximation, <tt>iterate</tt> and <tt>mapping</tt> differ in the same
+way as <tt>mapc</tt> and <tt>mapcar</tt>.  In particular, like <tt>mapc</tt>,
+<tt>iterate</tt> is intended to be used in situations where the <i>forms</i> are
+being evaluated for side effects rather than for their results.  However, given
+the lazy evaluation semantics of series, the difference between
+<tt>iterate</tt> and <tt>mapping</tt> is more than just a question of efficiency.
+<P>
+If <tt>mapcar</tt> is used in a situation where the output is not used, time is
+wasted unnecessarily creating the output list.  However, if <tt>mapping</tt> is
+used in a situation where the output is not used, no computation is
+performed, because series elements are not computed until they are used.
+Thus <tt>iterate</tt> can be thought of as a declaration that the indicated
+computation is to be performed even though the output is not used for
+anything.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html6092 HREF="node352.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html6090 HREF="node349.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html6084 HREF="node350.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html6094 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html6095 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html6093 HREF="node352.html"> Truncation and Other </A>
+<B>Up:</B> <A NAME=tex2html6091 HREF="node349.html"> Series Functions</A>
+<B> Previous:</B> <A NAME=tex2html6085 HREF="node350.html"> Scanners</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

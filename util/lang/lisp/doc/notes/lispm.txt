@@ -1,0 +1,165 @@
+From bosullvn@maths.tcd.ie Thu Feb  3 17:42:41 EST 1994
+Article: 11918 of comp.lang.lisp
+Xref: glinda.oz.cs.cmu.edu comp.arch:47612 comp.lang.lisp:11918
+Path: honeydew.srv.cs.cmu.edu!fs7.ece.cmu.edu!europa.eng.gtefsd.com!howland.reston.ans.net!EU.net!ieunet!tcdcs!maths.tcd.ie!not-for-mail
+From: bosullvn@maths.tcd.ie (Bryan O'Sullivan)
+Newsgroups: comp.arch,comp.lang.lisp
+Subject: Summary of responses: Lisp Machine architecture and other h/w support
+Date: 3 Feb 1994 15:09:45 -0000
+Organization: SCRG, Computer Science Department, Trinity College, Dublin
+Lines: 150
+Message-ID: <2ir43p$3cv@walton.maths.tcd.ie>
+NNTP-Posting-Host: walton.maths.tcd.ie
+
+About a fortnight ago, I posted a request for information on the
+architecture of the Lisp Machine, and any other hardware support for
+Lisp that people might be aware of.  This posting consists of a
+summary of the responses I received.  I'd like to thank the following
+people for responding:
+
+  Martin Cracauer  <cracauer@wavehh.hanse.de>
+  Jeff Francis     <prufrock!jeff@relay.eunet.ch>
+  Carl L. Gay      <cgay@skinner.cs.uoregon.edu>
+  Guy Harris       <guy@auspex.com>
+  Simon Leinen     <simon@lia.di.epfl.ch>
+  John McClain     <pdp8@ai.mit.edu>
+  Ralf Moeller     <moeller@informatik.uni-hamburg.de>
+  thi              <ttn@eclu.psu.edu>
+
+I found the article by Greenblatt et al. in "Interactive Programming
+Environments" (see the bibliography below) to be quite a good overview
+of the original MIT Lisp Machine.  Some other entries below also give
+details of the Symbolics and Texas Instruments Lisp Machine efforts,
+but I have not been able to find copies to read.
+
+As far as support for Lisp in modern hardware architectures goes,
+there is precious little to be found, since modern unspecialised RISC
+machines are "fast enough", depending on your point of view.  More or
+less alone among mainstream processors, the SPARC provides two
+potentially useful features:
+
+- Tagged arithmetic add and subtract instructions.  These instructions
+  are called:
+      TADDcc   (tagged add and modify icc)
+      TSUBcc   (tagged subtract and modify icc)
+      TADDccTV (tagged add and modify icc and trap on overflow)
+      TSUBccTV (tagged subtract and modify icc and trap on overflow)
+  These are used for adding and subtracting 30-bit fixnums, and check
+  the operand types.  The trapping variants cause a TAG_OVERFLOW trap
+  to occur on overflow.  These instructions are produced by (at least)
+  the Carnegie Mellon and Lucid implementations of Common Lisp; CMU CL
+  most often uses these instructions purely to do type checking.
+  
+- Register windows.  These are conceptually a Good Thing for a
+  call-intensive dynamically-linked language.  However, since managing
+  the register window pointer is privileged and register window
+  overflows are handled in software (via a kernel trap) in versions of
+  the SPARC architecture prior to V9, and are expensive as a result,
+  they seem to be something of a loss.  However, SPARC V9 speeds
+  register window overflow handling up considerably (by about an order
+  of magnitude, I think).
+
+Note that in a comparison between SPARC and MIPS implementations of
+CMU CL, the SPARC's win in providing tagged arithmetic instructions
+was more or less negated by MIPS' provision of a branch-on-equal
+instruction.
+
+Here is a brief BiBTeX bibliography, put together from the responses I
+received.
+
+@article{white:86,
+  author = "John L. White and S. Kaplan",
+  title = "Implementing Lisp on Standard Hardware",
+  journal = "Sun Technology",
+  number = 5,
+  pages = "63--69"
+}
+
+@incollection{Greenblatt:84,
+  AUTHOR = {R. D. Greenblatt and T. F. Knight and J. Holloway and D.
+    A. Moon and D. L. Weinreb},
+  TITLE = {The LISP Machine},
+  YEAR = 1984,
+  BOOKTITLE = {Interactive Programming Environments},
+  EDITOR = {D. R. Barstow and H. E. Shrobe and E. Sandewall},
+  PUBLISHER = {McGraw-Hill},
+  ADDRESS = {New York},
+  PAGES = {326-352},
+  KEYWORDS = {}}
+
+@Article{Steenkiste:87,
+  author =       "P. Steenkiste and J. Hennessy",
+  title =        "Tags and Type Checking in {LISP}: Hardware and
+                 Software Approaches",
+  journal =      "ACM SIGARCH, Journal Computer Architecture News",
+  volume =       "15",
+  number =       "5",
+  pages =        "50--59",
+  keywords =     "LISP",
+  month =        oct,
+  year =         "1987",
+}
+
+@article{moon:symbolics-architecture,
+  AUTHOR = {David A. Moon},
+  TITLE = {Symbolics Architecture},
+  YEAR = {1987},
+  JOURNAL = {IEEE Computer},
+  PAGES = {43--52}}
+
+@TechReport{Zippel84?,
+  author =       "R. Zippel",
+  title =        "{LISP} Machines: Texas Instruments and Symbolics",
+  institution =  MITAI,
+  address =      MITad,
+  type =         "Report",
+  keywords =     "LISP",
+  year =         "1984?",
+}
+
+@TechReport{TI84,
+  author =       "Texas Instruments",
+  title =        "Explorer Technical Summary",
+  institution =  "Texas Instruments TI",
+  address =      "Austin, Texas",
+  type =         "Report",
+  keywords =     "LISP",
+  year =         "1984",
+}
+
+@inproceedings{
+  author = {Patrick H. Dussud},
+  title = {{TICLOS}: An Implementation of {CLOS} for the {Explorer}
+Family},
+  organization = "OOPSLA-89",
+  year = "1989",
+  pages = {215--219}}
+
+@BOOK{kn:kogge,
+        AUTHOR  = "Kogge, Peter M.",
+        TITLE   = "The Architecture of Symbolic Computers",
+        PUBLISHER = {McGraw-Hill},
+        YEAR    = 1991,
+        SERIES  = "McGraw-Hill Series in Supercomputing and Parallel
+                         Processing",
+        ADDRESS = {New York},
+        ISBN    = "0-07-035596-7",
+        LOCCALL = "QA76.9.A73.K64 1991",
+        MITCALL = "QA76.9.A73.K64 1991",
+        KEYWORDS = "Computer Architecture,
+                    Electronic digital computers -- Design and construction" }
+
+@MANUAL{kn:3600tsum,
+        TITLE   = "3600 Technical Summary",
+        AUTHOR  = "Roads, Curtis B.",
+        ORGANIZATION = "Symbolics, Inc.",
+        ADDRESS = "Cambridge, MA",
+        MONTH   = "February",
+        YEAR    = 1983}
+-- 
+Bryan O'Sullivan                         email: bos@scrg.cs.tcd.ie
+Student Computing Research Group                Life is uncertain.
+Department of Computer Science                  Eat dessert first.
+Trinity College, Dublin 2, Ireland                   -- Jim Blandy
+
+

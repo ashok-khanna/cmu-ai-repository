@@ -1,0 +1,82 @@
+From crabapple.srv.cs.cmu.edu!bb3.andrew.cmu.edu!news.sei.cmu.edu!cis.ohio-state.edu!zaphod.mps.ohio-state.edu!cs.utexas.edu!uunet!news.crd.ge.com!procyon!halvers Thu Mar  4 15:33:26 EST 1993
+Article: 9530 of comp.lang.lisp
+Newsgroups: comp.lang.lisp
+Path: crabapple.srv.cs.cmu.edu!bb3.andrew.cmu.edu!news.sei.cmu.edu!cis.ohio-state.edu!zaphod.mps.ohio-state.edu!cs.utexas.edu!uunet!news.crd.ge.com!procyon!halvers
+From: halvers@procyon.crd.ge.com (Pete Halverson)
+Subject:  Re: Automatically continuing from errors
+Message-ID: <C39wBw.Ls3@crdnns.crd.ge.com>
+Sender: usenet@crdnns.crd.ge.com (USENET News System)
+Nntp-Posting-Host: procyon.crd.ge.com
+Reply-To: halverson@crd.ge.com (Pete Halverson)
+Organization: GE Corp. Research & Development, Schenectady, NY
+References: <1n03ddINNb05@FRIDGE.AI.CS.YALE.EDU>
+Date: Tue, 2 Mar 1993 17:52:44 GMT
+Lines: 65
+
+In article <1n03ddINNb05@FRIDGE.AI.CS.YALE.EDU> engelson-sean@cs.yale.edu writes:
+>
+>I'm having some trouble figuring out the CL condition system.  My
+>problem is that I'm using someone else's code which, for some reason
+>unknown to me, tries to add bignums using fixnum arithmetic.  I'm
+>using Lucid, and the debugger gives me a continuation which will
+>return the proper (bignum) result anyway.  What I'd like to do is put
+>in a condition handler which will do that for me.  The problem is
+>getting control back to the caller.  
+
+The appropriate way to have a "continuation" (more properly called a
+"restart", since a continuation is really something different in Lisp)
+automatically invoked by a condition handler, as if the user had explicitly
+called it from the debugger, is by using INVOKE-RESTART inside a
+HANDLER-BIND clause, e.g.
+
+   (defun robust-adder (x y)
+     (handler-bind ((simple-error
+                     #'(lambda (err)
+                         (declare (ignore err))
+                         (when (find-restart 'use-bignum)
+                           (invoke-restart 'use-bignum)))))
+       (fragile-adder x y)))
+
+Note that this depends on the restart having a name and you knowing what
+that name is (here, I used USE-BIGNUM as an example).  To find the name of
+the restart you want, the easiest way is to run the problematic code until
+you drop into the debugger, get the list of all possible restarts using
+COMPUTE-RESTARTS, and look for the restart you need using RESTART-NAME:
+
+   > (fragile-adder most-positive-fixnum most-positive-fixnum)
+   >>Error: The result 1073741822 is not a fixnum.
+
+   FRAGILE-ADDER:
+      Required arg 0 (X): 536870911
+      Required arg 1 (Y): 536870911
+       0: Return the bignum anyway.
+   :A  1: Abort to Lisp Top Level
+
+   -> (mapcar #'restart-name (compute-restarts))
+   (ABORT USE-BIGNUM ABORT)
+
+If the restart in question is anonymous (RESTART-NAME returns NIL), things
+are a bit uglier.  Instead of using FIND-RESTART, your handler will need to
+search the restart list by hand, usually looking inside the restart objects
+using system internals for some documentation string or such.
+
+   (defun robust-adder (x y)
+     (handler-bind ((simple-error
+                     #'(lambda (err)
+                         (let ((restart
+                                 (find-if
+                                    #'(lambda (restart)
+                                        <ugly system-dependent predicate
+                                        goes here>)
+                                    (compute-restarts err))))
+                           (when restart
+                             (invoke-restart restart))))))
+       (fragile-adder x y)))
+
+Hope this is useful.
+
+Pete Halverson                                      INET: halverson@crd.ge.com 
+GE Corporate R&D Center                       UUCP: uunet!crd.ge.com!halverson
+Schenectady, NY
+
+

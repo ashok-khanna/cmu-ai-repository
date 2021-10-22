@@ -1,0 +1,160 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node284.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 10:10:35 GMT -->
+<HEAD>
+<TITLE>28.1.7.1. Determining the Effective Method</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Determining the Effective Method">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html5209 HREF="node285.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5207 HREF="node283.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5201 HREF="node283.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5211 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5212 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5210 HREF="node285.html"> Standard Method Combination</A>
+<B>Up:</B> <A NAME=tex2html5208 HREF="node283.html"> Method Selection and </A>
+<B> Previous:</B> <A NAME=tex2html5202 HREF="node283.html"> Method Selection and </A>
+<HR> <P>
+<H3><A NAME=SECTION003217100000000000000>28.1.7.1. Determining the Effective Method</A></H3>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<A NAME=DeterminingtheEffectiveMethodSECTION>The</A>
+effective method for a set of
+arguments is determined by the following three-step procedure:
+<P>
+<OL><LI> Select the applicable methods.
+<P>
+<LI> Sort the applicable methods by precedence order, putting
+the most specific method first.
+<P>
+<LI> Apply method combination to the sorted list of
+applicable methods, producing the effective method.
+<P>
+</OL>
+<P>
+<b>Selecting the Applicable Methods.</b>
+This step is described in section <A HREF="node279.html#IntroductiontoMethodsSECTION">28.1.6.2</A>.
+<P>
+<b>Sorting the Applicable Methods by Precedence Order.</b>
+To compare the precedence of two methods, their parameter specializers
+are examined in order.  The default examination order is from left to
+right, but an alternative order may be specified by the 
+<tt>:argument-precedence-order</tt> option to <tt>defgeneric</tt> or to any of
+the other forms that specify generic function options.
+<P>
+The corresponding parameter specializers from each method are
+compared.  When a pair of parameter specializers are equal, the next
+pair are compared for equality.  If all corresponding parameter
+specializers are equal, the two methods must have different
+qualifiers; in this case, either method can be selected to precede the
+other.
+<P>
+If some corresponding parameter specializers are not equal, the first
+pair of parameter specializers that are not equal determines the
+precedence.  If both parameter specializers are classes, the more
+specific of the two methods is the method whose parameter specializer
+appears earlier in the class precedence list of the corresponding
+argument.  Because of the way in which the set of applicable methods
+is chosen, the parameter specializers are guaranteed to be present in
+the class precedence list of the class of the argument.
+<P>
+If just one parameter specializer is <tt>(<tt>eql</tt> <i>object</i>)</tt>, the method with that parameter specializer precedes the
+other method.  If both parameter specializers are <tt>eql</tt>
+forms, the
+specializers must be the same (otherwise the two methods would
+not both have been applicable to this argument).
+<P>
+The resulting list of applicable methods has the most specific
+method first and the least specific method last.
+<P>
+<b>Applying Method Combination to the Sorted List of Applicable Methods.</b>
+In the simple case-if standard method combination is used and all
+applicable methods are primary methods-the effective method is the
+most specific method.  That method can call the next most specific
+method by using the function <tt>call-next-method</tt>.  The method that
+<tt>call-next-method</tt> will call is referred to as the <i>next
+method</i>.  The predicate <tt>next-method-p</tt> tests whether a next
+method exists.  If <tt>call-next-method</tt> is called and there is no
+next most specific method, the generic function <tt>no-next-method</tt>
+is invoked.
+<P>
+In general, the effective method is some combination of the applicable
+methods.  It is defined by a Lisp form that contains calls to some or all
+of the applicable methods, returns the value or values that will be
+returned as the value or values of the generic function, and optionally
+makes some of the methods accessible by means of <tt>call-next-method</tt>.
+This Lisp form is the body of the effective method; it is augmented with
+an appropriate lambda-list to make it a function.
+<P>
+The role of each method in the effective method is determined by its
+method qualifiers and the specificity of the method.  A qualifier
+serves to mark a method, and the meaning of a qualifier is
+determined by the way that these marks are used by this step
+of the procedure.  If an applicable method has an unrecognized
+qualifier, this step signals an error and does not include that method
+in the effective method.
+<P>
+When standard method combination is used together with qualified methods, 
+the effective method is produced as described in
+section <A HREF="node285.html#StandardMethodCombinationSECTION">28.1.7.2</A>.
+<P>
+Another type of method combination can be specified by using the 
+<tt>:method-combination</tt> option of <tt>defgeneric</tt> or of any of the other
+forms that specify generic function options.  In this way this step of
+the procedure can be customized.
+<P>
+New types of method combination can be defined by using the 
+<tt>define-method-combination</tt> macro.
+<P>
+The meta-object level also offers a mechanism for defining new types
+of method combination.  The generic function 
+<tt>compute-effective-method</tt> receives as arguments the generic function,
+the method combination object, and the sorted list of applicable
+methods.  It returns the Lisp form that defines the effective method.
+A method for <tt>compute-effective-method</tt> can be defined directly by
+using <tt>defmethod</tt> or indirectly by using 
+<tt>define-method-combination</tt>.
+A <i>method combination object</i> is an
+object that encapsulates the method combination type and options
+specified by the <tt>:method-combination</tt> option to forms that
+specify generic function options.
+<P>
+<hr>
+<b>Implementation note:</b> In the simplest implementation, the generic function would compute
+the effective method each time it was called.  In practice, this will
+be too inefficient for some implementations.  Instead, these
+implementations might employ a variety of optimizations of the
+three-step procedure. Some illustrative examples of such optimizations
+are the following:
+<P>
+<UL><LI>  Use a hash table keyed by the class of the arguments to
+store the effective method.
+<P>
+<LI>  Compile the effective method and save the resulting
+compiled function in a table.
+<P>
+<LI>  Recognize the Lisp form as an instance of a pattern of
+control structure and substitute a closure that implements
+that structure.
+<P>
+<LI>  Examine the parameter specializers of all methods for the
+generic function and enumerate all possible effective methods.
+Combine the effective methods, together with code to select from
+among them, into a single function and compile that function.  Call
+that function whenever the generic function is called.
+</UL>
+<hr>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html5209 HREF="node285.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5207 HREF="node283.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5201 HREF="node283.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5211 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5212 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5210 HREF="node285.html"> Standard Method Combination</A>
+<B>Up:</B> <A NAME=tex2html5208 HREF="node283.html"> Method Selection and </A>
+<B> Previous:</B> <A NAME=tex2html5202 HREF="node283.html"> Method Selection and </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

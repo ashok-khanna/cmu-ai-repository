@@ -1,0 +1,178 @@
+From crabapple.srv.cs.cmu.edu!fs7.ece.cmu.edu!europa.eng.gtefsd.com!howland.reston.ans.net!usc!elroy.jpl.nasa.gov!decwrl!waikato.ac.nz!canterbury.ac.nz!news!otago.ac.nz!roy Mon May 24 15:53:22 EDT 1993
+Article: 1862 of comp.lang.clos
+Path: crabapple.srv.cs.cmu.edu!fs7.ece.cmu.edu!europa.eng.gtefsd.com!howland.reston.ans.net!usc!elroy.jpl.nasa.gov!decwrl!waikato.ac.nz!canterbury.ac.nz!news!otago.ac.nz!roy
+Newsgroups: comp.lang.clos
+Subject: Approximating class precedence list walk
+Message-ID: <1993May24.110927.1@otago.ac.nz>
+From: roy@otago.ac.nz
+Date: Sun, 23 May 1993 22:09:27 GMT
+Sender: usenet@news.otago.ac.nz (News stuff)
+Organization: University of Otago, Dunedin, New Zealand
+Nntp-Posting-Host: thorin.otago.ac.nz
+Lines: 114
+
+#|
+
+Approximating the Class Precedence Algorithm
+
+Winston & Horn, "Lisp, Third Edition", (1989), give some simple rules for
+approximating the complicated (and computationally expensive) algorithm
+(Winston & Horn, Appendix, p509), for determining the CLOS class 
+precedence list (CLtL2, 28.1.5). The simple rules are:
+   1. depth first,
+   2. left to right,
+   3. up-to-join.
+An implementation of these rules is not given in Winstorn & Horn,
+however a complete algorithm for computation of the CLOS class precedence 
+list is provided in the appendix as referenced above.
+
+I have developed the following algorithm as a (better) approximation
+to the CLOS class precedence list computation for my particular 
+purposes (which include frequent partial traversals of the class 
+precedence list). I have yet to prove whether or not it is equivalent 
+to traversal of actual the CLOS list but so far have not found a counter 
+example. The algorithm is based on the progressive expansion of multiple 
+walks through direct superclasses towards the standard-object. At each step
+along the walk the next step is computed from the current step by 
+reference to the remainder of the walk. This may result in zero or more
+new steps being added to the front of the remainder of the walk. 
+Specifically new steps (superclasses) are added to the walk only if the
+newly exposed head (superclass) is not a subtype of any such new steps 
+(superclasses). This condition captures the ordering imposed upon 
+the class precedence list as defined in CLOS.
+
+I have included two functions which use this algorithm, one that gives
+the list of class precedence names:
+
+ (class-precedence-names object)
+
+should be equivalent to:
+
+ (mapcar #'class-name (clos:class-precedence-list (class-of object)))
+
+and a second intended to achieve the same result as a version of the least
+common superclass problem given below:
+|#
+
+
+(defun walk-function (step-func walk next-step-func &aux this value)
+  ;; traverse WALK until STEP-FUNC applied to first item in walk returns any
+  ;; non-nil value or walk is null
+  (loop
+   (if (or (null walk)
+           (setf this (first walk)
+                 walk (funcall next-step-func walk)
+                 value (funcall step-func this)))
+       (return)))
+  (values value walk this))
+
+(defun extend-clos-walk (walk)
+  ;; WALK is a list of class objects, extend WALK by replacing head 
+  ;; with the class objects of any of its direct superclasses which 
+  ;; are not superclasses of next class in WALK (if such an element
+  ;; exists).
+  (let* ((this-class (pop walk))
+         (that-class (first walk)))
+    (nconc 
+     (mapcan
+      #'(lambda(new-class)
+          (if (or (null walk)
+                  (not (subtypep that-class new-class)))
+              (list new-class)))
+      (clos:class-direct-superclasses this-class))
+     walk)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+(defun class-precedence-names (object &aux names)
+  ;; Return a list of the names of the superclasses of object
+  (walk-function
+   #'(lambda(x)
+       (push (class-name x) names)
+       'nil) ; exhaust walk
+   (list (class-of object)) ; begin walk with class of object
+   #'extend-clos-walk)
+  
+  (nreverse names)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; Given a set of objects, what is the most specialized superclass of them all?
+
+(defun class-list (object)
+  ;; Return the list of classes of which OBJECT is an instance
+  (clos:class-precedence-list (class-of object)))
+
+(defun common-superclasses (objects)
+  ;; Return the list of classes of which all of OBJECTS are instances
+  (reduce #'intersection objects :key #'class-list))
+
+(defun least-common-superclass1 (objects)
+  ;; Return the most specific class of which all of OBJECTS are instances
+  (first (sort (common-superclasses objects) #'subtypep)))
+
+(defun least-common-superclass (objects)
+  (let ((classes (mapcar #'class-of objects)))
+    (walk-function
+     #'(lambda(x)(if (every #'(lambda(y)(subtypep y x)) classes) x))
+     (list (pop classes))
+     #'extend-clos-walk)))
+
+
+#|||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+Roy Anderson
+Aritificial Intelligence Group
+Department of Computer Science
+University of Otago
+New Zealand
+||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||#
+
+
+From crabapple.srv.cs.cmu.edu!fs7.ece.cmu.edu!europa.eng.gtefsd.com!gatech!usenet.ins.cwru.edu!magnus.acs.ohio-state.edu!cis.ohio-state.edu!aiai.edinburgh.ac.uk!jeff Mon May 24 15:53:40 EDT 1993
+Article: 1864 of comp.lang.clos
+Path: crabapple.srv.cs.cmu.edu!fs7.ece.cmu.edu!europa.eng.gtefsd.com!gatech!usenet.ins.cwru.edu!magnus.acs.ohio-state.edu!cis.ohio-state.edu!aiai.edinburgh.ac.uk!jeff
+From: jeff@aiai.edinburgh.ac.uk (Jeff Dalton)
+Newsgroups: comp.lang.clos
+Subject: Re: Approximating class precedence list walk
+Message-ID: <3116.9305241205@subnode.aiai.ed.ac.uk>
+Date: 24 May 93 12:05:45 GMT
+Organization: The Ohio State University Department of Computer and Information Science
+Lines: 36
+
+> Winston & Horn, "Lisp, Third Edition", (1989), give some simple rules for
+> approximating the complicated (and computationally expensive) algorithm
+> (Winston & Horn, Appendix, p509), for determining the CLOS class 
+> precedence list (CLtL2, 28.1.5). The simple rules are:
+>    1. depth first,
+>    2. left to right,
+>    3. up-to-join.
+> An implementation of these rules is not given in Winstorn & Horn,
+> however a complete algorithm for computation of the CLOS class precedence 
+> list is provided in the appendix as referenced above.
+
+There's another way of explaining the algorithm is that often
+more useful.  Precedence lists must satisfy the following
+constraints:
+ 
+  1. Classes precedes their superclasses.
+  2. Superclasses have the order given in class definitions.
+
+It's easy to write an algorithm that uses these rules to create a
+precedence list.  Unfortunately, several different algorithms might be
+written, and the two rules above aren't sufficient to define a unique
+total order.  Consequently, a third, rather complex, rule was added;
+and this rule was defined in terms of a particular CPL algorithm.
+The rule can be added as a "tie breaker" to a standard topological
+sort, but it's difficult to figure out an equivalent rule for a
+different algorithm.  Fortunately, programmers can pretty much 
+ignore the third rule.
+
+The two rules above have the immense advantage of being easy to
+understand.  You don't have to understand a complex algorithm,
+just two simple rules.  So the recommended attitude is to rely
+on the two rules and treat the third only as a way to ensure
+that all implementations produce the same result.
+
+-- jd
+
+
+

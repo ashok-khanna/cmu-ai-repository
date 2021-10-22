@@ -1,0 +1,189 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node338.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:47:28 GMT -->
+<HEAD>
+<TITLE>29.4.4. Handling Conditions</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Handling Conditions">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html5920 HREF="node339.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5918 HREF="node334.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5912 HREF="node337.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5922 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5923 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5921 HREF="node339.html"> Defining Conditions</A>
+<B>Up:</B> <A NAME=tex2html5919 HREF="node334.html"> Program Interface to </A>
+<B> Previous:</B> <A NAME=tex2html5913 HREF="node337.html"> Exhaustive Case Analysis</A>
+<HR> <P>
+<H2><A NAME=SECTION003344000000000000000>29.4.4. Handling Conditions</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+These macros allow a program to gain control when a condition is signaled.
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>handler-case <em>expression</em> {(<i>typespec</i> ([<i>var</i>]) {<i>form</i>}*)}*</tt><P>  Executes the given <i>expression</i> in a context where various specified handlers are active.
+<P>
+  Each <i>typespec</i> may be any type specifier. If during the execution of the <tt>expression</tt>
+  a condition is signaled for which there is an appropriate clause-that is, one
+  for which <tt>(typep <i>condition</i> '<i>typespec</i>)</tt> is true-and if there is no intervening
+  handler for conditions of that type, then control is transferred to the body
+  of the relevant clause (unwinding the dynamic state appropriately in the
+  process) and the given variable <tt>var</tt> is bound to the condition that was signaled. If
+  no such condition is signaled and the computation runs to completion, then
+  the values resulting from the <tt>expression</tt> are returned by the <tt>handler-case</tt> form.
+<P>
+  If more than one case is provided, those cases are made accessible in
+  parallel. That is, in
+<P><pre>
+(handler-case <i>expression</i> 
+  (<i>type1</i> (<i>var1</i>) <i>form1</i>) 
+  (<i>type2</i> (<i>var2</i>) <i>form2</i>))
+</pre><P>
+  if the first clause (containing <i>form1</i>) has been selected, the handler
+  for the second is no longer visible (and vice versa).
+<P>
+  The cases are searched sequentially from top to bottom. If a signaled condition
+  matches more than one case (possible if there is type
+  overlap) the earlier of the two cases will be selected.
+<P>
+
+<P>
+  If the variable <i>var</i> is not needed, it may be omitted. That is, a clause such as
+<P><pre>
+(<i>type</i> (<i>var</i>) (declare (ignore <i>var</i>)) <i>form</i>)
+</pre><P>
+may be written using the following shorthand notation:
+<P><pre>
+(<i>type</i> () <i>form</i>)
+</pre><P>
+<P>
+  If there are no forms in a selected case, the case returns <tt>nil</tt>.
+Note that
+<P><pre>
+(handler-case <i>expression</i> 
+  (<i>type1</i> (<i>var1</i>) . <i>body1</i>) 
+  (<i>type2</i> (<i>var2</i>) . <i>body2</i>) 
+  ...)
+</pre><P>
+is approximately equivalent to
+<P><pre>
+(block #1=#:block-1 
+  (let (#2=#:var-2) 
+    (tagbody 
+      (handler-bind ((<i>type1</i> &#175;#'(lambda (temp) 
+		    (setq #2# temp) 
+		    (go #3=#:tag-3)))
+                     (<i>type2</i> &#175;#'(lambda (temp) 
+		    (setq #2# temp) 
+		    (go #4=#:tag-4)))
+                     ...) 
+        (return-from #1# <i>expression</i>)) 
+      #3# (return-from #1# (let ((<i>var1</i> #2#)) . <i>body1</i>)) 
+      #4# (return-from #1# (let ((<i>var2</i> #2#)) . <i>body2</i>)) 
+      ...)))
+</pre><P>
+[Note the use of ``gensyms'' such as <tt>#:block-1</tt>
+as block names, variables, and <tt>tagbody</tt> tags in this example,
+and the use of <tt>#<i>n</i>=</tt> and <tt>#<i>n</i>#</tt> read-macro syntax
+to indicate that the very same gensym appears in multiple places.-GLS]
+<P>
+  As a special case, the <i>typespec</i> can also be the symbol <tt>:no-error</tt> in the last clause.
+  If it is, it designates a clause that will take control if the <i>expression</i> returns
+  normally. In that case, a completely general lambda-list may follow the symbol <tt>:no-error</tt>,
+  and the arguments to which the lambda-list parameters are bound are like those for
+  <tt>multiple-value-call</tt> on the return value of the <i>expression</i>.
+For example,
+<P>
+
+<P>
+<P><pre>
+(handler-case <i>expression</i> 
+  (<i>type1</i> (<i>var1</i>) . <i>body1</i>) 
+  (<i>type2</i> (<i>var2</i>) . <i>body2</i>) 
+  ... 
+  (<i>typen</i> (<i>varn</i>) . <i>bodyn</i>) 
+  (:no-error (<i>nvar1</i> <i>nvar2</i> ... <i>nvarm</i>) . <i>nbody</i>))
+</pre><P>
+is approximately equivalent to
+<P><pre>
+(block #1=#:error-return 
+  (multiple-value-call #'(lambda (<i>nvar1</i> <i>nvar2</i> ... <i>nvarm</i>) . <i>nbody</i>) 
+    (block #2=#:normal-return 
+      (return-from #1# 
+        (handler-case (return-from #2# <i>expression</i>) 
+          (<i>type1</i> (<i>var1</i>) . <i>body1</i>) 
+          (<i>type2</i> (<i>var2</i>) . <i>body2</i>) 
+          ... 
+          (<i>typen</i> (<i>varn</i>) . <i>bodyn</i>))))))
+</pre><P>
+<P>
+  Examples of the use of <tt>handler-case</tt>:
+<P><pre>
+(handler-case (/ x y) 
+  (division-by-zero () nil)) 
+
+(handler-case (open *the-file* :direction :input) 
+  (file-error (condition) (format t &quot;~&amp;Fooey: ~A~%&quot; condition))) 
+
+(handler-case (some-user-function) 
+  (file-error (condition) condition) 
+  (division-by-zero () 0) 
+  ((or unbound-variable undefined-function) () 'unbound)) 
+
+(handler-case (intern x y) 
+  (error (condition) condition) 
+  (:no-error (symbol status) 
+    (declare (ignore symbol)) 
+    status))
+</pre><P>
+<P>
+<br><b>[Macro]</b><BR>
+<tt>ignore-errors {<i>form</i>}*</tt><P>  Executes its body in a context that handles conditions of type <tt>error</tt> by
+  returning control to this form. If no such condition is signaled, any
+  values returned by the last form are returned by <tt>ignore-errors</tt>. Otherwise,
+  two values are returned: <tt>nil</tt> and the <tt>error</tt> condition that was signaled.
+<P>
+<tt>ignore-errors</tt> could be defined by
+<P><pre>
+(defmacro ignore-errors (&amp;body forms) 
+  `(handler-case (progn ,@forms) 
+     (error (c) (values nil c)))
+</pre><P>
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>handler-bind ({(<i>typespec</i> <i>handler</i>)}*) {<i>form</i>}*</tt><P>  Executes body in a dynamic context where the given handler bindings 
+  are in effect.
+  Each <i>typespec</i> may be any type specifier.
+  Each <i>handler</i> form should evaluate to a function to be used to handle conditions 
+  of the given type(s) during execution of the <i>form</i>s. This function should
+  take a single argument, the condition being signaled.
+<P>
+  If more than one binding is specified, the bindings are searched 
+  sequentially from top to bottom in search of a match (by visual analogy
+  with <tt>typecase</tt>). If an appropriate <i>typespec</i> is found, the associated handler 
+  is run in a context where none of the handler bindings are visible (to avoid
+  recursive errors). For example, in the case of
+<P><pre>
+(handler-bind ((unbound-variable #'(lambda ...)) 
+               (error #'(lambda ...))) 
+  ...)
+</pre><P>
+  if an unbound variable error is signaled in the body (and not handled
+  by an intervening handler), the first function will be called. If any
+  other kind of error is signaled, the second function will be called.
+  In either case, neither handler will be active while executing the code
+  in the associated function.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html5920 HREF="node339.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5918 HREF="node334.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5912 HREF="node337.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5922 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5923 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5921 HREF="node339.html"> Defining Conditions</A>
+<B>Up:</B> <A NAME=tex2html5919 HREF="node334.html"> Program Interface to </A>
+<B> Previous:</B> <A NAME=tex2html5913 HREF="node337.html"> Exhaustive Case Analysis</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

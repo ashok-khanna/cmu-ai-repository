@@ -1,0 +1,451 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node215.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:47:30 GMT -->
+<HEAD>
+<TITLE>23.2. Opening and Closing Files</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Opening and Closing Files">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4240 HREF="node216.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4238 HREF="node202.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4232 HREF="node214.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4242 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4243 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4241 HREF="node216.html"> RenamingDeleting, and </A>
+<B>Up:</B> <A NAME=tex2html4239 HREF="node202.html"> File System Interface</A>
+<B> Previous:</B> <A NAME=tex2html4233 HREF="node214.html"> Pathname Functions</A>
+<HR> <P>
+<H1><A NAME=SECTION002720000000000000000>23.2. Opening and Closing Files</A></H1>
+<P>
+When a file is <i>opened</i>, a stream object is constructed to serve
+as the file system's ambassador to the Lisp environment;
+operations on the stream are reflected by operations on the file
+in the file system.  The act of <i>closing</i> the file (actually,
+the stream) ends the association; the transaction with the file
+system is terminated, and input/output may no longer be performed
+on the stream.  The stream function <tt>close</tt> may be used
+to close a file; the functions described below may be used to open them.
+The basic operation is <tt>open</tt>, but <tt>with-open-file</tt> is usually
+more convenient for most applications.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>open <i>filename</i> &amp;key :direction :element-type :if-exists :if-does-not-exist :external-format</tt><P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (MORE-CHARACTER-PROPOSAL) <A NAME=27112>&#160;</A> 
+to add to the function <tt>open</tt> a new keyword argument <tt>:external-format</tt>.
+This argument did not appear in the preceding argument description in the
+first edition.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+This returns a stream that is connected to the file specified by <i>filename</i>.
+The <i>filename</i> is the name of the file to be opened; it may be a string,
+a pathname, or a stream.  (If the <i>filename</i> is a stream, then it is not
+closed first or otherwise affected; it is used merely to provide a file name
+for the opening of a new stream.)
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(STREAM-ACCESS) <A NAME=27120>&#160;</A> 
+to specify that the result of
+<tt>open</tt>, if it is a stream, is always a stream of type <tt>file-stream</tt>.
+<P>
+X3J13 voted in March 1988
+(PATHNAME-STREAM) <A NAME=27125>&#160;</A> 
+to specify exactly which streams may be used as pathnames.
+See section <A HREF="node214.html#PATHNAMEFUNCTIONS">23.1.6</A>.
+<P>
+X3J13 voted in January 1989
+(CLOSED-STREAM-OPERATIONS) <A NAME=27129>&#160;</A> 
+to specify that <tt>open</tt> is unaffected by
+whether the first argument, if a stream, is open or closed. If the first
+argument is a stream, <tt>open</tt> behaves as if the function <tt>pathname</tt>
+were applied to the stream and the resulting pathname used instead.
+<P>
+X3J13 voted in June 1989 (PATHNAME-WILD) <A NAME=27135>&#160;</A> 
+to clarify that <tt>open</tt> accepts only non-wild pathnames;
+an error is signaled if <tt>wild-pathname-p</tt> would be true of <i>filename</i>.
+<P>
+X3J13 voted in June 1989 (PATHNAME-LOGICAL) <A NAME=27141>&#160;</A>  to require <tt>open</tt>
+to accept logical pathnames (see section <A HREF="node208.html#LOGICALPATHNAMESSECTION">23.1.5</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+The keyword arguments specify what kind of stream to produce and how
+to handle errors:
+<DL COMPACT><DT><tt>:direction</tt>
+<DD>
+This argument specifies whether the stream should handle input, output,
+or both.
+<blockquote> <DL COMPACT><DT><tt>:input</tt>
+<DD>
+The result will be an input stream.  This is the default.
+<P>
+<DT><tt>:output</tt>
+<DD>
+The result will be an output stream.
+<P>
+<DT><tt>:io</tt>
+<DD>
+The result will be a bidirectional stream.
+<P>
+<DT><tt>:probe</tt>
+<DD>
+The result will be a no-directional stream (in effect, the stream
+is created and then closed).  This is useful for determining whether
+a file exists without actually setting up a complete stream.
+<P>
+ </DL>
+</blockquote>
+<P>
+<DT><tt>:element-type</tt>
+<DD>
+This argument specifies the type of the unit of transaction for the stream.
+Anything that can be recognized as being a finite subtype of
+<tt>character</tt> or <tt>integer</tt> is acceptable.  In particular,
+the following types are recognized:
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<blockquote> <DL COMPACT><DT><tt>string-char</tt>
+<DD>
+The unit of transaction is a string-character.
+The functions <tt>read-char</tt> and/or <tt>write-char</tt> may be
+used on the stream.  This is the default.
+<P>
+<DT><tt>character</tt>
+<DD>
+The unit of transaction is any character, not just a string-character.
+The functions <tt>read-char</tt> and/or <tt>write-char</tt> may be
+used on the stream.
+<P>
+ </DL>
+</blockquote>
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (MORE-CHARACTER-PROPOSAL) <A NAME=27171>&#160;</A> 
+to eliminate the type <tt>string-char</tt>, add the type <tt>base-character</tt>,
+and redefine <tt>open</tt> to use the type <tt>character</tt> as the default
+<tt>:element-type</tt>.
+<P>
+The preceding two possibilities should therefore be
+replaced by the following.
+<P>
+<blockquote> <DL COMPACT><DT><tt>character</tt>
+<DD>
+The unit of transaction is any character, not just a string-character.
+The functions <tt>read-char</tt> and <tt>write-char</tt> (depending on the value of the
+<tt>:direction</tt> argument) may be used on the stream.  This is the default.
+<P>
+<DT><tt>base-character</tt>
+<DD>
+The unit of transaction is a base character.
+The functions <tt>read-char</tt> and <tt>write-char</tt> (depending on the value of the
+<tt>:direction</tt> argument) may be used on the stream.
+<P>
+ </DL>
+</blockquote>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<blockquote> <DL COMPACT><DT><tt>(unsigned-byte <i>n</i>)</tt>
+<DD>
+The unit of transaction is an unsigned byte (a non-negative integer) of size <i>n</i>.
+The functions <tt>read-byte</tt> and/or <tt>write-byte</tt> may be
+used on the stream.
+<P>
+<DT><tt>unsigned-byte</tt>
+<DD>
+The unit of transaction is an unsigned byte (a non-negative integer);
+the size of the byte is determined by the file system.
+The functions <tt>read-byte</tt> and/or <tt>write-byte</tt> may be
+used on the stream.
+<P>
+<DT><tt>(signed-byte <i>n</i>)</tt>
+<DD>
+The unit of transaction is a signed byte of size <i>n</i>.
+The functions <tt>read-byte</tt> and/or <tt>write-byte</tt> may be
+used on the stream.
+<P>
+<DT><tt>signed-byte</tt>
+<DD>
+The unit of transaction is a signed byte;
+the size of the byte is determined by the file system.
+The functions <tt>read-byte</tt> and/or <tt>write-byte</tt> may be
+used on the stream.
+<P>
+<DT><tt>bit</tt>
+<DD>
+The unit of transaction is a bit (values <tt>0</tt> and <tt>1</tt>).
+The functions <tt>read-byte</tt> and/or <tt>write-byte</tt> may be
+used on the stream.
+<P>
+<DT><tt>(mod <i>n</i>)</tt>
+<DD>
+The unit of transaction is a non-negative integer less than <i>n</i>.
+The functions <tt>read-byte</tt> and/or <tt>write-byte</tt> may be
+used on the stream.
+<P>
+<DT><tt>:default</tt>
+<DD>
+The unit of transaction is to be determined by the file system, based
+on the file it finds.
+The type can be determined by using the function <tt>stream-element-type</tt>.
+<P>
+ </DL>
+</blockquote>
+<P>
+<DT><tt>:if-exists</tt>
+<DD>
+This argument specifies the action to be taken if the <tt>:direction</tt> is
+<tt>:output</tt> or <tt>:io</tt> and a file of the specified name already exists.
+If the direction is <tt>:input</tt> or <tt>:probe</tt>, this argument is ignored.
+<blockquote> <DL COMPACT><DT><tt>:error</tt>
+<DD>
+Signals an error.  This is the default when the version component of
+the <i>filename</i> is not <tt>:newest</tt>.
+<P>
+<DT><tt>:new-version</tt>
+<DD>
+Creates a new file with the same file name but with a larger version number.
+This is the default when the version component of the <i>filename</i> is <tt>:newest</tt>.
+<P>
+<DT><tt>:rename</tt>
+<DD>
+Renames the existing file to some other name and then creates a new file
+with the specified name.
+<P>
+<DT><tt>:rename-and-delete</tt>
+<DD>
+Renames the existing file to some other name and then deletes it (but
+does not expunge it, on those systems that distinguish deletion from
+expunging).  Then create a new file with the specified name.
+<P>
+<DT><tt>:overwrite</tt>
+<DD>
+Uses the existing file.  Output operations on the stream
+will destructively modify the file.
+If the <tt>:direction</tt> is <tt>:io</tt>,
+the file is opened in a bidirectional mode that allows both
+reading and writing.  The file pointer is initially positioned
+at the beginning of the file; however, the file is not truncated
+back to length zero when it is opened.
+This mode is most useful when
+the <tt>file-position</tt> function can be used on the stream.
+<P>
+<DT><tt>:append</tt>
+<DD>
+Uses the existing file.  Output operations on the stream
+will destructively modify the file.  The file pointer is
+initially positioned at the end of the file.
+If the <tt>:direction</tt> is <tt>:io</tt>,
+the file is opened in a bidirectional mode that allows both
+reading and writing.
+<P>
+<DT><tt>:supersede</tt>
+<DD>
+Supersedes the existing file.  If possible, the implementation should
+arrange not to destroy the old file until the new stream is closed,
+against the possibility that the stream will be closed in ``abort'' mode
+(see <tt>close</tt>).
+This differs from <tt>:new-version</tt> in that <tt>:supersede</tt> creates
+a new file with the same name as the old one, rather than a file
+name with a higher version number.
+<P>
+<DT><tt><tt>nil</tt></tt>
+<DD>
+Does not create a file or even a stream, but instead
+simply returns <tt>nil</tt> to indicate failure.
+<P>
+ </DL>
+</blockquote>
+<P>
+If the <tt>:direction</tt> is <tt>:output</tt> or <tt>:io</tt>
+and the value of <tt>:if-exists</tt> is <tt>:new-version</tt>,
+then the version of the (newly created) file that is opened will
+be a version greater than that of any other file in the file system
+whose other pathname components are the same as those of <i>filename</i>.
+<P>
+If the <tt>:direction</tt> is <tt>:input</tt> or <tt>:probe</tt>
+or the value of <tt>:if-exists</tt> is not <tt>:new-version</tt>,
+<i>and</i> the version component of the <i>filename</i> is <tt>:newest</tt>,
+then the file opened is that file already existing in the file system
+that has a version greater than that of any other file in the file system
+whose other pathname components are the same as those of <i>filename</i>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+Some file systems permit yet other actions to be taken when a file
+already exists; therefore,
+some implementations provide implementation-specific <tt>:if-exist</tt> options.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+ </DL>
+<P>
+<hr>
+<b>Implementation note:</b> The various file systems in existence today
+have widely differing capabilities.  A given implementation may not
+be able to support all of these options in exactly the manner stated.
+An implementation is required to recognize all of these option keywords
+and to try to do something ``reasonable'' in the context of the host operating
+system.  Implementors are encouraged to approximate the semantics specified
+here as closely as possible.
+<P>
+As an example, suppose that a file system does not support distinct file
+versions and does not distinguish the notions of deletion and expunging
+(in some file systems file deletion is reversible until an expunge operation
+is performed).  Then <tt>:new-version</tt> might be treated the same as
+<tt>:rename</tt> or <tt>:supersede</tt>, and <tt>:rename-and-delete</tt> might
+be treated the same as <tt>:supersede</tt>.
+<P>
+If it is utterly impossible for an implementation to handle some option
+in a manner close to what is specified here, it may simply signal an error.
+The opening of files is an area where complete portability is too much to
+hope for; the intent here is simply to make things as portable as possible
+by providing specific names for a range of commonly supportable options.
+<hr>
+<P>
+<DL COMPACT><DT><tt>:if-does-not-exist</tt>
+<DD>
+This argument specifies the action to be taken if
+a file of the specified name does not already exist.
+<blockquote> <DL COMPACT><DT><tt>:error</tt>
+<DD>
+Signals an error.  This is the default if the <tt>:direction</tt> is <tt>:input</tt>,
+or if the <tt>:if-exists</tt> argument is <tt>:overwrite</tt> or <tt>:append</tt>.
+<P>
+<DT><tt>:create</tt>
+<DD>
+Creates an empty file with the specified name and then proceeds as if it
+had already existed (but do not perform any processing directed by the
+<tt>:if-exists</tt> argument).
+This is the default if the <tt>:direction</tt> is <tt>:output</tt>
+or <tt>:io</tt>, and the <tt>:if-exists</tt> argument is anything but <tt>:overwrite</tt>
+or <tt>:append</tt>.
+<P>
+<DT><tt><tt>nil</tt></tt>
+<DD>
+Does not create a file or even a stream, but
+instead simply returns <tt>nil</tt> to indicate failure.
+This is the default if the <tt>:direction</tt> is <tt>:probe</tt>.
+<P>
+ </DL>
+</blockquote>
+<P>
+ </DL>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (MORE-CHARACTER-PROPOSAL) <A NAME=27303>&#160;</A> 
+to add to the function <tt>open</tt> a new keyword argument <tt>:external-format</tt>.
+<DL COMPACT><DT><tt>:external-format</tt>
+<DD>
+This argument specifies an implementation-recognized scheme for
+representing characters in files.  The default value is <tt>:default</tt>
+and is implementation-defined but must support the base characters.
+An error is signaled if the implementation does recognize the specified format.
+<P>
+This argument may be specified if the <tt>:direction</tt> argument is
+<tt>:input</tt>, <tt>:output</tt>, or <tt>:io</tt>.  It is an error to write a character
+to the resulting stream that cannot be represented by the specified file format.
+(However, the <tt>#\Newline</tt> character cannot produce such an error;
+implementations must provide appropriate line division behavior for all character
+streams.)
+<P>
+See <tt>stream-external-format</tt>.
+</DL>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+
+<P>
+When the caller is finished with the stream, it should close the file by
+using the <tt>close</tt> function.  The <tt>with-open-file</tt>
+form does this automatically, and so is preferred for most purposes.
+<tt>open</tt> should be used only when the control structure of the program
+necessitates opening and closing of a file in some way more complex than
+provided by <tt>with-open-file</tt>.  It is suggested that any program that uses
+<tt>open</tt> directly should use the special form <tt>unwind-protect</tt> to
+close the file if an abnormal exit occurs.
+<P>
+<BR><b>[Macro]</b><BR>
+<pre>
+<tt>with-open-file (<i>stream</i> <i>filename</i> {<i>options</i>}*)</tt>
+       <tt>{<i>declaration</i>}* {<i>form</i>}*</tt>
+</pre>
+<P><tt>with-open-file</tt>
+evaluates the <i>forms</i> of the body (an implicit <tt>progn</tt>) with the variable
+<i>stream</i> bound to a stream that reads or writes the file named by the
+value of <i>filename</i>.
+The <i>options</i> are evaluated and are used as keyword arguments to
+the function <tt>open</tt>.
+<P>
+When control leaves the body, either normally or abnormally (such as by
+use of <tt>throw</tt>), the file is automatically closed.  If a new
+output file is being written, and control leaves abnormally, the file is
+aborted and the file system is left, so far as possible, as if the file
+had never been opened.  Because <tt>with-open-file</tt> always closes the
+file, even when an error exit is taken, it is preferred over <tt>open</tt> for
+most applications.
+<P>
+<i>filename</i> is the name of the file to be opened; it may be a string,
+a pathname, or a stream.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988
+(PATHNAME-STREAM) <A NAME=27340>&#160;</A> 
+to specify exactly which streams may be used as pathnames.
+See section <A HREF="node214.html#PATHNAMEFUNCTIONS">23.1.6</A>.
+<P>
+X3J13 voted in June 1989 (PATHNAME-WILD) <A NAME=27344>&#160;</A> 
+to clarify that <tt>with-open-file</tt> accepts only non-wild pathnames;
+an error is signaled if <tt>wild-pathname-p</tt> would be true of
+the <i>filename</i> argument.
+<P>
+X3J13 voted in June 1989 (PATHNAME-LOGICAL) <A NAME=27350>&#160;</A>  to require <tt>with-open-file</tt>
+to accept logical pathnames (see section <A HREF="node208.html#LOGICALPATHNAMESSECTION">23.1.5</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+For example:
+<P><pre>
+(with-open-file (ifile name 
+                 :direction :input) 
+  (with-open-file (ofile (merge-pathname-defaults ifile 
+                                                  nil 
+                                                  &quot;out&quot;) 
+                         :direction :output 
+                         :if-exists :supersede) 
+    (transduce-file ifile ofile)))
+</pre><P>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (WITH-OPEN-FILE-DOES-NOT-EXIST) <A NAME=27357>&#160;</A> 
+to specify that the variable <i>stream</i> is not always bound to
+a stream; rather it is bound to whatever would be returned by
+a call to <tt>open</tt>.  For example, if the options include
+<tt>:if-does-not-exist nil</tt>, <i>stream</i> will be bound to <tt>nil</tt>
+if the file does not exist.  In this case the value of <i>stream</i>
+should be tested within the body of the <tt>with-open-file</tt> form
+before it is used as a stream.  For example:
+<P><pre>
+(with-open-file (ifile name 
+                 :direction :input 
+                 :if-does-not-exist nil) 
+  ;; Process the file only if it actually exists. 
+  (when (streamp name)
+    (compile-cobol-program ifile)))
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<hr>
+<b>Implementation note:</b> While <tt>with-open-file</tt> tries to automatically close
+the stream on exit from the construct, for robustness it is helpful
+if the garbage collector can detect discarded streams and automatically
+close them.
+<hr>
+<P>
+<BR> <HR><A NAME=tex2html4240 HREF="node216.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4238 HREF="node202.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4232 HREF="node214.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4242 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4243 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4241 HREF="node216.html"> RenamingDeleting, and </A>
+<B>Up:</B> <A NAME=tex2html4239 HREF="node202.html"> File System Interface</A>
+<B> Previous:</B> <A NAME=tex2html4233 HREF="node214.html"> Pathname Functions</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

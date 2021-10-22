@@ -1,0 +1,368 @@
+
+**********************************************************************
+	
+
+			    *  WARNING  *
+
+This is beta-test software.  There WILL be problems with it.  Please
+report them.
+
+
+**********************************************************************
+
+
+
+		*Lisp Timesharing User's Guide
+
+
+TABLE OF CONTENTS:
+
+  INTRODUCTION
+  USING THE SYSTEM
+  RESTRICTIONS
+  ERROR MESSAGES
+  USING CMFS, *GRAPHICS, *RENDER
+  CODE CONDITIONALIZATION
+  CALLING C/PARIS ROUTINES
+  CALLING C* ROUTINES (not written)
+  CALLING CM FORTRAN ROUTINES (not written)
+
+
+
+
+INTRODUCTION
+
+
+The *Lisp timesharing system is designed to work just like regular
+documented *Lisp modulo possible performance considerations.  There are a
+number of issues regarding the use of non-documented internal Paris
+functions and variables, and the use of CMIS.  However, if your code is
+simply documented *Lisp or documented Paris, then it should just work.
+
+
+
+USING THE SYSTEM
+
+
+To use the system, simply invoke the command 'starlisp-ts' instead of
+'starlisp' in the usual manner in which you start up a starlisp band.
+
+You may run the system either on a sequencer with timesharing running
+or on a non-timesharing sequencer.  
+
+The goal of the *Lisp timesharing system is to be binary compatible with
+the standard *Lisp world.  Code compiled in one system should be able to be
+run without recompilation in the other system, except as noted below.
+
+
+
+RESTRICTIONS
+
+
+
+The following paragraphs discuss some of the existing problems,
+restrictions and workarounds.
+
+
+
+**> DIAGNOSTICS
+
+Connection Machine diagnostics do not work from the *Lisp timesharing band.
+They must be run from the regular Lisp/Paris or *Lisp bands.
+
+
+
+**>  CM:ATTACH
+
+
+CM:ATTACH now returns as a second value either :TIMESHARING or :SINGLE-USER
+depending on whether the sequencer you have attached to is running
+timesharing or not.
+
+The syntax of CM:ATTACH has been augmented:
+
+(CM:ATTACH &KEY INTERFACE SEQS PROCESSORS CM)
+
+(But the old syntax still works).  
+
+CM if provided must be a string.
+INTERFACE if provided must be 0,1,2 or 3.
+PROCESSORS if provided must be one of the usual suspects.
+SEQS if provided must be one of 0,1,2 or 3 or 
+:ucc0 :ucc1 :ucc2 :ucc3 :ucc0-1 :ucc2-3 :ucc0-3.
+
+
+**> Paris floating point instructions.
+
+Many Paris floating point instructions allow, in Lisp, the mantissa and
+exponent arguments to be optional (defaulting to 23 and 8), although this
+is undocumented.
+
+THE TIMESHARING SYSTEM INSISTS THAT THE MANTISSA AND EXPONENT ARGUMENTS BE
+PROVIDED EXPLICITLY in all Paris instructions, as the documentation states.
+Code must be changed if necessary to add these arguments.
+
+
+**>  Undocumented CMI:: functions.
+
+Many undocumented CMI:: functions do exist and can be called.  If you
+encounter one you are using which does not exist then you may wish to see
+if it can be replaced by a call to a documented Paris function.  If not, it
+can be included in the next release of the software.  A workaround or fix
+can be provided if absolutely necessary.  Please report this.
+
+
+**>  Undocumented CMI:: variables.
+
+Due to the nature of the interface, it is not possible to provide
+access to most CMI:: variables.  However, the function
+
+(*LISP-I::PORTABLE-VARIABLE-ACCESSOR cmi::symbol)
+
+will return the value of the variable, accessed from the C world.
+This function exists in the regular *Lisp band so is a completely
+portable construct.  (Note, the value returned for boolean variables
+will be 0 (NIL) or 1 (T), instead of NIL or T.
+
+Before doing this, however, you should of course determine whether the
+accessing of an internal CMI:: variable can be replaced by a documented
+Paris function or variable.
+
+
+**>  Undocumented CMI::macros.
+
+In general, these will not work, especially macros which are used
+to access very low level primitives, like writing to the FIFO.
+Also, the field decoding macros will not work, as noted next.
+
+Experiment is necessary to determine which macros will and will not work.
+Remember, the timesharing system is an interface to documented Paris;
+anything beyond that is a bonus.
+
+
+**> Field decoding macros.
+
+These will not work!!!!  
+
+However, in the IMP:: package we have defined a set of portable field
+decoding macros with the same names.  These include
+
+IMP::WITH-VP-FIELDS
+IMP::WITH-ANY-VP-FIELDS
+IMP:WITH-TRANSLATED-FIELDS
+
+
+If you replace uses of CMI:: field decoding macros with these macros
+then things should work portably.
+
+
+**> Using CMIS.
+
+Subject to the caveat on the use of field decoding macros above,
+CMIS has been hacked so that it is supposed to 'just work'.
+
+To do this, Scratch Ram has been divided into two parts, one for
+imps defined and loaded by the C/Paris code, and one for imps
+defined and loaded by you, the user.
+
+This why, when executed *cold-boot or cm:cold-boot, you may see
+the message:
+
+Set Sram top of stack for C code to 8092
+Set Sram base of stack for Lisp code to 8192
+Microcode entrypoints set for 64 bit Weiteks
+
+**> Using CMSSL.
+
+The old CMSSL functions (i.e., the FFT and Matrix Multiply routines)
+now have interfaces and should work.
+
+Once the new (2.1) CMSSL library is released, interfaces to these
+new CMSSL routines will be provided either in a new release or as
+a separate module.
+
+
+ERROR MESSAGES
+
+
+The error messages generated by the *Lisp interpreter and *Lisp
+Compiler at safety level 1 (which uses the cmi::error-if-location
+mechanism) look somewhat different.  Here is an example:
+
+> (setq *interpreter-safety* 1)
+1
+> (/!! 3 0)
+#<FLOAT-Pvar 5-32 *DEFAULT-VP-SET* (32 16)>
+> (*sum (!! 1))
+>>Error: Delayed error from ERROR-IF-LOCATION.
+         *** An error occurred in your code between the last time
+         *** a value was read out of the CM and now.
+         One of the following occured:
+The result of a (two argument) float /!! overflowed, or
+Divide by zero in float (two argument) /!!
+         *** Once you abort, remember to cm:warm-boot or *warm-boot ***
+
+CMI::PRETTY-PRINT-ERROR-IF-LOCATION-ERROR-MESSAGE:
+   Required arg 0 (LOCATION): 3568
+   Required arg 1 (TAG): 1553
+:A  0: Abort to Lisp Top Level
+
+-> 
+
+
+Messages which are generated by Paris also look different.  Here is
+an example:
+
+> (setq x (cm:allocate-stack-field 32))
+65536
+> (cm:move x x 33)
+>>Error: 
+         
+         An error occurred within C/Paris.
+         
+         Trying to access off of the end of field 65536.  The passed field has a length of 32, and the length passed
+to this instruction is 33.
+         *** Once you abort, remember to cm:warm-boot or *warm-boot ***
+
+CMI::PRETTY-PRINT-C-ERROR-MESSAGE:
+   Required arg 0 (STRING): "Trying to access off of the end of field 65536.  The passed field has a length of 32, and the length passed
+to this instruction is 33."
+:A  0: Abort to Lisp Top Level
+
+-> 
+
+
+
+**> Segmentation violations.
+
+
+If you see error messages with the words 'segmentation violation'
+in them this is BAD NEWS.  It may mean there is an error in
+the implementation of C/Paris or it may mean that the storage
+allocation mechanism has been irretrievably damaged.  Please
+report this, and you are advised to restart your Lisp process.
+
+The particular error message you may see looks like:
+
+Got a Segmentation Violation while attached to the CM.
+It is possible someone detached you, or did a power-up,
+or the CM lost power.  Or maybe C/Paris generated a
+segmentation violation on its own.
+
+
+
+**> Being detached.
+
+If you are detached, or the timesharing daemon goes down, you
+should see the following message:
+
+
+Febi interrupt.  This probably means you were just detached.
+
+
+
+USING CMFS, *GRAPHICS, *RENDER
+
+These should all work as advertised.
+
+
+
+CODE CONDITIONALIZATION
+
+
+Code can, if absolutely necessary, be conditionalized for compile time
+as follows
+
+
+#+C-PARIS
+(code for *Lisp timesharing)
+
+#-C-PARIS
+(code for standard *Lisp)
+
+
+Code can, if absolutely necessary, be conditionalize at run time 
+as follows:
+
+(if cmi::*timesharing*
+    (code for *Lisp timesharing)
+    (code for standard *Lisp)
+    )	
+
+
+
+
+CALLING C/PARIS ROUTINES
+
+
+
+You can use the Lucid Foreign Function Interface to call C/Paris routines
+you may have written, in much the same way that the *Lisp timesharing
+system calls the C/Paris versions of the Paris functions.
+
+The Lucid Foreign Function Interface is documented in the Lucid 3.0
+Advanced Users' Guide.  Once a brief description will be included here.
+
+Basically, each function you want to call needs to have a foreign function
+interface defined.  This is done with lcl:def-foreign-function, some
+examples are shown below.
+
+C code is loaded directly into your Lisp image by calling
+
+lcl:load-foreign-files.
+
+You can load objects from a Unix library by using lcl:load-foreign-libraries.
+
+
+
+For example, suppose you have a routine written in C/Paris that is called
+FOO, and takes 5 arguments, a destination field, two source fields, and two
+lengths.  It does not return any value.  Suppose this function is defined
+in the file foo.c in your home directory.
+
+You compile it in the normal manner:
+
+cc -c foo.c
+
+
+In a Lisp file, the foreign function interface would look like:
+
+
+(lcl:def-foreign-function
+  (foo (:name "_foo") (:return-type :null))
+  (dest :fixnum)
+  (source1 :fixnum)
+  (source2 :fixnum)
+  (dest-length :fixnum)
+  (source-length :fixnum)
+  )  	
+
+
+Finally, you load the foo.o file into Lisp by executing:
+
+(lcl:load-foreign-files '("~/foo.o") ("-lparis2" "-lc" "-lm"))
+
+which causes the foo.o object to be sucked into Lisp along with
+anything it needs that is not already present from the Paris library
+and the standard C libraries.
+
+
+Other data types that can be passed to C functions and returned
+are
+
+:double-float
+:unsigned-32bit
+:signed-32bit
+:string
+
+
+The Lucid 3.0 Advanced Users' Guide documents ways of passing and
+accessing entire structures and arrays.
+
+
+
+CALLING NEW C* ROUTINES.
+
+
+
+CALLING FORTRAN ROUTINES.

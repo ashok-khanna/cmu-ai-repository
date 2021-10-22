@@ -1,0 +1,110 @@
+tk3.6p1.patch -
+
+This patch file updates from Tk 3.6 to Tk 3.6p1.  It should be applied
+by running the "patch" program in the top-level directory of a clean
+Tk 3.6 release, using the command "patch -p < tk3.6p1.patch".
+
+The patches in this file fix two bugs:
+1. Tk versions 3.4-3.6 have a bug that causes a core dump at line
+   1467 of file tkTextDisp.c under some esoteric conditions where
+   a text widget gets redisplayed when it has a -yscrollcommand
+   but hasn't been mapped onto the screen.  The "exmh" program seems
+   to be particularly adept at causing the problem.
+2. The filled area of an oval tends to stick out past the outline in
+   some cases.
+
+Prereq: 206
+*** ../tk3.6/patchlevel.h	Sun Nov 21 15:25:43 1993
+--- patchlevel.h	Thu Dec 23 09:32:33 1993
+***************
+*** 2,11 ****
+   * patchlevel.h --
+   *
+   * This file does nothing except define a "patch level" for Tk.
+!  * The patch level is an integer that increments with each new
+!  * release or patch release.  It's used to make sure that Tk
+!  * patches are applied in the correct order and only to appropriate
+!  * sources.
+   */
+  
+! #define TK_PATCH_LEVEL 206
+--- 2,13 ----
+   * patchlevel.h --
+   *
+   * This file does nothing except define a "patch level" for Tk.
+!  * The patch level has the form "X.YpZ" where X.Y is the base
+!  * release, and Z is a serial number that is used to sequence
+!  * patches for a given release.  Thus 3.6p1 is the first patch
+!  * to release 3.6, 3.6p2 is the patch that follows 3.6p1, and
+!  * so on.  The patch level ensures that patches are applied in
+!  * the correct order and only to appropriate sources.
+   */
+  
+! #define TK_PATCH_LEVEL "3.6p1"
+*** ../tk3.6/./tkWindow.c	Fri Oct  8 11:37:05 1993
+--- ./tkWindow.c	Thu Dec 23 09:30:37 1993
+***************
+*** 619,625 ****
+      register TkWindow *winPtr;
+      register TkCmd *cmdPtr;
+      char *libDir;
+-     char buffer[30];
+      static char *argv[] = {"-width", "200", "-height", "200", (char *) NULL};
+  
+      /*
+--- 619,624 ----
+***************
+*** 701,708 ****
+  	libDir = TK_LIBRARY;
+      }
+      Tcl_SetVar(interp, "tk_library", libDir, TCL_GLOBAL_ONLY);
+!     sprintf(buffer, "%d", TK_PATCH_LEVEL);
+!     Tcl_SetVar(interp, "tk_patchLevel", buffer, TCL_GLOBAL_ONLY);
+      Tcl_SetVar(interp, "tk_version", TK_VERSION, TCL_GLOBAL_ONLY);
+      Tcl_SetVar(interp, "tkVersion", TK_VERSION, TCL_GLOBAL_ONLY);
+  
+--- 700,706 ----
+  	libDir = TK_LIBRARY;
+      }
+      Tcl_SetVar(interp, "tk_library", libDir, TCL_GLOBAL_ONLY);
+!     Tcl_SetVar(interp, "tk_patchLevel", TK_PATCH_LEVEL, TCL_GLOBAL_ONLY);
+      Tcl_SetVar(interp, "tk_version", TK_VERSION, TCL_GLOBAL_ONLY);
+      Tcl_SetVar(interp, "tkVersion", TK_VERSION, TCL_GLOBAL_ONLY);
+  
+*** ../tk3.6/./tkRectOval.c	Sat Oct 23 14:59:45 1993
+--- ./tkRectOval.c	Thu Dec 23 08:56:28 1993
+***************
+*** 534,543 ****
+      if (rectOvalPtr->outlineGC != None) {
+  	if (rectOvalPtr->header.typePtr == &TkRectangleType) {
+  	    XDrawRectangle(display, drawable, rectOvalPtr->outlineGC,
+! 		    x1, y1, (x2-x1-1), (y2-y1-1));
+  	} else {
+  	    XDrawArc(display, drawable, rectOvalPtr->outlineGC,
+! 		    x1, y1, (x2-x1-1), (y2-y1-1), 0, 360*64);
+  	}
+      }
+  }
+--- 534,543 ----
+      if (rectOvalPtr->outlineGC != None) {
+  	if (rectOvalPtr->header.typePtr == &TkRectangleType) {
+  	    XDrawRectangle(display, drawable, rectOvalPtr->outlineGC,
+! 		    x1, y1, (x2-x1), (y2-y1));
+  	} else {
+  	    XDrawArc(display, drawable, rectOvalPtr->outlineGC,
+! 		    x1, y1, (x2-x1), (y2-y1), 0, 360*64);
+  	}
+      }
+  }
+*** ../tk3.6/./tkTextDisp.c	Mon Nov  1 15:06:04 1993
+--- ./tkTextDisp.c	Thu Dec 23 08:56:04 1993
+***************
+*** 1217,1222 ****
+--- 1217,1223 ----
+      if ((textPtr->tkwin == NULL) || !Tk_IsMapped(textPtr->tkwin)
+  	    || (dInfoPtr->maxX <= dInfoPtr->x)
+  	    || (dInfoPtr->maxY <= dInfoPtr->y)) {
++ 	UpdateDisplayInfo(textPtr);
+  	goto doScrollbars;
+      }
+      numRedisplays++;

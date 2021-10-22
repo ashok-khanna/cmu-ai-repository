@@ -1,0 +1,85 @@
+From: mernst@theory.lcs.mit.edu (Michael Ernst)
+Date: Wed, 01 Dec 93 11:23:27 EST
+To: edb-list@theory.lcs.mit.edu
+Subject: EDB and Emacs 19 regex.c
+
+I have not had time to find a simple fix for displaytype-regexp that would
+correct EDB's intolerable slowness under Emacs 19.  Fortunately for all of
+us, Thorsten Ohl found one.  While the fix is not compatible with
+displaytype abbreviations, this is a small price to pay for vastly improved
+setup time.  The other way to get Tho's fix, besides applying the patch
+below, is to do
+
+(setq db-load-hooks (function (lambda ()
+			   (setq displaytype-regexp
+				 (concat ","
+					 "\\(" symbol-regexp
+					 "\\|" displaytype-nonsymbol-regexp
+					 "\\)")))))
+
+in your .emacs file.
+
+EDB 2 will use a different method for specifying display specifications, so
+its displaytype-regexp is completely different.
+
+					-Michael Ernst
+					 mernst@theory.lcs.mit.edu
+
+
+
+Date: Mon, 22 Nov 1993 18:31:22 +0100
+From: Thorsten Ohl <ohl@crunch.ikp.physik.th-darmstadt.de>
+To: edb-developers@theory.lcs.mit.edu
+Subject: EDB and Emacs 19 regex.c
+
+Last weekend I finally found some time to investigate why btxdb (and
+some other EDB examples) won't start up with Emacs 19.   Well,
+DISPLAYTYPE-REGEXP _is_ the offender.  Making the leading comma (see
+the patch for EDB 1.18 below) mandatory breaks displaytypes but makes
+an (at least :-) exponential difference.
+
+This patch breaks EDB's specs, but if you're not using displaytype
+abbreviations (#, ", ', etc.) it might be useful (at least I can use btxdb
+again :-).
+
+NB: I have also experimented with the replacement
+
+		,?<RE>  -> <RE>?\(,?<RE>\)*
+
+this works for speed, but I didn't get the subpatterns right.
+
+Enjoy,
+-tho
+
+===================================================================
+RCS file: /home/sources/ohl/emacs/edb/db-format.el,v
+retrieving revision 1.4
+retrieving revision 1.5
+diff -c -r1.4 -r1.5
+*** 1.4	1993/11/20 18:31:04
+--- 1.5	1993/11/20 21:14:44
+***************
+*** 388,394 ****
+  
+  ;; Perhaps the comma shouldn't be optional; but then I'd have to do special
+  ;; work for the first field, which I'm loathe to do.
+! (defconst displaytype-regexp (concat ",?"
+  				   "\\(" symbol-regexp
+  				   "\\|" displaytype-nonsymbol-regexp
+  				   "\\)"))
+--- 388,397 ----
+  
+  ;; Perhaps the comma shouldn't be optional; but then I'd have to do special
+  ;; work for the first field, which I'm loathe to do.
+! ;; [ Hmm, the optional comma is a disaster for the `fixed' regex.c of
+! ;;   Emacs 19.  Since I do not use the display abbreviations, I
+! ;;   decided to make it mandatory.  -tho ]
+! (defconst displaytype-regexp (concat ","
+  				   "\\(" symbol-regexp
+  				   "\\|" displaytype-nonsymbol-regexp
+  				   "\\)"))
+
+
+/// Thorsten Ohl, TH Darmstadt, Schlossgartenstr. 9, D-64289 Darmstadt, Germany
+//////////////// net: ohl@crunch.ikp.physik.th-darmstadt.de, ohl@gnu.ai.mit.edu
+/// voice: +49-6151-16-3116, secretary: +49-6151-16-2072, fax: +49-6151-16-2421

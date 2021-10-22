@@ -1,0 +1,258 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node350.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:47:30 GMT -->
+<HEAD>
+<TITLE>A.2.1. Scanners</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Scanners">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html6080 HREF="node351.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html6078 HREF="node349.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html6072 HREF="node349.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html6082 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html6083 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html6081 HREF="node351.html"> Mapping</A>
+<B>Up:</B> <A NAME=tex2html6079 HREF="node349.html"> Series Functions</A>
+<B> Previous:</B> <A NAME=tex2html6073 HREF="node349.html"> Series Functions</A>
+<HR> <P>
+<H2><A NAME=SECTION003421000000000000000>A.2.1. Scanners</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+Scanners create series outputs based on non-series inputs.  Either they
+operate based on some formula (for example, scanning a range of integers) or they
+enumerate the elements in an aggregate data structure (for example, scanning the
+elements in a list or array).
+<P>
+<BR><b>[Function]</b><BR>
+<tt>scan-range &amp;key (:start 0) (:by 1) (:type 'number)</tt><tt>:upto :below :downto :above :length</tt><P>The function <tt>scan-range</tt> returns a series of numbers starting with the
+<tt>:start</tt> argument
+(default integer <tt>0</tt>) and counting up by the <tt>:by</tt> argument (default
+integer <tt>1</tt>).  The <tt>:type</tt> argument (default <tt>number</tt>) is
+a type specifier indicating the type of numbers in the series
+produced.  The <tt>:type</tt> argument must be a (not necessarily proper) subtype of
+<tt>number</tt>.  The <tt>:start</tt> and <tt>:by</tt> arguments must be of that type.
+<P>
+One of the last five arguments may be used
+to specify the kind of end test to be used;
+these are called <i>termination arguments</i>.
+If <tt>:upto</tt> is specified, counting continues only so long as the
+numbers generated are less than or equal to <tt>:upto</tt>.  If 
+<tt>:below</tt> is specified, counting continues only so long as the numbers
+generated are less than <tt>:below</tt>.  If <tt>:downto</tt> is specified,
+counting continues only so long as the numbers generated are greater
+than or equal to <tt>:downto</tt>.  If <tt>:above</tt> is specified,
+counting continues only so long as the numbers generated are greater
+than <tt>:above</tt>.  If <tt>:length</tt> is specified, it must be a
+non-negative integer and the output series has this length.
+<P>
+If none
+of the termination arguments are specified, the output has unbounded
+length.  If more than one termination argument is specified, it is an error.
+<P>
+<P><pre>
+(scan-range :upto 4) => #Z(0 1 2 3 4) 
+(scan-range :from 1 :by -1 :above -4) => #Z(1 0 -1 -2 -3) 
+(scan-range :from .5 :by .1 :type 'float) => #Z(.5 .6 .7 ...) 
+(scan-range) => #Z(0 1 2 3 4 5 6 ...)
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>scan <i>sequence</i> <BR></tt><tt>scan type <i>sequence</i></tt><P><tt>scan</tt> returns a series containing the elements of <i>sequence</i> in
+order.  The <i>type</i> argument is a type specifier indicating the type of
+sequence to be scanned; it must be a (not necessarily proper) subtype of
+<tt>sequence</tt>.  If <i>type</i> is omitted, it defaults to <tt>list</tt>.
+(This function exhibits an argument pattern that is unusual for Common
+Lisp:  an ``optional'' argument preceding a required argument.  This
+pattern cannot be expressed in the usual manner with <tt>&amp;optional</tt>.  It
+is indicated above by two definition lines, showing the two possible
+argument patterns.)
+<P>
+If the <i>sequence</i> is a list, it must be a proper list ending in <tt>nil</tt>.
+Scanning is significantly more efficient if it can be determined at compile
+time whether <i>type</i> is a subtype of <tt>list</tt> or <tt>vector</tt> and for
+vectors what the length of the vector is.
+<P><pre>
+(scan '(a b c)) => #Z(a b c) 
+(scan 'string &quot;BAR&quot;) => #Z(#\B #\A #\R)
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>scan-sublists <i>list</i></tt><P><tt>scan-sublists</tt> returns a series containing the successive sublists of
+<i>list</i>.  The <i>list</i> must be a proper list ending in <tt>nil</tt>.
+<P><pre>
+(scan-sublists '(a b c)) => #Z((a b c) (b c) (c))
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>scan-multiple <i>type</i> <i>first-sequence</i> &amp;rest <i>more-sequences</i></tt><P>Several sequences can be scanned at once by using several calls on
+<tt>scan</tt>.  Each call on <tt>scan</tt> will test to see when its sequence runs
+out of elements and execution will stop as soon as any of the sequences are
+exhausted.  Although very robust, this approach to scanning can be
+inefficient.  In situations where it is known in
+advance which sequence is the shortest, <tt>scan-multiple</tt> can be used to
+obtain the same results more rapidly.
+<P>
+<tt>scan-multiple</tt> is similar to <tt>scan</tt> except that several sequences
+can be scanned at once.  If there are <i>n</i> sequence inputs,
+<tt>scan-multiple</tt> returns <i>n</i> series containing the elements of these
+sequences.  It must be the case that none of the sequence inputs is shorter
+than the first sequence.  All of the output series are the same length as
+the first input sequence.  Extra elements in the other input sequences are
+ignored.  Using <tt>scan-multiple</tt> is more efficient than using multiple
+instances of <tt>scan</tt>, because <tt>scan-multiple</tt> only has to check for
+the first input running out of elements.
+<P>
+If <i>type</i> is of the form <tt>(values <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43961.gif"> <b>...</b> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43965.gif">)</tt>, then
+there must be <b><i>m</i></b> sequence inputs and the <i>i</i>th sequence must have type
+<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43969.gif">.  Otherwise there can be any number of sequence inputs, each of which
+must have type <i>type</i>.
+<P><pre>
+(multiple-value-bind (data weights) 
+    (scan-multiple 'list '(1 6 3 2 8) '(2 3 3 3 2)) 
+  (collect (map-fn t #'* data weights))) 
+  => (2 18 9 6 16)
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>scan-lists-of-lists <i>lists-of-lists</i> &amp;optional <i>leaf-test</i> <BR></tt><tt>scan-lists-of-lists-fringe <i>lists-of-lists</i> &amp;optional <i>leaf-test</i></tt><P>The argument <i>lists-of-lists</i> is viewed as a tree where each
+internal node is a non-empty list and the elements of the list are the
+children of the node.  <tt>scan-lists-of-lists</tt> and
+<tt>scan-lists-of-lists-fringe</tt> each scan <i>lists-of-lists</i> in preorder
+and return a series of its nodes.  <tt>scan-lists-of-lists</tt> returns every
+node in the tree.  <tt>scan-lists-of-lists-fringe</tt> returns only the leaf
+nodes.
+<P>
+The scan proceeds as follows.  The argument <i>lists-of-lists</i> can be any
+Lisp object.  If <i>lists-of-lists</i> is an atom or satisfies the predicate
+<i>leaf-test</i> (if present), it is a leaf node.  (The predicate can count
+on being applied only to conses.) Otherwise, <i>lists-of-lists</i> is a (not
+necessarily proper) list.  The first element of <i>lists-of-lists</i> is
+recursively scanned in full, followed by the second and so on until a
+non-cons <i>cdr</i> is encountered.  Whether or not this final <i>cdr</i> is
+<tt>nil</tt>, it is ignored.
+<P><pre>
+(scan-lists-of-lists '((2) (nil))) 
+  => #Z(((2) (nil)) (2) 2 (nil) nil) 
+(scan-lists-of-lists-fringe '((2) (nil))) => #Z(2 nil) 
+(scan-lists-of-lists-fringe '((2) (nil)) 
+                            #'(lambda (e) (numberp (car e)))) 
+  => #Z((2) nil)
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>scan-alist <i>a-list</i> &amp;optional (<i>test</i> #'eql) <BR></tt><tt>scan-plist <i>plist</i> <BR></tt><tt>scan-hash <i>table</i></tt><P>When given an association list, a property list, or a hash table
+(respectively), each of these functions produces two outputs:  a series of keys
+<i>K</i> and a series of the corresponding values <i>V</i>.  Each key in the
+input appears exactly once in the output, even if it appears more than once
+in the input.  (The <i>test</i> argument of <tt>scan-alist</tt> specifies the
+equality test between keys; it defaults to <tt>eql</tt>.)
+The two outputs have the same length.  Each
+<i>V</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44030.gif"> is the value returned by the appropriate accessing function
+(<tt>cdr</tt> of <tt>assoc</tt>, <tt>getf</tt>, or <tt>gethash</tt>, respectively)
+when given <i>K</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44030.gif">.  <tt>scan-alist</tt> and <tt>scan-plist</tt> scan keys
+in the order
+they appear in the underlying structure.  <tt>scan-hash</tt> scans keys in no
+particular order.
+<P><pre>
+(scan-plist '(a 1 b 3)) => #Z(a b) and #Z(1 3) 
+(scan-alist '((a . 1) nil (a . 3) (b . 2))) 
+  => #Z(a b) and #Z(1 2)
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>scan-symbols &amp;optional (<i>package</i> *package*)</tt><P><tt>scan-symbols</tt> returns a series, in no particular order, and possibly
+containing duplicates, of the symbols accessible in <i>package</i> (which
+defaults to the current package).
+<P>
+<BR><b>[Function]</b><BR>
+<tt>scan-file <i>file-name</i> &amp;optional (<i>reader</i> #'read)</tt><P><tt>scan-file</tt> opens the file named by the string <i>file-name</i>
+and applies the function <i>reader</i> to it repeatedly until the end of the
+file is reached.  <i>Reader</i> must accept the standard input function
+arguments <i>input-stream</i>, <i>eof-error-p</i>, and <i>eof-value</i> as its
+arguments.  (For instance, <i>reader</i> can be <tt>read</tt>,
+<tt>read-preserving-white-space</tt>, <tt>read-line</tt>, or
+<tt>read-char</tt>.) If omitted, <i>reader</i> defaults to <tt>read</tt>.
+<tt>scan-file</tt> returns a series of the values returned
+by <i>reader</i>, up to but not including the value returned
+when the end of the file is reached.  The
+file is correctly closed, even if an abort occurs.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>scan-fn <i>type</i> <i>init</i> <i>step</i> &amp;optional <i>test</i></tt><P>The higher-order function <tt>scan-fn</tt> supports the general concept of
+scanning.  The <i>type</i> argument is a type specifier indicating
+the type of values returned by <i>init</i> and <i>step</i>.  The <tt>values</tt>
+type specifier can be used for this argument
+to indicate multiple types; however, <i>type</i> cannot
+indicate zero values.  If <i>type</i> indicates <b><i>m</i></b> types
+<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44125.gif">,
+then <tt>scan-fn</tt> returns <b><i>m</i></b> series
+<i>T1</i>, <b>...</b>, <i>Tm</i>, where <i>Ti</i> has
+the type <tt>(series <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43969.gif">)</tt>.
+The arguments <i>init</i>, <i>step</i>, and <i>test</i> are functions.
+<P>
+The <i>init</i> must be of type 
+<tt>(function () (values <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43961.gif"> ... <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44143.gif">))</tt>.
+<P>
+The <i>step</i> must be of type 
+<tt>(function (<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43961.gif"> ... <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44143.gif">) (values <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43961.gif"> ... <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44143.gif">))</tt>.
+<P>
+The <i>test</i> (if present) must be of type 
+<tt>(function (<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43961.gif"> ... <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44143.gif">) t)</tt>.
+<P>
+The elements of the <i>Ti</i> are computed as follows:
+<P><pre>
+(values <i>T1</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44031.gif"> ... <i>Tm</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44031.gif">) = (funcall <i>init</i>) 
+(values <i>T1</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44030.gif"> ... <i>Tm</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44030.gif">) = (funcall <i>step</i> <i>T1</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43947.gif"> ... <i>Tm</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43947.gif">)
+</pre><P>
+<P>
+The outputs all have the same length.  If there is no <i>test</i>, the
+outputs have unbounded length.  If there is a <i>test</i>, the outputs
+consist of the elements up to, but not including, the first elements (with
+index <i>j</i>, say) for which the following termination test is not <tt>nil</tt>.
+<P><pre>
+(funcall <i>test</i> <i>T1</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44030.gif"> ... <i>Tm</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44030.gif">)
+</pre><P>
+It is guaranteed that <i>step</i> will
+not be applied to the elements that pass this termination test.
+<P>
+If <i>init</i>, <i>step</i>, or <i>test</i> has side effects when
+invoked, it can count on being called in the order indicated by the
+equations above, with <i>test</i> called just before <i>step</i> on each
+cycle.  However, given the lazy evaluation nature of series, these
+functions will not be called until their outputs are actually used (if
+ever).  In addition, no assumptions can be made about the relative order of
+evaluation of these calls with regard to execution in other parts of a
+given series expression.  The first example below scans down a list
+stepping two elements at a time.  The second example generates two unbounded
+series: the integers counting up from 1 and the sequence of partial
+sums of the first <i>i</i> integers.
+<P><pre>
+(scan-fn t #'(lambda () '(a b c d)) #'cddr #'null) 
+  => #Z((a b c d) (c d)) 
+
+(scan-fn '(values integer integer) 
+         #'(lambda () (values 1 0)) 
+         #'(lambda (i sum) (values (+ i 1) (+ sum i)))) 
+  => #Z(1 2 3 4 ...) and #Z(0 1 3 6 ...)
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>scan-fn-inclusive <i>type</i> <i>init</i> <i>step</i> <i>test</i></tt><P>The higher-order function <tt>scan-fn-inclusive</tt> is the same as 
+<tt>scan-fn</tt> except that the first set of elements for which <i>test</i>
+returns a non-null value is included in the output.  As with
+<tt>scan-fn</tt>, it is guaranteed that <i>step</i> will not be applied to the
+elements for which <i>test</i> is non-null.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html6080 HREF="node351.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html6078 HREF="node349.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html6072 HREF="node349.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html6082 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html6083 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html6081 HREF="node351.html"> Mapping</A>
+<B>Up:</B> <A NAME=tex2html6079 HREF="node349.html"> Series Functions</A>
+<B> Previous:</B> <A NAME=tex2html6073 HREF="node349.html"> Series Functions</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

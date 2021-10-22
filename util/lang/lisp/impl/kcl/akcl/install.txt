@@ -1,0 +1,180 @@
+From siebers%cadillac.cad.mcc.com@mcc.com Thu Aug 27 10:01:01 1992
+Date: Fri, 23 Jun 89 11:18:10 CDT
+From: siebers%cadillac.cad.mcc.com@mcc.com (Greg Siebers)
+Posted-Date: Fri, 23 Jun 89 11:18:10 CDT
+To: olphie@cli.com
+Subject: AKCL Installation Guide
+Cc: amb@cs.utexas.edu, boyer@cli.com, wfs@rascal.ics.utexas.edu
+Sender: rz@cs.cornell.edu
+
+
+                         AKCL Installation Instructions
+                         ------------------------------
+
+
+OVERVIEW:
+--------
+
+The AKCL system contains `change files' together with a method for combining them
+with the original (June 1987) KCL distribution.  The `merge' utility takes files
+>from the original distribution and modifies them according to a prescription in a
+change file.  The change files reside in the akcl/V directory.  The enhancements
+include enhancements to the Lisp compiler, the loader, and the basic C code.  If
+installed properly, NOTHING in the original kcl directory should be overwritten.
+Files which have not changed will have only a link copy in the akcl directory,
+and files which do change will have a changed copy in the akcl directory, and an
+unchanged file in the kcl directory.  To ensure that you do not accidentally
+alter a file in the original directory you might wish to make the files there
+unwritable.  You do NOT need to do a make in the kcl directory.
+
+For further information about KCL and AKCL, see the "Kyoto Common Lisp Report"
+by Taiichi Yuasa and Masami Hagiya, and see "Kyoto Common LISP" by William F.
+Schelter and Michael Ballantyne in the March, 1988 issue of _AI_EXPERT_.
+
+
+OBTAINING THE SOURCES:
+---------------------
+
+KCL and AKCL source files may be obtained from the following internet hosts using
+the procedure outlined below:
+
+                rascal.ics.utexas.edu   128.83.144.1
+
+                cli.com                 192.31.85.1
+
+% cd /usr/local         {this is a suggested place to install KCL and AKCL}
+% ftp rascal.ics.utexas.edu
+        {login as 'ftp' using the password 'guest'}
+% cd pub
+% ls -l
+% binary
+% get kcl.license
+        {before continuing, print this file, sign the license
+         agreement, and mail two copies to Toyohashi University of Technology
+% get kcl-report.doc    {an on-line readable version of the KCL Report}
+% get kcl-report.tex    {a LaTeX version of the KCL Report}
+% get kcl.tar.Z
+% get akcl-1-XXX.tar.Z
+        {where XXX represents the version number; you probably
+         want the highest version number (currently 175)}
+% quit
+
+The procedure is similar for the host cli.com, but the files are located in
+~ftp/pub/kcl and in ~ftp/pub/akcl.  If necessary, KCL may also be obtained from
+other internet hosts such as uunet.uu.net (192.48.96.2), gatekeeper.dec.com
+(128.45.9.52), and orville.nas.nasa.gov (129.99.20.2); however, the versions of
+AKCL found on such hosts are usually obsolete.
+
+
+CREATING THE KCL AND AKCL DIRECTORIES:
+-------------------------------------
+
+Make sure the two files kcl.tar.Z and akcl-1-XXX.tar.Z are in your current
+directory, which is where you want to install KCL and AKCL, then do the
+following:
+
+% mkdir kcl
+% (cd kcl ; uncompress -c ../kcl.tar.Z | tar xvf -)
+% chmod -R 444 kcl
+% chmod -R a+X kcl
+% umask 022
+% mkdir akcl
+% cd akcl
+% uncompress -c ../akcl-1-XXX.tar.Z | tar xvf -
+
+
+PREPARING THE MAKEFILES:
+-----------------------
+
+Edit the appropriate h/MACHINE.defs file, which contains definitions to be
+included in the various makefiles.  For example, if your 'MACHINE' is a sun3:
+
+% emacs h/sun3.defs
+
+ * MAINDIR -- the directory called kcl where you just untarred kcl.tar.Z;
+   for example, if you are running the automount daemon under SunOS 4.0,
+   this might look something like:
+
+      MAINDIR = /net/MACHINE-NAME/usr/local/kcl
+
+ * CC -- if you are using the GNU C compiler:
+
+      CC = gcc -fwritable-strings -msoft-float -DVOL=volatile -I$(AKCLDIR)/o
+
+   or if you are using the conventional UNIX C compiler:
+
+      CC = cc -DVOL= -I$(AKCLDIR)/o -temp=. -Bstatic -Qoption as -O
+
+   where "-Bstatic" is needed only for SunOS 4.0, and "-Qoption as -O" is
+   needed only on a sun3 under SunOS 4.0 because of a Sun bug.
+
+ * ODIR_DEBUG -- use the highest level of optimization to compile the AKCL
+   source files:
+
+      ODIR_DEBUG = -O4          {simply -O for GNU C or for SunOS 3.5}
+
+ * OFLAG -- the output of Lisp compilation cannot always be compiled at -O4:
+
+      OFLAG = -O2               {simply -O for GNU C or for SunOS 3.5}
+
+ * RSYM and SFASL -- for a sun3 or sun4 machine, you probably want to leave
+   these defined (for other machines, give them an empty definition):
+
+      RSYM = rsym
+      SFASL = $(ODIR)/sfasl.o
+
+ * INITFORM -- if you desire to have KCL documentation files available
+   on-line within the Lisp environment, rather than using an external
+   documentation tool such as find-doc.el, add (load "../lsp/setdoc.lsp"):
+
+      INITFORM = (si::build-symbol-table)(load "../lsp/setdoc.lsp")
+
+Install the definitions from the h/MACHINE.defs file into the makefiles:
+
+% add-defs sun3    {in general:  % add-defs MACHINE}
+
+
+BUILDING AKCL:
+-------------
+
+% make -f Smakefile
+
+The build procedure may stop once with an error asking you to become super-user
+in order to install the cmpinclude.h header file.  When this happens, use the
+following steps to continue the build:
+
+% su
+password: <super-user-password>
+# make cmpinclude.h
+# exit
+% make -f Smakefile
+
+The build should continue without error.  There may be occasional compiler
+warnings, but all files should compile successfully.  Smakefile is a special
+makefile which causes make to be run twice, the first time building a saved_kcl
+using the original compiler, and the second time compiling the modified compiler
+with the original compiler.  If this does not run twice, you will be using the
+old compiler.  If you later change any C source files, it will be sufficient to
+use the regular makefile (which by now has been slightly altered).
+
+When the build has finished, the h/cmpinclude.h header file must be copied to the
+/usr/include directory of all workstations that intend to use AKCL.  Again, this
+may require super-user privileges.
+
+Similarly, the command script xbin/kcl must be copied to /usr/local/bin or some
+other appropriate location on each workstation.  But first, however, it must be
+edited so that the pathnames it contains are appropriate for your network (refer
+to the definition of MAINDIR used in the h/MACHINE.defs file).  Naturally, this
+also requires that each workstation mount the filesystem containing the akcl
+installation directory.
+
+ -----------------------------------------------------------------------
+   Gregory R. Siebers  | MAIL: P.O. Box 200195, Austin, TX 78720
+    MCC CAD Program    | ARPA: siebers@mcc.com
+     (512) 338-3656    | UUCP: ...!cs.utexas.edu!milano!cadillac!siebers
+ -----------------------------------------------------------------------
+
+
+
+
+

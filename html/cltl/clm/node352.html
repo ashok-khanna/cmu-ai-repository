@@ -1,0 +1,159 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node352.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:46:48 GMT -->
+<HEAD>
+<TITLE>A.2.3. Truncation and Other Simple Transducers</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Truncation and Other Simple Transducers">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html6104 HREF="node353.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html6102 HREF="node349.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html6096 HREF="node351.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html6106 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html6107 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html6105 HREF="node353.html"> Conditional and Other </A>
+<B>Up:</B> <A NAME=tex2html6103 HREF="node349.html"> Series Functions</A>
+<B> Previous:</B> <A NAME=tex2html6097 HREF="node351.html"> Mapping</A>
+<HR> <P>
+<H2><A NAME=SECTION003423000000000000000>A.2.3. Truncation and Other Simple Transducers</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+Transducers compute series from series and form the heart of most series
+expressions.  Mapping is by far the most common transducer.   This section
+presents a number of additional simple transducers.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>cotruncate &amp;rest <i>series-inputs</i> <BR></tt><tt>until <i>bools</i> &amp;rest <i>series-inputs</i> <BR></tt><tt>until-if <i>pred</i> &amp;rest <i>series-inputs</i></tt><P>Each of these functions accepts one or more series inputs <i>S1</i>, <b>...</b>, <i>Sn</i> as its <tt>&amp;rest</tt> argument and returns <b><i>n</i></b> series
+outputs <i>T1</i>, <b>...</b>, <i>Tn</i> that contain the same elements in the same
+order-that is, <i>Ti<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44030.gif">=Si<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44030.gif"></i>.
+Let <b><i>k</i></b> be the length of the
+shortest input <i>Si</i>.  <tt>cotruncate</tt> truncates the series so that
+each output has length <b><i>k</i></b>.  Let <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44119.gif"> be the position of the first element
+in the boolean series <i>bools</i> that is not <tt>nil</tt> or, if every
+element is <tt>nil</tt>, the length of <i>bools</i>.  <tt>until</tt> truncates the
+series so that each output has length <tt>(min <i>k</i> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44081.gif">)</tt>.
+Let <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44121.gif"> be the position of the first element in <i>S1</i> such that 
+<tt>(<i>pred</i> <i>S1<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44082.gif"></i>)</tt>
+is not <tt>nil</tt> or, if there is no such
+element, the length of <i>S1</i>.  <tt>until-if</tt> truncates the series so
+that each output has length <tt>(min <i>k</i> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44083.gif">)</tt>.
+<P><pre>
+(cotruncate #Z(1 2 -3 4) #Z(a b c)) 
+  => #Z(1 2 -3) and #Z(a b c) 
+(until #Z(nil nil t nil) #Z(1 2 -3 4) #Z(a b c)) 
+  => #Z(1 2) and #Z(a b) 
+(until-if #'minusp #Z(1 2 -3 4) #Z(a b c)) 
+  => #Z(1 2) and #Z(a b)
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>previous <i>items</i> &amp;optional (<i>default</i> nil) (<i>amount</i> 1)</tt><P>The series returned by <tt>previous</tt> is the same as the input series
+<i>items</i> except that it is shifted to the right by the positive
+integer <i>amount</i>.  The shifting is done by inserting <i>amount</i>
+copies of <i>default</i> before <i>items</i> and discarding <i>amount</i>
+elements from the end of <i>items</i>.
+<P><pre>
+(previous #Z(10 11 12) 0) => #Z(0 10 11)
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>latch <i>items</i> &amp;key :after :before :pre :post</tt><P>The series returned by <tt>latch</tt> is the same as the input series
+<i>items</i> except that some of the elements are replaced by other
+values.  <tt>latch</tt> acts like a <i>latch</i> electronic circuit
+component.  Each input element causes the creation of a corresponding
+output element.  After a specified number of non-null input elements
+have been encountered, the latch is triggered and the output mode is
+permanently changed.
+<P>
+The <tt>:after</tt> and <tt>:before</tt> arguments specify the latch point.
+The latch point is just after the <tt>:after</tt>-th non-null element in
+<i>items</i> or just before the <tt>:before</tt>-th non-null element.  If
+neither <tt>:after</tt> nor <tt>:before</tt> is specified, an <tt>:after</tt>
+of <tt>1</tt> is assumed.  If both are specified, it is an error.
+<P>
+If a <tt>:pre</tt> is specified, every element prior to the latch point
+is replaced by this value.  If a <tt>:post</tt> is specified, every element
+after the latch point is replaced by this value.  If neither is
+specified, a <tt>:post</tt> of <tt>nil</tt> is assumed.
+<P><pre>
+(latch #Z(nil c nil d e)) => #Z(nil c nil nil nil) 
+(latch #Z(nil c nil d e) :before 2 :post t) => #Z(nil c nil t t)
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>collecting-fn type init function &amp;rest series-inputs</tt><P>The higher-order function <tt>collecting-fn</tt> supports the general concept of
+a simple transducer with internal state.  The <i>type</i> argument is a type
+specifier indicating the type of values returned by <i>function</i>.
+The <tt>values</tt> construct can be used to indicate multiple types; however,
+<i>type</i> cannot indicate zero values.  If <i>type</i> indicates <b><i>m</i></b> types
+<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44125.gif">,
+then <tt>collecting-fn</tt> returns <b><i>m</i></b> series <i>T1</i>, <b>...</b>, <i>Tm</i>, where <i>Ti</i> has the
+type <tt>(series <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43969.gif">)</tt>.  The
+arguments <i>init</i> and <i>function</i> are functions.  The remaining
+arguments (if any) are all series.  Let these series be <i>S1</i>, <b>...</b>, <i>Sn</i> and suppose that <i>Si</i> has the type
+<tt>(series <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44051.gif">)</tt>.
+<P>
+The <i>init</i> must be of type 
+<tt>(function () (values <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43961.gif"> ... <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44143.gif">))</tt>.
+<P>
+The <i>function</i> must be of type
+<P><pre>
+(function (<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43961.gif"> ... <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44143.gif"> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44145.gif"> ... <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44055.gif">) (values <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43961.gif"> ... <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44143.gif">))
+</pre><P>
+<P>
+The length of each output is the same as the length of the shortest input.
+If there are no bounded series inputs, the outputs are unbounded.
+The elements of the <i>Ti</i> are computed as follows:
+<P><pre>
+(values <i>T1</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44031.gif"> ... <i>Tm</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44031.gif">) == 
+  (multiple-value-call <i>function</i> (funcall  <i>init</i>) <i>S1</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44031.gif"> ... <i>Sn</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44031.gif">) 
+
+(values <i>T1</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44030.gif"> ... <i>Tm</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44030.gif">) == 
+  (funcall <i>function</i> <i>T1</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43947.gif"> ... <i>Tm</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43947.gif"> <i>S1</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44030.gif"> ... <i>Sn</i><IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44030.gif">)
+</pre><P>
+<P>
+If <i>init</i> or <i>function</i> has side effects, it can count on
+being called in the order indicated by the equations above.  However,
+given the lazy evaluation nature of series, these functions will not be called
+until their outputs are actually used (if ever).  In addition, no
+assumptions can be made about the relative order of evaluation of these
+calls with regard to execution in other parts of a given series expression.
+The second example below computes a series of partial sums of the numbers in
+an input series.  The third example computes two output series: the
+partial sums of its first input and the partial products of its second
+input.
+<P><pre>
+(defun running-averages (float-list) 
+  (multiple-value-call #'map-fn 
+    'float #'/ 
+    (collecting-fn '(values float integer) 
+                   #'(lambda () (values 0.0 0) 
+                   #'(lambda (s n x) (values (+ s x) (+ n 1)))) 
+                   float-list)))
+</pre><P>
+<P><pre>
+(collecting-fn 'integer #'(lambda () 0) #'+ #Z(1 2 3)) 
+  => #Z(1 3 6) 
+
+(collecting-fn '(values integer integer) 
+               #'(lambda () (values 0 1)) 
+               #'(lambda (sum prod x y) 
+                   (values (+ sum x) (* prod y))) 
+               #Z(4 6 8)  
+               #Z(1 2 3)) 
+  => #Z(4 10 18) and #Z(1 2 6)
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html6104 HREF="node353.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html6102 HREF="node349.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html6096 HREF="node351.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html6106 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html6107 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html6105 HREF="node353.html"> Conditional and Other </A>
+<B>Up:</B> <A NAME=tex2html6103 HREF="node349.html"> Series Functions</A>
+<B> Previous:</B> <A NAME=tex2html6097 HREF="node351.html"> Mapping</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

@@ -1,0 +1,240 @@
+
+			 Macros in MIT Scheme
+
+If you are new to the subject of macros you may want to look at the
+"Some Confusing Macro Stuff" section at the end of this document.
+
+The interpreter interprets a language called "Scode".  The syntaxer
+(invoked with the procedure SYNTAX) translates list structure
+representing Scheme expressions to Scode.  The syntaxer is guided in
+this process by a structure called a "syntax table", which defines the
+transformations between various special forms and Scode.  A list whose
+first element is not a keyword defined in the syntax table is assumed
+to be a procedure application, and is translated accordingly.
+Individual symbols are assumed to represent variable references.
+
+The basic operations on syntax tables are:
+
+(MAKE-SYNTAX-TABLE #!optional parent-syntax-table)
+(SYNTAX-TABLE-REF syntax-table keyword)
+(SYNTAX-TABLE-DEFINE syntax-table keyword expander)
+
+If no PARENT-SYNTAX-TABLE argument is given, then the value of
+MAKE-SYNTAX-TABLE is a new, empty syntax table.  The usual argument
+to this procedure is the variable SYSTEM-GLOBAL-SYNTAX-TABLE, which
+contains all of the standard syntactic keywords: LAMBDA, IF, COND,
+BEGIN, etc.
+
+The expander must be a procedure taking S-expressions as input and
+producing Scode.  For convenience there is a macro called MACRO
+similar to LAMBDA which wraps the body of the expander in the
+appropriate code to translate into Scode.  For example,
+
+(syntax-table-define <some syntax table> 'FOO
+  (macro (x y z)
+    `(list ,z (+ ,x ,y))))
+
+adds a new keyword (FOO) to <some syntax table> with the obvious meaning.
+Note that
+
+(syntax-table-define <some syntax table> 'FOO
+  (lambda (x y z)
+    `(list ,z (+ ,x ,y))))
+
+would not have the same effect (see the note below), since there is no
+translation to Scode here, and lists are not necessarily valid Scode.
+
+The base syntax table is the value of the variable
+SYSTEM-GLOBAL-SYNTAX-TABLE.  The syntax table of the read eval print
+loop (usually a child of SYSTEM-GLOBAL-SYNTAX-TABLE) is returned by
+the procedure named NEAREST-REPL/SYNTAX-TABLE.  Therefore, a way to install a
+"macro" in the syntax table used to translate keyboard input is to
+type
+
+(syntax-table-define (nearest-repl/syntax-table) 'FOO
+  (macro (x y z)
+    `(list ,z (+ ,x ,y))))
+
+Note that the expression producing the expander is evaluated in the
+same environment where the whole expression is evaluated, since
+SYNTAX-TABLE-DEFINE is not a special form keyword.
+
+The recommended way of extending syntax tables is to have a bunch of
+SYNTAX-TABLE-DEFINE expressions in a file, and this file can be loaded
+into any appropriate environment.
+
+Since files are, theoretically, translated as a unit before they are
+evaluated, and SYNTAX-TABLE-DEFINE is not a special form keyword, a
+SYNTAX-TABLE-DEFINE expression appearing in a file should have no
+effect on the rest of the file.
+
+The syntax table according to which an expression (or a file) is
+translated can be manipulated by using the following special forms:
+
+(USING-SYNTAX <some syntax table>
+  . <forms>)
+
+<some syntax table> is evaluated at translation time in a special
+enviroment (called syntax-environment) and should produce a valid
+syntax table.  The rest of the form is translated according to this
+syntax table.
+
+(LET-SYNTAX ((<keyword1> <expander1>)
+             (<keyword2> <expander2>) ...)
+  . <forms>)
+
+LET-SYNTAX makes a new syntax table with the bindings expressed by the
+<keyword> <expander> pairs.  This new syntax table has as its parent
+the syntax table used to expand the LET-SYNTAX itself.  The forms are
+then expanded in this syntax table.  Note that the expanders are just
+like the expanders given to SYNTAX-TABLE-DEFINE, and are therefore
+usually created by using the MACRO special form.  They are evaluated
+(closed) in the syntaxer environment, which for all practical purposes
+is identical to the global environment.
+
+DEFINE-MACRO lets you define a macro in the "current" syntax table
+using a convenient interface. 
+
+(syntax-table-define current-syntax-table  'my-macro
+  (macro (a b c)
+    (list '+ a b c)))
+
+and
+
+(define-macro (my-macro a b c)
+  (list '+ a b c))
+
+both define the same macro (assuming current-syntax-table is somehow
+bound to the "current" syntax table).
+
+It is important to realize that the "current" syntax table for a
+Read-Eval-Print loop (i.e. your interaction with the interpreter) is
+different than the "current" syntax table for some seperately
+compiled file. Therefore, if you use DEFINE-MACRO in a file, that
+macro is defined only within that file and is not available if that
+file is loaded. It does not matter whether the loaded file is a scheme
+source file, a file processed by SF (a .bin file) or a compiled file
+(a .com file). In order to make a macro available for use in both a
+given file and in your REP loop you need to define it twice. The
+following macro will do this:
+
+(define-macro (define-macro-both pattern . body)
+  `(begin
+     (define-macro ,pattern ,@body)
+     (syntax-table-define user-initial-syntax-table ',(car pattern)
+       (macro ,(cdr pattern)
+	 ,@body))))
+
+If you want to include this macro in a file and have IT available for
+use in your REP loop (for example, it might be useful to define it in
+your .scheme.init file) then you also need this:
+
+(syntax-table-define user-initial-syntax-table 'define-macro-both
+  (macro (pattern . body)
+    `(begin
+       (define-macro ,pattern ,@body)
+       (syntax-table-define user-initial-syntax-table ',(car pattern)
+	 (macro ,(cdr pattern)
+	   ,@body)))))
+
+If you need to have a macro available in a given file, in your REP
+loop, and in source files subsequently loaded into (or compiled by)
+your running scheme system then you should use
+SYSTEM-GLOBAL-SYNTAX-TABLE instead of USER-INITIAL-SYNTAX-TABLE as
+your syntax-table in the above macros.
+
+Some further suggestions:
+
+LET-SYNTAX should be used only for relatively trivial things.  For
+more complicated things, the code should be split into two files.  One
+file should contain the code that creates and modifies syntax tables
+to provide the new syntactic features.  The other file should contain
+the desired code with the relevant parts surrounded by appropriate
+USING-SYNTAX forms.
+
+In this way the file that defines the syntactic extensions has
+convenient control of the environment, since it contains "normal"
+Scheme code (a bunch of definitions, usually).
+
+Note also that the expression producing the syntax table in a
+USING-SYNTAX expression is evaluated in the syntaxer environment,
+which does not have the usual user environment as its parent,
+therefore a good way to reference user defined sytnax tables is to use
+the idioms
+
+(using-syntax (access my-syntax-table user-initial-environment)
+  . <forms>)
+
+(using-syntax (access my-syntax-table (rep-environment))
+  . <forms>)
+
+To see the expansion of some macro in the current REP loop try
+"(unsyntax (scode-quote <expression>))" where <expression> is the
+expression that you want to expand. For example:
+
+  (define-macro (foo x) `(1+ ,x))
+  ;Value: foo
+
+  (foo 1)
+  ;Value: 2
+
+  (unsyntax (scode-quote (foo x)))
+  ;Value: (1+ x)
+
+Note that the result may not print nicely (i.e. no newlines or
+indentations) so you may want to do 
+"(pp (unsyntax (scode-quote <expression>)))" but pp will do the
+unsyntax automatically so you can use "(pp (scode-quote <expression>))"
+which will print out (but not return) the macro expanded expression.
+
+  (pp (scode-quote (foo x)))
+  (1+ x)
+  ;No value
+
+
+Note:   Right now lambda and macro do the same thing. If the implementation
+of macros changes, then lambda and macro might be different, so you
+shouldn't use them interchangably.
+
+------------------- Some Confusing Macro Stuff ------------------
+
+It is sometimes unclear when the expander procedure associated with a
+syntax table entry is called and what are its arguments. A related
+question is the realtionship between macro expansion and evaluation.
+
+A useful thing to remember when thinking about macros is that macro
+expansion is independent of interpretation and evaluation. The
+expansion can (and does when you use sf) occur way before the eventual
+evaluation of an expression. It can be confusing because when you are
+typing expressions into the read-eval-print loop there is macro
+expansion going on between the read and the eval.
+
+The arguments that the expander gets when it is applied (at macro
+expansion time) are the unevaluated arguments (i.e. the S-expressions)
+to the macro call. The evaluation occurs when the result of the
+expansion gets evaluated.  The arguments that a procedure gets for a
+"normal" application (at evaluation time) are the evaluated arguments
+of the procedure call.  For example:
+
+(syntax-table-define user-initial-syntax-table 'foo-mac
+  (macro (arg) (newline) (display arg) arg))
+;No value
+
+(define foo-proc
+  (lambda (arg) (newline) (display arg) arg))
+;Value: foo-proc
+
+(foo-mac (+ 1 2))
+(+ 1 2)
+;Value: 3
+
+(foo-proc (+ 1 2))
+3
+;Value: 3
+
+  See, in "foo-mac" the expander gets "arg" bound to '(+ 1 2) which it
+displays and then returns. The '(+ 1 2) is then evaluated and produced
+the value 3. In "foo-proc" the procedure gets "arg" bound to 3 which
+it then returns.
+
+

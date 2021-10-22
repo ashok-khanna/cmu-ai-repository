@@ -1,0 +1,592 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node244.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:46:39 GMT -->
+<HEAD>
+<TITLE>26.6. Iteration Control</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Iteration Control">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4616 HREF="node245.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4614 HREF="node235.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4608 HREF="node243.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4618 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4619 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4617 HREF="node245.html"> End-Test Control</A>
+<B>Up:</B> <A NAME=tex2html4615 HREF="node235.html"> Loop</A>
+<B> Previous:</B> <A NAME=tex2html4609 HREF="node243.html"> Loop Constructs</A>
+<HR> <P>
+<H1><A NAME=SECTION003060000000000000000>26.6. Iteration Control</A></H1>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<A NAME=LOOPITERATIONSECTION>Iteration</A>
+control clauses allow you to direct loop iteration.  The
+loop keywords <tt>as</tt>, <tt>for</tt>, and <tt>repeat</tt> designate iteration control clauses.
+<P>
+Iteration control clauses differ with respect to the specification of
+termination conditions and the initialization and stepping
+of loop variables.  Iteration clauses by themselves
+do not cause the Loop Facility to return values, but they
+can be used in conjunction with value-accumulation clauses to
+return values (see section <A HREF="node246.html#LOOPACCUMSECTION">26.8</A>).
+<P>
+All variables are initialized in the loop prologue.  The scope of
+the variable binding is <i>lexical</i> unless it is proclaimed
+special; thus, the variable can be
+accessed only by expressions that lie textually within the loop.
+Stepping assignments are made in the loop body before any other expressions
+are evaluated in the body.
+<P>
+The variable argument in iteration control clauses can be a 
+<i>destructuring list</i>.  A destructuring list
+is a tree whose non-null atoms are symbols that
+can be assigned a value (see section <A HREF="node252.html#LOOPDESTRUCTURINGSECTION">26.12.2</A>).
+<P>
+The iteration control clauses <tt>for</tt>, <tt>as</tt>, and <tt>repeat</tt> 
+must precede any other loop clauses except
+<tt>initially</tt>, <tt>with</tt>, and <tt>named</tt>,
+since they establish variable bindings.  When iteration control clauses are
+used in a loop, termination tests in the loop body are evaluated
+before any other loop body code is executed.
+<P>
+If you use multiple iteration clauses to control iteration, variable
+initialization and stepping occur sequentially by default.  
+You can use the <tt>and</tt> construct to connect two or more
+iteration clauses when sequential binding and stepping are not necessary.
+The iteration behavior of clauses joined by <tt>and</tt>
+is analogous to the behavior of the Common Lisp macro <tt>do</tt>
+relative to <tt>do*</tt>.
+<P>
+[X3J13 voted in March 1989 (LOOP-AND-DISCREPANCY) <A NAME=29544>&#160;</A>  to correct a minor
+inconsistency in the original syntactic specification for <tt>loop</tt>.  Only <tt>for</tt>
+and <tt>as</tt> clauses (not <tt>repeat</tt> clauses) may be joined by the <tt>and</tt> construct. The
+precise syntax is as follows.
+<PRE>
+<i>for-as</i> ::= {for | as} <i>for-as-subclause</i> {and <i>for-as-subclause</i>}*
+<i>for-as-subclause</i> ::= <i>for-as-arithmetic</i> | <i>for-as-in-list</i> 
+		| <i>for-as-on-list</i> | <i>for-as-equals-then</i> 
+		| <i>for-as-across</i> | <i>for-as-hash</i> | <i>for-as-package</i> 
+<i>for-as-arithmetic</i> ::= <i>var</i> [type-spec] [{from | downfrom | upfrom} expr1 ]
+		[{to | downto | upto | below | above} expr2]
+		[by expr3]
+<i>for-as-in-list</i> ::= <i>var</i> [type-spec] in <i>expr1</i> [by step-fun]
+<i>for-as-on-list</i> ::= <i>var</i> [type-spec] on <i>expr1</i> [by step-fun]
+<i>for-as-equals-then</i> ::= <i>var</i> [type-spec] = <i>expr1</i> [then step-fun]
+<i>for-as-across</i> ::= <i>var</i> [type-spec] across <i>vector</i>
+<i>for-as-hash</i> ::= <i>var</i> [type-spec] being {each | the}
+		{hash-key | hash-keys | hash-value | hash-values}
+		{in | of} <i>hash-table</i> 
+		[using ({hash-value | hash-key} <i>other-var</i>)]
+<i>for-as-package</i> ::= <i>var</i> [type-spec] being {each | the}
+		<i>for-as-package-keyword</i> 
+		{in | of} <i>package</i>
+<i>for-as-package-keyword</i> ::= symbol | present-symbol | external-symbol 
+		| symbols | present-symbols | external-symbols 
+</PRE>
+This correction made <tt>for</tt> and <tt>as</tt> clauses syntactically
+similar to <tt>with</tt> clauses.  I have changed all examples in this
+chapter to reflect the corrected syntax.-GLS]
+<P>
+In the following example, the variable <tt>x</tt> is stepped
+before <tt>y</tt> is stepped; thus, the value of <tt>y</tt>
+reflects the updated value of <tt>x</tt>:
+<P><pre>
+(loop for x from 1 to 9 
+      for y = nil then x  
+      collect (list x y)) 
+   => ((1 NIL) (2 2) (3 3) (4 4) (5 5) (6 6) (7 7) (8 8) (9 9))
+</pre><P>
+<P>
+In the following example, <tt>x</tt> and <tt>y</tt> are stepped in parallel:
+<P><pre>
+(loop for x from 1 to 9 
+      and y = nil then x 
+      collect (list x y)) 
+   => ((1 NIL) (2 1) (3 2) (4 3) (5 4) (6 5) (7 6) (8 7) (9 8))
+</pre><P>
+<P>
+The <tt>for</tt> and <tt>as</tt> clauses iterate by using one or more local 
+loop  variables that are initialized to some value and that 
+can be modified or stepped after each iteration.  
+For these clauses, iteration terminates when a local
+variable reaches some specified value or when some other loop clause
+terminates iteration.  At each iteration, variables can be stepped by an
+increment or a decrement or can be assigned a new value by 
+the evaluation of 
+an expression.  Destructuring can be used to assign initial values to 
+variables during iteration.
+<P>
+The <tt>for</tt> and <tt>as</tt> keywords are synonyms and may be used
+interchangeably.  There are
+seven syntactic representations for these constructs.
+In each syntactic description, the data type of
+<i>var</i> can be specified by the optional <i>type-spec</i>
+argument.  If <i>var</i> is a destructuring list, the data type
+specified by the <i>type-spec</i> argument must appropriately match
+the elements of the list (see sections <A HREF="node251.html#LOOPTYPESSECTION">26.12.1</A>
+and <A HREF="node252.html#LOOPDESTRUCTURINGSECTION">26.12.2</A>).
+<P>
+<BR><b>[Loop Clause]</b><BR>
+<pre>
+for <em>var</em> [type-spec] [{from | downfrom | upfrom} <em>expr1</em>]
+    [{to | downto | upto | below | above} <em>expr2</em>]
+    [by <em>expr3</em>]
+as <em>var</em> [type-spec] [{from | downfrom | upfrom} <em>expr1</em>]
+    [{to | downto | upto | below | above} <em>expr2</em>]
+    [by <em>expr3</em>]
+</pre>
+<P>[This is the first of seven <tt>for</tt>/<tt>as</tt> syntaxes.-GLS]
+<P>
+The <tt>for</tt> or <tt>as</tt> construct iterates from the value specified by
+<i>expr1</i> to the value specified by <i>expr2</i> in increments or
+decrements denoted by <i>expr3</i>. Each
+expression is evaluated only once and must evaluate to a number.
+<P>
+The variable <i>var</i> is bound to the value of 
+<i>expr1</i> in the first iteration and is stepped
+by the value of <i>expr3</i> in each succeeding iteration,
+or by 1 if <i>expr3</i> is not provided.
+<P>
+The following loop keywords serve as valid prepositions within this 
+syntax.
+<P>
+<DL COMPACT><DT><tt>from</tt>
+<DD>
+The loop keyword <tt>from</tt> marks the value from which
+stepping begins, as specified by <i>expr1</i>.  
+Stepping is incremental by default.  For
+decremental stepping, use <tt>above</tt>
+or <tt>downto</tt> with <i>expr2</i>.  For incremental
+stepping, the default <tt>from</tt> value is <tt>0</tt>.
+<P>
+<DT><tt>downfrom</tt>, <tt>upfrom</tt>
+<DD>
+The loop keyword <tt>downfrom</tt> 
+indicates that the variable <i>var</i> is decreased in decrements
+specified by <i>expr3</i>; the loop keyword <tt>upfrom</tt> indicates that 
+<i>var</i> is increased in increments specified by <i>expr3</i>.
+<P>
+<DT><tt>to</tt>
+<DD>
+The loop keyword <tt>to</tt> marks the end value for stepping specified in 
+<i>expr2</i>. Stepping is incremental by default.  For
+decremental stepping, use <tt>downto</tt>,
+<tt>downfrom</tt>, or <tt>above</tt> with <i>expr2</i>.
+<P>
+<DT><tt>downto</tt>, <tt>upto</tt>
+<DD>
+The loop keyword <tt>downto</tt> allows iteration to proceed
+from a larger number to a smaller number by the decrement 
+<i>expr3</i>.  The loop keyword <tt>upto</tt> allows iteration to proceed
+from a smaller number to a larger number by the increment <i>expr3</i>.
+Since there is no default for <i>expr1</i> in decremental stepping,
+you must supply a value with <tt>downto</tt>.
+<P>
+<DT><tt>below</tt>, <tt>above</tt>
+<DD>
+The loop keywords <tt>below</tt> and <tt>above</tt> are analogous to
+<tt>upto</tt> and <tt>downto</tt>, respectively.  These keywords stop
+iteration just before the value of the variable <i>var</i> reaches the value 
+specified by <i>expr2</i>; the end value of <i>expr2</i> is not included.
+Since there is no default for <i>expr1</i> in decremental stepping,
+you must supply a value with <tt>above</tt>.
+<P>
+<DT><tt>by</tt>
+<DD>
+The loop keyword <tt>by</tt> marks the increment or decrement specified by
+<i>expr3</i>.  The value of <i>expr3</i> can be any positive number.
+The default value is <tt>1</tt>.
+<P>
+ </DL>
+<P>
+At least one of these prepositions must be used with this syntax.
+<P>
+In an iteration control clause, the <tt>for</tt> or <tt>as</tt> construct
+causes termination when the specified limit is reached.  That is,
+iteration continues until the value <i>var</i> is stepped to the
+exclusive or inclusive limit specified by <i>expr2</i>.  The range is
+<i>exclusive</i> if <i>expr3</i> increases or decreases <i>var</i>
+to the value of <i>expr2</i> without reaching that value; the loop
+keywords <tt>below</tt> and <tt>above</tt> provide exclusive limits.  An
+<i>inclusive</i> limit allows <i>var</i> to attain the value of
+<i>expr2</i>; <tt>to</tt>, <tt>downto</tt>, and <tt>upto</tt> provide inclusive
+limits.
+<P>
+A common convention is to use <tt>for</tt> to introduce new iterations and <tt>as</tt>
+to introduce iterations that depend on a previous iteration specification.
+[However, <tt>loop</tt> does not enforce this convention, and some of the examples
+below violate it.  <i>De gustibus non disputandum est.</i>-GLS]
+<P>
+Examples:
+<P><pre>
+;;; Print some numbers. 
+
+(loop as i from 1 to 5 
+      do (print i)) `;Prints 5 lines 
+1 
+2 
+3 
+4 
+5 
+   => NIL 
+
+;;; Print every third number. 
+
+(loop for i from 10 downto 1 by 3 
+      do (print i)) `;Prints 4 lines
+10  
+7  
+4  
+1  
+   => NIL
+</pre><P>
+<P>
+<P><pre>
+;;; Step incrementally from the default starting value. 
+
+(loop as i below 5 
+      do (print i)) `;Prints 5 lines 
+0 
+1 
+2 
+3 
+4 
+   => NIL
+</pre><P>
+<P>
+<BR><b>[Loop Clause]</b><BR>
+<tt>for</tt> <em>var</em> <tt>[type-spec]</tt> <tt>in</tt> <em>expr1</em> <tt>[by</tt> <tt>step-fun]</tt> <tt><BR></tt><tt>as</tt> <em>var</em> <tt>[type-spec]</tt> <tt>in</tt> <em>expr1</em> <tt>[by</tt> <tt>step-fun]</tt><P>[This is the second of seven <tt>for</tt>/<tt>as</tt> syntaxes.-GLS]
+<P>
+This construct iterates over the contents of a list.  It checks for 
+the end of the list as if using the Common Lisp function <tt>endp</tt>.  
+The variable <i>var</i> is bound to the successive elements  of 
+the list <i>expr1</i> before each
+iteration.  At the end of each iteration, the function <i>step-fun</i>
+is called on the list and is expected to produce a successor list;
+the default value for <i>step-fun</i> is the <tt>cdr</tt> function.
+<P>
+The <tt>for</tt> or <tt>as</tt> construct causes termination when the
+end of the list is reached.
+The loop keywords <tt>in</tt> and <tt>by</tt> serve as valid prepositions in
+this syntax.
+<P>
+Examples:
+<P><pre>
+;;; Print every item in a list. 
+
+(loop for item in '(1 2 3 4 5) do (print item)) `;Prints 5 lines 
+1 
+2 
+3 
+4 
+5 
+   => NIL 
+
+;;; Print every other item in a list. 
+
+(loop for item in '(1 2 3 4 5) by #'cddr 
+      do (print item))  `;Prints 3 lines 
+1 
+3 
+5 
+   => NIL
+</pre><P>
+<P><pre>
+;;; Destructure items of a list, and sum the x values 
+;;; using fixnum arithmetic. 
+(loop for (item . x) (t . fixnum) 
+          in '((A . 1) (B . 2) (C . 3)) 
+      unless (eq item 'B) sum x) 
+   => 4
+</pre><P>
+<P>
+<BR><b>[Loop Clause]</b><BR>
+<tt>for</tt> <em>var</em> <tt>[type-spec]</tt> <tt>on</tt> <em>expr1</em> <tt>[by</tt> <tt>step-fun]</tt> <tt><BR></tt><tt>as</tt> <em>var</em> <tt>[type-spec]</tt> <tt>on</tt> <em>expr1</em> <tt>[by</tt> <tt>step-fun]</tt><P>[This is the third of seven <tt>for</tt>/<tt>as</tt> syntaxes.-GLS]
+<P>
+This construct iterates over the contents of a list. It checks for the
+end of the list as if using the Common Lisp function 
+<tt>endp</tt>.  
+The variable <i>var</i> is bound to the successive tails of the list
+<i>expr1</i>.  At the end of each iteration, the function <i>step-fun</i>
+is called on the list and is expected to produce a successor list;
+the default value for <i>step-fun</i> is the <tt>cdr</tt> function.
+<P>
+The loop keywords <tt>on</tt> and <tt>by</tt> serve as valid
+prepositions in this syntax.
+The <tt>for</tt> or <tt>as</tt> construct causes termination when the
+end of the list is reached.
+<P>
+Examples:
+<P><pre>
+;;; Collect successive tails of a list. 
+(loop for sublist on '(a b c d) 
+      collect sublist) 
+   => ((A B C D) (B C D) (C D) (D)) 
+
+;;; Print a list by using destructuring with the loop keyword ON. 
+(loop for (item) on '(1 2 3) 
+      do (print item))  `;Prints 3 lines
+1  
+2  
+3  
+   => NIL 
+
+;;; Print items in a list without using destructuring. 
+(loop for item in '(1 2 3) 
+      do (print item))  `;Prints 3 lines
+1  
+2  
+3  
+   => NIL
+</pre><P>
+<P>
+<BR><b>[Loop Clause]</b><BR>
+<tt>for</tt> <em>var</em> <tt>[type-spec]</tt> <tt>=</tt> <em>expr1</em> <tt>[then</tt> <em>expr2]</em> <tt><BR></tt><tt>as</tt> <em>var</em> <tt>[type-spec]</tt> <tt>=</tt> <em>expr1</em> <tt>[then</tt> <em>expr2]</em><P>[This is the fourth of seven <tt>for</tt>/<tt>as</tt> syntaxes.-GLS]
+<P>
+  This construct initializes the variable <i>var</i> by setting it to the
+  result of evaluating <i>expr1</i> on the first iteration, then setting
+  it to the result of evaluating <i>expr2</i> on the second and
+  subsequent iterations.  If <i>expr2</i> is omitted, the construct
+  uses <i>expr1</i> on the second and
+  subsequent iterations.  When <i>expr2</i> is omitted, the expanded
+  code shows the following optimization:
+<P>
+<P><pre>
+;;; Sample original code: 
+(loop for x = <i>expr1</i> then <i>expr2</i> do (print x))
+</pre><P>
+<P><pre>
+;;; The usual expansion: 
+(tagbody 
+      (setq x <i>expr1</i>) 
+  tag (print x) 
+      (setq x <i>expr2</i>) 
+      (go tag))
+</pre><P>
+<P><pre>
+;;; The optimized expansion: 
+(tagbody 
+  tag (setq x <i>expr1</i>) 
+      (print x) 
+      (go tag))
+</pre><P>
+<P>
+The loop keywords <tt>=</tt> and  <tt>then</tt> serve as valid prepositions
+in this syntax.
+This construct does not provide any termination conditions.
+<P>
+Example:
+<P><pre>
+;;; Collect some numbers. 
+(loop for item = 1 then (+ item 10) 
+      repeat 5 
+      collect item) 
+   => (1 11 21 31 41)
+</pre><P>
+<P>
+<BR><b>[Loop Clause]</b><BR>
+<tt>for</tt> <em>var</em> <tt>[type-spec]</tt> <tt>across</tt> <tt>vector</tt> <tt><BR></tt><tt>as</tt> <em>var</em> <tt>[type-spec]</tt> <tt>across</tt> <tt>vector</tt><P>[This is the fifth of seven <tt>for</tt>/<tt>as</tt> syntaxes.-GLS]
+<P>
+    This construct binds the variable <i>var</i> to
+    the value of each element in the array <i>vector</i>.
+<P>
+  The loop keyword <tt>across</tt> marks the array <i>vector</i>; <tt>across</tt>
+  is used as a preposition in this syntax.
+  Iteration stops when there are no more elements in the specified
+  array that can be referenced.
+<P>
+  Some implementations might use a [user-supplied-GLS] <tt>the</tt> special form
+  in the <i>vector</i> form to produce more efficient code.
+<P>
+  Example:
+<P><pre>
+(loop for char across (the simple-string (find-message port)) 
+      do (write-char char stream))
+</pre><P>
+<P>
+<BR><b>[Loop Clause]</b><BR>
+<pre>
+for <em>var</em> [type-spec] being {each | the} 
+    {hash-key | hash-keys | hash-value | hash-values}
+    {in | of} <i>hash-table</i> [using ({hash-value | hash-key} <i>other-var</i>)] 
+as <em>var</em> [type-spec] being {each | the} 
+    {hash-key | hash-keys | hash-value | hash-values}
+    {in | of} <i>hash-table</i> [using ({hash-value | hash-key} <i>other-var</i>)] 
+</pre>
+<P>[This is the sixth of seven <tt>for</tt>/<tt>as</tt> syntaxes.-GLS]
+<P>
+This construct iterates over the elements, keys, and values of a hash
+table.  The variable <i>var</i> takes on the value of each hash key
+or hash value in the specified hash table.
+<P>
+The following loop keywords serve as valid prepositions within this syntax.
+<P>
+<DL COMPACT><DT><tt>being</tt>
+<DD>
+The keyword <tt>being</tt> marks the loop method to be used, either 
+<tt>hash-key</tt> or <tt>hash-value</tt>.
+<P>
+<DT><tt>each</tt>, <tt>the</tt>
+<DD>
+For purposes of readability, the loop keyword <tt>each</tt>
+should follow the loop keyword <tt>being</tt> when <tt>hash-key</tt> or
+<tt>hash-value</tt> is used.  The loop keyword <tt>the</tt> is used with
+<tt>hash-keys</tt> and <tt>hash-values</tt>.
+<P>
+<DT><tt>hash-key</tt>, <tt>hash-keys</tt>
+<DD>
+These loop keywords access each key entry of the hash table.  If
+the name <tt>hash-value</tt> is specified in a <tt>using</tt> construct with one
+of these loop methods, the iteration can optionally access the keyed
+value. The order in which the keys are accessed is undefined; empty
+slots in the hash table are ignored.
+<P>
+<DT><tt>hash-value</tt>, <tt>hash-values</tt>
+<DD>
+These loop keywords access each value entry of a hash table.  If
+the name <tt>hash-key</tt> is specified in a <tt>using</tt> construct with one of
+these loop methods, the iteration can optionally access the key that
+corresponds to the value.  The order in which the keys are accessed is
+undefined; empty slots in the hash table are ignored.
+<P>
+<DT><tt>using</tt>
+<DD>
+The loop keyword <tt>using</tt> marks the optional key or the keyed value to
+be accessed.  It allows you to access the hash key if
+iterating over the hash values, and the hash value if
+iterating over the hash keys.
+<P>
+<DT><tt>in</tt>, <tt>of</tt>
+<DD>
+These loop prepositions mark the hash table <i>hash-table</i>.
+<P>
+ </DL>
+<P>
+Iteration stops when there are no more hash keys or hash values to be
+referenced in the specified hash table.
+<P>
+<BR><b>[Loop Clause]</b><BR>
+<pre>
+for <em>var</em> [type-spec] being {each | the}
+    {symbol | present-symbol | external-symbol |
+     symbols | present-symbols | external-symbols}
+    {in | of} package
+as <em>var</em> [type-spec] being {each | the}
+    {symbol | present-symbol | external-symbol |
+     symbols | present-symbols | external-symbols}
+    {in | of} package
+</pre>
+<P>[This is the last of seven <tt>for</tt>/<tt>as</tt> syntaxes.-GLS]
+<P>
+This construct iterates over the symbols in a package.
+The variable <i>var</i> takes on the value of each symbol
+in the specified package.
+<P>
+The following loop keywords serve as valid prepositions within this syntax.
+<P>
+<DL COMPACT><DT><tt>being</tt>
+<DD>
+The keyword <tt>being</tt> marks the loop method to be used:
+<tt>symbol</tt>, <tt>present-symbol</tt>,  or <tt>external-symbol</tt>.
+<P>
+<DT><tt>each</tt>, <tt>the</tt>
+<DD>
+For purposes of readability, the loop keyword <tt>each</tt>
+should follow the loop keyword <tt>being</tt> when <tt>symbol</tt>, 
+<tt>present-symbol</tt>, or <tt>external-symbol</tt> is used.  The loop keyword
+<tt>the</tt> is used with <tt>symbols</tt>, <tt>present-symbols</tt>, and 
+<tt>external-symbols</tt>.
+<P>
+<DT><tt>present-symbol</tt>, <tt>present-symbols</tt>
+<DD>
+These loop methods iterate over the symbols that are present but not
+external in a package.
+The package to be iterated over is
+specified in the same way that package arguments to the Common Lisp function
+<tt>find-package</tt> are specified.  If you do not specify the package 
+for the iteration, the current package is used.  If you specify a 
+package that does not exist, an error is signaled.
+<P>
+<DT><tt>symbol</tt>, <tt>symbols</tt>
+<DD>
+These loop methods iterate over symbols that are
+accessible from a given package.  The package to be iterated over is specified
+in the same way that package arguments to the Common Lisp function
+<tt>find-package</tt> are specified.  If you do not specify the package 
+for the iteration, the current package is used.  If you specify a 
+package that does not exist, an error is signaled.
+<P>
+<DT><tt>external-symbol</tt>, <tt>external-symbols</tt>
+<DD>
+These loop methods iterate over the external symbols of a package.
+The package to be iterated over is specified in
+the same way that package arguments to the Common Lisp function
+<tt>find-package</tt> are specified.  If you do not specify the package 
+for the iteration, the current package is used.  If you specify a 
+package that does not exist, an error is signaled.
+<P>
+<DT><tt>in</tt>, <tt>of</tt>
+<DD>
+These loop prepositions mark the package <i>package</i>.
+<P>
+ </DL>
+<P>
+Iteration stops when there are no more symbols to be referenced in the
+specified package.
+<P>
+Example:
+<P><pre>
+(loop for x being each present-symbol of &quot;COMMON-LISP-USER&quot;  
+      do (print x)) `;Prints 7 lines in this example
+COMMON-LISP-USER::IN  
+COMMON-LISP-USER::X  
+COMMON-LISP-USER::ALWAYS  
+COMMON-LISP-USER::FOO  
+COMMON-LISP-USER::Y  
+COMMON-LISP-USER::FOR  
+COMMON-LISP-USER::LUCID  
+   => NIL
+</pre><P>
+<P>
+<BR><b>[Loop Clause]</b><BR>
+<tt>repeat</tt> <em>expr</em><P>The <tt>repeat</tt> construct causes iteration to terminate after a
+specified number of times.
+The loop body is executed <i>n</i> times, where <i>n</i> is the value 
+of the expression <i>expr</i>.  The <i>expr</i> argument is evaluated one time
+in the loop prologue.  If the expression evaluates to zero or 
+to a negative number, the loop body is not evaluated.
+<P>
+  The clause <tt>repeat</tt> <i>n</i> is roughly equivalent to a clause
+  such as 
+<P><pre>
+for <i>internal-variable</i> downfrom (- <i>n</i> 1) to 0
+</pre><P>
+but, in some implementations, the <tt>repeat</tt> construct might 
+   be more efficient.
+<P>
+Examples:
+<P><pre>
+(loop repeat 3 `;Prints 3 lines
+      do (format t &quot;What I say three times is true~%&quot;)) 
+What I say three times is true 
+What I say three times is true 
+What I say three times is true 
+   => NIL 
+
+(loop repeat -15 `;Prints nothing
+      do (format t &quot;What you see is what you expect~%&quot;)) 
+   => NIL
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html4616 HREF="node245.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4614 HREF="node235.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4608 HREF="node243.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4618 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4619 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4617 HREF="node245.html"> End-Test Control</A>
+<B>Up:</B> <A NAME=tex2html4615 HREF="node235.html"> Loop</A>
+<B> Previous:</B> <A NAME=tex2html4609 HREF="node243.html"> Loop Constructs</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

@@ -1,0 +1,608 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node367.html by HTTrack Website Copier/3.x [XR&CO'2014], Thu, 21 Oct 2021 14:56:49 GMT -->
+<HEAD>
+<TITLE>Appendix C. Backquote</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Backquote">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html6284 HREF="node368.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html6282 HREF="clm.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html6276 HREF="node366.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html6286 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html6287 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html6285 HREF="node368.html">References</A>
+<B>Up:</B> <A NAME=tex2html6283 HREF="clm.html">Common Lisp the Language</A>
+<B> Previous:</B> <A NAME=tex2html6277 HREF="node366.html"> Discussion</A>
+<HR> <P>
+<H1><A NAME=SECTION003600000000000000000>Appendix C.<br>Backquote</A></H1>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<A NAME=BACKQUOTESIMULATOR>Here</A>
+is the code for an implementation of backquote syntax
+(see section <A HREF="node190.html#BACKQUOTE">22.1.3</A>) that I have found quite useful
+in explaining to myself the behavior of nested backquotes.
+It implements the formal rules for backquote processing
+and optionally applies a code simplifier to the result.
+One must be very careful in choosing the simplification rules;
+the rules given here work, but some Common Lisp implementations
+have run into trouble at one time or another by using a
+simplification rule that does not work in all cases.
+Code transformations that are plausible when single forms
+are involved are likely to fail in the presence of splicing.
+<P>
+At the end of this appendix are some samples of
+nested backquote syntax with commentary.
+<P>
+<P><pre>
+;;; Common Lisp backquote implementation, written in Common Lisp. 
+;;; Author: Guy L. Steele Jr.     Date: 27 December 1985 
+;;; Tested under Symbolics Common Lisp and Lucid Common Lisp. 
+;;; This software is in the public domain.
+</pre><P>
+<P><pre>
+;;; $ is pseudo-backquote and % is pseudo-comma.  This makes it 
+;;; possible to test this code without interfering with normal 
+;;; Common Lisp syntax.
+</pre><P>
+<P><pre>
+;;; The following are unique tokens used during processing. 
+;;; They need not be symbols; they need not even be atoms.
+</pre><P>
+<P><pre>
+(defvar *comma* (make-symbol &quot;COMMA&quot;)) 
+(defvar *comma-atsign* (make-symbol &quot;COMMA-ATSIGN&quot;)) 
+(defvar *comma-dot* (make-symbol &quot;COMMA-DOT&quot;)) 
+(defvar *bq-list* (make-symbol &quot;BQ-LIST&quot;)) 
+(defvar *bq-append* (make-symbol &quot;BQ-APPEND&quot;)) 
+(defvar *bq-list** (make-symbol &quot;BQ-LIST*&quot;)) 
+(defvar *bq-nconc* (make-symbol &quot;BQ-NCONC&quot;)) 
+(defvar *bq-clobberable* (make-symbol &quot;BQ-CLOBBERABLE&quot;)) 
+(defvar *bq-quote* (make-symbol &quot;BQ-QUOTE&quot;)) 
+(defvar *bq-quote-nil* (list *bq-quote* nil))
+</pre><P>
+<P><pre>
+;;; Reader macro characters: 
+;;;    $foo is read in as (BACKQUOTE foo) 
+;;;    %foo is read in as (#:COMMA foo) 
+;;;    %@foo is read in as (#:COMMA-ATSIGN foo) 
+;;;    %.foo is read in as (#:COMMA-DOT foo) 
+;;; where #:COMMA is the value of the variable *COMMA*, etc.
+</pre><P>
+<P><pre>
+;;; BACKQUOTE is an ordinary macro (not a read-macro) that 
+;;; processes the expression foo, looking for occurrences of 
+;;; #:COMMA, #:COMMA-ATSIGN, and #:COMMA-DOT.  It constructs code 
+;;; in strict accordance with the rules on pages 349-350 of 
+;;; the first edition (pages 528-529 of this second edition). 
+;;; It then optionally applies a code simplifier.
+</pre><P>
+<P><pre>
+(set-macro-character #\$ 
+  #'(lambda (stream char) 
+      (declare (ignore char)) 
+      (list 'backquote (read stream t nil t))))
+</pre><P>
+<P><pre>
+(set-macro-character #\% 
+  #'(lambda (stream char) 
+      (declare (ignore char)) 
+        (case (peek-char nil stream t nil t) 
+          (#\@ (read-char stream t nil t) 
+               (list *comma-atsign* (read stream t nil t))) 
+          (#\. (read-char stream t nil t) 
+               (list *comma-dot* (read stream t nil t))) 
+          (otherwise (list *comma* (read stream t nil t))))))
+</pre><P>
+<P><pre>
+ 
+;;; If the value of *BQ-SIMPLIFY* is non-NIL, then BACKQUOTE 
+;;; processing applies the code simplifier.  If the value is NIL, 
+;;; then the code resulting from BACKQUOTE is exactly that 
+;;; specified by the official rules.
+</pre><P>
+<P><pre>
+(defparameter *bq-simplify* t)
+</pre><P>
+<P><pre>
+(defmacro backquote (x) 
+  (bq-completely-process x))
+</pre><P>
+<P><pre>
+;;; Backquote processing proceeds in three stages: 
+;;; 
+;;; (1) BQ-PROCESS applies the rules to remove occurrences of 
+;;; #:COMMA, #:COMMA-ATSIGN, and #:COMMA-DOT corresponding to 
+;;; this level of BACKQUOTE.  (It also causes embedded calls to 
+;;; BACKQUOTE to be expanded so that nesting is properly handled.) 
+;;; Code is produced that is expressed in terms of functions 
+;;; #:BQ-LIST, #:BQ-APPEND, and #:BQ-CLOBBERABLE.  This is done 
+;;; so that the simplifier will simplify only list construction 
+;;; functions actually generated by BACKQUOTE and will not involve 
+;;; any user code in the simplification.  #:BQ-LIST means LIST, 
+;;; #:BQ-APPEND means APPEND, and #:BQ-CLOBBERABLE means IDENTITY 
+;;; but indicates places where &quot;%.&quot; was used and where NCONC may 
+;;; therefore be introduced by the simplifier for efficiency. 
+;;; 
+;;; (2) BQ-SIMPLIFY, if used, rewrites the code produced by 
+;;; BQ-PROCESS to produce equivalent but faster code.  The 
+;;; additional functions #:BQ-LIST* and #:BQ-NCONC may be 
+;;; introduced into the code. 
+;;; 
+;;; (3) BQ-REMOVE-TOKENS goes through the code and replaces 
+;;; #:BQ-LIST with LIST, #:BQ-APPEND with APPEND, and so on. 
+;;; #:BQ-CLOBBERABLE is simply eliminated (a call to it being 
+;;; replaced by its argument).  #:BQ-LIST* is replaced by either 
+;;; LIST* or CONS (the latter is used in the two-argument case, 
+;;; purely to make the resulting code a tad more readable).
+</pre><P>
+<P><pre>
+(defun bq-completely-process (x) 
+  (let ((raw-result (bq-process x))) 
+    (bq-remove-tokens (if *bq-simplify* 
+                          (bq-simplify raw-result) 
+                          raw-result))))
+</pre><P>
+<P><pre>
+(defun bq-process (x) 
+  (cond ((atom x) 
+         (list *bq-quote* x)) 
+        ((eq (car x) 'backquote) 
+         (bq-process (bq-completely-process (cadr x)))) 
+        ((eq (car x) *comma*) (cadr x)) 
+        ((eq (car x) *comma-atsign*) 
+         (error &quot;,@~S after `&quot; (cadr x))) 
+        ((eq (car x) *comma-dot*) 
+         (error &quot;,.~S after `&quot; (cadr x))) 
+        (t (do ((p x (cdr p)) 
+                (q '() (cons (bracket (car p)) q))) 
+               ((atom p) 
+                (cons *bq-append* 
+                      (nreconc q (list (list *bq-quote* p))))) 
+             (when (eq (car p) *comma*) 
+               (unless (null (cddr p)) (error &quot;Malformed ,~S&quot; p)) 
+               (return (cons *bq-append* 
+                             (nreconc q (list (cadr p)))))) 
+             (when (eq (car p) *comma-atsign*) 
+               (error &quot;Dotted ,@~S&quot; p)) 
+             (when (eq (car p) *comma-dot*) 
+               (error &quot;Dotted ,.~S&quot; p))))))
+</pre><P>
+<P><pre>
+;;; This implements the bracket operator of the formal rules.
+</pre><P>
+<P><pre>
+(defun bracket (x) 
+  (cond ((atom x) 
+         (list *bq-list* (bq-process x))) 
+        ((eq (car x) *comma*) 
+         (list *bq-list* (cadr x))) 
+        ((eq (car x) *comma-atsign*) 
+         (cadr x)) 
+        ((eq (car x) *comma-dot*) 
+         (list *bq-clobberable* (cadr x))) 
+        (t (list *bq-list* (bq-process x)))))
+</pre><P>
+<P><pre>
+;;; This auxiliary function is like MAPCAR but has two extra 
+;;; purposes: (1) it handles dotted lists; (2) it tries to make 
+;;; the result share with the argument x as much as possible.
+</pre><P>
+<P><pre>
+(defun maptree (fn x) 
+  (if (atom x) 
+      (funcall fn x) 
+      (let ((a (funcall fn (car x))) 
+            (d (maptree fn (cdr x)))) 
+        (if (and (eql a (car x)) (eql d (cdr x))) 
+            x 
+            (cons a d)))))
+</pre><P>
+<P><pre>
+;;; This predicate is true of a form that when read looked 
+;;; like %@foo or %.foo.
+</pre><P>
+<P><pre>
+(defun bq-splicing-frob (x) 
+  (and (consp x) 
+       (or (eq (car x) *comma-atsign*) 
+           (eq (car x) *comma-dot*))))
+</pre><P>
+<P><pre>
+ 
+;;; This predicate is true of a form that when read 
+;;; looked like %@foo or %.foo or just plain %foo.
+</pre><P>
+<P><pre>
+(defun bq-frob (x) 
+  (and (consp x) 
+       (or (eq (car x) *comma*) 
+           (eq (car x) *comma-atsign*) 
+           (eq (car x) *comma-dot*))))
+</pre><P>
+<P><pre>
+;;; The simplifier essentially looks for calls to #:BQ-APPEND and 
+;;; tries to simplify them.  The arguments to #:BQ-APPEND are 
+;;; processed from right to left, building up a replacement form. 
+;;; At each step a number of special cases are handled that, 
+;;; loosely speaking, look like this: 
+;;; 
+;;;  (APPEND (LIST a b c) foo) =&gt; (LIST* a b c foo) 
+;;;       provided a, b, c are not splicing frobs 
+;;;  (APPEND (LIST* a b c) foo) =&gt; (LIST* a b (APPEND c foo)) 
+;;;       provided a, b, c are not splicing frobs 
+;;;  (APPEND (QUOTE (x)) foo) =&gt; (LIST* (QUOTE x) foo) 
+;;;  (APPEND (CLOBBERABLE x) foo) =&gt; (NCONC x foo)
+</pre><P>
+<P><pre>
+(defun bq-simplify (x) 
+  (if (atom x) 
+      x 
+      (let ((x (if (eq (car x) *bq-quote*) 
+                   x 
+                   (maptree #'bq-simplify x)))) 
+        (if (not (eq (car x) *bq-append*)) 
+            x 
+            (bq-simplify-args x)))))
+</pre><P>
+<P><pre>
+(defun bq-simplify-args (x) 
+  (do ((args (reverse (cdr x)) (cdr args)) 
+       (result 
+         nil 
+         (cond ((atom (car args)) 
+                (bq-attach-append *bq-append* (car args) result)) 
+               ((and (eq (caar args) *bq-list*) 
+                     (notany #'bq-splicing-frob (cdar args))) 
+                (bq-attach-conses (cdar args) result)) 
+               ((and (eq (caar args) *bq-list**) 
+                     (notany #'bq-splicing-frob (cdar args))) 
+                (bq-attach-conses 
+                  (reverse (cdr (reverse (cdar args)))) 
+                  (bq-attach-append *bq-append* 
+                                    (car (last (car args))) 
+                                    result))) 
+               ((and (eq (caar args) *bq-quote*) 
+                     (consp (cadar args)) 
+                     (not (bq-frob (cadar args))) 
+                     (null (cddar args))) 
+                (bq-attach-conses (list (list *bq-quote* 
+                                              (caadar args))) 
+                                  result)) 
+               ((eq (caar args) *bq-clobberable*) 
+                (bq-attach-append *bq-nconc* (cadar args) result)) 
+               (t (bq-attach-append *bq-append* 
+                                    (car args) 
+                                    result))))) 
+      ((null args) result)))
+</pre><P>
+<P><pre>
+(defun null-or-quoted (x) 
+  (or (null x) (and (consp x) (eq (car x) *bq-quote*))))
+</pre><P>
+<P><pre>
+;;; When BQ-ATTACH-APPEND is called, the OP should be #:BQ-APPEND 
+;;; or #:BQ-NCONC.  This produces a form (op item result) but 
+;;; some simplifications are done on the fly: 
+;;; 
+;;;  (op '(a b c) '(d e f g)) =&gt; '(a b c d e f g) 
+;;;  (op item 'nil) =&gt; item, provided item is not a splicable frob 
+;;;  (op item 'nil) =&gt; (op item), if item is a splicable frob 
+;;;  (op item (op a b c)) =&gt; (op item a b c)
+</pre><P>
+<P><pre>
+(defun bq-attach-append (op item result) 
+  (cond ((and (null-or-quoted item) (null-or-quoted result)) 
+         (list *bq-quote* (append (cadr item) (cadr result)))) 
+        ((or (null result) (equal result *bq-quote-nil*)) 
+         (if (bq-splicing-frob item) (list op item) item)) 
+        ((and (consp result) (eq (car result) op)) 
+         (list* (car result) item (cdr result))) 
+        (t (list op item result))))
+</pre><P>
+<P><pre>
+;;; The effect of BQ-ATTACH-CONSES is to produce a form as if by 
+;;; `(LIST* ,@items ,result) but some simplifications are done 
+;;; on the fly. 
+;;; 
+;;;  (LIST* 'a 'b 'c 'd) =&gt; '(a b c . d) 
+;;;  (LIST* a b c 'nil) =&gt; (LIST a b c) 
+;;;  (LIST* a b c (LIST* d e f g)) =&gt; (LIST* a b c d e f g) 
+;;;  (LIST* a b c (LIST d e f g)) =&gt; (LIST a b c d e f g)
+</pre><P>
+<P><pre>
+(defun bq-attach-conses (items result) 
+  (cond ((and (every #'null-or-quoted items) 
+              (null-or-quoted result)) 
+         (list *bq-quote* 
+               (append (mapcar #'cadr items) (cadr result)))) 
+        ((or (null result) (equal result *bq-quote-nil*)) 
+         (cons *bq-list* items)) 
+        ((and (consp result) 
+              (or (eq (car result) *bq-list*) 
+                  (eq (car result) *bq-list**))) 
+         (cons (car result) (append items (cdr result)))) 
+        (t (cons *bq-list** (append items (list result))))))
+</pre><P>
+<P><pre>
+;;; Removes funny tokens and changes (#:BQ-LIST* a b) into 
+;;; (CONS a b) instead of (LIST* a b), purely for readability.
+</pre><P>
+<P><pre>
+(defun bq-remove-tokens (x) 
+  (cond ((eq x *bq-list*) 'list) 
+        ((eq x *bq-append*) 'append) 
+        ((eq x *bq-nconc*) 'nconc) 
+        ((eq x *bq-list**) 'list*) 
+        ((eq x *bq-quote*) 'quote) 
+        ((atom x) x) 
+        ((eq (car x) *bq-clobberable*) 
+         (bq-remove-tokens (cadr x))) 
+        ((and (eq (car x) *bq-list**) 
+              (consp (cddr x)) 
+              (null (cdddr x))) 
+         (cons 'cons (maptree #'bq-remove-tokens (cdr x)))) 
+        (t (maptree #'bq-remove-tokens x))))
+</pre><P>
+<P>
+Suppose that we first make the following definitions:
+<P>
+<P><pre>
+(setq q '(r s)) 
+(defun r (x) (reduce #'* x)) 
+(setq r '(3 5)) 
+(setq s '(4 6))
+</pre><P>
+<P>
+Without simplification, the notation
+<tt>$$(%%q)</tt> (which stands for <tt>``(,,q)</tt>)
+is read as the expression
+<P><pre>
+(APPEND (LIST 'APPEND) (LIST (APPEND (LIST 'LIST) (LIST Q))))
+</pre><P>
+The value of this expression is
+<P><pre>
+(APPEND (LIST (R S)))
+</pre><P>
+and the value of this value is <tt>(24)</tt>.  We conclude
+that the net effect
+of twice-evaluating <tt>``(,,q)</tt> is to take
+the value <tt>24</tt> of the value <tt>(r s)</tt> of <tt>q</tt>
+and plug it into the template <tt>( )</tt> to produce <tt>(24)</tt>.
+<P>
+With simplification, the notation
+<tt>$$(%%q)</tt>
+is read as the expression
+<P><pre>
+(LIST 'LIST Q)
+</pre><P>
+The value of this expression is
+<P><pre>
+(LIST (R S))
+</pre><P>
+and the value of this value is <tt>(24)</tt>.
+Thus the two ways of reading <tt>$$(%%q)</tt> do not produce the
+same expression-this we expected-but the values of the two ways are
+different as well.  Only the values of the values are the same.
+In general, Common Lisp guarantees the result of
+an expression with backquotes nested to depth <i>k</i> only after
+<i>k</i> successive evaluations have been performed; the results after
+fewer than <i>k</i> evaluations are implementation-dependent.
+<P>
+(Note that in the expression <tt>`(foo ,(process `(bar ,x)))</tt>
+the backquotes are <i>not</i> doubly nested.  The inner backquoted
+expression occurs within the textual scope of a comma belonging
+to the outer backquote.  The correct way to determine the backquote
+nesting level of any subexpression is to start a count at zero and
+proceed up the S-expression tree, adding one for each backquote
+and subtracting one for each comma.  This is similar to the rule
+for determining nesting level with respect to parentheses by scanning
+a character string linearly, adding or subtracting one as parentheses
+are passed.)
+<P>
+It is convenient to extend the ``=='' notation to handle multiple evaluation:
+<i>x</i> == == <i>y</i> means that the expressions <i>x</i> and <i>y</i> may have
+different results but they have the same results when twice evaluated.
+Similarly, <i>x</i> == ==== <i>y</i> means that the values of the values of the
+values of <i>x</i> and <i>y</i> are the same, and so on.
+<P>
+We can illustrate the differences between non-splicing and splicing
+backquote inclusions quite concisely:
+<P><pre>
+$$(%%q)  == 
+  (APPEND (LIST 'APPEND) (LIST (APPEND (LIST 'LIST) (LIST Q)))) 
+  == == (LIST 'LIST Q) => (LIST (R S)) => (24)
+</pre><P>
+<P><pre>
+$$(%@%q) == 
+  (APPEND (LIST 'APPEND) (LIST Q)) 
+  == == Q => (R S) => 24
+</pre><P>
+<P><pre>
+$$(%%@q) == 
+  (APPEND (LIST 'APPEND) (LIST (APPEND (LIST 'LIST) Q))) 
+  == == (CONS 'LIST Q) => (LIST R S) => ((3 5) (4 6))
+</pre><P>
+<P><pre>
+$$(%@%@q) == 
+  (APPEND (LIST 'APPEND) Q) 
+  == == (CONS 'APPEND Q) => (APPEND R S) => (3 5 4 6)
+</pre><P>
+In each case I have shown both the unsimplified and simplified forms
+and then traced the intermediate evaluations of the simplified form.
+(Actually, the unsimplified forms do contain one simplification
+without which they would be unreadable:
+the <tt>nil</tt> that terminates each list has been systematically suppressed,
+so that one sees <tt>(append <i>x</i> <i>y</i>)</tt> rather than
+<tt>(append <i>x</i> <i>y</i> 'nil)</tt>.)
+<P>
+The following driver function is useful for tracing the behavior
+of nested backquote syntax through multiple evaluations.
+The argument <tt>ls</tt> is a list of strings; each string
+will be processed by the reader (<tt>read-from-string</tt>).
+The argument <tt>n</tt> is the number of evaluations desired.
+<P><pre>
+(defun try (ls &amp;optional (n 0)) 
+  (dolist (x ls) 
+    (format t &quot;~&amp;~A&quot; 
+            (substitute #\` #\$ (substitute #\, #\% x))) 
+    (do ((form (macroexpand (read-from-string x)) (eval form)) 
+         (str &quot; = &quot; &quot;~% =&gt; &quot;) 
+         (j 0 (+ j 1))) 
+        ((&gt;= j n) 
+         (format t str) 
+         (write form :pretty t)) 
+      (format t str) 
+      (write form :pretty t))) 
+  (format t &quot;~\&amp;&quot;))
+</pre><P>
+This driver routine makes it easdy to explore a large number of cases
+systematically.  Here is a list of examples that illustrate not only
+the differences between <tt>,</tt> and <tt>,@</tt> but also their
+interaction with <tt>'</tt>.
+<P><pre>
+(setq fools2 '( 
+&quot;$$(foo %%p)&quot; 
+&quot;$$(foo %%@q)&quot; 
+&quot;$$(foo %'%r)&quot; 
+&quot;$$(foo %'%@s)&quot; 
+&quot;$$(foo %@%p)&quot; 
+&quot;$$(foo %@%@q)&quot; 
+&quot;$$(foo %@'%r)&quot; 
+&quot;$$(foo %@'%@s)&quot; 
+))
+</pre><P>
+<P>
+Consider this set of sample values:
+<P><pre>
+(setq p '(union x y)) 
+(setq q '((union x y) (list 'sqrt 9))) 
+(setq r '(union x y)) 
+(setq s '((union x y)))
+</pre><P>
+<P>
+Here is what happened when I executed <tt>(try fools2 2)</tt> with
+a non-<tt>nil</tt> value for the variable <tt>*bq-simplify*</tt> (to see
+simplified forms).  I have interpolated some remarks.
+<P><pre>
+``(foo ,,p) = (LIST 'LIST ''FOO P) 
+ =&gt; (LIST 'FOO (UNION X Y)) 
+ =&gt; (FOO (A B C))
+</pre><P>
+So <tt>,,p</tt> means ``the value of <tt>p</tt> is a form;
+use the value of the value of <tt>p</tt>.''
+<P><pre>
+``(foo ,,@q) = (LIST* 'LIST ''FOO Q) 
+ =&gt; (LIST 'FOO (UNION X Y) (LIST 'SQRT 9)) 
+ =&gt; (FOO (A B C) (SQRT 9))
+</pre><P>
+So <tt>,,@q</tt> means ``the value of <tt>q</tt> is a list of forms;
+splice the list of values of the elements of the value of <tt>q</tt>.''
+<P><pre>
+``(foo ,',r) = (LIST 'LIST ''FOO (LIST 'QUOTE R)) 
+ =&gt; (LIST 'FOO '(UNION X Y)) 
+ =&gt; (FOO (UNION X Y))
+</pre><P>
+So <tt>,',r</tt> means ``the value of <tt>r</tt> may be any object;
+use the value of <tt>r</tt>
+that is available at the time of first evaluation,
+that is, when the outer backquote is evaluated.''
+(To use the value of <tt>r</tt> that is available at the time of second evaluation,
+that is, when the inner backquote is evaluated,
+just use <tt>,r</tt>.)
+<P><pre>
+``(foo ,',@s) = (LIST 'LIST ''FOO (CONS 'QUOTE S)) 
+ =&gt; (LIST 'FOO '(UNION X Y)) 
+ =&gt; (FOO (UNION X Y))
+</pre><P>
+So <tt>,',@s</tt> means ``the value of <tt>s</tt> must be a singleton list of any object;
+use the element of the value of <tt>s</tt>
+that is available at the time of first evaluation,
+that is, when the outer backquote is evaluated.''
+Note that <tt>s</tt> must be a singleton list because it will be spliced
+into a form <tt>(quote )</tt>, and the <tt>quote</tt> special form requires exactly
+one subform to appear; this is generally true of the sequence <tt>',@</tt>.
+(To use the value of <tt>s</tt> that is available at the time of second evaluation,
+that is, when the inner backquote is evaluated,
+just use <tt>,@s</tt>,in which case the list <tt>s</tt> is not restricted to be singleton,
+or <tt>,(car s)</tt>.)
+<P><pre>
+``(foo ,@,p) = (LIST 'CONS ''FOO P) 
+ =&gt; (CONS 'FOO (UNION X Y)) 
+ =&gt; (FOO A B C)
+</pre><P>
+So <tt>,@,p</tt> means ``the value of <tt>p</tt> is a form;
+splice in the value of the value of <tt>p</tt>.''
+<P><pre>
+``(foo ,@,@q) = (LIST 'CONS ''FOO (CONS 'APPEND Q)) 
+ =&gt; (CONS 'FOO (APPEND (UNION X Y) (LIST 'SQRT 9))) 
+ =&gt; (FOO A B C SQRT 9)
+</pre><P>
+So <tt>,@,@q</tt> means ``the value of <tt>q</tt> is a list of forms;
+splice each of the values of the elements of the value of <tt>q</tt>,
+so that many splicings occur.''
+<P><pre>
+``(foo ,@',r) = (LIST 'CONS ''FOO (LIST 'QUOTE R)) 
+ =&gt; (CONS 'FOO '(UNION X Y)) 
+ =&gt; (FOO UNION X Y)
+</pre><P>
+So <tt>,@',r</tt> means ``the value of <tt>r</tt> must be a list;
+splice in the value of <tt>r</tt>
+that is available at the time of first evaluation,
+that is, when the outer backquote is evaluated.''
+(To splice the value of <tt>r</tt> that is available at the time of second evaluation,
+that is, when the inner backquote is evaluated,
+just use <tt>,@r</tt>.)
+<P><pre>
+``(foo ,@',@s) = (LIST 'CONS ''FOO (CONS 'QUOTE S)) 
+ =&gt; (CONS 'FOO '(UNION X Y)) 
+ =&gt; (FOO UNION X Y)
+</pre><P>
+So <tt>,@',@s</tt> means ``the value of <tt>s</tt> must be a singleton list whose
+element is a list;
+splice in the list that is the element of the value of <tt>s</tt>
+that is available at the time of first evaluation,
+that is, when the outer backquote is evaluated.''
+(To splice the element of the value of <tt>s</tt> that is available at the time of second evaluation,
+that is, when the inner backquote is evaluated,
+just use <tt>,@(car s)</tt>.)
+<P>
+I leave it to the reader to explore the possibilities of triply nested backquotes.
+<P><pre>
+(setq fools3 '( 
+&quot;$$$(foo %%%p)&quot;     &quot;$$$(foo %%%@q)&quot; 
+&quot;$$$(foo %%'%r)&quot;    &quot;$$$(foo %%'%@s)&quot; 
+&quot;$$$(foo %%@%p)&quot;    &quot;$$$(foo %%@%@q)&quot; 
+&quot;$$$(foo %%@'%r)&quot;   &quot;$$$(foo %%@'%@s)&quot; 
+&quot;$$$(foo %'%%p)&quot;    &quot;$$$(foo %'%%@q)&quot; 
+&quot;$$$(foo %'%'%r)&quot;   &quot;$$$(foo %'%'%@s)&quot; 
+&quot;$$$(foo %'%@%p)&quot;   &quot;$$$(foo %'%@%@q)&quot; 
+&quot;$$$(foo %'%@'%r)&quot;  &quot;$$$(foo %'%@'%@s)&quot; 
+&quot;$$$(foo %@%%p)&quot;    &quot;$$$(foo %@%%@q)&quot; 
+&quot;$$$(foo %@%'%r)&quot;   &quot;$$$(foo %@%'%@s)&quot; 
+&quot;$$$(foo %@%@%p)&quot;   &quot;$$$(foo %@%@%@q)&quot; 
+&quot;$$$(foo %@%@'%r)&quot;  &quot;$$$(foo %@%@'%@s)&quot; 
+&quot;$$$(foo %@'%%p)&quot;   &quot;$$$(foo %@'%%@q)&quot; 
+&quot;$$$(foo %@'%'%r)&quot;  &quot;$$$(foo %@'%'%@s)&quot; 
+&quot;$$$(foo %@'%@%p)&quot;  &quot;$$$(foo %@'%@%@q)&quot; 
+&quot;$$$(foo %@'%@'%r)&quot; &quot;$$$(foo %@'%@'%@s)&quot; 
+))
+</pre><P>
+It is a pleasant exercise to construct values for <tt>p</tt>, <tt>q</tt>, <tt>r</tt>, and <tt>s</tt>
+that will allow execution of <tt>(try fools3 3)</tt> without error.
+
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+
+<P>
+<br> <HR><A NAME=tex2html6284 HREF="node368.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html6282 HREF="clm.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html6276 HREF="node366.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html6286 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html6287 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html6285 HREF="node368.html">References</A>
+<B>Up:</B> <A NAME=tex2html6283 HREF="clm.html">Common Lisp the Language</A>
+<B> Previous:</B> <A NAME=tex2html6277 HREF="node366.html"> Discussion</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

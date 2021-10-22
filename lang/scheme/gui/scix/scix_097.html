@@ -1,0 +1,504 @@
+This patch contain a few fixes needed to make SCIX v0.97 compile with the
+new Scheme->C compiler (28sep90) from DECWRL. It is mostly trivial removal
+of unnecessary eval-when clauses. Apply by doing "patch -p1 < this-file"
+when standing in the SCIX root directory.
+
+This is only a patch to make SCIX compile correctly. No new stuff is 
+included. You'll have to wait for that.
+					Johan Ihren <johani@nada.kth.se>
+
+diff -c -r scix-0.97/macros/defclass.sc scix-0.97-fix/macros/defclass.sc
+*** scix-0.97/macros/defclass.sc	Fri Jul  6 00:41:24 1990
+--- scix-0.97-fix/macros/defclass.sc	Thu Nov  8 23:43:14 1990
+***************
+*** 99,105 ****
+  
+  ;;   Object oriented system
+  
+- (eval-when (compile load eval)
+    (extend-syntax (define-class locals inherit methods init)
+      ;; All parts - #1
+      ((define-class (name . idlist)
+--- 99,104 ----
+***************
+*** 407,411 ****
+      ;;   (methods)
+      ;;   (init)))
+      )
+-   
+-   ) ;; End of eval-when
+--- 406,408 ----
+diff -c -r scix-0.97/macros/defhclass.sc scix-0.97-fix/macros/defhclass.sc
+*** scix-0.97/macros/defhclass.sc	Fri Jul  6 00:41:52 1990
+--- scix-0.97-fix/macros/defhclass.sc	Thu Nov  8 23:43:15 1990
+***************
+*** 97,111 ****
+  
+  ;;   Convenience macro
+  
+! (eval-when (compile load eval)
+    (extend-syntax (insert-method!)
+      ((insert-method! object message func)
+       (object 'insert-method! message
+! 	     (let ((me object)) func)))) )
+  
+  ;;   Object oriented system
+  
+! (eval-when (compile load eval)
+    (extend-syntax (define-class locals inherit methods init)
+      ;; All parts - #1
+      ((define-class (name . idlist)
+--- 97,111 ----
+  
+  ;;   Convenience macro
+  
+! 
+    (extend-syntax (insert-method!)
+      ((insert-method! object message func)
+       (object 'insert-method! message
+! 	     (let ((me object)) func))))
+  
+  ;;   Object oriented system
+  
+! 
+    (extend-syntax (define-class locals inherit methods init)
+      ;; All parts - #1
+      ((define-class (name . idlist)
+***************
+*** 523,527 ****
+      ;;   (methods)
+      ;;   (init)))
+      )
+-   
+-   ) ;; End of eval-when
+--- 523,525 ----
+diff -c -r scix-0.97/macros/deflclass.sc scix-0.97-fix/macros/deflclass.sc
+*** scix-0.97/macros/deflclass.sc	Fri Jul  6 00:42:00 1990
+--- scix-0.97-fix/macros/deflclass.sc	Thu Nov  8 23:43:15 1990
+***************
+*** 40,46 ****
+  ;;;                    system.
+  ;;;                    Inheritance is not supported for light-weight objects. 
+  ;;;                    
+! (eval-when (compile eval load)
+    (extend-syntax (define-lw-class locals methods init)
+      ((define-lw-class (name . idlist)
+         (locals (loc-var loc-val) ...)
+--- 40,46 ----
+  ;;;                    system.
+  ;;;                    Inheritance is not supported for light-weight objects. 
+  ;;;                    
+! 
+    (extend-syntax (define-lw-class locals methods init)
+      ((define-lw-class (name . idlist)
+         (locals (loc-var loc-val) ...)
+***************
+*** 121,125 ****
+         (init) ))
+      
+      )
+-   
+-   ) ;; End of eval-when
+--- 121,123 ----
+diff -c -r scix-0.97/macros/extsyntax.sc scix-0.97-fix/macros/extsyntax.sc
+*** scix-0.97/macros/extsyntax.sc	Thu Mar  8 22:46:41 1990
+--- scix-0.97-fix/macros/extsyntax.sc	Thu Nov  8 23:43:16 1990
+***************
+*** 281,287 ****
+  ;;; End of eval-when (compile eval)
+    )
+  
+- (eval-when (compile load eval)
+    (define-macro extend-syntax
+      (let ((x (gensym "X")))
+        (lambda (form expander)
+--- 281,286 ----
+***************
+*** 329,333 ****
+  			'proc))))
+  	  (else (error 'extend-syntax/code "invalid syntax: ~a" form)))
+  	 expander ))))
+-   
+-   ) ;;; End of eval-when
+--- 328,330 ----
+diff -c -r scix-0.97/macros/mask-obj.sc scix-0.97-fix/macros/mask-obj.sc
+*** scix-0.97/macros/mask-obj.sc	Tue Jun 19 17:55:13 1990
+--- scix-0.97-fix/macros/mask-obj.sc	Thu Nov  8 23:43:16 1990
+***************
+*** 50,57 ****
+  ;;;              is to keep the symbolic names as far as possible, we have
+  ;;;              chosen this implementation.
+  
+- (eval-when (load compile eval)
+- 
+  (extend-syntax (make-mask)
+    ((make-mask ((id type) ...))
+     (with (((ids ...) (remq 'unused '(id ...))))
+--- 50,55 ----
+***************
+*** 188,191 ****
+  ;;; but the code would never be executed, so it doesn't cause any trouble
+  ;;; when used interactively. Alas, the compiler doesn't understand this fact...
+    ((make-mask (id ...))
+!    (make-mask ((id '()) ...)) )) )
+--- 186,189 ----
+  ;;; but the code would never be executed, so it doesn't cause any trouble
+  ;;; when used interactively. Alas, the compiler doesn't understand this fact...
+    ((make-mask (id ...))
+!    (make-mask ((id '()) ...)) ))
+diff -c -r scix-0.97/src/bitmasks.sc scix-0.97-fix/src/bitmasks.sc
+*** scix-0.97/src/bitmasks.sc	Tue Jun 26 09:46:48 1990
+--- scix-0.97-fix/src/bitmasks.sc	Thu Nov  8 23:43:16 1990
+***************
+*** 77,84 ****
+      the-mask))
+  
+  (define (make-pointerevent-mask . initial-settings)
+!   (let ((the-mask (make-mask (unused
+! 			      unused
+  			      ButtonPress
+  			      ButtonRelease
+  			      EnterWindow
+--- 77,84 ----
+      the-mask))
+  
+  (define (make-pointerevent-mask . initial-settings)
+!   (let ((the-mask (make-mask (unused-1
+! 			      unused-2
+  			      ButtonPress
+  			      ButtonRelease
+  			      EnterWindow
+***************
+*** 102,111 ****
+  			      KeyRelease
+  			      ButtonPress
+  			      ButtonRelease
+! 			      unused
+! 			      unused
+  			      PointerMotion
+! 			      unused
+  			      Button1Motion
+  			      Button2Motion
+  			      Button3Motion
+--- 102,111 ----
+  			      KeyRelease
+  			      ButtonPress
+  			      ButtonRelease
+! 			      unused-1
+! 			      unused-2
+  			      PointerMotion
+! 			      unused-3
+  			      Button1Motion
+  			      Button2Motion
+  			      Button3Motion
+diff -c -r scix-0.97/src/cmap-obj.sc scix-0.97-fix/src/cmap-obj.sc
+*** scix-0.97/src/cmap-obj.sc	Fri Jul  6 00:28:40 1990
+--- scix-0.97-fix/src/cmap-obj.sc	Thu Nov  8 23:43:17 1990
+***************
+*** 46,52 ****
+  
+  (define-external x-reply? scixmu)
+  
+! (eval-when (compile eval load)
+    (define-class (colormap scr &optional id)
+      (locals
+       (write-enabled '())       ; List of write-enabled pixels
+--- 46,52 ----
+  
+  (define-external x-reply? scixmu)
+  
+! 
+    (define-class (colormap scr &optional id)
+      (locals
+       (write-enabled '())       ; List of write-enabled pixels
+***************
+*** 233,236 ****
+  		  (number? (car id)) )	; i e id given by server
+  	      (me 'scix-announce-id! me) ))
+      )
+-   ) ;; End of eval-when
+--- 233,235 ----
+diff -c -r scix-0.97/src/font-obj.sc scix-0.97-fix/src/font-obj.sc
+*** scix-0.97/src/font-obj.sc	Mon May  7 11:34:58 1990
+--- scix-0.97-fix/src/font-obj.sc	Thu Nov  8 23:43:17 1990
+***************
+*** 34,40 ****
+  
+  ;;; The SCIX Font Object.
+  
+- (eval-when (compile eval load)
+    (define-class (font fontname scr &optional id)
+      (inherit (resource scr (if (null? id)
+  			       #f
+--- 34,39 ----
+***************
+*** 60,63 ****
+  		  (number? (car id)) )	; i e id given by server
+  	      (me 'scix-announce-id! me) ))
+      )
+-   ) ;; End of eval-when
+--- 59,61 ----
+diff -c -r scix-0.97/src/newtypes.tmpl scix-0.97-fix/src/newtypes.tmpl
+*** scix-0.97/src/newtypes.tmpl	Tue Jun 26 09:53:38 1990
+--- scix-0.97-fix/src/newtypes.tmpl	Fri Nov  9 00:02:15 1990
+***************
+*** 3,17 ****
+  ;;; syntax (define-enum-type type name alist)
+  ;;; a-name and d-name are automaticly defined
+  
+! (eval-when (eval compile load)
+  
+- (define (turn alist) ; reverses the pairs in alist - Obs alist must be quoted
+-   (let loop ((alist (cadr alist)) (res '()))
+-     (if (null? alist)
+-         res
+-         (let ((el (car alist)))
+-           (loop (cdr alist) (append res (list (cons (cdr el) (car el)))))))))
+- 
+  (extend-syntax (define-enum-type)
+    ((define-enum-type type name alist)
+     (with ((dlist (turn 'alist))
+--- 3,18 ----
+  ;;; syntax (define-enum-type type name alist)
+  ;;; a-name and d-name are automaticly defined
+  
+! ;;; turn -- reverses the pairs in alist - Obs alist must be quoted
+! (eval-when (eval compile)
+!   (define (turn alist)
+!     (let loop ((alist (cadr alist)) (res '()))
+!       (if (null? alist)
+! 	  res
+! 	  (let ((el (car alist)))
+! 	    (loop (cdr alist) (append res (list (cons (cdr el) (car el)))))))))
+!   )
+  
+  (extend-syntax (define-enum-type)
+    ((define-enum-type type name alist)
+     (with ((dlist (turn 'alist))
+***************
+*** 32,39 ****
+  	   (define d-name (lambda (str dpy)
+  			    ((d-const #t d-type 'dlist) str dpy)))
+  	   ))))
+- 
+- ) ; end of eval-when
+  
+  (define-enum-type CARD8 bitgravity '((Forget    . 0)
+  				     (NorthWest . 1)
+--- 33,38 ----
+diff -c -r scix-0.97/src/objects.sc scix-0.97-fix/src/objects.sc
+*** scix-0.97/src/objects.sc	Fri Jul  6 00:27:10 1990
+--- scix-0.97-fix/src/objects.sc	Thu Nov  8 23:43:18 1990
+***************
+*** 61,67 ****
+     ((scr 'scix-id-vector) 'insert-with-key! me id) ))
+  
+  ;;; Drawables -- windows and pixmaps.
+! (eval-when (compile eval load)
+    (define-class (drawable width height depth scr id)
+      (locals
+       (callbacks '()) )
+--- 61,67 ----
+     ((scr 'scix-id-vector) 'insert-with-key! me id) ))
+  
+  ;;; Drawables -- windows and pixmaps.
+! 
+    (define-class (drawable width height depth scr id)
+      (locals
+       (callbacks '()) )
+***************
+*** 168,177 ****
+  			(if (x-reply? reply)
+  			    (list (reply 'width) (reply 'height))
+  			    reply))))
+!      )))
+  
+  ;;; Pixmaps.
+! (eval-when (compile eval load)
+    (define-class (pixmap width height depth scr &optional id)
+      (locals
+       (drawable (scr 'root)) )
+--- 168,177 ----
+  			(if (x-reply? reply)
+  			    (list (reply 'width) (reply 'height))
+  			    reply))))
+!      ))
+  
+  ;;; Pixmaps.
+! 
+    (define-class (pixmap width height depth scr &optional id)
+      (locals
+       (drawable (scr 'root)) )
+***************
+*** 189,195 ****
+      (init
+       (if (or (null? id)
+  	     (not (number? (car id))) )
+! 	 (me 'scix-announce-id! me) ))))
+  
+  ;;; If a 'fill method is wanted for a pixmap it can be inserted like this:
+  ;;; (pmap 'insert-method!
+--- 189,195 ----
+      (init
+       (if (or (null? id)
+  	     (not (number? (car id))) )
+! 	 (me 'scix-announce-id! me) )))
+  
+  ;;; If a 'fill method is wanted for a pixmap it can be inserted like this:
+  ;;; (pmap 'insert-method!
+diff -c -r scix-0.97/src/view-obj.sc scix-0.97-fix/src/view-obj.sc
+*** scix-0.97/src/view-obj.sc	Mon May  7 11:36:22 1990
+--- scix-0.97-fix/src/view-obj.sc	Thu Nov  8 23:43:18 1990
+***************
+*** 46,52 ****
+  ;;; (view 'set! <list of graphics>)           -- set the display list
+  ;;; (view 'contents)                          -- spew out the display list
+  ;;;
+! (eval-when (compile eval load)
+    (define-lw-class (view)
+      (locals
+       (display-list '()))
+--- 46,52 ----
+  ;;; (view 'set! <list of graphics>)           -- set the display list
+  ;;; (view 'contents)                          -- spew out the display list
+  ;;;
+! 
+    (define-lw-class (view)
+      (locals
+       (display-list '()))
+***************
+*** 65,71 ****
+       
+       (set! (lambda (obj-list) (set! display-list obj-list)))
+     ))
+-   ) ;; End of eval-when
+  
+  
+  
+--- 65,70 ----
+diff -c -r scix-0.97/src/win-obj.sc scix-0.97-fix/src/win-obj.sc
+*** scix-0.97/src/win-obj.sc	Fri Jul  6 00:21:49 1990
+--- scix-0.97-fix/src/win-obj.sc	Thu Nov  8 23:43:19 1990
+***************
+*** 47,53 ****
+  (include "../macros/extsyntax.sc")
+  (include "../macros/defclass.sc")
+  
+- (eval-when (compile eval load)
+    (define-class (window width height depth x y parent
+  			border-width class visual scr &optional id)
+      (locals
+--- 47,52 ----
+***************
+*** 214,217 ****
+  		    (parent 'scix-announce-child me) ))))
+  
+      )  ;; End of define-class
+-   )    ;; End of eval-when
+--- 213,215 ----
+diff -c -r scix-0.97/toolkit/buttons.sc scix-0.97-fix/toolkit/buttons.sc
+*** scix-0.97/toolkit/buttons.sc	Thu Jun 28 23:20:11 1990
+--- scix-0.97-fix/toolkit/buttons.sc	Thu Nov  8 23:43:19 1990
+***************
+*** 15,21 ****
+  
+  ;;; Generic button.
+  ;;;
+! (eval-when (compile load eval)
+    (define-class (button width height x y button-semantics
+  			gc-draw gc-rev parent scr)
+      (locals
+--- 15,21 ----
+  
+  ;;; Generic button.
+  ;;;
+! 
+    (define-class (button width height x y button-semantics
+  			gc-draw gc-rev parent scr)
+      (locals
+***************
+*** 105,115 ****
+       (me 'scix-announce-id! me)
+       (if parent                               ; i e this is not the root window
+  	 (parent 'scix-announce-child me) ))) ; all buttons are just "buttons"
+-   ) ;; End of eval-when
+  
+  ;;; Text-button (was push-button-text).
+  ;;;
+! (eval-when (compile load eval)
+    (define-class (text-button width height x y legend
+  				  gc-draw gc-rev gc-inv parent appl scr)
+      (locals
+--- 105,114 ----
+       (me 'scix-announce-id! me)
+       (if parent                               ; i e this is not the root window
+  	 (parent 'scix-announce-child me) ))) ; all buttons are just "buttons"
+  
+  ;;; Text-button (was push-button-text).
+  ;;;
+! 
+    (define-class (text-button width height x y legend
+  				  gc-draw gc-rev gc-inv parent appl scr)
+      (locals
+***************
+*** 147,157 ****
+  				     (if (eq? input 'ButtonRelease)
+  					 (appl)))))
+  	     gc-draw gc-rev parent scr) ))
+-   ) ;; End of eval-when
+  
+  ;;; Pixmap-button (was push-button-pixmap).
+  ;;;
+! (eval-when (compile load eval)
+    (define-class (pixmap-button width height x y pixmap
+  				    gc-draw gc-rev gc-inv parent appl scr)
+      (locals
+--- 146,156 ----
+  				     (if (eq? input 'ButtonRelease)
+  					 (appl)))))
+  	     gc-draw gc-rev parent scr) ))
+  
++ 
+  ;;; Pixmap-button (was push-button-pixmap).
+  ;;;
+! 
+    (define-class (pixmap-button width height x y pixmap
+  				    gc-draw gc-rev gc-inv parent appl scr)
+      (locals
+***************
+*** 175,185 ****
+  				     (if (eq? input 'ButtonRelease)
+  					 (appl)))))
+  	     gc-draw gc-rev parent scr) ))
+-   ) ;; End of eval-when
+  
+  ;;; Toggle-button.
+  ;;;
+! (eval-when (compile load eval)
+    (define-class (toggle-button width height x y gc-draw gc-rev gc-inv
+  			       parent appl-on appl-off scr)
+      (locals
+--- 174,184 ----
+  				     (if (eq? input 'ButtonRelease)
+  					 (appl)))))
+  	     gc-draw gc-rev parent scr) ))
+  
++ 
+  ;;; Toggle-button.
+  ;;;
+! 
+    (define-class (toggle-button width height x y gc-draw gc-rev gc-inv
+  			       parent appl-on appl-off scr)
+      (locals
+***************
+*** 210,213 ****
+  			       (me 'draw button-area gc-draw)
+  			       (scr 'flush!) )))
+  	   'R #f) ))
+!   ) ;; End of eval-when
+--- 209,212 ----
+  			       (me 'draw button-area gc-draw)
+  			       (scr 'flush!) )))
+  	   'R #f) ))
+! 
+

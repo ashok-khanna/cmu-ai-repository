@@ -1,0 +1,391 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node173.html by HTTrack Website Copier/3.x [XR&CO'2014], Thu, 21 Oct 2021 14:58:19 GMT -->
+<HEAD>
+<TITLE>19.5. Defstruct Options</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Defstruct Options">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3690 HREF="node174.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3688 HREF="node168.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3682 HREF="node172.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3692 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3693 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3691 HREF="node174.html"> By-Position Constructor Functions</A>
+<B>Up:</B> <A NAME=tex2html3689 HREF="node168.html"> Structures</A>
+<B> Previous:</B> <A NAME=tex2html3683 HREF="node172.html"> Defstruct Slot-Options</A>
+<HR> <P>
+<H1><A NAME=SECTION002350000000000000000>19.5. Defstruct Options</A></H1>
+<P>
+<A NAME=DEFSTRUCTOPTIONS>The</A>
+<A NAME=DefstructHairyStuff>preceding</A>
+description of <tt>defstruct</tt> is all that the average
+user will need (or want) to know in order to use structures.
+The remainder of this chapter discusses more complex features of
+the <tt>defstruct</tt> facility.
+<P>
+This section explains each of the options that can be given to <tt>defstruct</tt>.
+A <tt>defstruct</tt> option may be either a keyword
+or a list of a keyword and arguments for that keyword.
+(Note that the syntax for <tt>defstruct</tt> options differs from
+the pair syntax used for slot-options.  No part of any of these options
+is evaluated.)
+<P>
+<DL COMPACT><DT><tt>:conc-name</tt>
+<DD>
+This provides for automatic prefixing of names of access functions.
+It is conventional to begin the names of all the access functions of
+a structure with a specific prefix,
+the name of the structure followed by a hyphen.
+This is the default behavior.
+<P>
+The argument to the <tt>:conc-name</tt> option specifies an alternative
+prefix to be used.  (If a hyphen is to be used as a separator,
+it must be specified as part of the prefix.)
+If <tt>nil</tt> is specified as an argument, then <i>no</i> prefix is used;
+then the names of the access functions
+are the same as the slot-names, and it is up to the user
+to name the slots reasonably.
+<P>
+Note that no matter what is specified for <tt>:conc-name</tt>,
+with a constructor function one uses
+slot keywords that match the slot-names, with no prefix attached.
+On the other hand, one uses the access-function name
+when using <tt>setf</tt>.  Here is an example:
+<P><pre>
+(defstruct door knob-color width material) 
+(setq my-door 
+      (make-door :knob-color 'red :width 5.0)) 
+(door-width my-door) => 5.0 
+(setf (door-width my-door) 43.7) 
+(door-width my-door) => 43.7 
+(door-knob-color my-door) => red
+</pre><P>
+<P>
+<DT><tt>:constructor</tt>
+<DD>
+This option takes one argument, a symbol,
+which specifies the name of the constructor
+function.  If the argument is not provided or if the option itself is not
+provided, the name of the constructor is produced by concatenating the
+string <tt>&quot;MAKE-&quot;</tt> and the name of the structure, putting the name
+in whatever package is current at the time the <tt>defstruct</tt>
+form is processed (see <tt>*package*</tt>).
+If the argument is
+provided and is <tt>nil</tt>, no constructor function is defined.
+<P>
+This option actually has a more general syntax that is explained
+in section <A HREF="node174.html#DEFSTRUCTCONSTRUCTORSYNTAX">19.6</A>.
+<P>
+<DT><tt>:copier</tt>
+<DD>
+This option takes one argument, a symbol,
+which specifies the name of the copier
+function.  If the argument is not provided or if the option itself is not
+provided, the name of the copier is produced by concatenating the
+string <tt>&quot;COPY-&quot;</tt> and the name of the structure, putting the name
+in whatever package is current at the time the <tt>defstruct</tt>
+form is processed (see <tt>*package*</tt>).
+If the argument is provided and is <tt>nil</tt>, no copier function is defined.
+<P>
+The automatically defined copier function simply makes a new structure
+and transfers all components verbatim from the argument into the
+newly created structure.  No attempt is made to make copies
+of the components.  Corresponding components of the old and
+new structures will therefore be <tt>eql</tt>.
+<P>
+<DT><tt>:predicate</tt>
+<DD>
+This option takes one argument, which specifies the name of the type predicate.
+If the argument is not provided or if the option itself is not
+provided, the name of the predicate is made by concatenating the
+name of the structure to the string <tt>&quot;-P&quot;</tt>, putting the name
+in whatever package is current at the time the <tt>defstruct</tt>
+form is processed (see <tt>*package*</tt>).
+If the argument is
+provided and is <tt>nil</tt>, no predicate is defined.  A predicate can be defined
+only if the structure is ``named'';
+if the <tt>:type</tt> option is specified
+and the <tt>:named</tt> option is
+not specified, then the <tt>:predicate</tt> option must either be unspecified
+or have the value <tt>nil</tt>.
+<P>
+<DT><tt>:include</tt>
+<DD>
+This option is used for building a new structure definition as
+an extension of an old structure definition.  As an example,
+suppose you have a structure called <tt>person</tt> that looks like this:
+<P><pre>
+(defstruct person name age sex)
+</pre><P>
+Now suppose you want to make a new structure to represent an astronaut.
+Since astronauts are people too, you would like them also to have the
+attributes of name, age, and sex, and you would like Lisp functions
+that operate on <tt>person</tt> structures to operate just as well on
+<tt>astronaut</tt> structures.  You can do this by defining <tt>astronaut</tt>
+with the <tt>:include</tt> option, as follows:
+<P>
+<P><pre>
+(defstruct (astronaut (:include person) 
+                      (:conc-name astro-)) 
+   helmet-size 
+   (favorite-beverage 'tang))
+</pre><P>
+<P>
+The <tt>:include</tt> option causes the structure being defined
+to have the same slots as the included structure.
+This is done in such a way
+that the access functions for the included
+structure will also work on the structure being defined.
+In this example, an
+<tt>astronaut</tt> will therefore have five slots: the three defined in
+<tt>person</tt> and the two defined in <tt>astronaut</tt>
+itself.  The access functions defined by the <tt>person</tt> structure
+can be applied to instances of the <tt>astronaut</tt> structure, and they
+will work correctly.
+Moreover, <tt>astronaut</tt> will have its own access functions for
+components defined by the <tt>person</tt> structure.
+The following examples illustrate how you can
+use <tt>astronaut</tt> structures:
+<P>
+<P><pre>
+(setq x (make-astronaut :name 'buzz 
+                        :age 45 
+                        :sex t 
+                        :helmet-size 17.5)) 
+
+(person-name x) => buzz 
+(astro-name x) => buzz 
+
+(astro-favorite-beverage x) => tang
+</pre><P>
+The difference between the access functions <tt>person-name</tt> and <tt>astro-name</tt>
+is that <tt>person-name</tt> may be correctly applied to any <tt>person</tt>,
+including an <tt>astronaut</tt>, while <tt>astro-name</tt> may be correctly
+applied only to an <tt>astronaut</tt>.  (An implementation may or may not
+check for incorrect use of access functions.)
+<P>
+At most one <tt>:include</tt> option may be specified in a single
+<tt>defstruct</tt> form.
+The argument to the <tt>:include</tt> option is required and must be the
+name of some previously defined structure.  If the structure being
+defined has no <tt>:type</tt> option, then the included structure must
+also have had no <tt>:type</tt> option specified for it.
+If the structure being defined has a <tt>:type</tt> option,
+then the included structure must have been declared with a <tt>:type</tt>
+option specifying the same representation type.
+<P>
+If no <tt>:type</tt> option is involved, then
+the structure name of the including structure definition
+becomes the name of a data type, of course, and therefore
+a valid type specifier recognizable by <tt>typep</tt>; moreover, it becomes
+a subtype of the included structure.  In the above example,
+<tt>astronaut</tt> is a subtype of <tt>person</tt>; hence
+<P><pre>
+(typep (make-astronaut) 'person)
+</pre><P>
+is true, indicating that all operations on persons will also
+work on astronauts.
+<P>
+The following is an advanced feature of the <tt>:include</tt> option.
+Sometimes, when one structure includes another, the default values or
+slot-options for the slots that came from the included structure are not
+what you want.  The new structure can specify default values or
+slot-options for the included slots different from those the included
+structure specifies, by giving the <tt>:include</tt> option as
+<P><pre>
+(:include <i>name</i> <i>slot-description-1</i> <i>slot-description-2</i> ...)
+</pre><P>
+Each <i>slot-description-j</i> must have a <i>slot-name</i> or <i>slot-keyword</i> that is the same
+as that of some slot in the included structure.
+If <i>slot-description-j</i> has no <i>default-init</i>,
+then in the new structure the slot will have no initial
+value.  Otherwise its initial value form will be replaced by
+the <i>default-init</i> in <i>slot-description-j</i>.
+A normally writable slot may be made read-only.
+If a slot is read-only in the included structure, then it
+must also be so in the including structure.
+If a type is specified for a slot, it must be the same as, or a subtype of, the
+type specified in the included structure.  If it is a strict subtype,
+the implementation may or may not choose to error-check assignments.
+<P>
+For example, if we had wanted to define <tt>astronaut</tt> so that the
+default age for an astronaut is <tt>45</tt>, then we could have said:
+<P><pre>
+(defstruct (astronaut (:include person (age 45))) 
+   helmet-size 
+   (favorite-beverage 'tang))
+</pre><P>
+</dl>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<dl compact><dd>
+X3J13 voted in June 1988
+(DATA-TYPES-HIERARCHY-UNDERSPECIFIED) <A NAME=18772>&#160;</A> 
+to require any structure type created by <tt>defstruct</tt>
+(or <tt>defclass</tt>) to be disjoint from any of the types
+<tt>cons</tt>, <tt>symbol</tt>, <tt>array</tt>, <tt>number</tt>, <tt>character</tt>,
+<tt>hash-table</tt>, <tt>readtable</tt>, <tt>package</tt>, <tt>pathname</tt>,
+<tt>stream</tt>, and <tt>random-state</tt>.  A consequence of this requirement
+is that it is an error to specify any of these types, or any of their
+subtypes, to the <tt>defstruct</tt> <tt>:include</tt> option.
+(The first edition said nothing explicitly about this.
+Inasmuch as using such a type with the <tt>:include</tt> option was
+not defined to work, one might argue that such use was an error
+in Common Lisp as defined by the first edition.)
+</dl>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<dl compact>
+<DT><tt>:print-function</tt>
+<DD>
+This option may be used only if the <tt>:type</tt>
+option is not specified.
+The argument to the <tt>:print-function</tt> option
+should be a function of three arguments,
+in a form acceptable to the <tt>function</tt> special form,
+to be used to print structures of this type.
+When a structure of this type is to be printed, the function
+is called on three arguments:
+the structure to be printed, a stream to print to,
+and an integer indicating the current depth (to be compared against
+<tt>*print-level*</tt>).
+The printing function should observe the values of
+such printer-control variables as <tt>*print-escape*</tt>
+and <tt>*print-pretty*</tt>.
+<P>
+If the <tt>:print-function</tt> option is not specified and the <tt>:type</tt>
+option also not specified, then a default printing function is
+provided for the structure that will print out all its slots
+using <tt>#S</tt> syntax (see section <A HREF="node191.html#SHARPSIGNMACROCHARACTERSECTION">22.1.4</A>).
+</dl>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<dl compact><dd>
+X3J13 voted in January 1989
+(PRINT-CIRCLE-STRUCTURE) <A NAME=18802>&#160;</A> 
+to specify that user-defined printing functions for the <tt>defstruct</tt>
+<tt>:print-function</tt> option may print objects to the
+supplied stream using <tt>write</tt>, <tt>print1</tt>, <tt>princ</tt>, <tt>format</tt>,
+or <tt>print-object</tt> and expect circularities to be detected and printed
+using <tt>#<i>n</i>#</tt> syntax (when <tt>*print-circle*</tt> is non-<tt>nil</tt>, of course).
+See <tt>*print-circle*</tt>.
+<P>
+X3J13 voted in January 1989
+(DEFSTRUCT-PRINT-FUNCTION-INHERITANCE) <A NAME=18816>&#160;</A> 
+to clarify that if the <tt>:print-function</tt>
+option is not specified but the <tt>:include</tt> option <i>is</i> specified,
+then the print function is inherited from the included structure type.
+Thus, for example, an <tt>astronaut</tt> will be printed by the same
+printing function that is used for <tt>person</tt>.
+<P>
+X3J13 in the same vote extended the <tt>print-function</tt> option
+as follows: If the <tt>print-function</tt> option is specified but with
+no argument, then the standard default printing function (that uses
+<tt>#S</tt> syntax) will be used.  This provides a means of overriding the
+inheritance rule.  For example, if <tt>person</tt> and <tt>astronaut</tt>
+had been defined as
+<P><pre>
+(defstruct (person 
+             (:print-function     ;Special print function
+             (lambda (p s k) 
+               (format s &quot;&lt;~A, age ~D&gt;&quot; 
+                       (person-name p) 
+                       (person-age p))))) 
+  name age sex) 
+
+(defstruct (astronaut 
+             (:include person) 
+             (:conc-name astro-) 
+             (:print-function))     ;Use default print function 
+   helmet-size 
+   (favorite-beverage 'tang))
+</pre><P>
+then an ordinary person would be printed as ``<tt>&lt;Joe Schmoe, age 27&gt;</tt>''
+but an astronaut would be printed as, for example,
+<P><pre>
+#S(ASTRONAUT NAME BUZZ AGE 45 SEX T 
+   HELMET-SIZE 17.5 FAVORITE-BEVERAGE TANG)
+</pre><P>
+using the default <tt>#S</tt> syntax (yuk).
+</dl>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<dl compact>
+These changes make the behavior of <tt>defstruct</tt> with respect to the
+<tt>:include</tt> option a bit more like the behavior of classes in CLOS.
+<P>
+<DT><tt>:type</tt>
+<DD>
+The <tt>:type</tt> option explicitly specifies the representation to be used for
+the structure.  It takes one argument, which must
+be one of the types enumerated below.
+<P>
+Specifying this option has the effect of forcing
+a specific representation and of forcing the components to be
+stored in the order specified in the <tt>defstruct</tt> form
+in corresponding successive elements of the specified representation.
+It also <i>prevents</i> the structure name from becoming a valid
+type specifier recognizable by <tt>typep</tt>
+(see section <A HREF="node175.html#EXPLICITTYPESTRUCTURES">19.7</A>).
+<P>
+Normally this option is not specified, in which case the structure
+is represented in an implementation-dependent manner.
+<blockquote>     
+<DL COMPACT><DT><tt>vector</tt>
+<DD>
+This produces the same result as specifying <tt>(vector t)</tt>.
+The structure is represented
+as a general vector, storing components as vector elements.
+The first component is vector
+element 1 if the structure is <tt>:named</tt>, and element 0 otherwise.
+<P>
+<DT><tt>(vector <i>element-type</i>)</tt>
+<DD>
+The structure is represented as a (possibly specialized) vector, storing
+components as vector elements.  Every component must be of a type that can be
+stored in a vector of the type specified.  The first component is vector
+element 1 if the structure is <tt>:named</tt>, and element 0 otherwise.
+The structure may be <tt>:named</tt> only if the type <tt>symbol</tt> is a subtype of
+the specified <tt>element-type</tt>.
+<P>
+<DT><tt>list</tt>
+<DD>
+The structure is represented as a list.
+The first component is the <i>cadr</i>
+if the structure is <tt>:named</tt>, and the <i>car</i> if
+it is <tt>:unnamed</tt>.
+<P>
+ </DL>
+</blockquote>
+<P>
+<DT><tt>:named</tt>
+<DD>
+The <tt>:named</tt> option specifies that the structure is ``named''; this
+option takes no argument.  If no <tt>:type</tt> option is specified,
+then the structure is always named; so this option is useful only in
+conjunction with the <tt>:type</tt> option.
+See section <A HREF="node175.html#EXPLICITTYPESTRUCTURES">19.7</A> for a further description of this option.
+<P>
+<DT><tt>:initial-offset</tt>
+<DD>
+This allows you to tell <tt>defstruct</tt> to skip over a certain
+number of slots before it starts allocating the slots described in the
+body.  This option requires an argument,
+a non-negative integer,
+which is the number of slots you want <tt>defstruct</tt> to skip.
+The <tt>:initial-offset</tt> option may be used only if the
+<tt>:type</tt> option is also specified.
+See section <A HREF="node178.html#DEFSTRUCTINITIALOFFSET">19.7.3</A> for a further description
+of this option.
+<P>
+ </DL>
+<P>
+<BR> <HR><A NAME=tex2html3690 HREF="node174.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3688 HREF="node168.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3682 HREF="node172.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3692 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3693 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3691 HREF="node174.html"> By-Position Constructor Functions</A>
+<B>Up:</B> <A NAME=tex2html3689 HREF="node168.html"> Structures</A>
+<B> Previous:</B> <A NAME=tex2html3683 HREF="node172.html"> Defstruct Slot-Options</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

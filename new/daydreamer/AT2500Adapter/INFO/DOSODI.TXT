@@ -1,0 +1,205 @@
+Novell DOS ODI Workstation
+
+************************************************************
+************************************************************
+**                                                        **
+**     Novell NetWare DOS ODI Workstation Installation    **
+**                                                        **
+************************************************************
+************************************************************
+
+------------------------------------------------------------
+--                        Contents                        --
+------------------------------------------------------------
+I.    Special Considerations 
+II.   Files Needed for Installation 
+III.  Installing the AT-2500 DOS ODI driver using the DOS 
+      Requester installation from Novell 
+IV.   Installing the AT-2500 DOS ODI driver manually 
+V.    Removing an Existing Driver
+VI.   Finding the MAC Address
+
+
+I.  Special Considerations
+==========================
+
+NOTE: YOU CANNOT GENERATE THE MONOLITHIC "IPX.COM" FILE 
+      USING "WSGEN" OR "SHGEN" WITH OUR DRIVERS - USE THE 
+      IPXODI DRIVERS INSTEAD.
+
+Any version of NetWare can support an ODI driver.
+ 
+Configuration of the AT-2500TX is under PCI control, and 
+the AT-2500TX is NWAY capable. For most applications, no 
+setup other than normal installation of the network 
+software is necessary. For any half-duplex application, the 
+card by default auto-detects the speed of the link (10 Mbps 
+or 100 Mbps). If the connection is full-duplex without NWAY 
+capability, you must select one of the full-duplex settings.
+In this case, refer to the "Connection speed and duplex" 
+information file. 
+
+In PCI machines with the PCI 2 bus, the processor may cycle 
+indefinitely through the bootup process if the adapter card 
+is not installed but the driver is loaded. This can happen 
+if the adapter card has been removed from the computer, yet 
+the driver files are still loaded. Since it is not always 
+possible to determine if you are running a PCI 1 vs a PCI 2 
+bus on your processor, do not allow the driver to load if
+the AT-2500 is not present in the system.
+
+
+II. Files Needed for Installation
+=================================
+\DOSODI\NET.CFG
+\DOSODI\LSL.COM
+\DOSODI\IPXODI.COM
+\DOSODI\NETX.COM
+\DOSODI\a25odi.COM    DOS ODI client driver 
+\INFO\DOSODI.TXT      This file 
+
+
+III.  Installing the AT-2500 DOS ODI driver using the DOS 
+     Requester installation from Novell
+=========================================================
+
+1. Insert the Novell Workstation Installation diskette 
+   "WS_DOS1" into a floppy drive and run "Install".
+
+2. Select the appropriate options for your system such as
+   altering startup files, Windows support, etc. 
+
+3. In the appropriate section, supply the path to the ODI 
+   drivers provided on the CardAssistant diskette:
+
+       A:\DOSODI
+
+   The AT-2500 should appear in the "Insert the Driver 
+   Disk" menu. Select the driver and press ENTER.
+
+4.   Continue installation.
+
+
+IV.  Installing the AT-2500 DOS ODI driver manually
+===================================================
+
+1. Copy the contents of the DOS directory of the 
+   CardAssistant diskette to a directory you specify, 
+   i.e. C:\NET.
+
+2. Check the NET.CFG file to make sure the first frame type 
+   listed under the LINK DRIVER section matches the frame 
+   type the server is using. If you don't know, go to the 
+   file server console and type CONFIG. This will should the
+   driver information for the server, including which frame
+   types are available.
+
+3. Modify your AUTOEXEC.BAT (or batch file that loads the 
+   Novell drivers) to contain the following lines in this 
+   order:
+
+     LSL
+     a25odi
+     IPXODI
+     NETX (or VLM)
+
+4. When using NETX.EXE, Check the CONFIG.SYS file in the root
+   directory of drive C: for a LASTDRIVE statement. If there is
+   none, the first network drive will be F:. Otherwise, the first 
+   network drive will be the next letter after the one 
+   specified by LASTDRIVE. Otherwise, make sure that LASTDRIVE
+   is set to Z when using VLMs, and that the NET.CFG specifies
+   the first network driver under the Novell DOS Requester section.
+
+   Also, if you have a PCI-1 bus in your system, add 
+   the line BUSTYPE PCI1 to the NET.CFG file, i.e. 
+
+     LINK DRIVER a25odi
+          BUSTYPE PCI1
+
+   Otherwise the driver may not find the card. If you don't 
+   know which bus you have, try loading without the option. 
+   If it loads, you don't need it.
+
+5. Reboot your computer by pressing the reset button, or by 
+   turning the power switch off and on. Do NOT use 
+   <Ctrl>+<Alt>+<Delete>. Some PCI systems do not reset 
+   bus-mastering cards with a warm boot.
+
+             SAMPLE CONFIGURATION FILES - ODI
+             --------------------------------
+
+CONFIG.SYS
+----------
+BUFFERS=30,0
+FILES=45
+DOS=HIGH,UMB
+LASTDRIVE=Z 
+
+Note: Set LASTDRIVE=Z only when using VLMs. The Novell
+DOS workstation installation will automatically set it
+for you. When using NETX, the first network drive is the
+next letter after the LASTDRIVE setting in the CONFIG.SYS.
+
+AUTOEXEC.BAT
+------------
+PATH C:\DOS
+PROMPT $P$G
+CD \NET
+LSL
+a25odi
+IPXODI
+NETX
+F:
+LOGIN SERVER/USERNAME
+
+STARTNET.BAT (DOS Requester - VLMs)
+-----------------------------------
+@ECHO OFF
+CD \NWCLIENT
+SET NWLANGUAGE=ENGLISH
+LSL
+a25odi
+IPXODI
+VLM
+CD \
+
+NET.CFG (VLMs)
+--------------
+LINK DRIVER a25odi
+      FRAME ETHERNET_802.2
+
+NETWARE DOS REQUESTER
+      FIRST NETWORK DRIVE = F      
+
+NET.CFG (NETX)
+--------------
+LINK DRIVER a25odi
+      FRAME ETHERNET_802.2
+
+
+V. Removing an existing driver 
+===============================
+
+To de-install the driver, remove the driver from the 
+STARTNET.BAT or AUTOEXEC.BAT file, or comment it out, 
+and reboot.
+
+
+VI. Finding the MAC Address
+==========================
+
+To determine the MAC address assigned to the NIC:
+
+1. Boot the computer into DOS with no drivers loaded.
+
+2. Insert the CardAssistant diskette in the floppy drive 
+   and launch SETUP25: type a:\setup25.
+
+3. The main screen shows a table listing the AT-2500
+   cards installed in the computer. Write down the 
+   address(es) listed in the "MAC" column of the table.
+
+
+*  Third-party trademarks are the property of their 
+   respective owners.

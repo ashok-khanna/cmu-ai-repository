@@ -1,0 +1,283 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node207.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:47:30 GMT -->
+<HEAD>
+<TITLE>23.1.4. Extended Wildcards</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Extended Wildcards">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4143 HREF="node208.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4141 HREF="node203.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4135 HREF="node206.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4145 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4146 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4144 HREF="node208.html"> Logical Pathnames</A>
+<B>Up:</B> <A NAME=tex2html4142 HREF="node203.html"> File Names</A>
+<B> Previous:</B> <A NAME=tex2html4136 HREF="node206.html"> Structured Directories</A>
+<HR> <P>
+<H2><A NAME=SECTION002714000000000000000>23.1.4. Extended Wildcards</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<A NAME=WILDPATHNAMESECTION>Some</A>
+file systems provide more complex conventions for wildcards than
+  simple component-wise wildcards representable by <tt>:wild</tt>.
+For example, the namestring <tt>&quot;F*O&quot;</tt> might mean a normal three-character
+name; a three-character name with the middle character wild;
+a name with at least two characters, beginning with <tt>F</tt> and ending with <tt>O</tt>;
+or perhaps a wild match spanning multiple directories.  Similarly, the
+namestring <tt>&quot;&gt;foo&gt;**&gt;bar&gt;&quot;</tt> might imply that the middle directory is
+named <tt>&quot;**&quot;</tt>; the middle directory is <tt>:wild</tt>;
+there are zero or more middle directories that are <tt>:wild</tt>;
+or perhaps that the middle directory name matches any two-letter name.
+Some file systems support even more complex wildcards, such as
+  regular expressions.
+<P>
+X3J13 voted in June 1989 (PATHNAME-WILD) <A NAME=26321>&#160;</A>  to provide
+some facilities for dealing with more general wildcard pathnames
+in a fairly portable manner.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>wild-pathname-p <i>pathname</i> &amp;optional <i>field-key</i></tt>
+<p>
+Tests a pathname for the presence of wildcard components. If the
+first argument is not a pathname, string, or file
+stream, an error of type <tt>type-error</tt> is
+signaled.
+<p>
+If no <i>field-key</i> is provided, or the <i>field-key</i> is
+<tt>nil</tt>, the result is true if and only 
+if <i>pathname</i> has any wildcard components.
+<P>
+If a non-null <i>field-key</i> is provided, it must be one of <tt>:host</tt>,
+<tt>:device</tt>,
+<tt>:directory</tt>, <tt>:name</tt>, <tt>:type</tt>, or <tt>:version</tt>.
+In this case, the result is true if and only
+if the indicated component of <i>pathname</i> is a wildcard.
+<P>
+    Note that X3J13 voted in June 1989 
+    (PATHNAME-COMPONENT-VALUE) <A NAME=26336>&#160;</A> 
+    to specify that an implementation need not support wildcards in all fields;
+    the only requirement is that the name, type, or version may be <tt>:wild</tt>.
+    However, portable programs should be prepared to encounter either <tt>:wild</tt>
+    or implementation-dependent wildcards in any pathname component.
+    The function <tt>wild-pathname-p</tt> provides a portable way for testing
+    the presence of wildcards.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>pathname-match-p <i>pathname</i> <i>wildname</i></tt><P>    This predicate is true if and only if the <i>pathname</i>
+    matches the <i>wildname</i>.  The matching rules
+    are implementation-defined but should be consistent with the behavior of the
+    <tt>directory</tt> function.  Missing components of <i>wildname</i> default to <tt>:wild</tt>.
+<P>
+    If either argument is not a pathname, string, or file stream, an error
+    of type <tt>type-error</tt> is signaled.  It is valid for <i>pathname</i> to be a
+    wild pathname; a wildcard field in <i>pathname</i> will match only a
+    wildcard field in <i>wildname</i>; that is, <tt>pathname-match-p</tt> is not commutative.
+    It is valid for <i>wildname</i> to be a non-wild pathname;
+    I believe that in this case <tt>pathname-match-p</tt> will have the same
+    behavior as <tt>equal</tt>, though the X3J13 specification did not say so.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>translate-pathname <i>source</i> <i>from-wildname</i> <i>to-wildname</i> &amp;key</tt><P>    Translates the pathname <i>source</i>, which must match <i>from-wildname</i>, into
+    a corresponding pathname (call it <i>result</i>), which is constructed
+    so as to match <i>to-wildname</i>, and returns <i>result</i>.
+<P>
+    The pathname <i>result</i> is a copy of
+    <i>to-wildname</i> with each missing or wildcard
+    field replaced by a portion of <i>source</i>; for this purpose a wildcard field is a
+    pathname component with a value of <tt>:wild</tt>, a <tt>:wild</tt> element of a
+    list-valued directory component, or an implementation-defined portion
+    of a component, such as the <tt>*</tt> in the complex wildcard string
+    <tt>&quot;foo*bar&quot;</tt> that some implementations support.  An implementation that
+    adds other wildcard features, such as regular expressions, must define
+    how <tt>translate-pathname</tt> extends to those features.  A missing field is
+    a pathname component that is <tt>nil</tt>.
+<P>
+    The portion of <i>source</i> that is copied into <i>result</i> is
+    implementation-defined.  Typically it is determined by the user interface conventions
+    of the file systems involved.  Usually it is the portion of <i>source</i>
+    that matches a wildcard field of <i>from-wildname</i> that is in the same
+    position as the missing or wildcard field of <i>to-wildname</i>.  If there
+    is no wildcard field in <i>from-wildname</i> at that position, then usually
+    it is the entire corresponding pathname component of <i>source</i> or, in
+    the case of a list-valued directory component, the entire corresponding
+    list element.  For example, if the name components of <i>source</i>,
+    <i>from-wildname</i>, and <i>to-wildname</i> are <tt>&quot;gazonk&quot;</tt>, <tt>&quot;gaz*&quot;</tt>, and <tt>&quot;h*&quot;</tt>
+    respectively, then in most file systems the wildcard fields of the
+    name component of <i>from-wildname</i> and <i>to-wildname</i> are each <tt>&quot;*&quot;</tt>, the
+    matching portion of <i>source</i> is <tt>&quot;onk&quot;</tt>, and the name component of
+    <i>result</i> is <tt>&quot;honk&quot;</tt>; however, the exact behavior of <tt>translate-pathname</tt>
+    is not dictated by the Common Lisp language and may
+    vary according to the user interface conventions of the file systems
+    involved.
+<P>
+    During the copying of a portion of <i>source</i> into <i>result</i>, additional
+    implementation-defined translations of alphabetic case or file naming
+    conventions may occur, especially when <i>from-wildname</i> and
+    <i>to-wildname</i> are for different hosts.
+<P>
+    If any of the first three arguments is not a pathname, string, or file
+    stream, an error of type <tt>type-error</tt> is signaled.  It is valid for
+    <i>source</i> to be a wild pathname; in general this will produce a wild
+    <i>result</i> pathname.  It is valid for <i>from-wildname</i> or <i>to-wildname</i> or both
+    to be non-wild.  An error is signaled if the <i>source</i> pathname does not
+    match the <i>from-wildname</i>, that is,
+    if <tt>(pathname-match-p <i>source</i> <i>from-wildname</i>)</tt> would not be true.
+<P>
+    There are no specified keyword arguments for <tt>translate-pathname</tt>, but
+    implementations are permitted to extend it by adding keyword arguments.
+    There is one specified return value from <tt>translate-pathname</tt>;
+    implementations are permitted to extend it by returning additional
+    values.
+<P>
+    Here is an implementation suggestion.   One file system performs this operation by
+    examining corresponding pieces of the three pathnames in turn, where a piece is a
+    pathname component or a list element of a structured component such as
+    a hierarchical directory.  Hierarchical directory elements in
+    <i>from-wildname</i> and <i>to-wildname</i> are matched by whether they are
+    wildcards, not by depth in the directory hierarchy.  If the piece in
+    <i>to-wildname</i> is present and not wild, it is copied into the result.
+    If the piece in <i>to-wildname</i> is <tt>:wild</tt> or <tt>nil</tt>, the corresponding
+    piece in <i>source</i> is
+    copied into the result.  Otherwise, the piece in <i>to-wildname</i> might be
+    a complex wildcard such as <tt>&quot;foo*bar&quot;</tt>; the portion of the piece in <i>source</i>
+    that matches the
+    wildcard portion of the corresponding piece in <i>from-wildname</i> (or the entire
+    <i>source</i> piece, if the <i>from-wildname</i> piece is not wild and therefore
+    equals the <i>source</i> piece) replaces the wildcard
+    portion of the piece in <i>to-wildname</i> and the value produced is used in
+    the result.
+<P>
+X3J13 voted in June 1989 (PATHNAME-COMPONENT-CASE) <A NAME=26422>&#160;</A>  to
+require <tt>translate-pathname</tt> to map customary case in argument
+pathnames to the customary case in returned pathnames
+(see section <A HREF="node205.html#PATHNAMECOMPONENTCASESECTION">23.1.2</A>).
+<P>
+Here are some examples of the use of the new wildcard pathname facilities.
+These examples are not portable.  They are written to run
+with particular file systems and particular wildcard conventions and are
+intended to be illustrative, not prescriptive.
+Other implementations may behave differently.
+<P><pre>
+(wild-pathname-p (make-pathname :name :wild)) => t 
+(wild-pathname-p (make-pathname :name :wild) :name) => t 
+(wild-pathname-p (make-pathname :name :wild) :type) => nil 
+(wild-pathname-p (pathname &quot;S:&gt;foo&gt;**&gt;&quot;)) => t         ;Maybe 
+(wild-pathname-p (make-pathname :name &quot;F*O&quot;)) => t     ;Probably
+</pre><P>
+One cannot rely on <tt>rename-file</tt> to handle wild pathnames in a predictable
+manner.  However, one can use <tt>translate-pathname</tt> explicitly to control
+the process.
+<P><pre>
+(defun rename-files (from to) 
+  &quot;Rename all files that match the first argument by 
+   translating their names to the form of the second 
+   argument.  Both arguments may be wild pathnames.&quot; 
+  (dolist (file (directory from)) 
+    ;; DIRECTORY produces only pathnames that match from-wildname. 
+    (rename-file file (translate-pathname file from to))))
+</pre><P>
+<P>
+Assuming one particular set of popular wildcard conventions,
+this function might exhibit the following behavior.
+Not all file systems will run this example exactly as written.
+<P><pre>
+(rename-files &quot;/usr/me/*.lisp&quot; &quot;/dev/her/*.l&quot;) 
+   renames  /usr/me/init.lisp 
+        to  /dev/her/init.l 
+
+(rename-files &quot;/usr/me/pcl*/*&quot; &quot;/sys/pcl/*/&quot;) 
+   renames  /usr/me/pcl-5-may/low.lisp 
+        to  /sys/pcl/pcl-5-may/low.lisp 
+   (in some file systems the result might be /sys/pcl/5-may/low.lisp) 
+
+(rename-files &quot;/usr/me/pcl*/*&quot; &quot;/sys/library/*/&quot;) 
+   renames  /usr/me/pcl-5-may/low.lisp 
+	to  /sys/library/pcl-5-may/low.lisp 
+   (in some file systems the result might be /sys/library/5-may/low.lisp) 
+
+(rename-files &quot;/usr/me/foo.bar&quot; &quot;/usr/me2/&quot;) 
+   renames  /usr/me/foo.bar 
+        to  /usr/me2/foo.bar 
+
+(rename-files &quot;/usr/joe/*-recipes.text&quot; 
+              &quot;/usr/jim/personal/cookbook/joe's-*-rec.text&quot;) 
+   renames  /usr/joe/lamb-recipes.text 
+	to  /usr/jim/personal/cookbook/joe's-lamb-rec.text     
+   renames  /usr/joe/veg-recipes.text 
+	to  /usr/jim/personal/cookbook/joe's-veg-rec.text      
+   renames  /usr/joe/cajun-recipes.text 
+	to  /usr/jim/personal/cookbook/joe's-cajun-rec.text    
+   renames  /usr/joe/szechuan-recipes.text 
+	to  /usr/jim/personal/cookbook/joe's-szechuan-rec.text
+</pre><P>
+<P>
+The following examples use UNIX syntax and the wildcard conventions of one
+particular version of UNIX.
+<P><pre>
+(namestring 
+  (translate-pathname &quot;/usr/dmr/hacks/frob.l&quot; 
+                      &quot;/usr/d*/hacks/*.l&quot; 
+                      &quot;/usr/d*/backup/hacks/backup-*.*&quot;)) 
+   => &quot;/usr/dmr/backup/hacks/backup-frob.l&quot;
+</pre><P>
+<P><pre>
+(namestring 
+  (translate-pathname &quot;/usr/dmr/hacks/frob.l&quot; 
+                      &quot;/usr/d*/hacks/fr*.l&quot; 
+                      &quot;/usr/d*/backup/hacks/backup-*.*&quot;)) 
+   => &quot;/usr/dmr/backup/hacks/backup-ob.l&quot;
+</pre><P>
+The following examples are similar to the preceding examples
+but use two different hosts; host <tt>U</tt> supports a UNIX file system
+and host <tt>V</tt> supports a VAX/VMS file system.  Note the translation
+of file type (from <tt>l</tt> to <tt>LSP</tt>) and the change of alphabetic case conventions.
+<P><pre>
+(namestring 
+  (translate-pathname &quot;U:/usr/dmr/hacks/frob.l&quot; 
+                      &quot;U:/usr/d*/hacks/*.l&quot; 
+                      &quot;V:SYS$DISK:[D*.BACKUP.HACKS]BACKUP-*.*&quot;)) 
+   => &quot;V:SYS$DISK:[DMR.BACKUP.HACKS]BACKUP-FROB.LSP&quot;
+</pre><P>
+<P><pre>
+(namestring 
+  (translate-pathname &quot;U:/usr/dmr/hacks/frob.l&quot; 
+                      &quot;U:/usr/d*/hacks/fr*.l&quot; 
+                      &quot;V:SYS$DISK:[D*.BACKUP.HACKS]BACKUP-*.*&quot;)) 
+   => &quot;V:SYS$DISK:[DMR.BACKUP.HACKS]BACKUP-OB.LSP&quot;
+</pre><P>
+The next example is a version of the
+function <tt>translate-logical-pathname</tt> (simplified a bit) for a logical host named <tt>FOO</tt>.
+The points of interest are the use of <tt>pathname-match-p</tt> as
+a <tt>:test</tt> argument for <tt>assoc</tt> and the use of <tt>translate-pathname</tt>
+as a substrate for <tt>translate-logical-pathname</tt>.
+<P><pre>
+(define-condition logical-translation-error (file-error)) 
+
+(defun my-translate-logical-pathname (pathname &amp;key rules) 
+  (let ((rule (assoc pathname rules :test #'pathname-match-p))) 
+    (unless rule 
+      (error 'logical-translation-error :pathname pathname)) 
+    (translate-pathname pathname (first rule) (second rule)))) 
+
+(my-translate-logical-pathname 
+  &quot;FOO:CODE;BASIC.LISP&quot; 
+  :rules '((&quot;FOO:DOCUMENTATION;&quot; &quot;U:/doc/foo/&quot;) 
+           (&quot;FOO:CODE;&quot;          &quot;U:/lib/foo/&quot;) 
+           (&quot;FOO:PATCHES;*;&quot;     &quot;U:/lib/foo/patch/*/&quot;))) 
+   => #P&quot;U:/lib/foo/basic.l&quot;
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html4143 HREF="node208.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4141 HREF="node203.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4135 HREF="node206.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4145 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4146 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4144 HREF="node208.html"> Logical Pathnames</A>
+<B>Up:</B> <A NAME=tex2html4142 HREF="node203.html"> File Names</A>
+<B> Previous:</B> <A NAME=tex2html4136 HREF="node206.html"> Structured Directories</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

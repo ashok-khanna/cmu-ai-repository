@@ -1,0 +1,221 @@
+
+			AM6 RELEASE NOTES
+
+	   (Note: after fixing the bugs , goto $NNTOOLS
+	        and run install.script to recompile)
+
+NEW DOCUMENTATION
+
+	There seems to be enough questions and people that
+	cannot print all of the manual that I have written new
+	system documentation. It contains:
+
+		- An Index !
+
+		- Software architecture
+
+		- FAQ
+
+		- Bug fixes for am6
+
+	The new documentation is only available as hardcopy from
+	me. It is a soft-bound book, approximately 100+ pages, very
+	attractive, suitable for coffee tables and doctor's offices.
+        An updated version of this book will be included with the
+	AM7 software distribution (postscript). If you would like a
+	copy, or just want to support the AM project send a letter
+	to:
+			AM6 Book
+			13706 Penwith Ct.
+			Chantilly, VA 22021
+			USA
+
+			Include cash,check or money order in
+			US Dollars (make checks payable to
+			Russell Leighton)
+				Continental United States: 25$
+				Outside of Continental United States: 30$
+
+
+BUG FIXES
+	A copy of the release notes is with the AM6 distribution
+	at the CMU and UCLA ftp sites in a file called am6_notes.
+
+CONFIGURATION FILES
+	New configuration files:
+		apollo_68k	pc_iX86_linux
+	Send me email if you would like the config files.
+	If you have installed am6 on a new platform, please
+	send me the config files and any necessary changes
+	(you would be doing other users a big favor). If
+	you are interested in other config files, then
+	send me mail and I will forward what I have.
+
+SUN'S ANSI COMPILER
+	There seems to be a problem with convergence testing when
+	am6 is compiled with Suns's ANSI C compiler. This has not
+	yet been fixed. I suspect it has something to do with
+	passing function pointers and prototyping. To work
+	around this, get gcc (see $NNTOOLS/README.ansiC).
+
+GCC INSTALLATION ON SUNS (PRE-SOLARIS)
+	Some people have been having problems with header files
+	and gcc. This is a gcc installation problem.
+	The probelm seems to be that cpp is getting the
+	sun /usr/include files NOT the gcc ANSI files.
+	The solution is to do 1 more step in the gcc installation
+	that munges the header files (see the installation
+	notes for gcc).
+
+
+BUGS, FIXES AND WORK AROUNDS
+
+
+1. Type casting in generator.c
+
+   Line 169 $NNTOOLS/src/asp*/lib*/file/generator.c
+
+   should be changed from:
+
+	void (*(set_generator)(int verbose))
+
+   to:
+
+	typedef void	(*vfp)(void);
+	vfp set_generator(int verbose)
+
+   Line 88 $NNTOOLS/migraines/bp/Backprop.c
+
+   should be changed from:
+
+	extern void (*(set_generator)(int verbose)); /* sets i/o patterns */
+
+   to:
+
+	typedef void	(*vfp)(void);
+	extern vfp set_generator(int verbose); /* sets i/o patterns */
+
+   This only seems necessary with some compilers.
+   You should fix it anyway.
+
+
+
+2. Typo in Blas.c file
+
+   Line 771 of $NNTOOLS/src/asp*/lib*/sim/Blas.c
+ 
+   should be changed from:
+   
+	   if ( ! trys )  
+   to:
+
+	    if ( ! trys )  {
+
+   This only has an affect if you use the BLAS
+   vector libraries.
+
+3. Convex header file bug.
+
+Add the following to the end of $NNTOOLS/config/convex.h :
+
+/* FLT_MIN and FLT_MAX are by default macros...bad! */
+#undef FLT_MIN
+#define FLT_MIN 1.17549e-38
+
+#undef FLT_MAX
+#define FLT_MAX 3.40282e+38
+
+
+
+4. Missing cast in $NNTOOLS/src/aspirin/libBp/file/preprocess.c
+
+Change line 103 from:
+
+   } else bzero(data, n * sizeof(float));
+
+to:
+
+   } else bzero((char *)data, n * sizeof(float));
+
+5. Semi-colon in $NNTOOLS/migraines/bp/Makefile.bp
+
+Lines 81-83 and 89-91 of this file both look like:
+		... ; \
+		done \
+	fi ;
+When the backslashes are evaluated, the result is:
+	... ; done fi ;
+The phrase "done fi" is a syntax error.  In order for this to work on some
+systems, add a semicolon after the 'done':
+		... ; \
+		done ; \
+	fi ;
+
+6. Label of order of evaluation for multiple black boxes
+
+The parser prints the order of evaluation for multiple
+black box networks. The order of the names is correct,
+however, the number is not.
+
+Ignore the numbering.
+
+7. 	
+	A minor new bug found in file reader. If you use
+	the (Switch->) statement with multiple files, then
+	then the first pass throught the files does 1 extra
+	pattern per file.
+
+Solution:
+
+	Change  the line  in  function "datafile_generator" in the file
+	$NNTOOLS/src/aspirin/libBp/file/generator.c from:
+
+	if(!(datafile->switch_counter % datafile->switch_cycle)) (*df->next_datafile)();
+
+	to :
+
+	if(!( (datafile->switch_counter + 1) % datafile->switch_cycle)) (*df->next_datafile)();
+
+
+8.
+	The temp file name generator steps on itself.
+
+Solution:
+	Change  the line  in  function "am_mktemp" in the file
+	$NNTOOLS/src/os/am_file.c from:
+
+		return( ftemp_string );
+
+	to:
+
+		return( strdup(ftemp_string) );
+	Note: if you don't have strdup on your machine, put the
+	following code before the function am_mktemp:
+	
+	extern void *am_alloc_mem(unsigned int bytes);
+	static char *strdup(char *s) {
+	 char *new_s;
+
+	 new_s = (char *)am_alloc_mem(strlen(s)+1);
+	 return(strcpy(new_s,s));
+	 
+	}
+	
+9.
+	Wrong number of bytes allocated for data block
+	in Type3 file reader.
+
+Solution:
+	Change the line in the function _type3_reader in the file
+	$NNTOOLS/src/aspirin/libBp/file/type3_reader.c from:
+
+	  data_block=(float *)am_alloc_mem(input_size*target_size*npatterns*sizeof(float));
+	
+	to:
+
+	  data_block=(float *)am_alloc_mem((input_size+target_size)*npatterns*sizeof(float));
+
+
+
+Last update: 8/24/93
+

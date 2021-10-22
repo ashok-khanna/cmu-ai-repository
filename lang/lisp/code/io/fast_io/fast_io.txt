@@ -1,0 +1,92 @@
+From crabapple.srv.cs.cmu.edu!fs7.ece.cmu.edu!news.sei.cmu.edu!cis.ohio-state.edu!zaphod.mps.ohio-state.edu!howland.reston.ans.net!agate!dog.ee.lbl.gov!network.ucsd.edu!pacbell.com!att-out!cbfsb!cbnews!research!tk Fri Feb 26 00:07:07 EST 1993
+Article: 9486 of comp.lang.lisp
+Newsgroups: comp.lang.lisp
+Path: crabapple.srv.cs.cmu.edu!fs7.ece.cmu.edu!news.sei.cmu.edu!cis.ohio-state.edu!zaphod.mps.ohio-state.edu!howland.reston.ans.net!agate!dog.ee.lbl.gov!network.ucsd.edu!pacbell.com!att-out!cbfsb!cbnews!research!tk
+From: Thomas Kirk <tk@research.att.com>
+Subject: Re: Fortran vs. Lisp timings
+Reply-To: tk@research.att.com
+Organization: AT&T Bell Laboratories
+Date: Tue, 23 Feb 1993 22:58:39 GMT
+Message-ID: <TK.93Feb23175839@mariah.research.att.com>
+In-Reply-To: ted@nmsu.edu's message of 23 Feb 93 13:16:03
+References: <C2wx39.65n@news.cso.uiuc.edu> <19930223182518.3.SWM@SUMMER.SCRC.Symbolics.COM>
+	<TED.93Feb23131603@lole.nmsu.edu>
+Sender: news@cbnews.cb.att.com (NetNews Administrator)
+Nntp-Posting-Host: mariah.research.att.com
+Lines: 73
+
+It's just not that hard to do fast I/O in lisp. The following toy code
+implements very simple buffered binary I/O (actually just input) with
+performance equivalent to getchar in C. It's not pure portable Common Lisp, 
+but the amount of implementation-dependent code is minimal. I'll agree 
+that it would be nice if there were standard inferfaces for this sort 
+of thing; until then, I can live with such minor system dependencies.
+
+This code is at the same level as getchar, so it's not surprising that its 
+performance is comparable to C code (within a few percent, give or take).
+Reading 1 million chars takes about 0.7 sec on a sparc 10/30, about 4 sec 
+on a Symbolics UX1200S. 
+
+
+;;; -*- Mode: LISP; Syntax: Common-lisp; Package: FIO; Base: 10; -*-
+
+(eval-when (compile load eval)
+  (defconstant *bufsiz* 4096))
+
+(deftype ib-buf () `(simple-array (unsigned-byte 8) (,*bufsiz*)))
+
+(defstruct ib
+  (stream nil)
+  (buf (make-array *bufsiz* :element-type '(unsigned-byte 8)
+		   :initial-element 0 :adjustable nil)
+       :type ib-buf)
+  (nbytes 0 :type (integer 0 #.*bufsiz*))
+  (offset 0 :type (integer 0 (#.*bufsiz*))))
+
+(defun open-ib (file &key direction)
+  (let ((stream (open file :direction direction
+		      :element-type '(unsigned-byte 8))))
+    (make-ib :stream stream)))
+
+(defun close-ib (ib)
+  (close (ib-stream ib)))
+
+(defmacro %ib-read-byte (ib)
+  `(locally (declare (optimize (speed 3) (safety 1)))
+     (unless (< (ib-offset ,ib) (ib-nbytes ,ib))
+       (ib-fill-buffer ,ib))
+     (prog1
+	 (aref (ib-buf ,ib) (ib-offset ,ib))
+       (incf (ib-offset ,ib)))))
+
+(defun ib-fill-buffer (ib)
+  (setf (ib-nbytes ib)
+    #+:allegro
+    (excl::filesys-read-bytes (excl::stream-input-fn (ib-stream ib))
+			      (ib-buf ib) 0 *bufsiz*)
+    #+:cmu
+    (system:read-n-bytes (ib-stream ib) (ib-buf ib) 0 *bufsiz*)
+    #+:lucid ; SYS_read => 3 in sunos4.1
+    (sys:syscall 3 (lcl:extract-stream-handle (ib-stream ib) :input)
+		 (ib-buf ib) *bufsiz*)
+    #+:symbolics
+    (multiple-value-bind (ibuf first last)
+	; don't block when input isn't available...
+	(scl:send (ib-stream ib) :read-input-buffer nil nil)
+      (when (and first last (> last first))
+	(let ((n (min (- last first) *bufsiz*)))
+	  (replace (ib-buf ib) ibuf :start1 0 :end1 n :start2 first :end2 last)
+	  (scl:send (ib-stream ib) :advance-input-buffer (+ first n))
+	  n))))
+  (setf (ib-offset ib) 0)
+  (values))
+
+;;; read n chars from file
+(defun test-ib (file n)
+  (let ((ib (open-ib file :direction :input)))
+    (unwind-protect
+	(dotimes (i n)
+	  (%ib-read-byte ib))
+      (close-ib ib))))
+
+

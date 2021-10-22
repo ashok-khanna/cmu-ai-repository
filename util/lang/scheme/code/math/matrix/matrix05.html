@@ -1,0 +1,1537 @@
+;;; matrix.scm version 0.5 -- Scheme procedures for matrix manipulation
+;;; Copyright (C) 1993 Todd R. Eigenschink
+;;;
+;;; This program is free software; you can redistribute it and/or modify
+;;; it under the terms of the GNU General Public License as published by
+;;; the Free Software Foundation.
+;;;
+;;; This program is distributed in the hope that it will be useful,
+;;; but WITHOUT ANY WARRANTY; without even the implied warranty of
+;;; MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+;;; GNU General Public License for more details.
+;;;
+;;; You should have received a copy of the GNU General Public License
+;;; along with this program; if not, write to the Free Software
+;;; Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+;;;
+;;; Author's address:
+;;;     Todd R. Eigenschink (eigenstr@CS.Rose-Hulman.Edu)
+;;;     1561 River Highlands Dr.
+;;;     Oconomowoc, WI   53066
+;;;
+;;; Bug reports are appreciated, as well as mention of anything
+;;; that's incompatible across implementations.  (I know there
+;;; are some things...)
+
+
+;;; Routines included -- primitives:
+;;;
+;;; (matrix? a)
+;;; (matrix?? a)
+;;; (matrix:col a n)
+;;; (matrix:cols a)
+;;; (matrix:create row-size col-size fn)
+;;; (matrix:ref a i j)
+;;; (matrix:row a n)
+;;; (matrix:rows a)
+;;; (matrix:set! a i j value)
+;;; (matrix:set-row! a i value)
+;;; (vector->matrix v . v-list)
+;;;
+;;; Other routines:
+;;;
+;;; (matrix:* a b)
+;;; (matrix:+ a b)
+;;; (matrix:- a b)
+;;; (matrix:/ a b)
+;;; (matrix:apply-op sym proc a b)
+;;; (matrix:augment a b)
+;;; (matrix:back-substitute a rhs)
+;;; (matrix:choleski-factor a)
+;;; (matrix:condition-number a)
+;;; (matrix:copy a)
+;;; (matrix:create-diagonal v)
+;;; (matrix:diagonal a)
+;;; (matrix:diagonally-dominant? a)
+;;; (matrix:eigenvalues a . tol)
+;;; (matrix:forward-substitute a rhs)
+;;; (matrix:gauss-inverse a)
+;;; (matrix:gauss-seidel a b . tol)
+;;; (matrix:gauss-solve a rhs)
+;;; (matrix:generate-latex a)
+;;; (matrix:hessenberg a)
+;;; (matrix:hilbert n)
+;;; (matrix:identity n)
+;;; (matrix:infinity-norm obj)
+;;; (matrix:maximal-element a . av)
+;;; (matrix:newtons-method flist guess . tol)
+;;; (matrix:sorta-partial-pivot a)
+;;; (matrix:permute-rows a perm-vec)
+;;; (matrix:plu-factor m)
+;;; (matrix:pretty-print a)
+;;; (matrix:qr a . tol)
+;;; (matrix:reduce a n)
+;;; (matrix:square? a)
+;;; (matrix:trace a)
+;;; (matrix:transpose a)
+;;; (matrix:tridiagonal-solve a rhs)
+;;;
+;;; (vector:dot-product a b)
+;;; (vector:pretty-print v)
+;;;
+;;; (fn:partial f r . v-alist)
+
+
+
+;;; Principles:
+;;;    1) a always refers to a matrix
+;;;    2) i always refers to a row subscript
+;;;    3) j always refers to a column subscript
+;;;    4) Subscripts are (to the user) 1-based, just
+;;;       like matrices in mathematics.
+;;;
+;;; You will notice that error checking is rather thorough.
+;;; I chose to pay the speed penalty for evaluation so I was
+;;; assured that programs crashed at the right time; I would
+;;; rather get an error in matrix-* because the matrices are
+;;; the wrong size than get an error from vector-ref because
+;;; an index is out of range.  It's a lot easier to find
+;;; errors when they come from the highest-level possible.
+;;;
+;;; The one error check that I consistently ignore is making
+;;; sure that numeric operations (*, /, etc.) are performed
+;;; on numbers; it's perfectly fine to create an arrays of
+;;; strings, but just don't try to multiply them!
+;;;
+;;; After some complaints about speed, I added a matrix??
+;;; routine which does the thorough error checks.  These
+;;; routines just use matrix?, which doesn't check nearly
+;;; as thoroughly, and thus, is quite a bit faster.
+;;;
+;;; I have written the routines so that any procedure that
+;;; would normally operate on a matrix and a vector and
+;;; return a vector can operate on two matrices and return
+;;; a matrix.  When a second matrix is used, it is treated
+;;; like a group of column vectors, and the return-value
+;;; should be treated like a group of column vectors.  This
+;;; allows procedures such as gauss-solve to solve for
+;;; multiple right-hand side values at the same time.
+
+
+
+;;; Matrix primitives.  These are the only routines that
+;;; have anything to do with how the matrices are
+;;; defined (i.e., vectors of vectors, lists of lists, etc.).
+;;;
+;;; Matrices are stored as a pair.  The car of the pair is the
+;;; symbol 'matrix, and the cdr is a vectors of vectors.  The
+;;; outer vector has length equal to the number of rows in the
+;;; matrix.  Its elements are again vectors with length equal
+;;; to the number of columns in the matrix.
+;;;
+;;; There are no restrictions on what can be placed in a
+;;; matrix.  In pretty-print-matrix, for example, a matrix
+;;; of strings is used.
+
+
+;; Shorthand
+(define (square x) (* x x))
+
+
+
+;;; Configuration
+;;;
+;;; Since nobody seems to agree on standards for some important
+;;; stuff (error output), I allow some simple tweaking.  Below are
+;;; two functions used that can be changed simply--look at the
+;;; pair of definitions I supply for each of them, and I bet you
+;;; can guess which system I used to develop this! :)
+
+
+;;; (format <format-string> <stuff)
+;;;
+;;; Generalized output formattting.
+
+;;; Use this one for Chez Scheme
+;(define matrix:format format)
+
+;;; Use this one for scm with SLIB
+(require 'format)
+(define (matrix:format format-string . stuff)
+  (apply format `(#f ,format-string ,@stuff)))
+
+
+;;; (matrix:error <procedure-name> <formatting-string> <...>)
+;;;
+;;; Generalized error messages.  Caveat implementor!
+
+;; Use this one for Chez Scheme
+;(define matrix:error error)
+
+;; Use this one for scm with SLIB
+(require 'format)
+(define (matrix:error proc-name format-string . stuff)
+  (display "error in ") (display proc-name) (display ": ")
+  (display (apply format `(#f ,format-string ,@stuff)))
+  (display ".") (newline) (abort))
+
+
+
+;;; matrix?
+;;; matrix??
+;;;
+;;; Return #t if the object is a matrix; #f otherwise.
+;;;
+;;; matrix? does not test very thoroughly.  This is
+;;; because the full comparison is a little bit too slow.
+;;; All this one does is make sure that the object is a
+;;; pair whose car is 'matrix and whose cdr is a vector.
+;;;
+;;; matrix?? is the thorough one.  First, we make sure
+;;; that the outer part is a vector, then make sure that
+;;; the first element of that vector is again a vector.
+;;; Once both of those are true, make sure that every other
+;;; element is a vector with the same length as the the
+;;; first one.
+
+(define (matrix? a)
+  (and (pair? a)
+       (eq? (car a) 'matrix)
+       (vector? (cdr a))))
+
+(define (matrix?? a)
+  (and (matrix? a)
+       (vector? (vector-ref (cdr a) 0))
+       (let ((l (vector-length (vector-ref (cdr a) 0))))
+	 (= l (apply + (map (lambda (x)
+			      (and (vector? x)
+				   (if (= (vector-length x) l) 1 0)))
+			    (vector->list (cdr a))))))))
+
+;;; matrix:create
+;;;
+;;; Creates a new matrix with the given dimensions.
+;;; The element for each position is the result of
+;;; the application of fn to the row and column
+;;; values.  If fn is not a procedure, the value of
+;;; fn is placed directly into the matrix.
+
+(define (matrix:create row-size col-size fn)
+  (cond
+   ((or (not (integer? row-size)) (< row-size 1))
+    (matrix:error 'matrix:create "row-size must be a positive integer"))
+   ((or (not (integer? col-size)) (< col-size 1))
+    (matrix:error 'matrix:create "col-size must be a positive integer"))
+   (else
+    (do ((a (make-vector row-size))
+	 (r (1- row-size) (1- r)))
+	((= r -1) (cons 'matrix a))
+      (vector-set! a r (do ((v (make-vector col-size))
+			    (c (1- col-size) (1- c)))
+			   ((= c -1) v)
+			 (vector-set! v c (if (procedure? fn)
+					      (fn (1+ r) (1+ c))
+					      fn))))))))
+
+;;; matrix:ref
+;;;
+;;; Returns the element a_ij.
+
+(define (matrix:ref a i j)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:ref "~s is not a matrix" a))
+   ((or (< i 1) (> i (matrix:rows a)))
+    (matrix:error 'matrix:ref
+		  "row subscript ~s is out of range for matrix ~s" i a))
+   ((or (< j 1) (> j (matrix:cols a)))
+    (matrix:error 'matrix:ref
+		  "column subscript ~s is out of range for matrix ~s" j a))
+   (else
+    (vector-ref (vector-ref (cdr a) (1- i)) (1- j)))))
+
+;;; matrix:set!
+;;;
+;;; Set!'s the a_ij element of the matrix to value.
+
+(define (matrix:set! a i j value)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:set! "~s is not a matrix" a))
+   ((or (< i 1) (> i (matrix:rows a)))
+    (matrix:error 'matrix:ref
+		  "row subscript ~s is out of range for array ~s" i a))
+   ((or (< j 1) (> j (matrix:cols a)))
+    (matrix:error 'matrix:ref
+		  "column subscript ~s is out of range for array ~s" j a))
+   (else
+    (vector-set! (vector-ref (cdr a) (1- i)) (1- j) value))))
+
+;;; matrix:rows
+;;;
+;;; Returns the number of rows in the matrix.
+
+(define (matrix:rows a)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:rows "~s is not a matrix" a))
+   (else
+    (vector-length (cdr a)))))
+
+;;; matrix:cols
+;;;
+;;; Returns the number of columns in the matrix.
+
+(define (matrix:cols a)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:cols "~s is not a matrix" a))
+   (else
+    (vector-length (vector-ref (cdr a) 0)))))
+
+;;; matrix:row
+;;;
+;;; Returns the ith row of matrix a as a vector.
+;;;
+;;; Note: The return vector is 0-based!
+
+(define (matrix:row a i)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:row "~s is not a matrix" a))
+   ((or (< i 1) (> i (matrix:rows a)))
+    (matrix:error 'matrix:row
+		  "row subscript is out of range for array ~s" a))
+   (else
+    (vector-ref (cdr a) (1- i)))))
+
+;;; matrix:col
+;;;
+;;; Returns the jth column of matrix a as a vector.
+;;;
+;;; Note: The vector is 0-based!
+
+(define (matrix:col a j)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:col "~s is not a matrix" a))
+   ((or (< j 1) (> j (matrix:cols a)))
+    (matrix:error 'matrix:col
+		  "column subscript is out of range for array ~s" a))
+   (else
+    (list->vector (map (lambda (v) (vector-ref v (1- j)))
+		       (vector->list (cdr a)))))))
+
+;;; matrix:set-row!
+;;;
+;;; Sets the given row of the given matrix
+;;; to the given value.
+
+(define (matrix:set-row! a i value)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:set-row! "~s is not a matrix" a))
+   ((or (< i 1) (> i (matrix:rows a)))
+    (matrix:error 'matrix:set-row! "row subscript ~s is out of range" i))
+   ((not (= (matrix:cols a) (vector-length value)))
+    (matrix:error 'matrix:set-row! "vector ~s is not of length ~s"
+	   value (matrix:cols a)))
+   (else
+    (vector-set! (cdr a) (1- i) value))))
+
+;;; vector->matrix
+;;;
+;;; Converts vector(s) to a matrix.  The vectors
+;;; given (at least 1) are treated as column can
+;;; be used with these procedures.  Any number
+;;; of vectors can be included; these are treated
+;;; as column vectors and turned into the columns
+;;; of the matrix.
+
+(define (vector->matrix v . v-list)
+  (cond
+   ((not (vector? v))
+    (matrix:error 'vector->matrix "~s is not a vector" v))
+   (else
+    (let ((andmap (lambda (fn l)
+		    (letrec ((ck (lambda (x)
+				   (cond
+				    ((null? x) #t)
+				    ((not (car x)) #f)
+				    (else (ck (cdr x)))))))
+		      (ck (map fn l))))))
+      (cond
+       ((not (andmap (lambda (x)
+		       (and (vector? x)
+			    (= (vector-length x)
+			       (vector-length v))))
+		     v-list))
+	(matrix:error 'vector->matrix
+		      "vectors are not of the correct lengths"))
+       (else
+	(matrix:transpose (cons 'matrix (list->vector (cons v v-list))))))))))
+
+
+
+;;; Other matrix routines
+;;;
+;;; These are not dependent on the structure of the matrices.
+;;;
+;;; All the routines below should use only the routines above
+;;; for information about the matrix itself.  Nothing should
+;;; be added that depends on the implementation of the above
+;;; procedures.
+
+
+
+;;; matrix:*
+;;;
+;;; Multiplies a matrix by something.  If by a matrix,
+;;; the number of columns in the left-hand matrix must
+;;; be the same as the number of rows in the right-side
+;;; matrix.  This operation is defined in terms of the
+;;; dot product, which makes the algorithm trivial.
+;;;
+;;; You can also multiply a matrix by a constant, in which
+;;; case, the matrix is just multiplied term-wise by the
+;;; constant.
+;;;
+;;; If you multiply by a vector, it is assumed that it is
+;;; a column-vector, and is interpreted as a 1-column
+;;; matrix.
+
+(define (matrix:* a b)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:* "~s is not a matrix" a))
+   ((vector? b)
+    (cond
+     ((not (= (vector-length b) (matrix:rows a)))
+      (matrix:error 'matrix:* "vector is the wrong length"))
+     (else
+      (matrix:* a (vector->matrix b)))))
+   ((number? b)
+    (matrix:create (matrix:rows a)
+		   (matrix:cols a)
+		   (lambda (i j)
+		     (* b (matrix:ref a i j)))))
+   ((not (matrix? b))
+    (matrix:error 'matrix:* "~s is not a matrix" b))
+   ((not (= (matrix:cols a) (matrix:rows b)))
+    (matrix:error 'matrix:* "# colums in A do not match # rows in B"))
+   (else
+    (matrix:create (matrix:rows a)
+		   (matrix:cols b)
+		   (lambda (i j)
+		     (vector:dot-product (matrix:col b j)
+					 (matrix:row a i)))))))
+
+;;; matrix:+
+;;;
+;;; Adds two matrices.  They must be of the same
+;;; size, of course.  This trivially uses matrix:apply-op.
+
+(define (matrix:+ a b)
+  (matrix:apply-op 'matrix:+ + a b))
+
+;;; matrix:-
+;;;
+;;; Subtracts two matrices.  They must be of the same
+;;; size, of course.  This trivially uses matrix:apply-op.
+
+(define (matrix:- a b)
+  (matrix:apply-op 'matrix:- - a b))
+
+;;; matrix:/
+;;;
+;;; Divides a matrix by a constant.  Uses matrix:* with
+;;; the inverse of the number.
+
+(define (matrix:/ a b)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:/ "~s is not a matrix" a))
+   ((not (number? b))
+    (matrix:error 'matrix:/ "~s is not a number" b))
+   ((zero? b)
+    (matrix:error 'matrix:/ "division by zero will occur"))
+   (else
+    (matrix:* a (/ 1 b)))))
+
+;;; matrix:apply-op
+;;;
+;;; Performs some operation on corresponding elements in
+;;; two same-sized matrices, and returns a new matrix
+;;; composed of the results of the operation.
+
+(define (matrix:apply-op sym proc a b)
+  (cond
+   ((not (matrix? a))
+    (error sym "~s is not a matrix" a))
+   ((not (matrix? b))
+    (error sym "~s is not a matrix" b))
+   ((not (= (matrix:cols a) (matrix:cols b)))
+    (error sym "matrices have differing numbers of columns"))
+   ((not (= (matrix:rows a) (matrix:rows b)))
+    (error sym "matrices have differing numbers of rows"))
+   (else
+    (matrix:create (matrix:rows a)
+		   (matrix:cols a)
+		   (lambda (i j)
+		     (proc (matrix:ref a i j) (matrix:ref b i j)))))))
+
+;;; matrix:augment
+;;;
+;;; Augments matrix a by adding the columns of matrix
+;;; b to its right side.  The two matrices must obviously
+;;; have the same number of rows.  This is intended for
+;;; use in Gaussian elimination, where multiple right-hand
+;;; side vectors can be solved for at once.
+
+(define (matrix:augment a b)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:augment "~s is not a matrix" a))
+   ((not (matrix? b))
+    (matrix:error 'matrix:augment "~s is not a matrix" b))
+   ((not (= (matrix:rows a) (matrix:rows b)))
+    (matrix:error 'matrix:augment "matrices have differing numbers of rows"))
+   (else
+    (matrix:create (matrix:rows a)
+		   (+ (matrix:cols a) (matrix:cols b))
+		   (lambda (i j)
+		     (if (<= j (matrix:cols a))
+			 (matrix:ref a i j)
+			 (matrix:ref b i (- j (matrix:cols a)))))))))
+
+;;; matrix:back-substitute
+;;;
+;;; Performs back substitution on the (assumed
+;;; upper-triangular) matrix using the right-hand side
+;;; vectors (in matrix form).
+
+(define (matrix:back-substitute a rhs)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:back-substitute "~s is not a matrix" a))
+   ((not (matrix? rhs))
+    (matrix:error 'matrix:back-substitute "~s is not a matrix" rhs))
+   (else
+    (let* ((rows (matrix:rows rhs))
+	   (cols (matrix:cols rhs))
+	   (m (matrix:create rows cols (lambda (i j) 0)))
+	   (term
+	    (lambda (i vec-n)
+	      (if (= i rows)
+		  (/ (matrix:ref rhs rows vec-n) (matrix:ref a rows rows))
+		  (/ (- (matrix:ref rhs i vec-n)
+			(let loop ((sum 0) (j (1+ i)))
+			  (cond
+			   ((> j (matrix:cols a)) sum)
+			   (else (loop (+ sum (* (matrix:ref a i j)
+						 (matrix:ref m j vec-n)))
+				       (1+ j))))))
+		     (matrix:ref a i i))))))
+      
+      (do ((i rows (1- i))) ((= i 0) m)
+	(do ((j 1 (1+ j))) ((> j cols))
+	  (matrix:set! m i j (term i j))))))))
+
+;;; matrix:choleski-factor
+;;;
+;;; Factors the matrix into LU by using Choleski's
+;;; method.  The matrix, of course, must be square.
+;;; Returns the lower-triangular matrix (L) consed
+;;; onto the upper-triangular (U).  U is just the
+;;; matrix:transpose of L.
+
+(define (matrix:choleski-factor a)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:choleski-factor "~s is not a matrix" a))
+   ((not (matrix:square? a))
+    (matrix:error 'matrix:choleski-factor "matrix is not square"))
+   (else
+    (let* ((n (matrix:rows a))
+	   (L (matrix:create n n (lambda (i j) 0))))
+      
+      (matrix:set! L 1 1 (sqrt (matrix:ref a 1 1)))
+      
+      (do ((j 2 (1+ j))) ((> j n))
+	(matrix:set! L j 1 (/ (matrix:ref a j 1) (matrix:ref L 1 1))))
+      
+      (do ((i 2 (1+ i))) ((= i n))
+	(matrix:set!
+	 L i i
+	 (sqrt (- (matrix:ref a i i)
+		  (let loop ((k 1) (sum 0))
+		    (cond
+		     ((= k i) sum)
+		     (else
+		      (loop (1+ k) (+ sum (square (matrix:ref L i k)))))))))))
+	
+	(do ((j (1+ i) (1+ j))) ((> j n))
+	  (matrix:set!
+	   L j i
+	   (/ (- (matrix:ref a j i)
+		 (let loop ((k 1) (sum 0))
+		   (cond
+		    ((= k i) sum)
+		    (else
+		     (loop (1+ k) (+ sum (* (matrix:ref L j k)
+					    (matrix:ref L i k))))))))
+	      (matrix:ref L i i)))))
+      
+      (matrix:set!
+       L n n
+       (sqrt (- (matrix:ref a n n)
+		(let loop ((k 1) (sum 0))
+		  (cond
+		   ((= k n) sum)
+		   (else
+		    (loop (1+ k) (+ sum (square (matrix:ref L n k))))))))))
+      
+      (cons L (matrix:transpose L)))))
+
+;;; matrix:condition-number
+;;;
+;;; Computes the condition number of a matrix.
+
+(define (matrix:condition-number a)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:condition-number "~s is not a matrix" a))
+   (else
+    (* (matrix:infinity-norm a)
+       (matrix:infinity-norm (matrix:gauss-inverse a))))))
+
+;;; matrix:copy
+;;;
+;;; Returns an identical copy of the given matrix.
+
+(define (matrix:copy a)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:copy "~s is not a matrix" a))
+   (else (matrix:create (matrix:rows a)
+			(matrix:cols a)
+			(lambda (i j) (matrix:ref a i j))))))
+
+;;; matrix:create-diagonal
+;;;
+;;; Takes a vector of length n and returns an
+;;; n x n diagonal matrix with the element of
+;;; the vector on the diagonal.
+
+(define (matrix:create-diagonal v)
+  (cond
+   ((not (vector? v))
+    (matrix:error 'matrix:create-diagonal "~s is not a vector" v))
+   (else
+    (matrix:create (vector-length v)
+		   (vector-length v)
+		   (lambda (i j)
+		     (if (= i j) (vector-ref v (1- i)) 0))))))
+
+;;; matrix:diagonal
+;;;
+;;; Returns a vector of the elements along the diagonal
+;;; of the matrix.  Note: the vector is zero-based!
+
+(define (matrix:diagonal a)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:diagonal "~s is not a matrix" a))
+   ((not (matrix:square? a))
+    (matrix:error 'matrix:diagonal "matrix is not square"))
+   (else
+    (let* ((n (matrix:rows a))
+	   (v (make-vector n)))
+      (do ((i 1 (1+ i))) ((> i n) v)
+	(vector-set! v (1- i) (matrix:ref a i i)))))))
+
+;;; matrix:diagonally-dominant?
+;;;
+;;; Returns #t if the given matrix is diagonally dominant,
+;;; and #f if not.
+
+(define (matrix:diagonally-dominant? a)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:diagonally-dominant? "~s is not a matrix" a))
+   (else
+    (let loop ((n 1))
+      (cond
+       ((> n (matrix:rows a)) #t)
+       (else
+	(let* ((r (matrix:row a n))
+	       (el (abs (vector-ref r (1- n)))))
+	  (if (>= el (- (apply + (map abs (vector->list r))) el))
+	      (loop (1+ n))
+	      #f))))))))
+
+;;; matrix:doolittle-factor
+;;;
+;;; Factors the matrix into LU by using Doolittle's
+;;; method.  Returns L consed onto U.
+
+(define (matrix:doolittle-factor a)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:doolittle-factor "~s is not a matrix" a))
+   ((not (matrix:square? a))
+    (matrix:error 'matrix:doolittle-factor "matrix is not square"))
+   (else
+    (let* ((n (matrix:rows a))
+	   (L (matrix:create
+	       n n (lambda (i j) (if (= j 1) (matrix:ref a i 1) 0))))
+	   (U (matrix:create
+	       n n (lambda (i j) (if (= i 1)
+				     (/ (matrix:ref a 1 j)
+					(matrix:ref L 1 1))
+				     0)))))
+      
+      (do ((j 2 (1+ j))) ((> j n))
+	(do ((i j (1+ i))) ((> i n))
+	  (matrix:set!
+	   L i j
+	   (- (matrix:ref a i j)
+	      (do ((k 1 (1+ k)) (sum 0))
+		  ((= j k) sum)
+		(set! sum (+ sum (* (matrix:ref L i k)
+				    (matrix:ref U k j))))))))
+	
+	(matrix:set! U j j 1)
+	
+	(do ((i (1+ j) (1+ i)))
+	    ((> i n))
+	  (matrix:set!
+	   U j i
+	   (/ (- (matrix:ref a j i)
+		 (do ((k 1 (1+ k)) (sum 0))
+		     ((= k j) sum)
+		   (set! sum (+ sum (* (matrix:ref L j k)
+				       (matrix:ref U k i))))))
+	      (matrix:ref L j j)))))
+      
+      (cons L U)))))
+
+;;; matrix:eigenvalues
+;;;
+;;; Computes the eigenvalues of the matrix, and
+;;; returns them in a vector.  This uses the QR
+;;; method and a Hessenberg-similar matrix.  If
+;;; the optional parameter tol is passed, it in
+;;; turn is passed to matrix:qr as the tolerance
+;;; to be used in computing the eigenvalues.
+
+(define (matrix:eigenvalues a . tol)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:eigenvalues "~s is not a matrix" a))
+   ((not (matrix:square? a))
+    (matrix:error 'matrix:eigenvalues "matrix is not square"))
+   (else
+    (matrix:diagonal
+     (let ((hess (matrix:hessenberg a)))
+       (if (null? tol)
+	   (matrix:qr hess)
+	   (matrix:qr hess (car tol))))))))
+
+;;; matrix:forward-substitute
+;;;
+;;; Performs forward substitution on the (assumed
+;;; upper-triangular) matrix and the righthand side vectors
+;;; (in matrix form).  The method used is simple; just use
+;;; backward substitution after mirroring the matrices.  The
+;;; matrix itself has to be sort of flipped along the diagonal;
+;;; the matrix of right-hand side vectors just has to be
+;;; flipped upside-down.  Of course, once the set of solution
+;;; vectors is found, it must be flipped back over.
+
+(define (matrix:forward-substitute a rhs)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:forward-substitute "~s is not a matrix" a))
+   ((not (matrix? rhs))
+    (matrix:error 'matrix:forward-substitute "~s is not a matrix" rhs))
+   ((not (= (matrix:rows a) (matrix:rows rhs)))
+    (matrix:error 'matrix:forward-substitute
+	   "matrices have differing numbers of rows"))
+   (else
+    (let* ((rows (matrix:rows a))
+	   (cols (matrix:cols a))
+	   
+	   ;; mirror-matrix 
+	   (mm (lambda (a)
+		 (matrix:create rows cols
+				(lambda (i j)
+				  (matrix:ref
+				   a (- rows i -1) (- cols j -1))))))
+	   ;; mirror-vector-matrix
+	   (mvm (lambda (a)
+		  (matrix:create rows (matrix:cols rhs)
+				 (lambda (i j)
+				   (matrix:ref a (- rows i -1) j))))))
+      
+      (mvm (matrix:back-substitute (mm a) (mvm rhs)))))))
+
+;;; matrix:gauss-inverse
+;;;
+;;; Computes the inverse of matrix a by using Gaussian
+;;; elimination.  Of course, the matrix must be square.
+;;; The solution is solved by setting Ax = I, where I
+;;; is the n x n identity matrix.
+
+(define (matrix:gauss-inverse a)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:gauss-inverse "~s is not a matrix" a))
+   ((not (matrix:square? a))
+    (matrix:error 'matrix:gauss-inverse "cannot invert non-square matrix"))
+   (else
+    (matrix:gauss-solve a (matrix:identity (matrix:rows a))))))
+
+;;; matrix:gauss-solve
+;;;
+;;; Solves a matrix equation using Gaussian elimination.
+;;; There can be multiple right-hand side vectors; they
+;;; must be in the form of a matrix with the same number
+;;; of rows as the left-hand side matrix.
+;;;
+;;; The method used is simple; LUx = b, so set Ux = v, and
+;;; then Lv = b.  Solve for v first using forward
+;;; substitution, and then use backward substitution to get x.
+
+(define (matrix:gauss-solve a rhs)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:gauss-solve "~s is not a matrix" a))
+   ((not (matrix? rhs))
+    (matrix:error 'matrix:gauss-solve "~s is not a matrix" rhs))
+   ((not (= (matrix:rows a) (matrix:rows rhs)))
+    (matrix:error 'matrix:gauss-solve
+		  "matrices have differing numbers of rows"))
+   (else
+    (let* ((PLU (matrix:plu-factor a))
+	   (P (car PLU))
+	   (L (cadr PLU))
+	   (U (cddr PLU)))
+      (matrix:back-substitute
+       U (matrix:forward-substitute
+	  L (matrix:permute-rows rhs P)))))))
+
+;;; matrix:gauss-seidel
+;;;
+;;; Attempts to find a solution vector for the matrix
+;;; using Gauss-Seidel iteration.  The matrix must be
+;;; diagonally dominant.  That is, the element on the
+;;; diagonal must be at least equal to the sum of the
+;;; other elements in the same row.
+;;;
+;;; The optional extra parameter specified a tolerance
+;;; to be used; iteration will cease when all values
+;;; are within this tolerance of the last value.  If no
+;;; tolerance is specified, a value of 1e-12 will be
+;;; used.
+
+(define (matrix:gauss-seidel a b . tol)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:gauss-seidel "~s is not a matrix" a))
+   ((not (matrix? b))
+    (matrix:error 'matrix:gauss-seidel "~s is not a matrix" b))
+   ((not (= (matrix:rows a) (matrix:rows b)))
+    (matrix:error 'matrix:gauss-seidel
+		  "matrices have differing numbers of rows"))
+   ((not (matrix:diagonally-dominant? a))
+    (matrix:error 'matrix:gauss-seidel
+		  "matrix is not diagonally dominant"))
+   (else
+    (let* ((epsilon (if (null? tol) 1e-12 (car tol)))
+	   (n (matrix:rows a))
+	   (guess (matrix:create n (matrix:cols b) 0))
+	   (last (matrix:create n (matrix:cols b) 1)))
+      
+      (do ((iter 1 (1+ iter)))
+	  ((< (matrix:maximal-element
+	       (matrix:- last guess) #t) epsilon) guess)
+
+	(set! last (matrix:copy guess))
+	
+	(do ((k 1 (1+ k))) ((> k (matrix:cols b)) guess)
+	  
+	  (do ((i 1 (1+ i))) ((> i n))
+	    
+	    (matrix:set!
+	     guess i k
+	     (- (/ (matrix:ref b i k) (matrix:ref a i i))
+		(let loop ((j 1) (sum 0))
+		  (cond
+		   ((> j n) sum)
+		   ((= j i) (loop (1+ j) sum))
+		   (else
+		    (loop (1+ j)
+			  (+ sum (* (/ (matrix:ref a i j)
+				       (matrix:ref a i i))
+				    (matrix:ref guess j k))))))))))))))))
+
+;;; matrix:generate-latex
+;;;
+;;; Generates LaTeX code for the matrix passed in
+;;; which can be pasted into a LaTeX document.  This
+;;; does not pay attention to how large the matrix is;
+;;; it might be necessary to add LaTeX code to change
+;;; the font size if the matrix spills off the right
+;;; side of the page.
+
+(define (matrix:generate-latex a)
+  (cond
+   ((vector? a)
+    (matrix:generate-latex (vector->matrix a)))
+   ((not (matrix? a))
+    (matrix:error 'matrix:generate-latex "~s is not a matrix" a))
+   (else
+    (let ((cols (matrix:cols a))
+	  (rows (matrix:rows a)))
+      
+      ;; Turn on displayed math
+      (display "\\[ \\left[ \\begin{array}{")
+      (display (make-string cols #\c))
+      (display "}")
+      (newline)
+      
+      (do ((i 1 (1+ i))) ((> i rows))
+	(do ((j 1 (1+ j))) ((> j cols))
+	  
+	  (let ((el (matrix:ref a i j)))
+	    
+	    (cond
+	     ;; Handles integers or inexact (floating-point) numbers
+	     ((or (inexact? el) (and (exact? el) (integer? el)))
+	      (display el))
+	     ;; Handles fractions
+	     (else
+	      (display "\\frac{")
+	      (display (numerator el))
+	      (display "}{")
+	      (display (denominator el))))
+	    
+	    ;; Inter-column spacing
+	    (if (< j cols) (display " & "))
+	    
+	    ;; End-of row command to go to new line,
+	    ;; but not after the last row
+	    (if (and (< i rows) (= j cols)) (display " \\\\"))
+	    
+	    ;; Pop in a newline after the last column in each row
+	    (if (= j cols) (newline)))))
+      
+      ;; Wrap it up
+      (display "\\end{array} \\right] \\]")
+      (newline)))))
+
+;;; matrix:hessenberg
+;;;
+;;; Returns a matrix similar to the given matrix, but
+;;; in Hessenberg form.  Note: This code was translated
+;;; straight from FORTRAN with no attempts made to clean
+;;; it up.  It shows.  (I can't clean it up at all because
+;;; I don't understand it!)
+
+(define (matrix:hessenberg a)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:hessenberg "~s is not a matrix" a))
+   (else
+    (let* ((n (matrix:rows a))
+	   (a (matrix:create
+	       (+ n 2) (matrix:cols a)
+	       (lambda (i j) (if (<= i n) (matrix:ref a i j) 0))))
+	  (v (make-vector 20))
+	  (sigma 0) (pi 0) (rho 0) (sum 0))
+
+      (do ((k 1 (1+ k))) ((> k (- n 2)) a)
+	(let ((eta (abs (matrix:ref a (1+ k) k))))
+
+	  (do ((i (1+ k) (1+ i))) ((> i n))
+	    (let ((absval (abs (matrix:ref a i k))))
+	      (if (< eta absval) (set! eta absval))))
+
+	  (if (not (zero? eta))
+	      (begin
+		(set! sum 0)
+		(do ((i (1+ k) (1+ i))) ((> i n))
+		  (vector-set! v i (/ (matrix:ref a i k) eta))
+		  (matrix:set! a i k (vector-ref v i))
+		  (set! sum (+ sum (square (vector-ref v i)))))
+		
+		(if (not (zero? (vector-ref v (1+ k))))
+		    (set! sigma (/ (* (sqrt sum) (vector-ref v (1+ k)))
+				   (abs (vector-ref v (1+ k))))))
+		
+		(vector-set! v (1+ k) (+ (vector-ref v (1+ k)) sigma))
+		(set! pi (* sigma (vector-ref v (1+ k))))
+		(matrix:set! a (1+ n) k pi)
+		
+		(do ((j (1+ k) (1+ j))) ((> j n))
+		  (set! sum 0)
+		  (do ((i (1+ k) (1+ i))) ((> i n))
+		    (set! sum (+ sum (* (vector-ref v i)
+					(matrix:ref a i j)))))
+		  (set! rho (/ sum pi))
+		  (do ((i (1+ k) (1+ i))) ((> i n))
+		    (matrix:set! a i j (- (matrix:ref a i j)
+					  (* rho (vector-ref v i))))))
+		
+		(do ((i 1 (1+ i))) ((> i n))
+		  (set! sum 0)
+		  (do ((j (1+ k) (1+ j))) ((> j n))
+		    (set! sum (+ sum (* (matrix:ref a i j) (vector-ref v j)))))
+		  (set! rho (/ sum pi))
+		  (do ((j (1+ k) (1+ j))) ((> j n))
+		    (matrix:set! a i j (- (matrix:ref a i j)
+					  (* rho (vector-ref v j))))))
+		
+		(matrix:set! a (+ n 2) k (vector-ref v (1+ k)))
+		(matrix:set! a (1+ k) k (* (- eta) sigma)))
+	      (matrix:set! a (1+ n) k 0))))
+
+      (do ((j 1 (1+ j))) ((> j (- n 2)))
+	(do ((i (+ j 2) (1+ i))) ((> i n))
+	  (matrix:set! a i j 0)))
+
+      (matrix:create n (matrix:cols a) (lambda (i j) (matrix:ref a i j)))))))
+    
+;;; matrix:hilbert
+;;;
+;;; Returns an n x n Hilbert matrix.
+
+(define (matrix:hilbert n)
+  (cond
+   ((< n 0)
+    (matrix:error 'matrix:hilbert "matrix must have positive size"))
+   (else
+    (matrix:create n n (lambda (i j) (/ 1 (+ i j -1)))))))
+
+;;; matrix:identity
+;;;
+;;; Returns an n x n identity matrix.
+
+(define (matrix:identity n)
+  (cond
+   ((< n 0)
+    (matrix:error 'matrix:identity "matrix must have positive size"))
+   (else
+    (matrix:create n n (lambda (i j) (if (= i j) 1 0))))))
+
+;;; matrix:infinity-norm
+;;;
+;;; Computes the infinity norm of either a matrix or
+;;; a vector.
+
+(define (matrix:infinity-norm obj)
+  (cond
+   ((vector? obj)
+    (apply max (map abs (vector->list obj))))
+   ((not (matrix? obj))
+    (matrix:error 'matrix:infinity-norm
+		  "~s is not a matrix or vector" obj))
+   (else
+    (let loop ((row 1) (max-sum 0))
+      (if (> row (matrix:rows obj))
+	  max-sum
+	  (loop (1+ row)
+		(max max-sum
+		     (apply + (map abs (vector->list
+					(matrix:row obj row)))))))))))
+
+;;; matrix:maximal-element
+;;;
+;;; Returns the maximal element in the vector or matrix.
+;;; If an optional extra parameter is #t, the elements
+;;; are taken in absolute value.
+
+(define (matrix:maximal-element a . av)
+  (let ((fn (if (or (null? av) (not (car av)))
+		(lambda (x) x)
+		abs)))
+    (cond
+     ((vector? a)
+      (apply max (map fn (vector->list a))))
+     ((not (matrix? a))
+      (matrix:error 'matrix:maximal-element
+		    "~s is not a vector or matrix" a))
+     (else
+      (let loop ((i 1) (j 1) (m (fn (matrix:ref a 1 1))))
+	(cond
+	 ((> i (matrix:rows a)) m)
+	 ((> j (matrix:cols a))
+	  (loop (1+ i) 1 m))
+	 (else
+	  (loop i (1+ j) (max m (fn (matrix:ref a i j)))))))))))
+
+;;; matrix:newtons-method
+;;;
+;;; Solves a nonlinear system using Newton's method.
+;;; An initial guess must be passed as a list of values
+;;; for the variables of the function; if it is the null
+;;; list ('()), a list of 1's the correct length will be
+;;; used.  Tol is optional; if it is passed, iteration
+;;; will stop when all deltas are less than tol (in
+;;; absolute value).
+
+(define (matrix:newtons-method flist guess . tol)
+  (cond
+   ((not (list? flist))
+    (matrix:error 'matrix:newtons-method "flist must be a list"))
+   ((not (list? guess))
+    (matrix:error 'matrix:newtons-method "guess must be a list"))
+   ((not (or (= (length flist) (length guess)) (null? guess)))
+    (matrix:error 'matrix:newtons-method "guess is of incorrect length"))
+   (else
+    (let* ((epsilon (if (null? tol) 1e-12 (car tol)))
+	   (n (length flist))
+	   (guess (if (null? guess)
+		      (matrix:create n 1 1.0)
+		      (vector->matrix (list->vector guess))))
+	   (fv (list->vector flist))
+	   (deltas (matrix:create n 1 1)))
+      
+      (do ((iter 1 (1+ iter)))
+	  ((< (matrix:maximal-element deltas #t) epsilon) guess)
+
+	(let* ((vals (vector->list (matrix:col guess 1)))
+	       (mat (matrix:create
+		     n n (lambda (i j)
+			   (fn:partial
+			    (vector-ref fv (1- i)) j vals))))
+	       (rhs (matrix:create
+		     n 1 (lambda (i j)
+			   (- (apply (vector-ref fv (1- i)) vals))))))
+
+	  (set! deltas (matrix:gauss-solve mat rhs))
+	  (set! guess (matrix:+ guess deltas))))))))
+
+;;; matrix:sorta-partial-pivot
+;;;
+;;; Performs something vaguely recognizable as partial pivoting;
+;;; it's not "real" partial pivoting, but it's an algorithm that
+;;; is said to help.  Returns the permutation matrix consed onto
+;;; the new matrix.
+
+(define (matrix:sorta-partial-pivot m)
+  (let* ((a (matrix:copy m))
+	 (rows (matrix:rows a))
+	 (cols (matrix:cols a))
+	 (P (make-vector (1+ rows)))
+	 (magic-d
+	  (lambda (i j)
+	    (let* ((row (vector->list (matrix:row a i))))
+	      (/ (abs (matrix:ref a i j))
+		 (apply max (map abs row))))))
+	 (pivot
+	  (lambda ()
+	    (do ((level 1 (1+ level))) ((= level rows))
+	      (let loop ((row (1+ level))
+			 (max-row level)
+			 (max-d (magic-d level level)))
+		(cond
+		 ((> row (matrix:rows a))
+		  (if (not (= max-row level))
+		      (let ((temp-row (matrix:row a max-row))
+			    (temp-n (vector-ref P max-row)))
+			(matrix:set-row! a max-row (matrix:row a level))
+			(matrix:set-row! a level temp-row)
+			(vector-set! P max-row level)
+			(vector-set! P level temp-n))))
+		 ((> (magic-d row level) max-d)
+		  (loop (1+ row) row (matrix:ref a row level)))
+		 (else
+		  (loop (1+ row) max-row max-d))))))))
+    
+    ;; Create initial permutation vector
+    (vector-set! P 0 "Ignore this.")
+    (do ((i 1 (1+ i))) ((> i rows))
+      (vector-set! P i i))
+    ;; Actually perform the pivoting
+    (pivot)
+    ;; Create the return value
+    (cons P a)))
+
+;;; matrix:permute-rows
+;;;
+;;; Permutes the rows of matrix according to
+;;; the permutation vector given.
+
+(define (matrix:permute-rows a perm-vec)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:permute-rows "~s is not a matrix" a))
+   ((not (vector? perm-vec))
+    (matrix:error 'matrix:permute-rows "~s is not a vector" perm-vec))
+   ((not (= (vector-length perm-vec) (1+ (matrix:rows a))))
+    (matrix:error 'matrix:permute-rows
+	   "permutation vector ~s is the wrong length" perm-vec))
+   (else
+    (let ((new-a (matrix:copy a)))
+      (do ((i 1 (1+ i))) ((> i (matrix:rows a)))
+	(matrix:set-row! new-a i (matrix:row a (vector-ref perm-vec i))))
+      new-a))))
+
+;;; matrix:plu-factor
+;;;
+;;; Returns the PLU factorization of the matrix.
+;;; The permutation vector is consed onto the results
+;;; of consing L onto U.
+;;;
+;;; Gaussian elimination with partial pivoting (rows only)
+;;; is used to performs the factorization.  The results of
+;;; switching rows are kept in a permutation vector which
+;;; is returned as P in the PLU factorization.
+
+(define (matrix:plu-factor m)
+  (cond
+   ((not (matrix? m))
+    (matrix:error 'matrix:plu-factor "~s is not a matrix" m))
+   ((not (= (matrix:rows m) (matrix:cols m)))
+    (matrix:error 'matrix:plu-factor
+		  "cannot factor a non-square matrix"))
+   (else
+    (let* ((PM (matrix:sorta-partial-pivot m))
+	   (a (cdr PM))
+	   (P (car PM))
+	   (rows (matrix:rows a))
+	   (cols (matrix:cols a)))
+      
+      ;; Main loop.  Goes top to bottom and left to right,
+      ;; creating zeros as it goes.
+      
+      (do ((k 1 (1+ k))) ((= k rows))
+	(do ((i (1+ k) (1+ i))) ((> i rows))
+	  (let ((m_ik (/ (matrix:ref a i k) (matrix:ref a k k))))
+	    (matrix:set! a i k m_ik)
+	    (do ((j (1+ k) (1+ j))) ((> j cols))
+	      (matrix:set! a i j
+			   (- (matrix:ref a i j)
+			      (* m_ik (matrix:ref a k j))))))))
+      
+      ;; Create the return value.  This returns separate L and U
+      ;; matrices by pulling the appropriate values out of a.
+      (cons P (cons (matrix:create rows cols
+				   (lambda (i j)
+				     (cond
+				      ((= i j) 1)
+				      ((> i j) (matrix:ref a i j))
+				      (else 0))))
+		    (matrix:create rows cols
+				   (lambda (i j)
+				     (if (<= i j)
+					 (matrix:ref a i j) 0)))))))))
+
+;;; matrix:pretty-print
+;;;
+;;; Prints a matrix in a decent format, with vertical
+;;; bars on either side.
+
+(define (matrix:pretty-print a)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:pretty-print "~s is not a matrix" a))
+   (else
+    (let* ((rows (matrix:rows a))
+	   (cols (matrix:cols a))
+	   (width-vec (make-vector (1+ cols) 0))
+	   (s (matrix:create rows cols
+			     (lambda (i j)
+			       (matrix:format "~a" (matrix:ref a i j))))))
+      
+      ;; Find the greatest width in each column
+      (do ((i 1 (1+ i))) ((> i rows))
+	(do ((j 1 (1+ j))) ((> j cols))
+	  (let ((len (string-length (matrix:ref s i j))))
+	    (if (> len (vector-ref width-vec j))
+		(vector-set! width-vec j len)))))
+
+      ;; Now that the widths are computed, display the matrix,
+      ;; spacing as needed.
+      (do ((i 1 (1+ i))) ((> i rows))
+	(display "|")
+	(do ((j 1 (1+ j))) ((> j cols))
+	  (let* ((obj (matrix:ref s i j))
+		 (len (string-length obj)))
+	    (display " ")
+	    (display (make-string (- (vector-ref width-vec j) len) #\ ))
+	    (display obj)
+	    (display " ")))
+	(display "|")
+	(newline))))))
+
+;;; matrix:qr
+;;;
+;;; Applies the QR method to the given matrix.  If
+;;; the optional parameter tol is used, it is used
+;;; as the epsilon value to be used when deciding
+;;; when iteration should stop.  If no value is
+;;; passed, epsilon = 1e-10.  Note: This code was
+;;; translated directly from FORTRAN with no attempts
+;;; made to clean it up.
+
+(define (matrix:qr a . tol)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:qr "~s is not a matrix" a))
+   ((not (matrix:square? a))
+    (matrix:error 'matrix:qr "matrix is not square"))
+   (else
+    (let* ((n (matrix:rows a))
+	   (a (matrix:copy a))
+	   (gamma (make-vector n))
+	   (eta 0) (alpha 0) (beta 0) (delta 0) (kappa 0)
+	   (sigma (make-vector n))
+	   (epsilon (if (null? tol) 1e-10 (car tol)))
+	   (done #f))
+
+      (do () (done a)
+
+	(set! kappa (matrix:ref a n n))
+	(matrix:set! a 1 1 (- (matrix:ref a 1 1) kappa))
+	
+	(do ((k 1 (1+ k))) ((> k n))
+	  (if (not (= k n))
+	      (begin
+		(set! eta (max (abs (matrix:ref a k k))
+			       (abs (matrix:ref a (1+ k) k))))
+		(set! alpha (/ (matrix:ref a k k) eta))
+		(set! beta (/ (matrix:ref a (1+ k) k) eta))
+		(set! delta (sqrt (+ (* alpha alpha) (* beta beta))))
+		(vector-set! gamma k (/ alpha delta))
+		(vector-set! sigma k (/ beta delta))
+
+		(matrix:set! a k k (* eta delta))
+		(matrix:set! a (1+ k) k 0)
+		(matrix:set! a (1+ k) (1+ k) (- (matrix:ref a (1+ k) (1+ k))
+						kappa))
+
+		(do ((j (1+ k) (1+ j))) ((> j n))
+		  (let ((akj (matrix:ref a k j)))
+		    (matrix:set! a k j (+ (* (vector-ref gamma k)
+					     (matrix:ref a k j))
+					  (* (vector-ref sigma k)
+					     (matrix:ref a (1+ k) j))))
+		    (matrix:set! a (1+ k) j (- (* (vector-ref gamma k)
+						  (matrix:ref a (1+ k) j))
+					       (* (vector-ref sigma k)
+						  akj)))))))
+	  (if (not (= k 1))
+	      (begin
+		(do ((j 1 (1+ j))) ((> j k))
+		  (let ((aikl1 (matrix:ref a j (1- k))))
+		    (matrix:set! a j (1- k) (+ (* (vector-ref gamma (1- k))
+						  (matrix:ref a j (1- k)))
+					       (* (vector-ref sigma (1- k))
+						  (matrix:ref a j k))))
+		    (matrix:set! a j k (- (* (vector-ref gamma (1- k))
+					     (matrix:ref a j k))
+					  (* (vector-ref sigma (1- k))
+					     aikl1)))))
+		(matrix:set! a (1- k) (1- k) (+ (matrix:ref a (1- k) (1- k))
+						kappa)))))
+
+	(matrix:set! a n n (+ (matrix:ref a n n) kappa))
+
+	(if (< (abs (matrix:ref a n (1- n))) epsilon)
+	    (set! n (1- n)))
+
+	(if (= n 1)
+	    (set! done #t)))))))
+
+;;; matrix:reduce-matrix
+;;;
+;;; Returns a new matrix, which is the original matrix
+;;; without the given column or row.
+
+(define (matrix:reduce-matrix a n)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:reduce-matrix "~s is not a matrix" a))
+   ((> n (matrix:rows a))
+    (matrix:error 'matrix:reduce-matrix
+	   "row subscript ~s is out of range for matrix" n))
+   ((> n (matrix:cols a))
+    (matrix:error 'matrix:reduce-matrix
+	   "column subscript ~s is out of range for matrix" n))
+   (else
+    (matrix:create (1- (matrix:rows a))
+		   (1- (matrix:cols a))
+		   (lambda (i j)
+		     (matrix:ref a (if (>= i n) (1+ i) i)
+			         (if (>= j n) (1+ j) j)))))))
+
+;;; matrix:square?
+;;;
+;;; Returns #t if the given item is
+;;; both a matrix and square, and #f if not.
+
+(define (matrix:square? a)
+  (and (matrix? a)
+       (= (matrix:rows a ) (matrix:cols a))))
+
+;;; matrix:trace
+;;;
+;;; Takes a matrix and returns its trace.  The matrix
+;;; must be square.
+
+(define (matrix:trace a)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:trace "~s is not a matrix" a))
+   ((not (matrix:square? a))
+    (matrix:error 'matrix:trace "matrix is not square"))
+   (else
+    (let* ((n (matrix:rows a))
+	   (v (make-vector n)))
+      (do ((i 1 (1+ i))) ((> i n) (apply + (vector->list v)))
+	(vector-set! v (1- i) (matrix:ref a i i)))))))
+
+;;; matrix:transpose
+;;;
+;;; Returns the matrix:transpose of the given matrix.
+
+(define (matrix:transpose a)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'matrix:transpose "~s is not a matrix" a))
+   (else
+    (matrix:create (matrix:cols a)
+		   (matrix:rows a)
+		   (lambda (i j) (matrix:ref a j i))))))
+
+;;; matrix:tridiagonal-solve
+;;;
+;;; Solves a tridiagonal matrix.  The right-hand side
+;;; can be a matrix, which is interpreted as multiple
+;;; column-vectors.
+
+(define (matrix:tridiagonal-solve a rhs)
+  (cond
+   ((not (matrix? a))
+    (matrix:error 'solve-tridiagonal "~s is not a matrix" a))
+   ((not (matrix? rhs))
+    (matrix:error 'solve-tridiagonal "~s is not a matrix" rhs))
+   ((not (matrix:square? a))
+    (matrix:error 'solve-tridiagonal "matrix is not square"))
+   (else
+    (let* ((a (matrix:copy a))
+	   (rhs (matrix:copy rhs))
+	   (n (matrix:rows a))
+	   (get-a (lambda (k) (if (= k 1) 0 (matrix:ref a k (1- k)))))
+	   (get-d (lambda (k) (matrix:ref a k k)))
+	   (get-c (lambda (k) (if (= k n) 0 (matrix:ref a k (1+ k)))))
+	   (set-d (lambda (k v) (matrix:set! a k k v)))
+	   (x (matrix:create (matrix:rows rhs)
+			     (matrix:cols rhs)
+			     (lambda (i j) 0))))
+      
+      (do ((k 2 (1+ k))) ((> k n))
+	
+	(if (= (matrix:ref a (1- k) (1- k)) 0)
+	    (matrix:error 'solve-tridiagonal "matrix cannot be solved"))
+	
+	(let ((m (/ (matrix:ref a k (1- k))
+		    (matrix:ref a (1- k) (1- k)))))
+	  
+	  (set-d k (- (get-d k) (* m (get-c (1- k)))))
+	  
+	  (do ((j 1 (1+ j))) ((> j (matrix:cols rhs)))
+	    (matrix:set!
+	     rhs k j
+	     (- (matrix:ref rhs k j) (* m (matrix:ref rhs (1- k) j)))))))
+      
+      (if (= (matrix:ref a n n) 0)
+	  (matrix:error 'matrix:tridiagonal-solve
+			"matrix cannot be solved"))
+      
+      (do ((j 1 (1+ j))) ((> j (matrix:cols rhs)))
+	(matrix:set! x n j (/ (matrix:ref rhs n j) (get-d n))))
+      
+      (do ((k (1- n) (1- k))) ((= k 0))
+	(do ((j 1 (1+ j))) ((> j (matrix:cols rhs)))
+	  (matrix:set!
+	   x k j
+	   (/ (- (matrix:ref rhs k j) (* (get-c k) (matrix:ref x (1+ k) j)))
+	      (get-d k)))))
+      
+      x))))
+
+;;; vector:dot-product
+;;;
+;;; Returns the dot product of two vectors.
+
+(define (vector:dot-product x y)
+  (cond
+   ((not (vector? x))
+    (matrix:error 'vector:dot-product "~s is not a vector" x))
+   ((not (vector? y))
+    (matrix:error 'vector:dot-product "~s is not a vector" y))
+   ((not (= (vector-length x) (vector-length y)))
+    (matrix:error 'vector:dot-product "vectors are of differing lengths"))
+   (else
+    (let loop ((r 0) (i 0))
+      (cond
+       ((= i (vector-length x)) r)
+       (else (loop (+ r (* (vector-ref x i) (vector-ref y i))) (1+ i))))))))
+
+;;; vector:pretty-print
+;;;
+;;; Prints a vector in a decent format (brackets on either
+;;; side).
+
+(define (vector:pretty-print v)
+  (cond
+   ((not (vector? v))
+    (matrix:error 'vector:pretty-print "~s is not a vector" v))
+   (else
+    (display "[ ")
+    (do ((i 0 (1+ i))) ((= i (vector-length v)))
+      (display (vector-ref v i))
+      (display " "))
+    (display "]")
+    (newline))))
+
+;;; fn:partial
+;;;
+;;; Computes the partial of f with respect to the r-th
+;;; variable at the point described by the value list.
+;;; There must be as many variables in the list as f
+;;; needs.  A call might be:
+;;;
+;;;    (fn:partial f 2 '(3 5 7)), where f = f(x, y, z)
+;;;
+;;; This computes the partial of f with respect to y at the
+;;; point (3, 5, 7).
+
+(define (fn:partial f r vlist)
+  (cond
+   ((not (procedure? f))
+    (matrix:error 'fn:partial "first parameter must be a procedure"))
+   ((> r (length vlist))
+    (matrix:error 'fn:partial "not enough values"))
+   ((< r 1)
+    (matrix:error 'fn:partial "variable number too small"))
+   (else
+    (let* ((delta 1e-7)
+	   (fx (apply f vlist))
+	   (perturb (lambda (f r vl d)
+		      (let loop ((n 1) (vl vl) (v '()))
+			(cond
+			 ((null? vl) (apply f (reverse v)))
+			 ((= n r)
+			  (loop (1+ n) (cdr vl) (cons (+ d (car vl)) v)))
+			 (else
+			  (loop (1+ n) (cdr vl) (cons (car vl) v)))))))
+	   (fdx1 (perturb f r vlist delta)))
+
+      (/ (- fdx1 fx) delta)))))
+
+;;; EOF

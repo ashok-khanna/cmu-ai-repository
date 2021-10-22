@@ -1,0 +1,107 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node319.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 10:10:47 GMT -->
+<HEAD>
+<TITLE>29.3.4. Object-Oriented Basis of Condition Handling</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Object-Oriented Basis of Condition Handling">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html5683 HREF="node320.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5681 HREF="node315.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5675 HREF="node318.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5685 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5686 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5684 HREF="node320.html"> Restarts</A>
+<B>Up:</B> <A NAME=tex2html5682 HREF="node315.html"> Survey of Concepts</A>
+<B> Previous:</B> <A NAME=tex2html5676 HREF="node318.html"> Handling Conditions</A>
+<HR> <P>
+<H2><A NAME=SECTION003334000000000000000>29.3.4. Object-Oriented Basis of Condition Handling</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<A NAME=OBJECT0RIENTEDBASIS>Of</A>
+course, the ability of the handler to usefully handle an exceptional
+situation is related to the quality of the information it is provided. For
+example, if all errors were signaled by
+<P><pre>
+(error &quot;<i>some format string</i>&quot;)
+</pre><P>
+then the only piece of information that would be accessible to the handler
+would be an object of type <tt>simple-error</tt> that had a slot containing the
+format string.
+<P>
+If this were done, <tt>string-equal</tt> would be the preferred way to tell one error
+from another, and it would be very hard to allow flexibility in the
+presentation of error messages because existing handlers would tend to be
+broken by even tiny variations in the wording of an error message. This
+phenomenon has been the major failing of most error systems previously
+available in Lisp. It is fundamentally important to decouple the error
+message string (the human interface) from the objects that formally
+represent the error state (the program interface). We therefore have the
+notion of typed conditions, and of formal operations on those conditions
+that make them inspectable in a structured way.
+<P>
+This object-oriented approach to condition handling has the following
+important advantages over a text-based approach:
+<UL><LI>
+   Conditions are classified according to subtype relationships, making
+   it easy to test for categories of conditions.
+<P>
+<LI>
+   Conditions have named slot values through which parameters are conveyed
+   from the program that signals the condition to the program that handles it.
+<P>
+<LI>
+   Inheritance of methods and slots reduces the amount of explicit
+   specification necessary to achieve various interesting effects.
+</UL>
+<P>
+Some condition types are defined by this document, but the set of 
+condition types is extensible using <tt>define-condition</tt>.
+Common Lisp condition types are in fact CLOS classes, and condition objects
+are ordinary CLOS objects; <tt>define-condition</tt> merely
+provides an abstract interface that is a bit more convenient than
+<tt>defclass</tt> for defining conditions.
+<P>
+Here, as an example,
+we define a two-argument function called <tt>divide</tt> that is patterned after
+the <tt>/</tt> function but does some stylized error checking:
+<P><pre>
+(defun divide (numerator denominator) 
+  (cond ((or (not (numberp numerator)) 
+             (not (numberp denominator))) 
+         (error &quot;(DIVIDE '~S '~S) - Bad arguments.&quot; 
+                numerator denominator)) 
+        ((zerop denominator) 
+         (error 'division-by-zero 
+                :operator 'divide 
+                :operands (list numerator denominator))) 
+        (t ...)))
+</pre><P>
+Note that in the first clause we have used <tt>error</tt> with a string argument
+and in the second clause we have named a particular condition type,
+<tt>division-by-zero</tt>. In the case of a string argument, the condition type that
+will be signaled is <tt>simple-error</tt>.
+<P>
+The particular kind of error that is signaled may be important
+in cases where handlers are active. For example, <tt>simple-error</tt> inherits 
+from type <tt>error</tt>, which in turn inherits from type <tt>condition</tt>. On the 
+other hand, <tt>division-by-zero</tt> inherits from <tt>arithmetic-error</tt>, which 
+inherits from <tt>error</tt>, which inherits from <tt>condition</tt>. So if a handler
+existed for <tt>arithmetic-error</tt> while a <tt>division-by-zero</tt> condition was
+signaled, that handler would be tried; however, if a <tt>simple-error</tt>
+condition were signaled in the same context, the handler for type
+<tt>arithmetic-error</tt> would not be tried.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html5683 HREF="node320.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5681 HREF="node315.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5675 HREF="node318.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5685 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5686 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5684 HREF="node320.html"> Restarts</A>
+<B>Up:</B> <A NAME=tex2html5682 HREF="node315.html"> Survey of Concepts</A>
+<B> Previous:</B> <A NAME=tex2html5676 HREF="node318.html"> Handling Conditions</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

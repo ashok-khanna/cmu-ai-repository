@@ -1,0 +1,666 @@
+
+NeuDL - Neural-Network Description Language
+
+In response to the numerous questions about NeuDL - Neural-Network
+Description Language, I have tried to answer some of the frequently
+asked questions and have prepared this demo to illustrate some of its
+features.  If there are any questions after reading this, please
+e-mail the author: Joey Rogers
+		   jrogers@buster.eng.ua.edu
+
+FAQs
+
+1.  What is NeuDL?
+
+    NeuDL (pronounced noodle) is a Neural-Network Description Language
+    that uses a C-like programming language interface to build, train,
+    and run neural networks.  It is currently limited to 
+    backpropagation neural networks, but it still shows the flexibility
+    such an interface can give.
+
+
+2.  Where can NeuDL be downloaded from?
+
+    The University of Alabama: cs.ua.edu   (130.160.44.1)
+    in the file /pub/neudl/NeuDLver021.tar
+	
+    This file contains all of the source code, several example NeuDL
+    programs, makefile, user manual, and a short paper describing NeuDL.
+
+
+3.  What platform was NeuDL written for?
+
+    It was written on an IBM RS/6000 with the xlC compiler, but it
+    has been modified to compile with the GNU g++ compiler and it
+    has been ported to DOS with no changes.  It should compile with
+    any good C++ compiler.  If not, there should only be minor
+    changes necessary.
+
+4.  Can a neural network trained with NeuDL be used inside another
+    program?
+
+    Yess, NeuDL is simply an interface to a backpropagation neural network
+    object written in C++.  It is very easy to embed a network in 
+    a program, and then link it with the neural network object.
+    If fact, if a NeuDL program is translated into C++ with the
+    automatic translate feature of the interpreter, it simply creates
+    a C++ program calling the network object.
+
+5.  Is NeuDL an interpreter or a compiler?
+
+    It is primarily an interpreter.  It can execute the code directly.
+    However, it has a feature that translate the NeuDL code into C++
+    which can be compiled with a C++ compiler and then executed.  
+    Translating and compiling the NeuDL code can sometime give a 
+    tremendous performance boost.
+
+
+-------------------------------------------------------------------------
+
+Demo
+----
+
+NeuDL supports two approaches to neural networks: (1) do as much for
+the user as possible and (2) let the user do everything.  Of course,
+it will also support many the shades between these two extremes.
+
+
+Do as much as possible for the User
+-----------------------------------
+
+First assume the problem to solve is a three dimensional XOR problem with
+the following training set:
+
+  	     Input     Output
+	     -----     ------
+	1.   0 0 0  =>    0
+	2.   0 0 1  =>    1
+	3.   0 1 0  =>    1
+	4.   0 1 1  =>    0
+	5.   1 0 0  =>    1
+	6.   1 0 1  =>    0
+	7.   1 1 0  =>    0
+	8.   1 1 1  =>    0
+
+
+This data could either be entered in the NeuDL code directly with the
+Create_Data and Add_Data_After instructions like:
+
+	Create_Data(TRAINING,3,1);
+	Add_Data_After(TRAINING,1,  0,0,0,  0);
+	Add_Data_After(TRAINING,2,  0,0,1,  1);
+		.
+		.
+		.
+	Add_Data_After(TRAINING,8,  1,1,1,  0);
+
+
+The data could also be read in from an ASCII file with the following
+format:
+
+
+Format: ! I I I O
+# 1  0 0 0   0
+# 2  0 0 1   1
+# 3  0 1 0   1
+# 4  0 1 1   0
+# 5  1 0 0   1
+# 6  1 0 1   0
+# 7  1 1 0   0  
+# 8  1 1 1   0
+*
+
+
+The Load_Data instruction would then be used to load the data into
+memory:
+
+ 	Load_Data(TRAINING,"xor.trn");
+	
+The Load_Data instruction also sets several system variables that can
+be accessed by the user to see how many inputs, outputs, and data
+elements were present in the data file.  This information can be used
+to make very generic NeuDL programs.
+
+
+Once the data is in memory, the network must be created with the
+Create_Network instruction.  This command creates a network with the
+number of layers corresponding to the number of parameters and the
+number of nodes in each layer is the value of each parameter.
+Therefore, if you want a network consisting of three layers, an input
+layer with three nodes, a middle layer with three nodes, and an
+output layer with one node, use the following instruction:
+
+	Create_Network(3,3,1);
+
+There can be as many layers as the user wants.  This instruction does
+not connect the nodes together.  Two instruction are provided for the
+"do everything for the user approach": Partially_Connect and
+Fully_Connect.  NeuDL has the ability to connect the nodes however the
+user wants, but I will discuss that in the "let the user do
+everything" section.
+
+Once the network is connected, it can be trained.  The BP_Train
+instruction automatically trains the network according to several
+default parameters (which can be changed by the user if necessary).
+This instruction takes a file to store the network weights in, the
+training set, and a testing set.  The training and testing set can be
+the same, and the network weights are saved every time there is
+improvement on the testing set.  BP_Train assumes that all data inputs
+and outputs have been normalized between 0.0 and 1.0.  If the data is
+not, several instruction are provided for that: Find_High_Low,
+Normalize_Data, Denormalize_Data.
+
+
+A complete NeuDL program is shown below:
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+// Three Input XOR Problem
+
+program
+	{
+	Load_Data(TRAINING,"xor3.trn");
+	Create_Network(3,2,1);
+	Partially_Connect;
+	Tolerance=0.5;                               // Changing default
+	BP_Train("xor3.net",TRAINING,TRAINING);
+	}
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+Output:
+
+   0.   Err:    0.0969782  Good:  5 (  5)   63% *
+   1.   Err:    0.0751992  Good:  5 (  5)   63%
+   2.   Err:    0.0654984  Good:  5 (  5)   63%
+   3.   Err:    0.0606548  Good:  5 (  5)   63%
+   4.   Err:    0.0580021  Good:  5 (  5)   63%
+   5.   Err:     0.056416  Good:  5 (  5)   63%
+   6.   Err:    0.0553742  Good:  5 (  5)   63%
+                         .
+			 .
+			 .
+
+ 347.   Err:  5.87062e-05  Good:  7 (  7)   88%
+ 348.   Err:  5.91858e-05  Good:  7 (  7)   88%
+ 349.   Err:  5.96831e-05  Good:  7 (  7)   88%
+ 350.   Err:  6.01973e-05  Good:  7 (  7)   88%
+ 351.   Err:  6.07278e-05  Good:  7 (  7)   88%
+ 352.   Err:  6.12738e-05  Good:  7 (  7)   88%
+ 353.   Err:  6.18343e-05  Good:  8 (  8)   100% *
+
+
+The output shows each training iteration (this can be changed by user
+from 0 to any number he or she chooses).  The data shown is the
+iteration, the amount of accumulated error on the testing set, the
+number of input patterns that were correct, the highest number of
+correct patterns, and the percentage of correct patterns.  An asterisk
+(*) is shown if the iteration achieved a new higher number of correct
+patterns which causes the weights to be saved to the specified file.
+
+There are several ways to run new inputs through a network that has
+been trained with the previous code.  You could simple add more code
+the existing program or you can write another program.  For this demo,
+I will write another program so more features can be demonstrated.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+// Three Input XOR Problem
+
+program
+	{
+	Load_Data(TESTING,"xor3.trn");
+	Load_Network("xor3.net");
+	Run_Network(TESTING);
+	}
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+Output:
+
+ID: 1  Outputs: 0.49698 (0.49698)  
+ID: 2  Outputs: 0.806742 (0.806742)  
+ID: 3  Outputs: 0.811232 (0.811232)  
+ID: 4  Outputs: 0.0740832 (0.0740832)  
+ID: 5  Outputs: 0.805169 (0.805169)  
+ID: 6  Outputs: 0.0707235 (0.0707235)  
+ID: 7  Outputs: 0.0643571 (0.0643571)  
+ID: 8  Outputs: 0.0111206 (0.0111206)  
+
+
+The Run_Network instruction takes any data set loaded in memory and
+runs it through the network.  The output shows the id number of the
+input pattern, the actual output, and the output normalized between
+0.0 and 1.0 (here the original input range was between 0.0 and 0.0).
+The Run_Network instruction can also direct the output to an ASCII
+file.
+
+These are two of the simplest programs that can be written with NeuDL;
+however, a lot of power and flexiblily is shown.
+
+
+
+Let the User Do Everything
+--------------------------
+
+
+Loading data into memory can be done in much the same way as shown
+above.  However, there are several data manipulation instructions
+available: Add_Data_Before, Delete_Data, Save_Data, Print_Data.
+
+Preprocessing can be done as well.  The user can access and modify the
+data in the data sets.  This ability is one of the reasons NeuDL was
+created, because I needed an easy way to do data preprocessing and did
+not want to write a separate C program every time I trained a new
+network.  Since NeuDL supports a lot of Cs features, it is possible to
+do a great deal (maybe not all) of the preprocessing needs.
+
+
+Creating the network will be the same as in the above example, but
+connecting the network can be much more explicit.  Connect_Weight and
+Remove_Weight instructions exist to let the user design whatever
+connection scheme he or she wants:
+
+For example, the Partially_Connect instruction is equivalent to the
+following:
+
+
+
+	for (i=0; i<3; i++)             // For each node in input layer
+		for (j=0; j<2; j++)     // For each node in middle layer
+			Connect_Weight(0,i,1,j);
+
+	for (i=0; i<2; i++)             // For each node in middle layer
+		Connect_Weight(1,i,1,0);
+
+
+A generic version of these loops can also be used, so that the size
+of the network does not need to be known:
+
+
+	for (i=Input_Layer; i<Output_Layer; i++)
+		for (j=0; j<Layer_Nodes[i]; j++)
+			for (k=0; k<Layer_Nodes[i+1]; k++)
+				Connect_Weight(i,j,i+1,k);
+
+
+Here, Input_Layer, Output_Layer, and Layer_Nodes[] are all system
+variables initialized by Create_Network or Load_Network;
+
+Far more creative connections can be made than the examples I have
+shown above.  Connections can be added or removed during training as
+well.  There are also instruction available to get and set a weights
+value, which can be used in conjunction with adding and removing
+weights to dynamically change the network during training.
+
+
+Instead of using BP_Train to train the network, several primitive
+instructions exist: Forward_Pass, Backward_Pass, Get_Error,
+and Reset_Error.
+
+The following example is very similar to the first example shown above; 
+however, this version does every thing manually.  The nodes are connected
+manually, training is performed manually, error is computed manually, etc.
+Of course this version will run slower than the first version in 
+interpreted mode.  To overcome this problem, the -translate flag can be
+given on the command line when NeuDL is executed and it will generate
+a C++ version of the program which can be compiled and then executed.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+// Three Input XOR problem - version 2
+
+program                                 
+	{
+	Load_Data(TRAINING,"xor3.trn");
+
+	Create_Network(3,2,1);
+
+	int i;
+	int j;
+	int k;
+	for (i=Input_Layer; i<Output_Layer; i++)   // Partially Connect
+		for (j=0; j<Layer_Nodes[i]; j++)
+			for (k=0; k<Layer_Nodes[i+1]; k++)
+				Connect_Weight(i,j,i+1,k);
+
+	int ID;
+	float In[3];
+	float Out[1];
+	float Net_Out[1];
+	int good;
+	int best_good;
+	float error;
+	float total_error;
+	int iteration;
+
+	good=0;
+	best_good=0;
+	
+	while (good<Data_Count[TRAINING])   // Training loop
+		{
+       		iteration++;
+		Reset_To_Head(TRAINING); // Set pointer to 1st element
+		good=0;
+		total_error=0;
+
+             // present each training pattern
+		for (j=0; j<Data_Count[TRAINING]; j++)
+			{
+			Get_Data(TRAINING,ID,In,Out);
+			Forward_Pass(In,Net_Out);
+			Backward_Pass(TRAINING);
+			error=Out[0]-Net_Out[0];
+			if (error<0) error*=-1;    // absolute value
+
+      			if (error<0.5) good++;
+			if (good>best_good) 
+				{
+				best_good=good;	       
+				Save_Network("xor.net");
+				}
+			Next_Data(TRAINING);
+			}
+
+		Get_Error(total_error); 
+
+		if (iteration%10==0)  // Print status every 10 iterations
+		     {
+		     print(iteration,".  Err: ",total_error,"   Good: ",
+			   good," (",best_good,")");
+		     newline;
+		     }
+		}			
+
+	newline;
+	Reset_To_Head(TRAINING);			// Print Results
+	print("Data Count: ",Data_Count[TRAINING]);
+	newline;
+	for (i=0; i<Data_Count[TRAINING]; i++)
+		{
+		Get_Data(TRAINING,ID,In,Out);
+		Forward_Pass(In,Net_Out);
+		print("Id: ",ID,"  Inputs: ",In[0]," ",In[1]," ",In[2],
+		      "  Network: ",Net_Out[0]);
+		newline;
+		Next_Data(TRAINING);
+		}
+	
+	newline;
+	}
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+Output:
+
+10.  Err: 0.0330911   Good: 5 (5)
+20.  Err: 0.0731041   Good: 5 (5)
+30.  Err: 0.120814   Good: 5 (5)
+40.  Err: 0.185025   Good: 5 (5)
+50.  Err: 0.27622   Good: 5 (5)
+60.  Err: 0.405686   Good: 5 (5)
+70.  Err: 0.583175   Good: 4 (5)
+		.
+		.
+		.
+
+900.  Err: 6.46157   Good: 7 (7)
+910.  Err: 6.56025   Good: 7 (7)
+920.  Err: 6.67337   Good: 7 (7)
+930.  Err: 6.79237   Good: 7 (7)
+940.  Err: 6.90664   Good: 7 (7)
+
+Data Count: 8
+Id: 1  Inputs: 0 0 0  Network: 0.491368
+Id: 2  Inputs: 0 0 1  Network: 0.803899
+Id: 3  Inputs: 0 1 0  Network: 0.802026
+Id: 4  Inputs: 0 1 1  Network: 0.0594487
+Id: 5  Inputs: 1 0 0  Network: 0.797564
+Id: 6  Inputs: 1 0 1  Network: 0.0566806
+Id: 7  Inputs: 1 1 0  Network: 0.0562273
+Id: 8  Inputs: 1 1 1  Network: 0.00490284
+
+
+
+
+Example
+-------
+
+
+The last example is from a real world problem of predicting lithology
+(rock type) from oil well logs.  The problem has four inputs
+corresponding to the value of a different well log value at a
+arbitrary depth and four binary outputs for each of the lithologies
+being predicted: sandstone, shale, dolomite, limestone.  The following
+file is called "litho.trn"; it has several examples of what well log
+inputs would look like for the given rock types.  
+
+
+Format: ! I I I I O O O O
+# 1 23.736233 12.156522 10.098140 2.06    1 0 0 0
+# 2 11.848920 11.888933 13.543420 -1.66   1 0 0 0
+# 3 12.747364 12.086101 10.825317 1.26    1 0 0 0
+# 4 17.624258 31.137709 20.677192 10.46   0 1 0 0
+# 5 16.325750 25.985197 15.955838 10.03   0 1 0 0
+# 6 122.347425 33.313503 20.146110 13.17  0 0 1 0
+# 7 123.417525 34.884122 17.641818 17.24  0 0 1 0
+# 8 127.584125 34.259599 21.421012 12.83  0 0 1 0
+# 9 116.446591 34.238311 18.989037 15.25  0 0 1 0
+# 10 38.941280 28.646694 35.309010 -6.36  0 0 0 1
+# 11 46.134437 27.027861 34.905532 -7.88  0 0 0 1
+# 12 57.037557 28.626436 31.718648 -3.09  0 0 0 1
+*
+
+
+
+The following file contains a few examples from a real well that can
+be used to test the performance of the network.  The file is called
+"litho.tst"
+
+
+Format: ! I I I I O O O O
+# 1 12.589558 12.088369 10.911176 1.17    1 0 0 0
+# 2 12.077072 11.827711 12.065364 -0.24   1 0 0 0
+# 3 14.594925 23.447577 14.101631 9.34    0 1 0 0
+# 4 14.742608 22.532821 13.973293 8.56    0 1 0 0
+# 5 125.199008 33.904196 20.027580 13.88  0 0 1 0
+# 6 121.400225 35.071021 18.436511 16.64  0 0 1 0
+# 7 59.648007 28.880512 33.425053 -4.54   0 0 0 1
+# 8 82.396623 27.556943 33.873839 -6.32   0 0 0 1
+*
+
+
+
+
+This example will demonstrate several different features of NeuDL.
+First, the data in the training and testing files are not normalized,
+so this must be address.  Secondly, I am going to train the network
+for a given number of iterations, then remove the lowest weight.  I
+will repeat this process several more times.  Thirdly, I will print
+the results on the screen without using numbers in the output.
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+// Lithology Example with Dynamic Weight Removal
+//
+// 1. Load Training and Test Data from files
+// 2. Normalize Training and Test Data
+// 3. Automatically Connect network
+// 4. Dynamically Remove Lowest Weights during Training
+// 5. Print the Output for the test set
+
+program
+	{
+	Load_Data(TRAINING,"litho.trn");  // Load Training Data Set
+	Load_Data(TESTING,"litho.tst");   // Load Testing Data Set
+
+	Create_Network(Data_Inputs[TRAINING],       // Create network with
+		       (Data_Inputs[TRAINING]+
+		       Data_Outputs[TRAINING])/2.0, // two middle layers,
+		       (Data_Inputs[TRAINING]+
+		       Data_Outputs[TRAINING])/2.0, // the first middle layer
+		       Data_Outputs[TRAINING]);	    // has 60% the number of 
+						    // nodes as the input
+						    // layer, and the second
+						    // has 60%
+
+	Partially_Connect;	// Fully_Connect Network - each node is
+			        // connected to each node in each succeeding
+				// layer
+
+	int round;
+	int i;
+	int j;	// Declare loop control variables
+
+	float low_weight; // Variables to store lowest weight value and posit
+	float from_layer;
+	float from_node;
+	float to_layer;
+	float to_node;
+
+	float value;   // Variables to hold current weight value and position
+	int f_l;
+	int f_n;
+	int t_l;
+	int t_n;
+	
+	Min_Iterations=100;   // Change Training Parameters from default so 
+	Max_Iterations=100;   // BP_Train will train exactly 100 iterations
+	Display_Rate=25;
+
+	float High_In[Data_Inputs[TRAINING]];  // Storage for high/low info
+	float Low_In[Data_Inputs[TRAINING]];
+	float High_Out[Data_Outputs[TRAINING]];
+	float Low_Out[Data_Outputs[TRAINING]];
+
+	Find_High_Low(TRAINING,High_In,Low_In,High_Out,Low_Out);  
+	Normalize_Data(TRAINING,High_In,Low_In,High_Out,Low_Out);
+	Normalize_Data(TESTING,High_In,Low_In,High_Out,Low_Out);
+
+	for (round=0; round<30; round++) 
+		{
+		BP_Train("litho.net",TRAINING,TESTING); // Train 100 iterations
+
+		Reset_Current_Weight; // Go through weights and find lowest one
+
+		Get_Current_Weight(from_layer,from_node,  // first weight
+				   to_layer,to_node,low_weight);
+		if (low_weight<0) low_weight*=-1;
+	
+		for (j=1; j<Weight_Count; j++)    // Weight_Count is a system 
+			{			  // variable
+			
+			Get_Current_Weight(f_l,f_n,t_l,t_n,value);
+			if (value<0) value*=-1;   // Absolute Value
+			
+			if (value<low_weight)  
+				{		
+				low_weight=value; 
+				from_layer=f_l;
+				from_node=f_n;
+				to_layer=t_l;
+				to_node=t_n;
+				}
+			Next_Weight;	// Advance to next weight
+			}
+		Remove_Weight(from_layer,from_node,   // Remove lowest weight
+			      to_layer,to_node);
+		print("Removing Weight: (",from_layer,",",from_node,")->(",
+			to_layer,",",to_node,")   value: ",low_weight);
+		newline;
+		}	
+
+	BP_Train("litho.net",TRAINING,TESTING);  // Train final 10 times
+
+	newline;
+
+	int ID;
+	float In[Data_Inputs[TESTING]];
+	float Out[Data_Outputs[TESTING]];
+	float Net_Out[Data_Outputs[TESTING]];
+	int high_pos;
+	float high;
+
+	Reset_To_Head(TESTING);
+	newline;
+	print("Results on Testing Set: ");     // Print results
+	newline; newline;
+	for (i=0; i<Data_Count[TESTING]; i++)
+       		{
+		Get_Data(TESTING,ID,In,Out);
+		Forward_Pass(In,Net_Out);
+		high=-9999;
+	        for (j=0; j<4; j++)
+			if (Net_Out[j]>high)
+				{
+				high=Net_Out[j];
+				high_pos=j;
+				}
+		print("Test Case ",ID," is ");
+
+		if (high_pos==0) 
+			print("Shale");
+		else if (high_pos==1)
+			print("Limestone");
+		else if (high_pos==2)
+			print("Dolomite");
+		else print("Sandstone");
+		newline;
+		Next_Data(TESTING);
+		}
+	}
+
+- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+
+Output:
+
+   0.   Err:     0.305173  Good:  0 (  0)   0%
+  25.   Err:     0.340725  Good:  0 (  0)   0%
+  50.   Err:     0.352351  Good:  0 (  0)   0%
+  75.   Err:     0.295867  Good:  2 (  2)   25% *
+Removing Weight: (2,3)->(3,1)   value: 0.0532426
+   0.   Err:     0.109473  Good:  4 (  4)   50% *
+  25.   Err:    0.0476897  Good:  4 (  6)   50% *
+  50.   Err:    0.0195119  Good:  6 (  6)   75%
+  75.   Err:    0.0103141  Good:  7 (  7)   88% *
+Removing Weight: (2,1)->(3,1)   value: 0.00369578
+   0.   Err:    0.0071807  Good:  7 (  7)   88% *
+  25.   Err:   0.00553491  Good:  8 (  8)   100% *
+  50.   Err:   0.00451132  Good:  8 (  8)   100%
+  75.   Err:    0.0038113  Good:  8 (  8)   100%
+Removing Weight: (0,2)->(1,0)   value: 0.245049
+		.
+		.
+		.
+
+  0.   Err:  0.000191977  Good:  6 (  6)   75% *
+  25.   Err:  0.000206625  Good:  8 (  8)   100% *
+  50.   Err:   0.00022284  Good:  8 (  8)   100%
+  75.   Err:  0.000234269  Good:  8 (  8)   100%
+Removing Weight: (1,2)->(2,2)   value: 3.57546
+   0.   Err:  0.000200283  Good:  8 (  8)   100% *
+  25.   Err:  0.000249671  Good:  8 (  8)   100%
+  50.   Err:  0.000263952  Good:  8 (  8)   100%
+  75.   Err:  0.000269304  Good:  8 (  8)   100%
+Removing Weight: (2,0)->(3,1)   value: 3.60982
+   0.   Err:  0.000273431  Good:  8 (  8)   100% *
+  25.   Err:  0.000298997  Good:  8 (  8)   100%
+  50.   Err:  0.000308693  Good:  8 (  8)   100%
+  75.   Err:  0.000311354  Good:  8 (  8)   100%
+
+
+Results on Testing Set: 
+
+Test Case 1 is Shale
+Test Case 2 is Shale
+Test Case 3 is Limestone
+Test Case 4 is Limestone
+Test Case 5 is Dolomite
+Test Case 6 is Dolomite
+Test Case 7 is Sandstone
+Test Case 8 is Sandstone
+
+
+
+
+

@@ -1,0 +1,196 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node336.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:31:43 GMT -->
+<HEAD>
+<TITLE>29.4.2. Assertions</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Assertions">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html5896 HREF="node337.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5894 HREF="node334.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5888 HREF="node335.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5898 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5899 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5897 HREF="node337.html"> Exhaustive Case Analysis</A>
+<B>Up:</B> <A NAME=tex2html5895 HREF="node334.html"> Program Interface to </A>
+<B> Previous:</B> <A NAME=tex2html5889 HREF="node335.html"> Signaling Conditions</A>
+<HR> <P>
+<H2><A NAME=SECTION003342000000000000000>29.4.2. Assertions</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<A NAME=CONDITIONASSERTIONS>These</A>
+facilities are designed to make it convenient for the user
+to insert error checks into code.
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>check-type <i>place</i> <i>typespec</i> [<i>string</i>]</tt><P>   [This supersedes the description of <tt>check-type</tt>
+   given in section <A HREF="node221.html#SPECIALIZEDERRORSIGNALLING">24.2</A>.-GLS]
+<P>
+  A <tt>check-type</tt> form signals an error of type
+  <tt>type-error</tt> if the contents of <i>place</i> are not of the
+  desired type.
+<P>
+  If a condition is signaled, handlers of this condition can use the
+  functions <tt>type-error-datum</tt> and <tt>type-error-expected-type</tt> to access the
+  contents of <i>place</i> and the <i>typespec</i>, respectively.
+<P>
+  This function can return only if the <tt>store-value</tt> restart is invoked, either
+  explicitly from a handler or implicitly as one of the options offered by the
+  debugger.
+The restart is associated with the signaled condition as if by
+use of <tt>with-condition-restarts</tt>.
+<P>
+  If <tt>store-value</tt> is called, <tt>check-type</tt> will store the new value that is
+  the argument to <tt>store-value</tt> (or that is prompted for interactively by
+  the debugger) in <i>place</i> and start over, checking the type of the new value
+  and signaling another error if it is still not the desired type. Subforms
+  of <i>place</i> may be evaluated multiple times because of the implicit loop
+  generated. <tt>check-type</tt> returns <tt>nil</tt>.
+<P>
+  The <i>place</i> must be a generalized variable reference acceptable to <tt>setf</tt>. The
+  <i>typespec</i> must be a type specifier; it is not evaluated.  The <tt>string</tt> should
+  be an English description of the type, starting with an indefinite article
+  (``a'' or ``an''); it is evaluated. If the <i>string</i> is not supplied, it is computed
+  automatically from the <i>typespec</i>. (The optional <i>string</i> argument is allowed 
+  because some applications of <tt>check-type</tt> may require a more specific
+  description of what is wanted than can be generated automatically from the
+  type specifier.)
+<P>
+  The error message will mention the <i>place</i>, its contents, and the desired type.
+<P>
+<hr>
+<b>Implementation note:</b> An implementation may choose to generate a somewhat
+  differently worded error message if it recognizes that <i>place</i> is of a
+  particular form, such as one of the arguments to the function that called
+  <tt>check-type</tt>.
+<hr>
+<P>
+<P><pre>
+Lisp&gt; (setq aardvarks '(sam harry fred)) 
+ => (SAM HARRY FRED) 
+Lisp&gt; (check-type aardvarks (array * (3))) 
+Error: The value of AARDVARKS, (SAM HARRY FRED), 
+       is not a 3-long array. 
+To continue, type :CONTINUE followed by an option number: 
+ 1: Specify a value to use instead. 
+ 2: Return to Lisp Toplevel. 
+Debug&gt; :continue 1 
+Use Value: #(sam fred harry) 
+ => NIL 
+Lisp&gt; aardvarks 
+ => #&lt;ARRAY-3 13571&gt; 
+Lisp&gt; (map 'list #'identity aardvarks) 
+ => (SAM FRED HARRY) 
+Lisp&gt; (setq aacount 'foo) 
+ => FOO 
+Lisp&gt; (check-type aacount (integer 0 *) &quot;a non-negative integer&quot;) 
+Error: The value of AACOUNT, FOO, is not a non-negative integer. 
+To continue, type :CONTINUE followed by an option number: 
+ 1: Specify a value to use instead. 
+ 2: Return to Lisp Toplevel. 
+Debug&gt; :continue 2 
+Lisp&gt;
+</pre><P>
+<P>
+<hr>
+<b>Compatibility note:</b> In Zetalisp, the equivalent facility is called <tt>check-arg-type</tt>.
+<hr>
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>assert <i>test-form</i> [({<i>place</i>}*) [<i>datum</i> {<i>argument</i>}*]]</tt><P>   [This supersedes the description of <tt>assert</tt>
+   given in section <A HREF="node221.html#SPECIALIZEDERRORSIGNALLING">24.2</A>.-GLS]
+<P>
+  An <tt>assert</tt> form signals an error if the value of the <i>test-form</i> is <tt>nil</tt>.
+  Continuing from this
+  error using the <tt>continue</tt> restart will allow the user to alter the values
+  of some variables, and <tt>assert</tt> will then start over, evaluating the <i>test-form</i>
+  again.
+(The restart is associated with the signaled condition as if by
+use of <tt>with-condition-restarts</tt>.)
+<tt>assert</tt> returns <tt>nil</tt>.
+<P>
+  The <i>test-form</i> may be any form. Each <i>place</i> (there may be any number of them, 
+  or none) must be a generalized variable reference acceptable to <tt>setf</tt>.
+  These should be variables on which <i>test-form</i> depends, whose values
+  may sensibly be changed by the user in attempting to correct the error.
+  Subforms of each <i>place</i> are evaluated only if an error is signaled, and
+  may be re-evaluated if the error is re-signaled (after continuing without
+  actually fixing the problem).
+<P>
+  The <i>datum</i> and <i>argument</i>s are evaluated only if an error is to be
+  signaled, and re-evaluated if the error is to be signaled again.
+<P>
+  If <i>datum</i> is a condition, then that condition is used directly. 
+  In this case, it is an error to specify any <i>argument</i>s.
+<P>
+  If <i>datum</i> is a condition type (a class or class name), then the condition used is effectively the result
+  of <tt>(apply #'make-condition <i>datum</i> (list argument))</tt>.
+<P>
+  If <i>datum</i> is a string, then the condition used is effectively the result of
+<P><pre>
+(make-condition 'simple-error 
+                :format-string <i>datum</i> 
+                :format-arguments (list argument))
+</pre><P>
+<P>
+  If <i>datum</i> is omitted, then a condition of type <tt>simple-error</tt> is 
+  constructed using the <i>test-form</i> as data. For example, the following
+  might be used:
+<P><pre>
+(make-condition 'simple-error 
+  :format-string &quot;The assertion ~S failed.&quot; 
+  :format-arguments '(<i>test-form</i>))
+</pre><P>
+Note that the <i>test-form</i> itself, and not its value, is used as the format argument.
+<P>
+<hr>
+<b>Implementation note:</b> The debugger need not include the <i>test-form</i> in
+  the error message, and any <i>places</i> should not be included in the message,
+  but they should be made available for the user's perusal. If the user
+  gives the ``continue'' command, an opportunity should be presented
+  to alter the values of any or all of the references. The details of this
+  depend on the implementation's style of user interface, of course.
+<hr>
+<P>
+Here is an example of the use of <tt>assert</tt>:
+<P><pre>
+(setq x (make-array '(3 5) :initial-element 3)) 
+(setq y (make-array '(3 5) :initial-element 7)) 
+
+(defun matrix-multiply (a b) 
+  (let ((*print-array* nil)) 
+    (assert (and (= (array-rank a) (array-rank b) 2) 
+                 (= (array-dimension a 1) 
+                    (array-dimension b 0))) 
+            (a b) 
+            &quot;Cannot multiply ~S by ~S.&quot; a b) 
+    (really-matrix-multiply a b))) 
+
+(matrix-multiply x y) 
+Error: Cannot multiply #&lt;ARRAY-3-5 12345&gt; by #&lt;ARRAY-3-5 12364&gt;. 
+To continue, type :CONTINUE followed by an option number: 
+ 1: Specify new values. 
+ 2: Return to Lisp Toplevel. 
+Debug&gt; :continue 1 
+Value for A: x 
+Value for B: (make-array '(5 3) :initial-element 6) 
+ => #2A(&#175;(54 54 54 54 54) 
+(54 54 54 54 54) 
+		(54 54 54 54 54) 
+		(54 54 54 54 54) 
+		(54 54 54 54 54))
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html5896 HREF="node337.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5894 HREF="node334.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5888 HREF="node335.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5898 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5899 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5897 HREF="node337.html"> Exhaustive Case Analysis</A>
+<B>Up:</B> <A NAME=tex2html5895 HREF="node334.html"> Program Interface to </A>
+<B> Previous:</B> <A NAME=tex2html5889 HREF="node335.html"> Signaling Conditions</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

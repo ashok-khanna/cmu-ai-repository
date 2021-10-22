@@ -1,0 +1,669 @@
+%%%%
+%%%%  MacCup v0.59 user's manual (in LaTex style)
+%%%%	(= cu-Prolog ver3.50)
+%%%%
+\documentstyle[11pt]{article}
+%%\setlength{\textheight}{11in}
+%%\setlength{\textwidth}{8.5in}
+%%\setlength{\topmargin}{-1.0in}
+%%\setlength{\evensidemargin}{0in}
+%%\setlength{\oddsidemargin}{0in}
+\setlength{\textwidth}{6.5in}
+\setlength{\textheight}{8.5in}
+\setlength{\topmargin}{-.5in}
+\setlength{\evensidemargin}{0in}
+\setlength{\oddsidemargin}{0in}
+
+\newtheorem{defs}{[Def]}
+\newtheorem{ex}{Example}
+\newtheorem{thm}{Theorem}
+\newcommand{\cuprolog}{{\sf MacCup}}
+\newcommand{\normalskip}{\baselineskip=1.3\normalbaselineskip}
+\newcommand{\programskip}{\baselineskip=0.8\normalbaselineskip}
+\newcommand{\bcapt}{\small \sf }
+\newcommand{\ecapt}{\rm  \normalsize }
+\newcommand{\inputprog}[1]{
+	\footnotesize
+	\programskip
+	\input{#1}
+	\normalsize
+	\normalskip
+}
+
+\begin{document}
+\normalskip
+
+\title{A Guide to MacCup}
+\author{
+SIRAI, Hidetosi\\
+	School of Computer and Cognitive Sciences\\
+        Chukyo University\\
+        Tokodate 101, Kaizu-cho, Toyota, Aichi, 470--03 JAPAN\\
+	E-mail: sirai@sccs.chukyo-u.ac.jp\\
+}
+\date{30 July 1991}
+\maketitle
+
+\tableofcontents
+\newpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Introduction}
+ \cuprolog\ is a Macintosh version of {\sf CUProlog}
+\cite{tuda:lpc,tuda:acl}, which is an experimental constraint logic
+programming language, originally developed for use on workstations such as
+SUN4.  Unlike most conventional CLP systems, {\sf CUProlog} and
+henceforth \cuprolog, allows user-defined predicates to be used as
+constraints, and is suitable for implementing a natural language
+processing system based on unification-based grammar formalisms\cite{shi:ub}.
+As an application of {\sf CUProlog}, we developed a parser based on JPSG
+theory (Japanese Phrase Structure Grammar \cite{gun:jpsg}) with the JPSG
+Working Group (chaired by Prof. Takao Gunji of Osaka University)
+at ICOT.  {\sf CUProlog} is also the complete implementation of the
+constraint unification\cite{cs:cu}\ and its name (cu) comes from the
+technique.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{How to Start and Quit MacCup}
+To start \cuprolog, double click \cuprolog\ icon as other applications
+of Macintosh, and to quit it, type command-Q, or in either following
+way:
+\begin{quote}
+        {\tt \%Q [CR]}\\
+	or {\tt :-halt. [CR]} 
+\end{quote}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Memory Allocation of MacCup}
+The default size of \cuprolog\ is 2.3 MB.  And you can increase or
+decrease it.  To change the size,
+click \cuprolog\ icon, then choose the `Apple' menu, click `Information'
+item, rewrite the allocated memory size in the information box.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Syntax of MacCup}
+In the below, we will use the following terms:
+\begin{description}
+\item [term :] atom, variable, complex term, and partially specified term. 
+\item [atom :] string that begins with a lower case letter or any
+character string enclosed by a single quote.
+\item [variable :] the string that begins with a upper case letter or an
+underscore. 
+\item [complex term :] 
+${\tt p(t_{1},t_{2},\cdots,t_{n})}$ is a complex term where
+{\tt p} is an atom and ${\tt t_{1},t_{2},\cdots,t_{n}}$ are terms.
+{\tt P} is called a {\em functor} or a {\em predicate symbol}. 
+List is a special functor, and represented as a sequence of terms
+each of which is separated by a comma, and which are enclosed by
+square brackets.
+\item [partially specified term :]  
+Partially specified term (PST, for abbreviation) is represented
+ ${\{t_{1}, t_{2}, \cdots, t_{n}\}}$ where ${\tt t_{i}}$ a term
+ whose functor is `/', whose first argument is an atom, and whose
+second argument is a term.
+\end{description}
+
+\subsection{BNF Description of MacCup}
+ Table~\ref{bnfsyn} is the BNF description of the syntax of \cuprolog.
+
+\begin{table}[h]
+\small
+\begin{eqnarray*}
+<char>& ::= &<upper> | <lower> | <digit>\\
+<upper>& ::= &A|B|C| \ldots |X|Y|Z \\
+<lower>& ::= &a|b|c| \ldots |x|y|z \\
+<digit>& ::= &0|1|2|3|4|5|6|7|8|9 \\
+<bar>& ::= & |\\
+<specialchar>& ::= & <|>|=|-|+|*|\#|:|\$|\%|\&|@|? \\
+<series> & ::= & <digit> | <digit><series> \\
+<number>& ::= & <series> | <series>.<series> \\
+<string>& ::= &<empty> | <char><string>\\
+<charstring> & ::= & "<string>"\\
+<specialstring>& ::= & <specialchar> | <specialchar><specialstring>\\
+<atom>& ::= & <lower><string> | <specialstring> |\ '<string>' \\
+<var>& ::= &<upper><string> |\  \_<string> \\
+<constant>& ::= & <atom> | <number> | <charstring>\\
+<functor>& ::= &<atom>\\
+<op> &::=& <atom>\\
+<predicate>& ::= &<atom>\\
+<list> & ::= & [ \ ]\  |\  [ <term list> ]\ |\ [ <term list> <bar> <term> ] \\
+<pst item> & ::= &<atom> / <term>\\
+<pst item list> & ::= & <pst item> | <pst item>, <pst item list>\\
+<pst>& ::= & \{\  \}\ |\ \{ <pst item list> \}\\
+<term>& ::= &<var> | <constant> | <functor>(<term list>) | \\
+        & & <list> | <pst> | <term> <op> <term>\\
+<term list>& ::= &<term> | <term>,<term list>\\
+<literal>& ::= &<predicate> | <predicate>(<term list>)\\
+<body literal>& ::= & <literal> | <var>\\
+<body> & ::= & <body literal> | <body literal>, <body>\\
+<horn> & ::= & <literal> | <literal> {\tt :-} <body> |\ {\tt ?-} <body> \\
+<cahc> & ::= & <horn>.\ | <horn> {\tt ;} <body>. \\
+\end{eqnarray*}
+\normalsize
+\caption{BNF description of MacCup}
+\label{bnfsyn}
+\end{table}
+
+\subsection{Constraint Added Horn Clause (CAHC)}
+The program clauses of \cuprolog\ is called
+ Constraint Added Horn Clause(CAHC) and has the following forms:
+\begin{enumerate}
+\item Fact 
+\begin{quote}
+	{\tt $H$.}\\
+	{\tt $H; C_{1},\cdots, C_{n}.$}
+\end{quote}
+\item Rule
+\begin{quote}
+	{\tt $H :-B_{1},\cdots, B_{m}$.} \\
+	{\tt $H:-B_{1},\cdots, B_{m}; C_{1},\cdots, C_{n}$.}
+\end{quote}
+\item Question
+\begin{quote}
+	{\tt $:-B_{1},\cdots, B_{n}$.} \\
+	{\tt $:-B_{1},\cdots, B_{n}; C_{1},\cdots, C_{n}$.}
+\end{quote}
+
+\end{enumerate}
+{\tt $H,B_{1},\cdots, B_{n}$}, and {\tt $C_{1},\cdots, C_{n}$} are 
+called Head, Body, and Constraint respectively.
+\normalskip
+
+\subsection{Canonical Form of Constraints}
+
+ In CAHC, Constraint must be represented in a canonical form, called {\bf
+modular}\footnote{You can use {\tt \%P} command transform non-modular
+constraints into modular ones.}.
+
+\begin{defs}[modular]
+A sequence of atomic formulae $C_{1},C_{2},\ldots,C_{m}$ is {\em modular},
+if
+\begin{enumerate}
+ \item every argument of $C_{i}$ is a variable ($1 \leq i \leq m$), and
+ \item no variable occurs in two distinct places, and 
+ \item the predicates occurring in $C_{i}$ are modularly defined 
+($1 \leq i \leq m$).
+\end{enumerate}
+\end{defs}
+
+The predicates in the constraints of CAHC may be an ordinary Prolog
+predicate of the following form.
+
+\begin{defs}[modularly defined] 
+Predicate {\tt p} is \underline{modularly defined}, when in its every 
+definition clause of the form, $P :-{\bf D}.$,
+\begin{quote}
+ ${\bf D}$ is modular or empty.
+\end{quote}
+\end{defs}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{File I/O}
+\subsection{Loading Program}
+  You can load a {\sf CUProlog} program by clicking `File' menu, and
+choosing `Open' item.
+
+\subsection{Saving Programs}
+You can  save the defined clauses in the running \cuprolog\ by clicking
+`File' menu, and choosing `Save Program' item.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Constraint Transformation}
+You can use the constraint transformation module of \cuprolog\
+in the following ways.
+\begin {itemize}
+\item {{\tt @} command}\\
+One way is to use {\tt @} instead of {\tt :-} at the top level of
+\cuprolog. 
+For example, by typing as follows,
+\begin{quote}
+	{\tt @ member(X,[a,b,c]),member(X,[b,c,d]). [CR]}
+\end{quote}
+Then, \cuprolog\  returns equivalent modularly defined constraints
+and their definitions.
+
+\item {{\tt unify/2} predicate}\\
+Another way is to use the constraint transformation routine {\tt unify/2}
+as a Prolog predicate.
+The first argument should be a list or a clause whose members are literals
+as follows:
+\begin{quote}
+	{\tt [c0(X,Y), c1(P,Q,R), c2(Q,S)] }
+\end{quote}
+The second argument should be a free variable.  And 
+{\tt unify} succeeds if and only if all literals of the first argument
+can be transformed into modular constraints, and sets the list as the
+value of the second Argument. 
+\end{itemize}
+
+Sometimes people want to define `not equal' in the constraint
+transformation framework. For example,
+
+\begin{quote}
+        {\tt not\_equal(X,Y) :- not eq(X,Y).}
+\end{quote}
+
+is assumed to be used in the following way:
+
+\begin{quote}
+        {\tt @ member(X,Some\_list), not\_equal(X,a).}
+\end{quote}
+
+That is, the second argument is always instantiated, and the first
+argument is usually variable, which comes to be instantiated in some
+environment. However, if the first argument isn't instantiated when the
+literal, not\_equal, is unfolded, then this must return true, and be
+deleted from the current constrains.
+
+To avoid it, you can use {\tt stayflag/3} predicate. 
+{\tt stayflag(Pred,Arity,Val)} sets the
+constraint with the predicate {\tt Pred} and the arity {\tt Arity} 
+to be non-unfoldable if it returns {\tt Val}  during constraint 
+transformation. Where, {\tt Val} should be either {\tt true} or {\tt fail}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Debugging Programs}
+
+\subsection{Trace Modes}
+Tracing means to show the status when the spyed predicates are called or
+exited as true or fail.  You can choose either so-called step trace mode
+or so-called normal trace mode. Furthermore, there are some options to
+set/remove/show spy points. 
+
+\begin{tabular}{ll}
+{\tt \%s} & toggle switch for step (interactive) trace.
+        In this mode, the prompt becomes `\verb+>+'.\\
+{\tt \%t} & toggle switch for normal trace.
+        In this mode, the prompt becomes  `\verb+$+'.\\
+{\tt \%p *} & sets spy points on all predicates. \\
+{\tt \%p .} & removes spy points on all predicates. \\
+{\tt \%p {\em predicate}} & 
+	toggle switch to set/remove a spy point on {\em predicate}\\
+{\tt \%p > } & toggle switch to set/remove a spy point on constraint
+transformations\\ 
+{\tt \%p ?} & show what predicates are set a spy point
+\end{tabular}\\
+In the step trace mode, each time predicate is  called, the
+execution stops and awaits your command by showing the following prompt:
+\begin{quote}
+        {\tt \#<trace ?>}
+\end{quote}
+You can control how to proceed the execution by the
+following commands:\footnote{This is effective if you set spy points on
+some appropriate predicates.}
+
+\begin{tabbing}
+operation\=function \kill
+[CR] \> continue\\
+a \> prints the ancestor goals\\
+b \> temporarily exits to the top level. To continue the execution, unbreak/0 is used\\
+f \> makes the current goal fail\\
+h \> prints the help message\\
+n \> continue the evaluation with normal (non-interactive) tracing\\
+s \> skips the current goal\\
+x \> continue the evaluation without tracing\\
+z \> quits refutation\\
+\end{tabbing}
+
+\subsection{Tracing Constraint Transformations}
+You can even watch and/or control how the constraint transformation
+goes by issuing the `{\tt \%p >}' command at the top level and also
+the trace command (e.g. {\tt \%s}).
+If you choose step trace mode, it shows the status and awaits your
+command, each time the system tries to transform constraints.
+The following is an example:
+
+\begin{verbatim}
+****DEFS={3}  NON-MODULAR={}  MODULAR={1,2}****
+[3(d,0)] c10(V0, V1, V2, V3) <=>
+                   one_of([{sem / V0}], {sem / V2}, V3).
+[0(g,2)] c9(V0, V1, V2, V3) <=>
+                   sc_sl_move([{sem / V0}, {sem / V1}], V2, V3).
+<2(m)> c9(V0, V1, Nsc, [{sem / Sl}]) :- c10(V0, V1, Sl, Nsc).
+<1(i)> c9(V0, V1, [{sem / V0},{sem / V1}], []).
+@step <h,b,q,z,u,s,n,CR>?  
+\end{verbatim}
+
+The first line shows how many predicates to be transformed, and how
+many clauses are defined as either modular or non-modular.  The
+following lines show the clauses which is to be handled and/or have been
+defined. The characters shown in the square brackets means, from left to
+right, a clause number (e.g. {\tt 0}) temporarily given, and current
+status (e.f. {\tt g}) and the number of its definitions{\tt 2}.  The
+following show what characters are used to represent what kind of status:
+
+\begin{tabbing}
+operation\=function \kill
+{\tt i} \> modularly defined unit clause\\
+{\tt m} \> modularly defined clause\\
+{\tt g} \> successfully transformed clause\\
+{\tt d} \> clause to be transformed\\
+{\tt u} \> temporarily defined clause which has non-modular body\\
+\end{tabbing}
+
+  In the above example, you can find that from the top line, there is
+only one clause to be transformed whose number is {\tt 3}, and also
+there are two modularly defined clauses,  whose numbers is {\tt 1} and
+{\tt 2}. From the following lines, it is shown that the predicate, {\tt
+c10}, is going to be transformed, and the predicate, {\tt c9}, has been
+transformed and it has two definitions, {\tt 1} and {\tt 2}.
+
+You can control the transformation process by the
+following commands:
+\begin{tabbing}
+operation\=function \kill
+[CR] \> continue\\
+b \> temporarily exits to the top level. To continue the execution, unbreak/0 is used\\
+h \> prints the help message\\
+n \> continue the evaluation with normal(non-interactive) tracing\\
+x \> continue the evaluation without tracing\\
+q \> abort the process and returns true\\
+z \> abort the process and returns fail\\
+u $<$clause No.$>$  $<$literal No.$>$ \\
+        \> specifies which clause is to be unfolded next.
+\end{tabbing}
+
+\section{Partially Specified Term}
+Partially Specified Term, PST for abbreviation, is useful for representing
+a structure whose members are attri\-bute\--value pairs.
+It is especially useful than terms, if the number of members cannot be
+determined before\-hand.
+
+PST is represented as follows:
+\begin{quote}
+  ${\tt \{ attribute_{1} / value_{1}, \ldots, attribute_{n} / value_{n} \}}$
+\end{quote}
+where attribute should be an atom and value may be a term.  Any two PSTs
+are not unifiable if the values of their corresponding attribute
+are not unifiable. 
+Otherwise, they are unifiable.  For example,
+\begin{quote}
+   {\tt \{ a / b, c / d(a,c) \}} and {\tt \{ b / e, c / X \}}
+\end{quote}
+are unifiable, and the result of unification will be
+\begin{quote}
+       {\tt \{ a / b, b / e, c / d(a,c) \}}
+\end{quote}
+However, the followings are not unifiable:
+\begin{quote}
+        {\tt \{ a / b, c / d(a,c) \}} and {\tt \{ a / c \}}
+\end{quote}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Summary of System Commands}
+This section lists all the system commands which can be issued at the
+top level of \cuprolog. You can issue most of them by click\-ing 
+`Command' or `Mode' menu and choosing the corresponding item.\\
+Note : {\em Predicate} represents {\em predicate\_name} or {\em
+predicate\_name}/{\tt arity}. 
+
+\subsection{MacCup Commands}
+\begin{tabular}{ll}
+{\tt \%h}&	help\\
+{\tt \%d} {\em predicate}	& list {\em predicate}'s definitions\\
+{\tt \%d*}&	list all definitions\\
+{\tt \%d?} &  list all predicate names\\
+	   &  for system predicates, \verb%+%:recursive, \verb%^%:functor\\
+	   &  for user predicates, \verb%*%:spyed, \verb%+%:recursive,
+            \verb%#%:new predicates in CT\\
+{\tt \%f}	& show the system heap size \\
+{\tt \%Q}&	quit \cuprolog	\\
+{\tt \%R} &     reinitialization\\
+{\tt \%c {\em number}} & set maximum depth of resolution\\
+\end{tabular}
+
+\subsection{File I/O Commands}
+\begin{tabular}{ll}
+{\tt "{\em filename}"} & consult file without echo back\\
+{\tt "{\em filename}?}& consult file with echo back	\\
+{\tt \%l}	& set log file name	\\
+{\tt \%w {\em filename}}	& write the current program to file\\
+\end{tabular}
+
+\subsection{Debug Commands}
+\begin{tabular}{ll}
+{\tt \%p {\em predicate}} & toggle switch to
+         set/remove spy points on {\em predicate}\\
+{\tt \%p *} 	& set spy points on all predicates	\\
+{\tt \%p .}	& remove spy points on all predicates\\
+{\tt \%p >}	& toggle switch to set/remove spy points on constraint
+transformation\\
+{\tt \%p ?}	& list spyed predicates\\
+{\tt \%t}	& toggle switch for normal trace mode\\
+{\tt \%s}	& toggle switch for step trace mode\\
+\end{tabular}
+
+\subsection{Constraint Transformation Commands}
+\begin{tabular}{ll}
+{\tt \%P {\em predicate}} & preprocess the constraint part of {\em
+predicate} definitions\\
+{\tt \%P *}	& preprocess all the non-modular constraints of user-defined
+predicates\\
+{\tt \%P ?}     & list all user-defined predicate names with non-modular
+constraints\\
+{\tt \%L}	& list the generated predicates in CT\\
+{\tt \%a}	& set CT in all-modular mode\\
+{\tt \%o}	& set CT in M-Solvable mode\\
+{\tt \%n {\em predicate}} & 
+	make newly generated name as {\em predicate} plus numbers
+(default is {\tt c})\\
+{\tt \%M {\em number}} & set the maximum number of variables used in CT
+{\em number} (default is 50)\\
+\end{tabular}
+
+\subsection{Miscellaneous}
+\begin{tabular}{ll}
+{\tt \%C}	& redefine {\tt cat()} functor for JPSG parser\\
+{\tt \%u}       & sets the internal switch which determines the system
+to cause error or just fail\\
+        &  if an undefined predicate is refuted.\\
+{\tt font}      & (only from `Font' menu) set the font style\\
+{\tt size}      & (only from `Size' menu) set the font size\\
+\end{tabular}
+
+\section{Built-in Predicates and Functors}
+\begin{description}
+ \item[{\tt !/0}] cut
+ \item[{\tt =../2}] 
+	 {\tt =..(Term,List)} converts a term {\tt Term} into
+         a list {\tt List} whose first member is its predicate name
+         and other members are its arguments. This works vice versa.
+ \item[{\tt abolish/2}] {\tt abolish(Name+,Arity+)}
+	 deletes the user-defined predicate {\tt Name/Arity}
+ \item[{\tt assert/1,2,3}]
+	{\tt assert(Head, \{ Body, \{ Constraint \} \})} registers a definition
+	with {\tt Head}, {\tt Body} and {\tt Constraint}.
+ \item[{\tt asserta/1,2,3}]
+         asserts a clause as the first choice of its definition.
+ \item[{\tt assertz/1,2,3}]
+         asserts a clause as the last choice of its definition.
+ \item[{\tt attach\_constraint/1}]
+        {\tt attach\_constraint(X+)} attaches constraint clauses {\tt X}
+         to the current execution process. {\tt X} should be a clause or
+        a list.
+ \item[{\tt cat/6}] is a functor representing a category in JPSG.
+ \item[{\tt clause/3}]
+         {\tt clause(Term+,Body,Const)} returns the definition with the
+	head unifiable with {\tt Term}, the body {\tt Body}, and the constraint
+	{\tt Const}.
+ \item[{\tt close/1}] {\tt close(File+)} closes the file pointer {\tt File}.
+ \item[{\tt cmp/3}]
+         {\tt compare($T_{1}$+,$T_{2}$+,P)} {\tt $T_{i}$}s should be either
+	number or string. It returns $==$, $<$ and $>$ if {\tt $T_{1}$}
+	and {\tt $T_{2}$} are equal, {\tt $T_{1}$} is less than {\tt $T_{2}$},
+	and {\tt $T_{1}$} is greater than {\tt $T_{2}$}, respectively.
+ \item[{\tt concat/3}] {\tt concat(A,B,C)}
+	concatenates strings {\tt A} and {\tt B} to {\tt C}. Any two of these arguments should be instantiated.
+	e.g. {\tt concat("ab",X,"abcd")} $\Rightarrow$ {\tt X} = {\tt "cd"}
+ \item[{\tt concat2/2}] {\tt concat2(Str,List)} converts a character string 
+	{\tt Str} into a list {\tt List} whose members are a character
+	 string and vice versa. e.g. {\tt concat2("ab",X)} $\Rightarrow$
+	{\tt X} = {\tt ["a","b"]}
+ \item[{\tt condname/2}] {\tt condname(Terms+,List)}  makes a list {\tt List}
+	whose members are predicate names shown in a list {\tt Terms}.
+	e.g. {\tt condname([c0(X),c1(Y,Z)],[c0,c1])} 
+ \item[{\tt count/1}] {\tt count(N)} returns a different number at each
+	time when it is called. (note: when backtracking, it fails.)
+ \item[{\tt default/3}]
+        {\tt default(PST+, Filter+, DefaultValue+)} sets
+	the values of attributes a pst	{\tt PST}
+	those ones of corresponding attributes of the pst {\tt DefaultValue}
+	if those values are unifiable and if {\tt PST} and {\tt Filter}
+	are compatible. e.g. {\tt X = \{a / b, c / d(Y), e / f\},
+	default(X, \{a / b\}, \{c / d(1), e / g\})} $\Rightarrow$
+	{\tt X} = {\tt \{a / b, c / d(1), e / f\}}
+ \item[{\tt divstr/4}]
+         {\tt divstr(STR+,Pos,FirstHalf,LastHalf)} returns
+the first half of the string STR, and the last half by separating the
+position {\tt Pos}. Either {\tt Pos} should be integer or {\tt FirstHalf} 
+should be a character string. e.g. {\tt divstr("abcde",-2,X,Y)} $\Rightarrow$ 
+{\tt X} = {\tt "abc"}, {\tt Y} = {\tt "de"}
+ \item[{\tt equal/2}] {\tt equal(X,Y)} unifies {\tt X} and {\tt Y}.
+ \item [{\tt eq/2}] {\tt eq(X,Y)} checks if {\tt X} is equal to {\tt Y}
+ \item [{\tt execute/1}] {\tt execute(List)} executes goals in the
+list of the argument.
+ \item[{\tt fail/0}] always fails
+ \item [{\tt functor/3}]  {\tt functor(Term,Name,Arity)} unifies the predicate
+name of {\tt Term} with {\tt Name} and its arity  with {\tt Arity}.
+e.g. {\tt functor(a(b),X,Y)} $\Rightarrow$ {\tt X} = {\tt a},
+{\tt Y} = {\tt 1} 
+(Bugs: {\tt Term} should not be PST, string, number nor list.)
+ \item [{\tt gensym/1,2}] {\tt gensym(\{ Name, \} NewName-)} returns a
+different name each time it is called. 
+(cf. gensym in Lisp) e.g. {\tt gensym(gen,X)} $\Rightarrow$ {\tt X} =
+{\tt gen0}
+ \item[{\tt geq/2}] {\tt geq(X,Y)} checks if {\tt X>=Y}
+ \item [{\tt greater/2}]  {\tt greater(X,Y)} checks if {\tt X > Y}
+ \item [{\tt halt/0}] quits \cuprolog
+ \item [{\tt isop/3}]  {\tt isop(Prec,Type,Op-)} shows operators with
+precedence {\tt Prec} and type {\tt Type}. (cf. op)
+ \item [{\tt leq/2}] {\tt leq(X,Y)} checks if {\tt X=<Y}
+ \item [{\tt less/2}]  {\tt less(X,Y)} checks if {\tt X < Y}
+ \item [{\tt ml/2}]
+	 {\tt ml(Term,List)} converts a term {\tt Term} into
+         a list {\tt List} whose first member is its predicate name
+         and other members are its arguments. This works vice versa.
+(Bugs: {\tt Term} should not be PST, string, number nor list.)
+ \item [{\tt memb/2}] builtin {\tt member}
+ \item [{\tt multiply/3}]  {\tt multiply(X,Y,Z)} is \verb$X * Y = Z$
+ \item [{\tt name/2}]
+	{\tt name(Atom,List)} converts a name {\tt Atom} into
+         a list {\tt List} whose members are integers composing the name.
+        This works vice versa.
+ \item [{\tt nl/0}] write `\verb+\n+' 
+ \item [{\tt op/3}]  {\tt op(Prec+,Type+,Op+)} defines operators in the
+	list {\tt Op} or an operator {\tt Op} with  type {\tt Type} and
+	precedence {\tt Prec}. The type should be one of among 
+        {\tt yf}, {\tt fx}, {\tt fy}, {\tt xfx}, {\tt xfy} and {\tt yfx}.
+     And the precedence should be integer, greater than 0 and less than 1000.
+ \item [{\tt open/3}] {\tt open(Filename, r/w, P)} opens
+  the Filename for reading or writing, and returns a file pointer {\tt P} 
+ \item [{\tt or/2,3,4,5}] Arguments should be a list or a clause. It
+	calls the goals in every argument sequentially until every goal of some
+	argument returns true 
+ \item [{\tt pcon/0}]  writes the constraints attached to the current
+	clause.
+ \item [{\tt pnames/2}]  {\tt pnames(PST+,L)} returns a list {\tt L}
+	whose members are the attribute names in the partially specified term
+	{\tt PST}. e.g. {\tt pnames(\{a / X, b / c\}, Y)} $\Rightarrow$
+        {\tt Y} = {\tt [a, b]}
+ \item [{\tt pvalue/3}]
+	{\tt pvalue(PST+,Pname,Val)} returns or sets the value {\tt Val}
+        of the  attribute {\tt Pname} in the partially specified term 
+        {\tt PST}. e.g. {\tt X = \{a / Y\}, pvalue(X, a, c)} $\Rightarrow$
+        {\tt X} = {\tt \{a / c\}}
+ \item [{\tt read/1,2}] {\tt read(T \{,P\})} reads a term {\tt T}
+	from the current input stream or the file  pointer {\tt P}
+ \item [{\tt reset\_timer/0}]  resets the timer. (cf. timer predicate)
+ \item [{\tt retract/1,2,3}] 
+	{\tt retract(Head+ \{, Body+ \{, Constraint+\}\})} removes
+       a definition which is unifiable with a clause with the head {\tt Head},
+        the body {\tt Body}
+	and the constraint {\tt Constraint} from system database.
+ \item [{\tt see/1}] {\tt see(F+)} sets the file {\tt F} as the current
+	input stream. 
+ \item [{\tt seen/0}]
+	 closes the current input stream, and sets the console
+	as the current input stream.
+ \item [{\tt stayflag/3}]  {\tt stayflag(Pred+,Arity+,Val+)} sets the
+   constraint with the predicate {\tt Pred} and the arity {\tt Arity} to be
+   non-unfoldable if it returns {\tt Val} during constraint transformation.
+   {\tt Val} should be either {\tt true} or {\tt fail}.
+ \item [{\tt strcmp/3}]  {\tt strcmp($S_1$+,$S_2$+,P)} $S_{i}$s
+         should be string.
+     It returns $==$, $<$ and $>$ if  $S_1$ and $S_2$ are equal, $S_1$ is less
+	than $S_2$ in the sense of lexicographical order, and $S_1$ is greater
+	than $S_2$, respectively.
+ \item [{\tt strlen/2}] {\tt strlen(S+,N)} sets the value of {\tt N} the
+	length of string {\tt S}.
+ \item [{\tt substring/3,4}]  {\tt substring(Str+,F+,\{N+,\}S)}
+	unifies a substring of the string {\tt Str} with {\tt S},
+        which will be {\tt N} character long from the position {\tt F}
+        if {\tt N} is specified, or otherwise, the last part from the
+        position. e.g. 
+        {\tt substring("abcde",3,X)} $\Rightarrow$ {\tt X} = {\tt "de"}
+ \item [{\tt sum/3}]  {\tt sum(X,Y,Z)} is \verb$X + Y = Z$
+ \item [{\tt t(M,L,R)}] is a functor representing a tree.
+ \item [{\tt tab/1}] write `\verb+\t+' 
+ \item [{\tt tell/1}] {\tt tell(File+)} sets the file {\tt File} as the
+	current output stream.
+ \item [{\tt timer\_pred/2}]  {\tt timer(T,C)} returns the total
+	elapsed time {\tt T}
+	and the time needed for constraint transformation {\tt C} since
+	reset\_timer is called. 
+ \item [{\tt told/0}] closes the current output stream, and sets
+	the console as the current  output stream.
+ \item [{\tt tree(H)}]  draws a tree represented in {\tt H}
+ \item [{\tt true/0}] always true
+ \item [{\tt type/2}]  {\tt type(Term+,X)} classifies the type of the
+	term {\tt Term}
+	into {\tt var}(iable), {\tt integer}, {\tt float}, {\tt string}, {\tt
+	file\_pointer}, {\tt pst}, {\tt clause}, {\tt list}, {\tt functor}, or
+	{\tt atom}.  
+ \item [{\tt unbreak/0}]  returns to the break point of step tracing.
+ \item [{\tt unify/2}] {\tt unify(C+,NC-)} returns a list of constraints
+        {\tt NC} which are
+	got by transforming the constraints in the list {\tt C}.
+ \item [{\tt var/1}] {\tt var(T)} checks if {\tt T} is a free variable.
+ \item [{\tt write/1,2}]  {\tt write(Term\{,FP+\})} writes the term
+	{\tt Term} onto the current output stream or  the file pointer 
+        {\tt FP}.
+\end{description}
+
+
+\normalskip
+
+\begin{thebibliography}{1}
+
+\bibitem{gun:jpsg}
+T.~Gunji.
+\newblock {\em Japanese Phrase Structure Grammar}.
+\newblock Reidel, Dordrecht, 1986.
+
+\bibitem{shi:ub}
+S.~M. Shieber.
+\newblock {\em An Introduction to Unification-Based Approach to Grammar}.
+\newblock CSLI Lecture Notes Series No.4. Stanford:CSLI, 1986.
+
+\bibitem{cs:cu}
+K.~Hasida and H.~Sirai.
+\newblock {J}yokentsuki {T}an'itsu-ka ({C}onditioned {U}nification).
+\newblock {\em Computer Software}, 3(4):28--38, 1986.
+\newblock (in Japanese).
+
+\bibitem{tuda:lpc}
+H.~Tsuda, K.~Hasida, and H.~Sirai.
+\newblock {c}u-{P}rolog and its application to a {JPSG} parser.
+\newblock In {\em Proc. of Logic Programming Conference}, pages 155--164,
+  Tokyo, 1989.
+
+\bibitem{tuda:acl}
+H.~Tsuda, K.~Hasida, and H.~Sirai.
+\newblock {JPSG} {P}arser on {C}onstraint {L}ogic {P}rogramming.
+\newblock In {\em Proc. of 4th ACL European Chapter}, pages 95--102, 1989.
+
+\end{thebibliography}
+
+\end{document}

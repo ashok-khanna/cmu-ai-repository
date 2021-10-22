@@ -1,0 +1,154 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node247.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:47:31 GMT -->
+<HEAD>
+<TITLE>26.9. Variable Initializations</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Variable Initializations">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4652 HREF="node248.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4650 HREF="node235.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4644 HREF="node246.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4654 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4655 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4653 HREF="node248.html"> Conditional Execution</A>
+<B>Up:</B> <A NAME=tex2html4651 HREF="node235.html"> Loop</A>
+<B> Previous:</B> <A NAME=tex2html4645 HREF="node246.html"> Value Accumulation</A>
+<HR> <P>
+<H1><A NAME=SECTION003090000000000000000>26.9. Variable Initializations</A></H1>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<A NAME=LOOPVARSECTION>A</A>
+local loop variable is one that exists only when the Loop Facility
+is invoked.  At that time, the variables are declared and are
+initialized to some value.  These local variables exist until loop
+iteration terminates, at which point they cease to exist.  Implicitly
+variables are also established by iteration control clauses and the
+<tt>into</tt> preposition of accumulation clauses.
+<P>
+The loop keyword <tt>with</tt> designates a loop clause that allows you to 
+declare and initialize variables
+that are local to a loop.  The variables are initialized one time
+only; they can be initialized sequentially or in parallel.
+<P>
+By default, the <tt>with</tt> construct initializes variables
+sequentially; that is, one variable is assigned a value before the
+next expression is evaluated.  However, by using the loop keyword 
+<tt>and</tt> to join several <tt>with</tt> clauses, you can force
+initializations to occur in parallel; that is, all of the specified
+expressions are evaluated, and the results are bound to the respective
+variables simultaneously.
+<P>
+Use sequential binding for making the initialization of
+some variables depend on the values of previously bound variables.
+For example, suppose you want to bind the variables <tt>a</tt>, <tt>b</tt>,
+and <tt>c</tt> in sequence:
+<P><pre>
+(loop with a = 1  
+      with b = (+ a 2)  
+      with c = (+ b 3) 
+      with d = (+ c 4) 
+      return (list a b c d)) 
+   => (1 3 6 10)
+</pre><P>
+<P>
+The execution of the preceding loop is equivalent to the execution of
+the following code:
+<P><pre>
+(let* ((a 1) 
+       (b (+ a 2)) 
+       (c (+ b 3)) 
+       (d (+ c 4))) 
+  (block nil 
+    (tagbody 
+      next-loop (return (list a b c d)) 
+                (go next-loop) 
+      end-loop)))
+</pre><P>
+<P>
+If you are not depending on the value of previously bound variables
+for the initialization of other local variables, you can use
+parallel bindings as follows:
+<P><pre>
+(loop with a = 1  
+       and b = 2  
+       and c = 3 
+       and d = 4 
+      return (list a b c d)) 
+   => (1 2 3 4)
+</pre><P>
+<P>
+The execution of the preceding loop is equivalent to the execution of
+the following code:
+<P>
+<P><pre>
+(let ((a 1) 
+      (b 2) 
+      (c 3) 
+      (d 4)) 
+  (block nil 
+    (tagbody 
+      next-loop (return (list a b c)) 
+                (go next-loop) 
+      end-loop)))
+</pre><P>
+<P>
+<BR><b>[Loop Clause]</b><BR>
+<tt>with</tt> <em>var</em> <tt>[type-spec]</tt> <tt>[=</tt> <em>expr</em>] {<tt>and</tt> <em>var</em> <tt>[type-spec]</tt> <tt>[=</tt> <em>expr</em>]}*<P>The <tt>with</tt> construct initializes variables that are local to 
+a loop.  The variables are initialized one time only.
+<P>
+If the optional <i>type-spec</i> argument is specified for any variable 
+<i>var</i>, but there is no related expression <i>expr</i> to be evaluated, <i>var</i>
+is initialized to an appropriate default value for its data type.
+For example, for the data types <tt>t</tt>, <tt>number</tt>, and <tt>float</tt>,
+the default values are <tt>nil</tt>, <tt>0</tt>, and <tt>0.0</tt>, respectively.
+It is an error to specify a <i>type-spec</i> argument for <i>var</i> if
+the related expression returns a value that is not of the specified type.
+The optional <tt>and</tt> clause forces parallel rather than sequential 
+initializations.
+<P>
+Examples:
+<P><pre>
+;;; These bindings occur in sequence. 
+(loop with a = 1  
+      with b = (+ a 2)  
+      with c = (+ b 3) 
+      with d = (+ c 4) 
+      return (list a b c d)) 
+   => (1 3 6 10) 
+
+;;; These bindings occur in parallel. 
+(setq a 5 b 10 c 1729) 
+(loop with a = 1 
+       and b = (+ a 2) 
+       and c = (+ b 3) 
+       and d = (+ c 4) 
+      return (list a b c d)) 
+   => (1 7 13 1733) 
+
+;;; This example shows a shorthand way to declare 
+;;; local variables that are of different types. 
+(loop with (a b c) (float integer float) 
+      return (format nil &quot;~A ~A ~A&quot; a b c)) 
+   => &quot;0.0 0 0.0&quot; 
+
+;;; This example shows a shorthand way to declare 
+;;; local variables that are of the same type. 
+(loop with (a b c) float  
+      return (format nil &quot;~A ~A ~A&quot; a b c)) 
+   => &quot;0.0 0.0 0.0&quot;
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html4652 HREF="node248.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4650 HREF="node235.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4644 HREF="node246.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4654 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4655 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4653 HREF="node248.html"> Conditional Execution</A>
+<B>Up:</B> <A NAME=tex2html4651 HREF="node235.html"> Loop</A>
+<B> Previous:</B> <A NAME=tex2html4645 HREF="node246.html"> Value Accumulation</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

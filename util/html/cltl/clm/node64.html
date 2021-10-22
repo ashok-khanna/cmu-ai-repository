@@ -1,0 +1,454 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node64.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:32:29 GMT -->
+<HEAD>
+<TITLE>5.2.2. Lambda-Expressions</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Lambda-Expressions">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2309 HREF="node65.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2307 HREF="node62.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2303 HREF="node63.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2311 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2312 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2310 HREF="node65.html"> Top-Level Forms</A>
+<B>Up:</B> <A NAME=tex2html2308 HREF="node62.html"> Functions</A>
+<B> Previous:</B> <A NAME=tex2html2304 HREF="node63.html"> Named Functions</A>
+<HR> <P>
+<H2><A NAME=SECTION00922000000000000000>5.2.2. Lambda-Expressions</A></H2>
+<P>
+<A NAME=LAMBDAEXPRESSIONSSECTION>A</A>
+<A NAME=3188><i>lambda-expression</i></A> is a list with the following syntax:
+<P><pre>
+(lambda <i>lambda-list</i> . <i>body</i>)
+</pre><P>
+The first element must be the symbol <tt>lambda</tt>.  The second element
+must be a list.  It is called the <i>lambda-list</i>, and specifies
+names for the <i>parameters</i> of the function.  When the function
+denoted by the lambda-expression is applied to arguments,
+the arguments are matched with the parameters specified by the
+lambda-list.  The <i>body</i> may then refer to the arguments by using
+the parameter names.  The <i>body</i> consists of any number of
+forms (possibly zero).  These forms are evaluated in sequence,
+and the results of the <i>last</i> form only are returned as the results
+of the application (the value <tt>nil</tt> is returned if there are zero
+forms in the body).
+The complete syntax of a lambda-expression is:
+<P><pre>
+(lambda ({<i>var</i>}*
+         [<tt>&amp;optional</tt> {<i>var</i> | <tt>(</tt><i>var</i> [<i>initform</i> [<i>svar</i>]]<tt>)</tt>}*]
+         [<tt>&amp;rest</tt> <i>var</i>]
+         [<tt>&amp;key</tt> {<i>var</i> | <tt>(</tt>{<i>var</i> | <tt>(</tt><i>keyword</i> <i>var</i><tt>)}</tt> [<i>initform</i> [<i>svar</i>]]<tt>)}*</tt>
+                [<tt>&amp;allow-other-keys</tt>]]
+         [<tt>&amp;aux</tt> {<i>var</i> | <tt>(</tt><i>var</i> [<i>initform</i>]<tt>)}*</tt>)]
+   <b>[[</b>{<i>declaration</i>}* | <i>documentation-string</i><b>]]</b>
+   {<i>form</i>}*)
+</pre><P>
+Each element of a lambda-list is either a <i>parameter specifier</i>
+or a <i>lambda-list keyword</i>; lambda-list keywords begin with <tt>&amp;</tt>.
+(Note that lambda-list keywords are not keywords in the usual sense;
+they do not belong to the keyword package.  They are ordinary symbols
+each of whose names begins with an ampersand.  This terminology
+is unfortunately confusing but is retained for historical reasons.)
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+In all cases a <i>var</i> or <i>svar</i> must be a symbol, the name of a variable;
+each <i>keyword</i> must be a keyword symbol, such as <tt>:start</tt>.
+An <i>initform</i> may be any form.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988 (KEYWORD-ARGUMENT-NAME-PACKAGE) <A NAME=3251>&#160;</A> 
+to allow a <i>keyword</i> in the preceding specification of a lambda-list
+to be any symbol whatsoever, not just a keyword symbol
+in the <tt>keyword</tt> package.  See below.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+A lambda-list has five parts, any or all of which may be empty:
+<UL><LI>
+Specifiers for the <i>required</i> parameters.  These are all the parameter
+specifiers up to the first lambda-list keyword; if there is no such
+lambda-list keyword, then all the specifiers are for required parameters.
+<P>
+<LI>
+Specifiers for <i>optional</i> parameters.
+If the lambda-list keyword <tt>&amp;optional</tt> is present,
+the <i>optional</i> parameter specifiers are those following the
+lambda-list keyword <tt>&amp;optional</tt> up to the next lambda-list keyword or the end of the list.
+<P>
+<LI>
+A specifier for a <i>rest</i> parameter.  The lambda-list keyword <tt>&amp;rest</tt>, if present, must
+be followed by a single <i>rest</i> parameter specifier,
+which in turn must be followed by another lambda-list keyword or the end
+of the lambda-list.
+<P>
+<LI>
+Specifiers for <i>keyword</i> parameters.
+If the lambda-list keyword <tt>&amp;key</tt> is present, all specifiers up to the next lambda-list keyword
+or the end of the list are <i>keyword</i> parameter specifiers.
+The keyword parameter specifiers may optionally be followed by the
+lambda-list keyword <tt>&amp;allow-other-keys</tt>.
+<P>
+<LI>
+Specifiers for <i>aux</i> variables.  These are not really parameters.
+If the lambda-list keyword <tt>&amp;key</tt> is present, all specifiers after it are
+<i>auxiliary variable</i> specifiers.
+</UL>
+<P>
+When the function represented by the lambda-expression is applied
+to arguments, the arguments and parameters are processed in order
+from left to right.
+In the simplest case, only required parameters are present
+in the lambda-list; each is specified simply by a name <i>var</i> for
+the parameter variable.
+When the function is applied,
+there must be exactly as many arguments as there are parameters,
+and each parameter is bound to one argument.  Here, and in general,
+the parameter is bound as a lexical variable unless a
+declaration has been made that it should be a special binding;
+see <tt>defvar</tt>, <tt>proclaim</tt>, and <tt>declare</tt>.
+<P>
+In the more general case, if there are <i>n</i> required parameters
+(<i>n</i> may be zero), there must be at least <i>n</i> arguments,
+and the required parameters are bound to the first <i>n</i> arguments.
+The other parameters are then processed using any remaining arguments.
+<P>
+If <i>optional</i> parameters are specified, then each one is processed as
+follows.  If any unprocessed arguments remain, then the parameter variable
+<i>var</i> is bound to the next remaining argument, just as for a required
+parameter.  If no arguments remain, however, then the <i>initform</i> part
+of the parameter specifier is evaluated, and the parameter variable
+is bound to the resulting value (or to <tt>nil</tt> if no <i>initform</i> appears
+in the parameter specifier).
+If another variable name <i>svar</i> appears in the specifier, it is bound
+to <i>true</i> if an argument was available, and to <i>false</i> if no
+argument remained (and therefore <i>initform</i> had to be evaluated).
+The variable <i>svar</i> is called a <i>supplied-p</i> parameter;
+it is bound not to an argument but to a value indicating whether or not
+an argument had been supplied for another parameter.
+<P>
+After all <i>optional</i> parameter specifiers have been processed,
+then there may or may not be a <i>rest</i> parameter.
+If there is a <i>rest</i> parameter, it is bound to a list of all
+as-yet-unprocessed arguments.  (If no unprocessed arguments remain,
+the <i>rest</i> parameter is bound to the empty list.)
+If there is no <i>rest</i> parameter and there are no <i>keyword</i>
+parameters,
+then there should be no unprocessed arguments (it is an error if there are).
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(REST-LIST-ALLOCATION) <A NAME=3298>&#160;</A> 
+to clarify that if a function has a <i>rest</i> parameter
+and is called using <tt>apply</tt>, then the list to which the
+<i>rest</i> parameter is bound is permitted, but not required,
+to share top-level list structure with the list that was the last
+argument to <tt>apply</tt>.  Programmers should be careful about performing
+side effects on the top-level list structure of a <i>rest</i> parameter.
+<P>
+This was the result of a rather long discussion within X3J13 and the
+wider Lisp community.  To set it in its historical context, I must remark
+that in Lisp Machine Lisp the list to which a <i>rest</i> parameter was
+bound had only dynamic extent; this in conjunction with the
+technique of ``cdr-coding'' permitted a clever stack-allocation technique
+with very low overhead.  However, the early designers of
+Common Lisp, after a great deal of debate, concluded that it was dangerous
+for cons cells to have dynamic extent; as an example, the ``obvious''
+definition of the function <tt>list</tt>
+<P><pre>
+(defun list (&amp;rest x) x)
+</pre><P>
+could fail catastrophically.  Therefore the first edition simply implied
+that the list for a <i>rest</i> parameter, like all other lists, would
+have indefinite extent.  This still left open the flip side of the
+question, namely, Is the list for a <i>rest</i> parameter guaranteed fresh?
+This is the question addressed by the X3J13 vote.
+If it is always freshly consed, then it is permissible to destroy it,
+for example by giving it to <tt>nconc</tt>.  However, the requirement always
+to cons fresh lists could impose an unacceptable overhead in many implementations.
+The clarification approved by X3J13 specifies that the programmer may
+not rely on the list being fresh; if the function was called using <tt>apply</tt>,
+there is no way to know where the list came from.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+Next, any <i>keyword</i> parameters are processed.
+For this purpose the same arguments are processed that
+would be made into a list for a <i>rest</i> parameter.
+(Indeed, it is permitted to specify both <tt>&amp;rest</tt> and <tt>&amp;key</tt>.
+In this case the remaining arguments are used for both purposes;
+that is, all remaining arguments are made into a list for the
+<tt>&amp;rest</tt> parameter and are also processed for the <tt>&amp;key</tt> parameters.
+This is the only situation in which an argument is used
+in the processing of more than one parameter specifier.)
+If <tt>&amp;key</tt> is specified, there must remain
+an even number of arguments; these are considered as pairs,
+the first argument in each pair being interpreted as a keyword name
+and the second as the corresponding value.
+<p>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+It is an error for the first object of each pair to be
+anything but a keyword.
+<P>
+<hr>
+<b>Rationale:</b> This last restriction is imposed so that a compiler may
+issue warnings about certain malformed calls to functions
+that take keyword arguments.  It must be remembered that the
+arguments in a function call that evaluate to keywords are just
+like any other arguments and may be any evaluable forms.
+A compiler could not, without additional context, issue a warning
+about the call
+<P><pre>
+(fill seq item x y)
+</pre><P>
+because in principle the variable <tt>x</tt> might have as its value a keyword
+such as <tt>:start</tt>.  However, a compiler would be justified in issuing
+a warning about the call
+<P><pre>
+(fill seq item 0 10)
+</pre><P>
+because the constant <tt>0</tt> is definitely not a keyword.  Similarly,
+if in the first case the variable <tt>x</tt> had been declared to be
+of type <tt>integer</tt>, then type analysis could enable the compiler
+to justify a warning.
+<hr>
+<img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988 (KEYWORD-ARGUMENT-NAME-PACKAGE) <A NAME=3334>&#160;</A> 
+to allow a <i>keyword</i> in a lambda-list
+to be any symbol whatsoever, not just a keyword symbol
+in the <tt>keyword</tt> package.  If, after <tt>&amp;key</tt>,
+a variable appears alone or within only one set of parentheses
+(possibly with an <i>initform</i> and a <i>svar</i>), then
+the behavior is as before: a keyword symbol with the same name as
+the variable is used as the keyword-name when matching arguments
+to parameter specifiers.  Only a parameter specifier of the form
+<tt>((<i>keyword</i> <i>var</i>) ...)</tt> can cause the keyword-name
+not to be a keyword symbol, by specifying a symbol not in the <tt>keyword</tt>
+package as the <i>keyword</i>.
+For example:
+<P><pre>
+(defun wager (&amp;key ((secret password) nil) amount) 
+  (format nil &quot;You ~A $~D&quot; 
+          (if (eq password 'joe-sent-me) &quot;win&quot; &quot;lose&quot;) 
+          amount)) 
+
+(wager :amount 100) => &quot;You lose $100&quot; 
+(wager :amount 100 'secret 'joe-sent-me) => &quot;You win $100&quot;
+</pre><P>
+The <tt>secret</tt> word could be made even more secret in this example
+by placing it in some other <tt>obscure</tt> package, so that one would
+have to write
+<P><pre>
+(wager :amount 100 'obscure:secret 'joe-sent-me) => &quot;You win $100&quot;
+</pre><P>
+to win anything.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+In each keyword parameter specifier must be a name <i>var</i> for the
+parameter variable.  If an explicit <i>keyword</i> is
+specified, then that is the keyword name for the parameter.  Otherwise
+the name <i>var</i> serves to indicate the keyword name,
+in that a keyword with the same name (in the <tt>keyword</tt> package) is used
+as the keyword.  Thus
+<P><pre>
+(defun foo (<tt>&amp;key</tt> radix (type 'integer)) ...)
+</pre><P>
+means exactly the same as
+<P><pre>
+(defun foo (<tt>&amp;key</tt> ((:radix radix)) ((:type type) 'integer)) ...)
+</pre><P>
+The keyword parameter specifiers are, like all parameter specifiers,
+effectively processed from left to right.
+For each keyword parameter specifier, if there is an argument
+pair whose keyword name matches that specifier's keyword name
+(that is, the names are <tt>eq</tt>),
+then the parameter variable for that specifier is bound to the
+second item (the value) of that argument pair.
+If more than one such argument pair matches, it is not an error;
+the leftmost argument pair is used.
+If no such argument pair exists, then
+the <i>initform</i> for that specifier is evaluated
+and the parameter variable is bound to that value (or to <tt>nil</tt> if
+no <i>initform</i> was specified).  The variable <i>svar</i> is treated
+as for ordinary <i>optional</i> parameters: it is bound to <i>true</i>
+if there was a matching argument pair, and to <i>false</i> otherwise.
+<P>
+It is an error if an argument pair has a keyword name not matched
+by any parameter specifier, unless at least one of the following
+two conditions is met:
+<UL><LI>
+<tt>&amp;allow-other-keys</tt> was specified in the lambda-list.
+<P>
+<LI>
+Somewhere among the keyword argument pairs is a pair whose keyword
+is <tt>:allow-other-keys</tt> and whose value is not <tt>nil</tt>.
+</UL>
+If either condition obtains, then it is not an error
+for an argument pair to match no parameter specified,
+and the argument pair is simply ignored (but such an
+argument pair is accessible through the <tt>&amp;rest</tt> parameter if
+one was specified).  The purpose of these mechanisms is to
+allow sharing of argument lists among several functions
+and to allow either the caller or the called function
+to specify that such sharing may be taking place.
+<P>
+After all parameter specifiers have been processed, the auxiliary
+variable specifiers (those following the lambda-list keyword <tt>&amp;aux</tt>) are processed from
+left to right.  For each one, the <i>initform</i> is evaluated and the
+variable <i>var</i> bound to that value (or to <tt>nil</tt> if no <i>initform</i> was
+specified).  Nothing can be done with <tt>&amp;aux</tt> variables that cannot be
+done with the special form <tt>let*</tt>:
+<P><pre>
+(lambda (x y &amp;aux (a (car x)) (b 2) c) ...) 
+   == (lambda (x y) (let* ((a (car x)) (b 2) c) ...))
+</pre><P>
+Which to use is purely a matter of style.
+<P>
+Whenever any <i>initform</i> is evaluated for any parameter
+specifier, that form may refer to any parameter variable to the left of
+the specifier in which the <i>initform</i> appears, including any supplied-p
+variables, and may rely on the fact that no other parameter variable
+has yet been bound (including its own parameter variable).
+<P>
+Once the lambda-list has been processed, the forms in the body of the
+lambda-expression are executed.  These forms may refer to the arguments
+to the function by using the names of the parameters.  On exit from the
+function, either by a normal return of the function's value(s) or by a
+non-local exit, the parameter bindings, whether lexical or special, are
+no longer in effect.  (The bindings are not necessarily permanently discarded,
+for a lexical binding can later be reinstated if a
+``closure'' over that binding was created,
+perhaps by using <tt>function</tt>, and saved before the exit occurred.)
+<P>
+Examples of <tt>&amp;optional</tt> and <tt>&amp;rest</tt> parameters:
+<P><pre>
+((lambda (a b) (+ a (* b 3))) 4 5) => 19 
+((lambda (a <tt>&amp;optional</tt> (b 2)) (+ a (* b 3))) 4 5) => 19 
+((lambda (a <tt>&amp;optional</tt> (b 2)) (+ a (* b 3))) 4) => 10 
+((lambda (<tt>&amp;optional</tt> (a 2 b) (c 3 d) <tt>&amp;rest</tt> x) (list a b c d x))) 
+   => (2 <tt>nil</tt> 3 <tt>nil</tt> <tt>nil</tt>) 
+((lambda (<tt>&amp;optional</tt> (a 2 b) (c 3 d) <tt>&amp;rest</tt> x) (list a b c d x)) 
+ 6) 
+   => (6 t 3 <tt>nil</tt> <tt>nil</tt>) 
+((lambda (<tt>&amp;optional</tt> (a 2 b) (c 3 d) <tt>&amp;rest</tt> x) (list a b c d x)) 
+ 6 3) 
+   => (6 t 3 t <tt>nil</tt>) 
+((lambda (<tt>&amp;optional</tt> (a 2 b) (c 3 d) <tt>&amp;rest</tt> x) (list a b c d x)) 
+ 6 3 8) 
+   => (6 t 3 t (8)) 
+((lambda (<tt>&amp;optional</tt> (a 2 b) (c 3 d) <tt>&amp;rest</tt> x) (list a b c d x)) 
+ 6 3 8 9 10 11) 
+   => (6 t 3 t (8 9 10 11))
+</pre><P>
+Examples of <tt>&amp;key</tt> parameters:
+<P><pre>
+((lambda (a b <tt>&amp;key</tt> c d) (list a b c d)) 1 2) 
+   => (1 2 <tt>nil</tt> <tt>nil</tt>) 
+((lambda (a b <tt>&amp;key</tt> c d) (list a b c d)) 1 2 :c 6) 
+   => (1 2 6 <tt>nil</tt>) 
+((lambda (a b <tt>&amp;key</tt> c d) (list a b c d)) 1 2 :d 8) 
+   => (1 2 <tt>nil</tt> 8) 
+((lambda (a b <tt>&amp;key</tt> c d) (list a b c d)) 1 2 :c 6 :d 8) 
+   => (1 2 6 8) 
+((lambda (a b <tt>&amp;key</tt> c d) (list a b c d)) 1 2 :d 8 :c 6) 
+   => (1 2 6 8) 
+((lambda (a b <tt>&amp;key</tt> c d) (list a b c d)) :a 1 :d 8 :c 6) 
+   => (:a 1 6 8) 
+((lambda (a b <tt>&amp;key</tt> c d) (list a b c d)) :a :b :c :d) 
+   => (:a :b :d <tt>nil</tt>)
+</pre><P>
+Examples of mixtures:
+<P><pre>
+((lambda (a <tt>&amp;optional</tt> (b 3) <tt>&amp;rest</tt> x <tt>&amp;key</tt> c (d a)) 
+   (list a b c d x)) 
+ 1)   => (1 3 <tt>nil</tt> 1 ())
+</pre><P>
+<P>
+<P><pre>
+((lambda (a <tt>&amp;optional</tt> (b 3) <tt>&amp;rest</tt> x <tt>&amp;key</tt> c (d a)) 
+   (list a b c d x)) 
+ 1 2)   => (1 2 <tt>nil</tt> 1 ()) 
+
+((lambda (a <tt>&amp;optional</tt> (b 3) <tt>&amp;rest</tt> x <tt>&amp;key</tt> c (d a)) 
+   (list a b c d x)) 
+ :c 7)   => (:c 7 <tt>nil</tt> :c ()) 
+
+((lambda (a <tt>&amp;optional</tt> (b 3) <tt>&amp;rest</tt> x <tt>&amp;key</tt> c (d a)) 
+   (list a b c d x)) 
+ 1 6 :c 7)   => (1 6 7 1 (:c 7)) 
+
+((lambda (a <tt>&amp;optional</tt> (b 3) <tt>&amp;rest</tt> x <tt>&amp;key</tt> c (d a)) 
+   (list a b c d x)) 
+ 1 6 :d 8)   => (1 6 <tt>nil</tt> 8 (:d 8)) 
+
+((lambda (a <tt>&amp;optional</tt> (b 3) <tt>&amp;rest</tt> x <tt>&amp;key</tt> c (d a)) 
+   (list a b c d x)) 
+ 1 6 :d 8 :c 9 :d 10)   => (1 6 9 8 (:d 8 :c 9 :d 10))
+</pre><P>
+<P>
+All lambda-list keywords are permitted, but not terribly useful, in
+lambda-expressions appearing explicitly as the first element of a
+function-call form.  They are extremely
+useful, however, in functions given global names by <tt>defun</tt>.
+<P>
+All symbols whose names begin with <tt>&amp;</tt> are conventionally reserved
+for use as lambda-list keywords and should not be used as variable names.
+Implementations of Common Lisp are free to provide additional lambda-list
+keywords.
+<P>
+<BR><b>[Constant]</b><BR>
+<tt>lambda-list-keywords</tt><P>The value of <tt>lambda-list-keywords</tt> is a list of all the lambda-list
+keywords used in the implementation, including the additional ones
+used only by <tt>defmacro</tt>.  This list must contain at least the symbols
+<tt>&amp;optional</tt>, <tt>&amp;rest</tt>, <tt>&amp;key</tt>, <tt>&amp;allow-other-keys</tt>, <tt>&amp;aux</tt>, <tt>&amp;body</tt>, <tt>&amp;whole</tt>,
+and <tt>&amp;environment</tt>.
+<P>
+As an example of the use of <tt>&amp;allow-other-keys</tt> and <tt>:allow-other-keys</tt>,
+consider a function that takes two keyword arguments of its own and also
+accepts additional keyword arguments to be passed to <tt>make-array</tt>:
+<P><pre>
+(defun array-of-strings (str dims <tt>&amp;rest</tt> keyword-pairs 
+                         <tt>&amp;key</tt> (start 0) end <tt>&amp;allow-other-keys</tt>) 
+  (apply #'make-array dims 
+         :initial-element (subseq str start end) 
+         :allow-other-keys t 
+         keyword-pairs))
+</pre><P>
+This function takes a string and dimensioning information and returns
+an array of the specified dimensions, each of whose elements is the
+specified string.  However, <tt>:start</tt> and <tt>:end</tt> keyword arguments
+may be used in the usual manner (see chapter <A HREF="node141.html#KSEQUE">14</A>) to specify
+that a substring of the given string should be used.  In addition,
+the presence of <tt>&amp;allow-other-keys</tt> in the lambda-list indicates that the caller
+may specify additional keyword arguments; the <tt>&amp;rest</tt> argument provides
+access to them.  These additional keyword arguments are fed to <tt>make-array</tt>.
+Now, <tt>make-array</tt> normally does not allow the keywords <tt>:start</tt>
+and <tt>:end</tt> to be used, and it would be an error to specify such
+keyword arguments to <tt>make-array</tt>.  However, the presence in the
+call to <tt>make-array</tt> of the keyword argument <tt>:allow-other-keys</tt>
+with a non-<tt>nil</tt> value causes any extraneous keyword arguments,
+including <tt>:start</tt> and <tt>:end</tt>, to be acceptable and ignored.
+<P>
+<BR><b>[Constant]</b><BR>
+<tt>lambda-parameters-limit</tt><P>The value of <tt>lambda-parameters-limit</tt> is a positive integer that is
+the upper exclusive bound on the number of distinct parameter names
+that may appear in a single lambda-list.
+This bound depends on the implementation
+but will not be smaller than 50.
+Implementors are encouraged to make this limit as large as practicable
+without sacrificing performance.
+See <tt>call-arguments-limit</tt>.
+<P>
+<BR> <HR><A NAME=tex2html2309 HREF="node65.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2307 HREF="node62.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2303 HREF="node63.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2311 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2312 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2310 HREF="node65.html"> Top-Level Forms</A>
+<B>Up:</B> <A NAME=tex2html2308 HREF="node62.html"> Functions</A>
+<B> Previous:</B> <A NAME=tex2html2304 HREF="node63.html"> Named Functions</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

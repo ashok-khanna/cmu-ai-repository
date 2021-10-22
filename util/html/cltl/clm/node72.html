@@ -1,0 +1,200 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node72.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:32:31 GMT -->
+<HEAD>
+<TITLE>6.2.1. General Type Predicates</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" General Type Predicates">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2412 HREF="node73.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2410 HREF="node71.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2404 HREF="node71.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2414 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2415 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2413 HREF="node73.html"> Specific Data Type </A>
+<B>Up:</B> <A NAME=tex2html2411 HREF="node71.html"> Data Type Predicates</A>
+<B> Previous:</B> <A NAME=tex2html2405 HREF="node71.html"> Data Type Predicates</A>
+<HR> <P>
+<H2><A NAME=SECTION001021000000000000000>6.2.1. General Type Predicates</A></H2>
+<P>
+If a data type is viewed as the set of all objects belonging to the type,
+then the <tt>typep</tt> function is a set membership test, while <tt>subtypep</tt>
+is a subset test.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>typep</tt> <tt><i>object</i></tt> <tt><i>type</i></tt><P>
+<tt>typep</tt> is a predicate that
+is true if <i>object</i> is of type <i>type</i>, and is false otherwise.
+Note that an object can be ``of'' more than one type, since one type can
+include another.  The <i>type</i> may be any of the type specifiers
+mentioned in chapter <A HREF="node44.html#DTSPEC">4</A> <i>except</i> that it may not
+be or contain a type specifier list whose first element is <tt>function</tt>
+or <tt>values</tt>.
+A specifier of the form <tt>(satisfies <i>fn</i>)</tt> is handled simply
+by applying the function <i>fn</i> to <i>object</i>
+(see <tt>funcall</tt>); the <i>object</i> is considered
+to be of the specified type if the result is not <tt>nil</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(ARRAY-TYPE-ELEMENT-TYPE-SEMANTICS) <A NAME=3976>&#160;</A> 
+to change <tt>typep</tt> to give specialized
+<tt>array</tt> and <tt>complex</tt> type specifiers the same meaning for
+purposes of type discrimination as they have for declaration purposes.
+Of course, this also applies to such type specifiers as <tt>vector</tt>
+and <tt>simple-array</tt>
+(see section <A HREF="node49.html#SPECIALIZEDTYPESPECIFIERSECTION">4.5</A>).
+Thus
+<P><pre>
+(typep foo '(array bignum))
+</pre><P>
+in the first edition asked the question, Is <tt>foo</tt> an array
+specialized to hold bignums? but under the new interpretation
+asks the question, Could the array <tt>foo</tt> have resulted from
+giving <tt>bignum</tt> as the <tt>:element-type</tt> argument
+to <tt>make-array</tt>?
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>subtypep</tt> <tt><i>type1</i></tt> <tt><i>type2</i></tt><P>
+The arguments must be type specifiers that are acceptable to <tt>typep</tt>.
+The two type specifiers are compared; this predicate is true
+if <i>type1</i> is definitely a (not necessarily proper) subtype of <i>type2</i>.
+If the result is <tt>nil</tt>, however, then <i>type1</i> may or may not be a subtype of
+<i>type2</i> (sometimes it is impossible to tell, especially when
+<tt>satisfies</tt> type specifiers are involved).
+A second returned value indicates the certainty of the result;
+if it is true, then the first value is an accurate indication
+of the subtype relationship.  Thus there are three possible
+result combinations:
+<PRE><TT> 
+<tt>t</tt>    <tt>t</tt>    <i>type1</i> is definitely a subtype of <i>type2</i>
+<tt>nil</tt>  <tt>t</tt>    <i>type1</i> is definitely not a subtype of <i>type2</i>
+<tt>nil</tt>  <tt>nil</tt>  <tt>subtypep</tt> could not determine the relationship
+<P>
+</TT></PRE>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(SUBTYPEP-TOO-VAGUE) <A NAME=4014>&#160;</A> 
+to place certain requirements upon the implementation of <tt>subtypep</tt>,
+for it noted that implementations in many cases simply ``give up''
+and return the two values <tt>nil</tt> and <tt>nil</tt> when in fact it would have been
+possible to determine the relationship between the given types.
+The requirements are as follows, where it is understood that a type specifier <i>s</i>
+<i>involves</i> a type specifier <i>u</i> if either <i>s</i> contains an occurrence of <i>u</i>
+directly or <i>s</i> contains a type specifier <i>w</i> defined by <tt>deftype</tt> whose
+expansion involves <i>u</i>.
+<UL><LI> <tt>subtypep</tt> is not permitted to return a second value of <tt>nil</tt>
+unless one or both of its arguments involves <tt>satisfies</tt>,
+<tt>and</tt>, <tt>or</tt>, <tt>not</tt>, or <tt>member</tt>.<p>
+<LI> <tt>subtypep</tt> should signal an error when one or both of its arguments
+involves <tt>values</tt> or the list form of the <tt>function</tt> type specifier.<p>
+<LI> <tt>subtypep</tt> must always return the two values <tt>t</tt> and <tt>t</tt>
+in the case where its arguments, after expansion of specifiers
+defined by <tt>deftype</tt>, are <tt>equal</tt>.
+</UL>
+In addition, X3J13 voted to clarify that in some cases
+the relationships between types
+as reflected by <tt>subtypep</tt> may be implementation-specific.
+For example, in an implementation supporting only one type of
+floating-point number, <tt>(subtypep 'float 'long-float)</tt> would return
+<tt>t</tt> and <tt>t</tt>, since the two types would be identical.
+<P>
+Note that <tt>satisfies</tt> is an exception because relationships between
+types involving <tt>satisfies</tt> are undecidable in general, but (as X3J13 noted)
+<tt>and</tt>, <tt>or</tt>, <tt>not</tt>, and <tt>member</tt> are merely very messy to deal
+with.  In all likelihood these will not be addressed unless and
+until someone is willing to write a careful specification that covers
+all the cases for the processing of these type
+specifiers by <tt>subtypep</tt>.  The requirements stated above were easy
+to state and probably suffice for most cases of interest.
+<P>
+X3J13 voted in January 1989
+(ARRAY-TYPE-ELEMENT-TYPE-SEMANTICS) <A NAME=4057>&#160;</A> 
+to change <tt>subtypep</tt> to give specialized
+<tt>array</tt> and <tt>complex</tt> type specifiers the same meaning for
+purposes of type discrimination as they have for declaration purposes.
+Of course, this also applies to such type specifiers as <tt>vector</tt>
+and <tt>simple-array</tt>
+(see section <A HREF="node49.html#SPECIALIZEDTYPESPECIFIERSECTION">4.5</A>).
+<P>
+If <i>A</i> and <i>B</i> are type specifiers (other than <tt>*</tt>, which technically
+is not a type specifier anyway), then <tt>(array <i>A</i>)</tt>
+and <tt>(array <i>B</i>)</tt> represent the same type in a given implementation
+if and only if they denote arrays
+of the same specialized representation in that implementation;
+otherwise they are disjoint.
+To put it another way, they represent the same type
+
+if and only if
+<tt>(upgraded-array-element-type '<i>A</i>)</tt> and
+<tt>(upgraded-array-element-type '<i>B</i>)</tt> are the same type.
+Therefore
+<P><pre>
+(subtypep '(array <i>A</i>) '(array <i>B</i>))
+</pre><P>
+is true if and only if
+<tt>(upgraded-array-element-type '<i>A</i>)</tt>
+is the same type as
+<tt>(upgraded-array-element-type '<i>B</i>)</tt>.
+<P>
+The <tt>complex</tt> type specifier is treated in a similar but subtly different
+manner.
+If <i>A</i> and <i>B</i> are two type specifiers (but not <tt>*</tt>, which technically
+is not a type specifier anyway), then <tt>(complex <i>A</i>)</tt>
+and <tt>(complex <i>B</i>)</tt> represent the same type in a given implementation
+if and only if they refer to complex numbers
+of the same specialized representation in that implementation;
+otherwise they are disjoint.
+Note, however, that there is no function called <tt>make-complex</tt> that
+allows one to specify a particular element type (then to be upgraded);
+instead, one must describe specialized complex numbers in terms of
+the actual types of the parts from which they were constructed.
+There is no number of type (or rather, <i>representation</i>)
+<tt>float</tt> as such; there are only numbers of type <tt>single-float</tt>,
+numbers of type <tt>double-float</tt>,
+and so on.  Therefore we want <tt>(complex single-float)</tt> to
+be a subtype of <tt>(complex float)</tt>.
+<P>
+The rule, then, is that <tt>(complex <i>A</i>)</tt>
+and <tt>(complex <i>B</i>)</tt> represent the same type (and otherwise are disjoint)
+in a given implementation
+if and only if <i>either</i> the type <i>A</i> is a subtype of <i>B</i>, <i>or</i>
+<tt>(upgraded-complex-part-type '<i>A</i>)</tt> and
+<tt>(upgraded-complex-part-type '<i>B</i>)</tt> are the same type.
+In the latter case <tt>(complex <i>A</i>)</tt>
+and <tt>(complex <i>B</i>)</tt> in fact refer to the same specialized representation.
+Therefore
+<P><pre>
+(subtypep '(complex <i>A</i>) '(complex <i>B</i>))
+</pre><P>
+is true if and only if the results of
+<tt>(upgraded-complex-part-type '<i>A</i>)</tt> and
+<tt>(upgraded-complex-part-type '<i>B</i>)</tt> are the same type.
+<P>
+Under this interpretation
+<P><pre>
+(subtypep '(complex single-float) '(complex float))
+</pre><P>
+must be true in all implementations; but
+<P><pre>
+(subtypep '(array single-float) '(array float))
+</pre><P>
+is true only in implementations that do not have a specialized array representation
+for <tt>single-float</tt> elements distinct from that for <tt>float</tt> elements in
+general.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html2412 HREF="node73.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2410 HREF="node71.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2404 HREF="node71.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2414 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2415 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2413 HREF="node73.html"> Specific Data Type </A>
+<B>Up:</B> <A NAME=tex2html2411 HREF="node71.html"> Data Type Predicates</A>
+<B> Previous:</B> <A NAME=tex2html2405 HREF="node71.html"> Data Type Predicates</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

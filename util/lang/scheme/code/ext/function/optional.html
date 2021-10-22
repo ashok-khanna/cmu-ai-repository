@@ -1,0 +1,125 @@
+;;; File   : optional.scm
+;;; Author : Richard A. O'Keefe
+;;; Updated: 26-March-1993
+;;; Defines: "def", a macro for defining functions with &optional arguments
+;;;          "lam", a macro for defining lambda-expression with &optional
+
+;;; The idea of this is that if I am to be consistent with Scheme itself,
+;;; some functions must have &optional parameters.  Doing that by hand is
+;;; rather clumsy, so a macro to help out is useful.
+;;;
+;;; (lam (<a1>...  [&optional <o1>...] [&rest <r>]) 
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/lang/scheme/code/ext/function/optional.scm by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 18:48:51 GMT -->
+<body>)
+;;;
+;;; is a lambda-expression with Common-Lisp style required parameters
+;;; <a1>..., optional parameters <o1>... and rest parameter <r>.
+;;; The <ai> must be identifiers, as must <r>.  The <oi> are optional
+;;; parameter specifiers, as in Common Lisp, of the form
+;;; <identifier> or (<identifier> [<initform> [<svar>])).
+;;; Such lambda-expressions expand to ordinary ones of the form
+;;;
+;;; (lambda (<a1>... . &rest)
+;;;     (let* (optionals [(<r> &rest)])
+;;;	    [(if (not (null? &rest)) (error 'lam "too many arguments"))]
+;;;	    <body>))
+;;;
+;;; The tricky thing is the handling of the optionals.
+;;; (Id Init Svar) =>
+;;; 	(Svar (not (null? &rest)))
+;;; 	(Id (if (null? &rest) Init (pop &rest)))
+;;; (Id Init) =>
+;;;	(Id (if (null? &rest) Init (pop &rest)))
+;;; (Id) or Id =>
+;;;	(Id (if (null? &rest) #f (pop &rest)))
+;;;
+;;; The simplest way of handing "pop" was to (re-)introduce prog1.
+;;; We only need it for 2 arguments, hence &prog-1-of-2.
+;;;
+;;; We also have a macro "def" which is to "define" as "lam" is to
+;;; "lambda".  You can do things like
+;;; (def ((p x &optional y &rest z) u &optional v &rest w) ..body..)
+;;; and get something sensible.
+
+
+(define (&prog-1-of-2 x y) x)
+
+(define-macro (def head . body)
+    (if (pair? head)
+	`(def ,(car head) (lam ,(cdr head) ,@body))
+	(if (pair? body)
+	    `(define ,head (begin ,@body))
+	    `(define ,head '#(undefined ,head)) )) )
+
+(define-macro (lam args . body)
+    (define (mklambda required rest body)
+	(cons 'lambda (cons (append (reverse required) rest) body)))
+
+    (let ((pop-&rest '(&prog-1-of-2 (car &rest) (set! &rest (cdr &rest)))))
+	(let loop ((required '()) (args args))
+	    (cond
+		((not (pair? args))
+		    ;; args is now the empty list, in which case all the
+		    ;; arguments are required, or it is a symbol, in 
+		    ;; which case it is using dot notation for a rest
+		    ;; list, and define already understands that.
+		    (mklambda required '() body))
+		((eq? (car args) '&rest)
+		    ;; args should now have the form (&rest id).
+		    ;; For lack of a standard error reporting method,
+		    ;; we take that on trust.
+		    (mklambda required (cadr args) body))
+		((not (eq? (car args) '&optional))
+		    ;; This is a required argument.  Push it and recur.
+		    (loop (cons (car args) required) (cdr args)))
+		(else
+		    ;; args should now have the form
+		    ;; (&optional optional-arg... [&rest rest-arg])
+		    ;; We now go into a loop to collect the bindings
+		    ;; for the let* which will be the new body.
+		    (let loop ((bindings '()) (args (cdr args)))
+			;; Note that we assume args is well formed.
+			(cond
+			    ((null? args)
+				(if (null? bindings)
+				    (mklambda required '() body)
+				;; else there are some real bindings
+				    (mklambda required '&rest `(
+					(let* ,(reverse bindings)
+					    (if (not (null? &rest))
+						(error 'lam "too many args"))
+					    ,@body))) ))
+			    ((eq? (car args) '&rest)
+				(if (null? bindings)
+				    (mklambda required (cadr args) body)
+				;; else there are some real bindings
+				    (mklambda required '&rest `(
+					(let* (,@(reverse bindings)
+					       (,(cadr args) &rest))
+					    ,@body))) ))
+			    (else
+				;; We have an optional argument.  We want
+				;; to split it into Id, Init, and Svar.
+				(let ((Id (car args))
+				      (Init '#f)
+				      (Svar '#f))
+				    (if (pair? Id)
+					(begin
+					    (if (pair? (cdr Id))
+						(begin
+						    (if (pair? (cddr Id))
+						        (set! Svar (caddr Id)))
+						    (set! Init (cadr Id))))
+					    (set! Id (car Id)) ))
+				    (if Svar
+					(loop `(
+					    (,Id (if (null? &rest) ,Init ,pop-&rest))
+					    (,Svar (not (null? &rest)))
+					    ,@bindings)
+					    (cdr args))
+					(loop `(
+					    (,Id (if (null? &rest) ,Init ,pop-&rest))
+					    ,@bindings)
+					    (cdr args)) )) )) )) )) ))
+
+;;; e-o-f

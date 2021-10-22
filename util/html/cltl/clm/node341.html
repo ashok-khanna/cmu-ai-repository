@@ -1,0 +1,465 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node341.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:32:30 GMT -->
+<HEAD>
+<TITLE>29.4.7. Establishing Restarts</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Establishing Restarts">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html5956 HREF="node342.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5954 HREF="node334.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5948 HREF="node340.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5958 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5959 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5957 HREF="node342.html"> Finding and Manipulating </A>
+<B>Up:</B> <A NAME=tex2html5955 HREF="node334.html"> Program Interface to </A>
+<B> Previous:</B> <A NAME=tex2html5949 HREF="node340.html"> Creating Conditions</A>
+<HR> <P>
+<H2><A NAME=SECTION003347000000000000000>29.4.7. Establishing Restarts</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+The lowest-level form that creates restart points is called <tt>restart-bind</tt>.
+The <tt>restart-case</tt> macro is an abstraction that addresses many common needs for
+<tt>restart-bind</tt> while offering a more
+palatable syntax. See also 
+<tt>with-simple-restart</tt>.
+The function that transfers control to a restart
+point established by one of these macros is called <tt>invoke-restart</tt>.
+<P>
+All restarts have dynamic extent; a restart does not survive execution of the form
+that establishes it.
+<P>
+<BR><b>[Macro]</b><BR>
+<pre>
+with-simple-restart (<i>name</i> <i>format-string</i> {<i>format-argument</i>}*)
+           {<i>form</i>}*
+</pre>
+<P>  This is shorthand for one of the most common uses of <tt>restart-case</tt>.
+<P>
+  If the restart designated by <i>name</i> is not invoked while executing the <i>form</i>s,
+  all values returned by the last <i>form</i> are returned. If that
+  restart is invoked, control is transferred to the <tt>with-simple-restart</tt>
+  form, which immediately returns the two values <tt>nil</tt> and <tt>t</tt>.
+<P>
+  The <i>name</i> may be <tt>nil</tt>, in which case an anonymous restart
+  is established.
+<P>
+  <tt>with-simple-restart</tt> could be defined by
+<P><pre>
+(defmacro with-simple-restart ((restart-name format-string 
+                                &amp;rest format-arguments) 
+                               &amp;body forms) 
+  `(restart-case (progn ,@forms) 
+     (,restart-name () 
+       :report 
+         (lambda (stream) 
+           (format stream ,format-string ,@format-arguments)) 
+       (values nil t))))
+</pre><P>
+<P>
+Here is an example of the use of <tt>with-simple-restart</tt>.
+<P><pre>
+Lisp&gt; (defun read-eval-print-loop (level) 
+        (with-simple-restart 
+            (abort &quot;Exit command level ~D.&quot; level) 
+          (loop 
+            (with-simple-restart 
+                (abort &quot;Return to command level ~D.&quot; level) 
+              (let ((form (prog2 (fresh-line) 
+                                 (read) 
+                                 (fresh-line)))) 
+                (prin1 (eval form))))))) 
+ => READ-EVAL-PRINT-LOOP 
+Lisp&gt; (read-eval-print-loop 1) 
+(+ 'a 3) 
+Error: The argument, A, to the function + was of the wrong type. 
+       The function expected a number. 
+To continue, type :CONTINUE followed by an option number: 
+ 1: Specify a value to use this time. 
+ 2: Return to command level 1. 
+ 3: Exit command level 1. 
+ 4: Return to Lisp Toplevel. 
+Debug&gt;
+</pre><P>
+<P>
+<hr>
+<b>Compatibility note:</b> In contrast to the way that Zetalisp has traditionally
+  defined <tt>abort</tt> as a kind of condition to be handled,
+  the Common Lisp Condition System defines <tt>abort</tt> as a
+  way to restart (``proceed'' in Zetalisp terms).
+<hr>
+<b>Remark:</b> Some readers may wonder what ought to be done by the ``abort'' key (or whatever
+    the implementation's interrupt key is-Control-C or Control-G, 
+    for example). Such interrupts, whether synchronous or asynchronous
+    in nature, are beyond the scope of this chapter and indeed are not currently
+    addressed by Common Lisp at all. This may be a topic
+    worth standardizing under separate cover. Here is some speculation
+    about some possible things that might happen.
+<P>
+    An implementation might simply call <tt>abort</tt> or <tt>break</tt> directly
+    without signaling any condition.
+<P>
+    Another implementation might signal some condition related to
+    the fact that a key had been pressed rather than to the action that
+    should be taken. This is one way to allow user customization.
+    Perhaps there would be an implementation-dependent <tt>keyboard-interrupt</tt>
+    condition type with a slot containing the key that was pressed-or
+    perhaps there would be such a condition type, but rather than its having
+    slots, different subtypes of that type with names like <tt>keyboard-abort</tt>,
+    <tt>keyboard-break</tt>, and so on might be signaled. That implementation would
+    then document the action it would take if user programs failed
+    to handle the condition, and perhaps ways for user programs to
+    usefully dismiss the interrupt.
+<hr>
+<b>Implementation note:</b> Implementors are encouraged to make sure that there
+  is always a restart named <tt>abort</tt> around any user code so that user code 
+  can call <tt>abort</tt> at any time and expect something reasonable to happen;
+  exactly what the reasonable thing is may vary somewhat. Typically, in an
+  interactive program, invoking <tt>abort</tt> should return the user to top level,
+  though in some batch or multi-processing situations
+  killing the running process might be
+  more appropriate.
+<hr>
+<P>
+<BR><b>[Macro]</b><BR>
+<pre>
+restart-case <em>expression</em> {(<i>case-name</i> <em>arglist</em>
+                           {<i>keyword</i> <i>value</i>}*
+                           {<i>form</i>}*)}*
+</pre>
+<P>  The <i>expression</i> is evaluated in a dynamic context where the clauses have 
+  special meanings as points to which control may be transferred. If the <i>expression</i>
+  finishes executing and returns any values, all such values are simply
+  returned by the <tt>restart-case</tt> form. While the <i>expression</i> is running, any code may
+  transfer control to one of the clauses (see <tt>invoke-restart</tt>). If a transfer
+  occurs, the <i>form</i>s in the body of that clause will be evaluated and any values
+  returned by the last such <i>form</i> will be returned by the <tt>restart-case</tt> form.
+<P>
+As a special case,
+if the <i>expression</i> is a list whose <i>car</i> is <tt>signal</tt>, <tt>error</tt>,
+     <tt>cerror</tt>, or <tt>warn</tt>, then <tt>with-condition-restarts</tt> is implicitly
+     used to associate the restarts with the condition to be signaled.
+For example,
+<P><pre>
+(restart-case (signal weird-error) 
+  (become-confused ...) 
+  (rewind-line-printer ...) 
+  (halt-and-catch-fire ...))
+</pre><P>
+     is equivalent to
+<P><pre>
+(restart-case (with-condition-restarts 
+                weird-error  
+                (list (find-restart 'become-confused)  
+                      (find-restart 'rewind-line-printer) 
+                      (find-restart 'halt-and-catch-fire)) 
+                (signal weird-error)) 
+  (become-confused ...) 
+  (rewind-line-printer ...) 
+  (halt-and-catch-fire ...))
+</pre><P>
+<P>
+  If there are no <i>form</i>s in a selected clause, <tt>restart-case</tt> returns <tt>nil</tt>.
+<P>
+  The <i>case-name</i> may be <tt>nil</tt> or a symbol naming this restart.
+<P>
+  It is possible to have more than one clause use the same <i>case-name</i>.
+  In this case, the first clause with that name will be found by
+  <tt>find-restart</tt>. The other clauses are accessible using <tt>compute-restarts</tt>.
+  [In this respect, <tt>restart-case</tt> is rather different from <tt>case</tt>!-GLS]
+<P>
+  Each <i>arglist</i> is a normal lambda-list containing parameters
+  to be bound during the execution of 
+  its corresponding <i>form</i>s. These parameters are used to pass any necessary 
+  data from a call to <tt>invoke-restart</tt> to the <tt>restart-case</tt> clause.
+<P>
+  By default, <tt>invoke-restart-interactively</tt> will pass no arguments and
+  all parameters must be optional in order to accommodate interactive
+  restarting. However, the parameters need not be optional if the
+  <tt>:interactive</tt> keyword has been used to inform <tt>invoke-restart-interactively</tt>
+  about how to compute a proper argument list.
+<P>
+  The valid <i>keyword value</i> pairs are the following:
+<DL COMPACT><DT><tt>:test <i>fn</i></tt>
+<DD>
+<P>
+    The <i>fn</i> must be a suitable argument for the <tt>function</tt> special form. The
+    expression <tt>(function <i>fn</i>)</tt> will be evaluated in the current lexical
+    environment. It should produce a function of one argument, a condition.
+    If this function returns <tt>nil</tt> when given some condition, functions such as
+<tt>find-restart</tt>, <tt>compute-restart</tt>, and <tt>invoke-restart</tt>
+will not consider this restart when searching for restarts associated with
+that condition.  If this pair is not supplied, it is as if
+<P><pre>
+(lambda (c) (declare (ignore c)) t)
+</pre><P>
+were used for the <i>fn</i>.
+<P>
+<DT><tt>:interactive <i>fn</i></tt>
+<DD>
+<P>
+    The <i>fn</i> must be a suitable argument for the <tt>function</tt> special form. The
+    expression <tt>(function <i>fn</i>)</tt> will be evaluated in the current lexical
+    environment. It should produce a function of no arguments that 
+    returns arguments to be used by <tt>invoke-restart-interactively</tt> when
+    invoking this function. This function will be called in the dynamic
+    environment available prior to any restart attempt. It may interact with the user
+    on the stream in <tt>*query-io*</tt>.
+<P>
+    If a restart is invoked interactively but no <tt>:interactive</tt> option
+    was supplied, the argument list used in the invocation is the empty
+    list.
+<P>
+<DT><tt>:report <i>exp</i></tt>
+<DD>
+<P>
+    If <i>exp</i> is not a literal string, it must be a suitable argument to the
+    <tt>function</tt> special form. The expression <tt>(function <i>exp</i>)</tt> will be evaluated
+    in the current lexical environment. It should produce a function of one
+    argument, a stream, that prints on the stream a description of the
+    restart. This function is called whenever the restart is printed while
+    <tt>*print-escape*</tt> is <tt>nil</tt>.
+<P>
+    If <i>exp</i> is a literal string, it is shorthand for
+<P><pre>
+(lambda (s) (write-string <i>exp</i> s))
+</pre><P>
+[That is, a function is provided that will simply write the given string literally
+to the stream.-GLS]
+<P>
+    If a named restart is asked to report but no report information has been
+    supplied, the name of the restart is used in generating default report text.
+<P>
+    When <tt>*print-escape*</tt> is <tt>nil</tt>, the printer will use the report information for
+    a restart. For example, a debugger might announce the action of typing
+    ``<tt>:continue</tt>'' by executing the equivalent of
+<P><pre>
+(format *debug-io* &quot;~&amp;~S - ~A~%&quot; ':continue some-restart)
+</pre><P>
+    which might then display as something like
+<P><pre>
+:CONTINUE - Return to command level.
+</pre><P>
+<P>
+    It is an error if an unnamed restart is used and no report information
+    is provided.
+<P>
+</dl>
+<hr>
+<b>Rationale:</b> Unnamed restarts are required to have report information
+    on the grounds that they are generally only useful interactively,
+    and an interactive option that has no description is of little value.
+<hr>
+<b>Implementation note:</b> Implementations are encouraged to warn about this error at compilation time.
+<P>
+      At run time, this error might be noticed when entering
+      the debugger. Since signaling an error would probably cause recursive
+      entry into the debugger (causing yet another recursive error, and so on), it is
+      suggested that the debugger print some indication of such problems when
+      they occur, but not actually signal errors.
+<hr>
+<P>
+<P>
+Note that 
+<P><pre>
+(restart-case <i>expression</i> 
+  (<i>name1</i> <i>arglist1</i> <i>options1</i> . <i>body1</i>) 
+  (<i>name2</i> <i>arglist2</i> <i>options2</i> . <i>body2</i>) 
+  ...)
+</pre><P>
+is essentially equivalent to
+<P><pre>
+(block #1=#:block-1 
+  (let ((#2=#:var-2 nil)) 
+    (tagbody 
+      (restart-bind ((<i>name1</i> #'(lambda (&amp;rest temp) 
+		    (setq #2# temp) 
+		    (go #3=#:tag-3)) 
+		<b><</b>slightly transformed <i>options1</i><b>></b>)
+                     (<i>name2</i> #'(lambda (&amp;rest temp) 
+		    (setq #2# temp) 
+		    (go #4=#:tag-4)) 
+		<b><</b>slightly transformed <i>options2</i><b>></b>)
+                     ...) 
+        (return-from #1# expression)) 
+      #3# (return-from #1# 
+                (apply #'(lambda <i>arglist1</i> . <i>body1</i>) #2#)) 
+      #4# (return-from #1# 
+                (apply #'(lambda <i>arglist2</i> . <i>body2</i>) #2#)) 
+      ...)))
+</pre><P>
+[Note the use of ``gensyms'' such as <tt>#:block-1</tt> as block names,
+variables, and <tt>tagbody</tt> tags in this example,
+and the use of <tt>#<i>n</i>=</tt> and <tt>#<i>n</i>#</tt> read-macro syntax
+to indicate that the very same gensym appears in multiple places.-GLS]
+<P>
+Here are some examples of the use of <tt>restart-case</tt>.
+<P><pre>
+(loop 
+  (restart-case (return (apply function some-args)) 
+    (new-function (new-function) 
+        :report &quot;Use a different function.&quot; 
+        :interactive 
+          (lambda () 
+            (list (prompt-for 'function &quot;Function: &quot;))) 
+      (setq function new-function)))) 
+
+(loop 
+  (restart-case (return (apply function some-args)) 
+    (nil (new-function) 
+        :report &quot;Use a different function.&quot; 
+        :interactive 
+          (lambda () 
+            (list (prompt-for 'function &quot;Function: &quot;))) 
+      (setq function new-function)))) 
+
+(restart-case (a-command-loop) 
+  (return-from-command-level () 
+      :report 
+        (lambda (s)     ;Argument <tt>s</tt> is a stream 
+          (format s &quot;Return from command level ~D.&quot; level)) 
+    nil)) 
+
+(loop  
+  (restart-case (another-random-computation) 
+    (continue () nil)))
+</pre><P>
+  The first and second examples are equivalent from the point of view of someone
+  using the interactive debugger, but they differ in one important aspect for 
+  non-interactive handling. If a handler ``knows about'' named restarts, as in, for example,
+<P><pre>
+(when (find-restart 'new-function) 
+  (invoke-restart 'new-function the-replacement))
+</pre><P>
+  then only the first example, and not the second, will have control
+  transferred to its correction clause, since only the first example uses
+  a restart named <tt>new-function</tt>.
+<P>
+Here is a more complete example:
+<P><pre>
+(let ((my-food 'milk) 
+      (my-color 'greenish-blue)) 
+  (do () 
+      ((not (bad-food-color-p my-food my-color))) 
+    (restart-case (error 'bad-food-color 
+                         :food my-food :color my-color) 
+      (use-food (new-food) 
+          :report &quot;Use another food.&quot; 
+        (setq my-food new-food)) 
+      (use-color (new-color) 
+          :report &quot;Use another color.&quot; 
+        (setq my-color new-color)))) 
+  ;; We won't get to here until MY-FOOD 
+  ;; and MY-COLOR are compatible. 
+  (list my-food my-color))
+</pre><P>
+Assuming that <tt>use-food</tt> and <tt>use-color</tt> have been defined as
+<P><pre>
+(defun use-food (new-food) 
+  (invoke-restart 'use-food new-food)) 
+
+(defun use-color (new-color) 
+  (invoke-restart 'use-color new-color))
+</pre><P>
+a handler can then restart from the error in either of two ways.
+It may correct the color or correct the food. For example:
+<P><pre>
+#'(lambda (c) ... (use-color 'white) ...)   ;Corrects <tt>color</tt> 
+
+#'(lambda (c) ... (use-food 'cheese) ...)   ;Corrects <tt>food</tt>
+</pre><P>
+<P>
+  Here is an example using <tt>handler-bind</tt> and <tt>restart-case</tt> that refers to a
+  condition type <tt>foo-error</tt>, presumably defined elsewhere:
+<P><pre>
+(handler-bind ((foo-error #'(lambda (ignore) (use-value 7)))) 
+  (restart-case (error 'foo-error) 
+    (use-value (x) (* x x)))) 
+ => 49
+</pre><P>
+<P>
+<br><b>[Macro]</b><BR>
+<tt>restart-bind ({(<i>name</i> <i>function</i> {<i>keyword</i> <i>value</i>}*)}*) {<i>form</i>}*</tt><P>  Executes a body of forms in a dynamic context where the given restart
+  bindings are in effect.
+<P>
+  Each <i>name</i> may be <tt>nil</tt> to indicate an anonymous restart, or some other symbol
+  to indicate a named restart.
+<P>
+  Each <i>function</i> is a form that
+  should evaluate to a function to be used to perform the restart.
+  If invoked, this function may either perform a non-local transfer of control
+  or it may return normally. The function may take whatever arguments the
+  programmer feels are appropriate; it will be invoked only if <tt>invoke-restart</tt>
+  is used from a program, or if a user interactively asks the debugger to
+  invoke it. In the case of interactive invocation, the <tt>:interactive-function</tt>
+  option is used.
+<P>
+The valid <i>keyword value</i> pairs are as follows:
+<DL COMPACT><DT><tt>:test-function <i>form</i></tt>
+<DD>
+<P>
+    The <i>form</i> will be evaluated in the current lexical environment and
+     should return a function of one argument, a condition.
+    If this function returns <tt>nil</tt> when given some condition, functions such as
+<tt>find-restart</tt>, <tt>compute-restart</tt>, and <tt>invoke-restart</tt>
+will not consider this restart when searching for restarts associated with
+that condition.  If this pair is not supplied, it is as if
+<P><pre>
+#'(lambda (c) (declare (ignore c)) t)
+</pre><P>
+were used for the <i>form</i>.
+<P>
+<DT><tt>:interactive-function <i>form</i></tt>
+<DD>
+<P>
+     The <i>form</i> will be evaluated in the current lexical environment and
+     should return a function of no arguments that constructs a list
+     of arguments to be used by <tt>invoke-restart-interactively</tt> when invoking
+     this restart. The function may prompt interactively using <tt>*query-io*</tt>
+     if necessary.
+<P>
+<DT><tt>:report-function <i>form</i></tt>
+<DD>
+<P>
+     The <i>form</i> will be evaluated in the current lexical environment and
+     should return a function of one argument, a stream, that prints on
+     the stream a summary of the action this restart will take. This
+     function is called whenever the restart is printed while <tt>*print-escape*</tt>
+     is <tt>nil</tt>.
+<P>
+ </DL>
+<P>
+<BR><b>[Macro]</b><BR>
+<pre>
+with-condition-restarts <i>condition-form</i> <i>restarts-form</i>
+      {<i>declaration</i>}* {<i>form</i>}*
+</pre>
+<P>The value of <i>condition-form</i> should be a condition <i>C</i> and
+the value of <i>restarts-form</i> should be a list of restarts <tt>(<i>R1</i> <i>R2</i> ...)</tt>.
+      The <i>form</i>s of the body are evaluated as an implicit <tt>progn</tt>.
+      While in the dynamic context of the body,
+      an attempt to find a restart associated with a particular
+      condition <i>C'</i> will 
+      consider the restarts <i>R1</i>, <i>R2</i>, <i>...</i> if <i>C'</i> is <tt>eq</tt> to <i>C</i>.
+<P>
+     Usually this macro is not used explicitly in code, because
+     <tt>restart-case</tt> handles most of the common uses in a way that is
+     syntactically more concise.
+<P>
+[The X3J13 vote (CONDITION-RESTARTS) <A NAME=37446>&#160;</A>  left it unclear whether <tt>with-condition-restarts</tt>
+permits declarations to appear at the heads of its body.
+I believe that was the intent, but this is only my interpretation.-GLS]
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html5956 HREF="node342.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5954 HREF="node334.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5948 HREF="node340.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5958 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5959 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5957 HREF="node342.html"> Finding and Manipulating </A>
+<B>Up:</B> <A NAME=tex2html5955 HREF="node334.html"> Program Interface to </A>
+<B> Previous:</B> <A NAME=tex2html5949 HREF="node340.html"> Creating Conditions</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

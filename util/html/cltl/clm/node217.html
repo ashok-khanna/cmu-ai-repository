@@ -1,0 +1,355 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node217.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:32:29 GMT -->
+<HEAD>
+<TITLE>23.4. Loading Files</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Loading Files">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4264 HREF="node218.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4262 HREF="node202.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4256 HREF="node216.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4266 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4267 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4265 HREF="node218.html"> Accessing Directories</A>
+<B>Up:</B> <A NAME=tex2html4263 HREF="node202.html"> File System Interface</A>
+<B> Previous:</B> <A NAME=tex2html4257 HREF="node216.html"> RenamingDeleting, and </A>
+<HR> <P>
+<H1><A NAME=SECTION002740000000000000000>23.4. Loading Files</A></H1>
+<P>
+To <i>load</i> a file is to read through the file, evaluating each form in
+it.  Programs are typically stored in files containing calls to
+constructs such as <tt>defun</tt>, <tt>defmacro</tt>,
+and <tt>defvar</tt>, which define
+the functions and variables of the program.
+<P>
+Loading a compiled (``fasload'') file is similar, except that the file does not
+contain text but rather pre-digested expressions created by the
+compiler that can be loaded more quickly.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>load <i>filename</i> &amp;key :verbose :print :if-does-not-exist</tt><P>This function loads the file named by <i>filename</i> into the Lisp
+environment.  It is assumed that a text (character file) can be
+automatically distinguished from an object (binary) file by some appropriate
+implementation-dependent means, possibly by the file type.
+The defaults for <i>filename</i> are taken from the variable
+<tt>*default-pathname-defaults*</tt>.
+If the <i>filename</i> (after the merging in of the defaults)
+does not explicitly specify a type,
+and both text and object types of the file are available in the file system,
+<tt>load</tt> should
+try to select the more appropriate file by some implementation-dependent means.
+<P>
+If the first argument is a stream rather than a pathname,
+then <tt>load</tt> determines what kind of stream it is and loads
+directly from the stream.
+<P>
+The <tt>:verbose</tt> argument (which defaults to the value of
+<tt>*load-verbose*</tt>), if true, permits <tt>load</tt> to print a message
+in the form of a comment (that is, with a leading
+semicolon) to <tt>*standard-output*</tt> indicating what
+file is being loaded and other useful information.
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+The <tt>:print</tt> argument (default <tt>nil</tt>),
+if true, causes the value of each expression
+loaded to be printed to <tt>*standard-output*</tt>.  If a binary file is
+being loaded, then what is printed may not reflect precisely the contents
+of the source file, but nevertheless some information will be printed.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (COMPILER-VERBOSITY) <A NAME=27601>&#160;</A> 
+to add the variable <tt>*load-print*</tt>; its value is used as the default
+for the <tt>:print</tt> argument to <tt>load</tt>.
+<P>
+The function <tt>load</tt> rebinds <tt>*package*</tt> to its current value.  If
+some form in the file changes the value of <tt>*package*</tt> during loading,
+the old value will be restored when the loading is completed.
+(This was specified in the first edition under the description of <tt>*package*</tt>;
+for convenience I now mention it here as well.)
+<P>
+X3J13 voted in March 1988
+(PATHNAME-STREAM) <A NAME=27613>&#160;</A> 
+to specify exactly which streams may be used as pathnames.
+See section <A HREF="node214.html#PATHNAMEFUNCTIONS">23.1.6</A>.
+<P>
+X3J13 voted in June 1989 (PATHNAME-WILD) <A NAME=27617>&#160;</A> 
+to clarify that supplying a wild pathname
+as the <i>filename</i> argument to <tt>load</tt> has implementation-dependent consequences;
+<tt>load</tt> might signal an error, for example,
+or might load all files that match the pathname.
+<P>
+X3J13 voted in June 1989 (PATHNAME-LOGICAL) <A NAME=27623>&#160;</A>  to require <tt>load</tt>
+to accept logical pathnames (see section <A HREF="node208.html#LOGICALPATHNAMESSECTION">23.1.5</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+If a file is successfully loaded, <tt>load</tt> always returns a non-<tt>nil</tt>
+value.  If <tt>:if-does-not-exist</tt> is specified and is <tt>nil</tt>,
+<tt>load</tt> just returns <tt>nil</tt> rather than signaling an error if the file
+does not exist.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (IN-SYNTAX) <A NAME=27634>&#160;</A> 
+to require that <tt>load</tt> bind <tt>*readtable*</tt> to its current value
+at the time <tt>load</tt> is called; the dynamic extent of the binding
+should encompass all of the file-loading activity.
+This allows a portable program to include forms such as
+<P><pre>
+(in-package &quot;FOO&quot;) 
+
+(eval-when (:execute :load-toplevel :compile-toplevel) 
+  (setq *readtable* foo:my-readtable))
+</pre><P>
+without performing a net global side effect on the loading environment.
+Such statements allow the remainder of such a file to be read either as
+interpreted code or by <tt>compile-file</tt> in a syntax determined by
+an alternative readtable.
+<P>
+X3J13 voted in June 1989 (LOAD-TRUENAME) <A NAME=27643>&#160;</A> 
+to require that <tt>load</tt> bind two new variables
+<tt>*load-pathname*</tt> and <tt>*load-truename*</tt>; the dynamic extent of the bindings
+should encompass all of the file-loading activity.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Variable]</b><BR>
+<tt>*load-verbose*</tt><P>This variable provides the default for the <tt>:verbose</tt> argument
+to <tt>load</tt>.  Its initial value is implementation-dependent.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<BR><b>[Variable]</b><BR>
+<tt>*load-print*</tt><P>X3J13 voted in March 1989 (COMPILER-VERBOSITY) <A NAME=27655>&#160;</A> 
+to add <tt>*load-print*</tt>.
+This variable provides the default for the <tt>:print</tt> argument
+to <tt>load</tt>.  Its initial value is <tt>nil</tt>.
+<P>
+<BR><b>[Variable]</b><BR>
+<tt>*load-pathname*</tt><P>X3J13 voted in June 1989 (LOAD-TRUENAME) <A NAME=27664>&#160;</A>  to introduce <tt>*load-pathname*</tt>;
+it is initially <tt>nil</tt> but <tt>load</tt> binds it to a pathname that
+represents the file name given as the first argument to <tt>load</tt> merged
+with the defaults (see <tt>merge-pathname</tt>).
+<P>
+<BR><b>[Variable]</b><BR>
+<tt>*load-truename*</tt><P>X3J13 voted in June 1989 (LOAD-TRUENAME) <A NAME=27672>&#160;</A>  to introduce <tt>*load-truename*</tt>;
+it is initially <tt>nil</tt> but <tt>load</tt> binds it to the ``true name'' of
+the file being loaded.  See <tt>truename</tt>.
+<P>
+X3J13 voted in March 1989 (LOAD-OBJECTS) <A NAME=27680>&#160;</A>  to introduce a facility
+based on the Object System
+whereby a user can specify how <tt>compile-file</tt> and <tt>load</tt>
+must cooperate to reconstruct compile-time constant objects at load time.
+The protocol is simply this:
+  <tt>compile-file</tt> calls the generic
+  function <tt>make-load-form</tt> on any object that is referenced as
+  a constant or as a self-evaluating form, if the object's metaclass is
+  <tt>standard-class</tt>, <tt>structure-class</tt>, any user-defined metaclass (not a
+  subclass of <tt>built-in-class</tt>), or any of a possibly empty
+  implementation-defined list of other metaclasses; <tt>compile-file</tt> will
+  call <tt>make-load-form</tt> only once for any given object (as determined by <tt>eq</tt>)
+  within a single file.  The user-programmability stems from the possibility
+  of user-defined methods for <tt>make-load-form</tt>.  The helper function
+  <tt>make-load-form-saving-slots</tt> makes it easy to write commonly used
+  versions of such methods.
+<P>
+<BR><b>[Generic function]</b><BR>
+<tt>make-load-form <i>object</i></tt><P>The argument is an object that is
+  referenced as a constant or as a self-evaluating form in a file being
+  compiled by <tt>compile-file</tt>.  The objective is to enable <tt>load</tt> to
+  construct an equivalent object.
+<P>
+  The first value, called the <i>creation form</i>, is a form that, when
+  evaluated at load time, should return an object that is equivalent to
+  the argument.  The exact meaning of ``equivalent'' depends on the type
+  of object and is up to the programmer who defines a method for
+  <tt>make-load-form</tt>.  This allows the user to program the notion
+  of ``similar as a constant'' (see section <A HREF="node224.html#COMPILERSECTION">25.1</A>).
+<P>
+  The second value, called the <i>initialization form</i>, is a form that,
+  when evaluated at load time, should perform further initialization of
+  the object.  The value returned by the initialization form is ignored.
+  If the <tt>make-load-form</tt> method returns only one value, the
+  initialization form is <tt>nil</tt>, which has no effect.  If the object used
+  as the argument to <tt>make-load-form</tt> appears as a constant in the
+  initialization form, at load time it will be replaced by the
+  equivalent object constructed by the creation form; this is how the
+  further initialization gains access to the object.
+<P>
+  Two values are returned so that circular structures may be handled.
+  The order of evaluation rules discussed below
+  for creation and initialization forms
+  eliminates the possibility of partially initialized objects in the
+  absence of circular structures and reduces the possibility to a minimum
+  in the presence of circular structures.  This allows nodes in
+  non-circular structures to be built out of fully initialized subparts.
+<P>
+  Both the creation form and the initialization form can contain
+  references to objects of user-defined types (defined precisely below).
+  However, there must not be any circular dependencies in creation forms.
+  An example of a circular dependency: the creation form for the
+  object <i>X</i> contains a reference to the object <i>Y</i>, and the creation form
+  for the object <i>Y</i> contains a reference to the object <i>X</i>.  A simpler
+  example: the creation form for the object <i>X</i> contains
+  a reference to <i>X</i> itself.  Initialization forms are not subject to
+  any restriction against circular dependencies, which is the entire
+  reason for having initialization forms.  See the example of circular
+  data structures below.
+<P>
+  The creation form for an object is always evaluated before the
+  initialization form for that object.  When either the creation form or
+  the initialization form refers to other objects of user-defined types
+  that have not been referenced earlier in the <tt>compile-file</tt>, the
+  compiler collects all of the creation and initialization forms.  Each
+  initialization form is evaluated as soon as possible after its
+  creation form, as determined by data flow.  If the initialization form
+  for an object does not refer to any other objects of user-defined
+  types that have not been referenced earlier in the <tt>compile-file</tt>, the
+  initialization form is evaluated immediately after the creation form.
+  If a creation or initialization form <i>F</i> references other objects of
+  user-defined types that have not been referenced earlier in the
+  <tt>compile-file</tt>, the creation forms for those other objects are evaluated
+  before <i>F</i> and the initialization forms for those other objects are
+  also evaluated before <i>F</i> whenever they do not depend on the object
+  created or initialized by <i>F</i>.  Where the above rules do not uniquely
+  determine an order of evaluation, it is unspecified
+  which of the possible orders of evaluation is chosen.
+<P>
+  While these creation and initialization forms are being evaluated, the
+  objects are possibly in an uninitialized state, analogous to the state
+  of an object between the time it has been created by <tt>allocate-instance</tt>
+  and it has been processed fully by <tt>initialize-instance</tt>.  Programmers
+  writing methods for <tt>make-load-form</tt> must take care in manipulating
+  objects not to depend on slots that have not yet been initialized.
+<P>
+  It is unspecified whether <tt>load</tt> calls <tt>eval</tt> on the forms or does some
+  other operation that has an equivalent effect.  For example, the
+  forms might be translated into different but equivalent forms and
+  then evaluated; they might be compiled and the resulting functions
+  called by <tt>load</tt> (after they themselves have been loaded);
+  or they might be interpreted by a special-purpose
+  interpreter different from <tt>eval</tt>.  All that is required is that the
+  effect be equivalent to evaluating the forms.
+<P>
+  It is valid for user programs to call <tt>make-load-form</tt> in
+  circumstances other than compilation, providing the argument's
+  metaclass is not <tt>built-in-class</tt> or a subclass of <tt>built-in-class</tt>.
+<P>
+  Applying <tt>make-load-form</tt> to an object whose metaclass is <tt>standard-class</tt> or
+  <tt>structure-class</tt> for which no user-defined method is applicable signals
+  an error.  It is valid to implement this either by defining default
+  methods for the classes <tt>standard-object</tt> and <tt>structure-object</tt> that signal an error
+  or by having no applicable method for those classes.
+<P>
+See <tt>load-time-eval</tt>.
+<P>
+In the following example, an equivalent instance of <tt>my-class</tt> is reconstructed
+  by using the values of two of its slots.  The value of the third slot
+  is derived from those two values.
+<P><pre>
+(defclass my-class ()
+  ((a :initarg :a :reader my-a) 
+   (b :initarg :b :reader my-b) 
+   (c :accessor my-c))) 
+
+(defmethod shared-initialize ((self my-class) slots &amp;rest inits) 
+  (declare (ignore slots inits)) 
+  (unless (slot-boundp self 'c) 
+    (setf (my-c self) 
+          (some-computation (my-a self) (my-b self))))) 
+
+(defmethod make-load-form ((self my-class)) 
+  `(make-instance ',(class-name (class-of self)) 
+                  :a ',(my-a self) :b ',(my-b self)))
+</pre><P>
+This code will fail if either of the first two slots of some instance
+of <tt>my-class</tt> contains the instance itself.
+Another way to write the last form in the preceding example is
+<P><pre>
+(defmethod make-load-form ((self my-class)) 
+  (make-load-form-saving-slots self '(a b)))
+</pre><P>
+This has the advantages of conciseness and handling circularities correctly.
+<P>
+In the next example, instances of class <tt>my-frob</tt> are ``interned'' in some way.
+  An equivalent instance is reconstructed by using the value of the
+  <tt>name</tt> slot as a key for searching for existing objects.  In this case
+  the programmer has chosen to create a new object if no existing
+  object is found; an alternative possibility would be to signal an
+  error in that case.
+<P><pre>
+(defclass my-frob () 
+  ((name :initarg :name :reader my-name))) 
+
+(defmethod make-load-form ((self my-frob)) 
+  `(find-my-frob ',(my-name self) :if-does-not-exist :create))
+</pre><P>
+<P>
+  In the following example, the data structure to be dumped is circular, because
+  each node of a tree has a list of its children and each child has a reference
+  back to its parent.  
+<P><pre>
+(defclass tree-with-parent () ((parent :accessor tree-parent) 
+                               (children :initarg :children)))
+</pre><P>
+<P>
+<P><pre>
+(defmethod make-load-form ((x tree-with-parent)) 
+  (values 
+    `(make-instance ',(class-of x) 
+                    :children ',(slot-value x 'children)) 
+    `(setf (tree-parent ',x) ',(slot-value x 'parent))))
+</pre><P>
+Suppose <tt>make-load-form</tt> is called on one object in
+  such a structure.  The creation form creates an equivalent object and
+  fills in the <tt>children</tt> slot, which forces creation of equivalent
+  objects for all of its children, grandchildren, etc.  At this point
+  none of the parent slots have been filled in.  The initialization form
+  fills in the <tt>parent</tt> slot, which forces creation of an equivalent
+  object for the parent if it was not already created.  Thus the entire
+  tree is recreated at load time.  At compile time, <tt>make-load-form</tt> is
+  called once for each object in the tree.  All the creation forms
+  are evaluated, in unspecified order, and then all  the
+  initialization forms are evaluated, also in unspecified order.
+<P>
+  In this final example, the data structure to be dumped has no special
+  properties and an equivalent structure can be reconstructed
+  simply by reconstructing the slots' contents.
+<P><pre>
+(defstruct my-struct a b c) 
+
+(defmethod make-load-form ((s my-struct)) 
+  (make-load-form-saving-slots s))
+</pre><P>
+This is easy to code using <tt>make-load-form-saving-slots</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>make-load-form-saving-slots <i>object</i> &amp;optional <i>slots</i></tt><P>This returns two values suitable for return from a <tt>make-load-form</tt> method.
+  The first argument is the object.  The optional second argument is a
+  list of the names of slots to preserve; it defaults to all of the
+  local slots.
+<P>
+<tt>make-load-form-saving-slots</tt> returns forms that construct
+  an equivalent object using <tt>make-instance</tt>
+  and <tt>setf</tt> of <tt>slot-value</tt> for
+  slots with values, or <tt>slot-makunbound</tt> for slots without values, or
+  other functions of equivalent effect.
+<P>
+  Because <tt>make-load-form-saving-slots</tt> returns two values, it can deal with
+  circular structures; it works for any object
+  of metaclass <tt>standard-class</tt> or <tt>structure-class</tt>.
+  Whether the result is
+  useful depends on whether the object's type and slot
+  contents fully capture an application's idea of the object's state.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html4264 HREF="node218.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4262 HREF="node202.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4256 HREF="node216.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4266 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4267 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4265 HREF="node218.html"> Accessing Directories</A>
+<B>Up:</B> <A NAME=tex2html4263 HREF="node202.html"> File System Interface</A>
+<B> Previous:</B> <A NAME=tex2html4257 HREF="node216.html"> RenamingDeleting, and </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

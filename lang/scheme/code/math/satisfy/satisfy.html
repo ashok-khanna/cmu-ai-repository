@@ -1,0 +1,182 @@
+;;; simple code to solve satisfiability.  uses a continuation passing
+;;; style to implement a backtracking search.  no attempt is made to
+;;; make the search go fast other than using shared variables.
+
+;;; copyright 1990 ted dunning.  right to freely use and modify is
+;;; granted if this copyright notice is retained and my contribution
+;;; is acknowledged.
+
+;; simple quadratic set operations which work for atoms
+;; this is only used to get a list of variables and thus it doesn't
+;; matter much how fast it is.
+(define (union a b)
+  (cond ((null? a) b)
+	((memq (car a) b) (union (cdr a) b))
+	(else (cons (car a) (union (cdr a) b)))))
+
+;; constructor and selectors for unary and binary expressions
+(define (make-exp op lhs rhs)
+  (if rhs (list op lhs rhs) (list op lhs)))
+
+(define op car)
+(define lhs cadr)
+(define rhs caddr)
+
+;; constructor, selectors and mutators for logical variables
+(define (make-logical-var name)
+  (list 'logical-variable name #f 'unbound))
+
+(define logical-var-name cadr)
+(define logical-var-bound? caddr)
+(define logical-var-value cadddr)
+
+(define (logical-variable? var)
+  (and (pair? var) (eq? (car var) 'logical-variable)))
+
+(define (set-logical-var-bound! var flag)
+  (set-car! (cddr var) flag))
+
+(define (set-logical-var-value! var value)
+  (set-car! (cdddr var) value))
+
+;; bind a logical VARIABLE to a VALUE.  call the SUCCESS continuation
+;; with the FAILURE continuation as an argument if the binding worked
+;; or was superfluous, call the failure continuation if it failed
+;; because the variable was already bound.  if the variable was bound,
+;; then the failure continuation is wrapped with unbinding code so
+;; that the binding will be cleaned up if needed.
+(define (bind-logical-variable var value win lose)
+  (if (logical-var-bound? var)		     ;is it already bound?
+      (if (equal? (logical-var-value var) value)
+	  (win lose)			     ;to the right value, even?
+	  (lose))			     ;no, we lose
+
+      (let ((unbind-and-lose		     ;get ready to unbind later
+	     (lambda ()
+	       (set-logical-var-bound! var #f)
+	       (set-logical-var-value! var 'unbound)
+	       (lose))))
+
+	(set-logical-var-bound! var #t)	     ;remember it is bound
+	(set-logical-var-value! var value)   ;and set the value
+	(win unbind-and-lose))))	     ;win with option to unbind later
+
+;; return a list of the variables in a logical EXPRESSION
+(define (free-vars expression)
+  (cond ((pair? expression)
+	 (if (eq? (op expression) 'not) (free-vars (lhs expression))
+	     (union (free-vars (lhs expression))
+		    (free-vars (rhs expression)))))
+	((symbol? expression) (list expression))
+	(else '())))
+
+;; replace all atomic objects in an EXPRESSION with values found in BINDINGS
+(define (subs-vars expression bindings)
+  (if (pair? expression)
+      (make-exp (op expression)
+		(subs-vars (lhs expression) bindings)
+		(subs-vars (rhs expression) bindings))
+      (let ((binding (assoc expression bindings)))
+	(if binding (cdr binding) expression))))
+
+;; satisfy an EXPRESSION which contains logical variables.  if this
+;; works, then call the SUCCESS continuation with the FAILURE
+;; continuation as an argument, if it fails, call the failure
+;; continuation with no arguments 
+(define (satisfy expression win lose)
+  (cond ((logical-variable? expression)
+	 (bind-logical-variable expression 'true win lose))
+
+	((pair? expression)
+	 (let ((this-op (op expression)))
+	   (cond ((eq? this-op 'or)	     ;try the left hand side
+		  (satisfy (lhs expression)
+			   win
+			   (lambda ()	     ;or if that fails, the right
+			     (satisfy (rhs expression)
+				      win
+				      lose))))
+
+		 ((eq? this-op 'and)	     ;make sure both sides work
+		  (satisfy (lhs expression)  ;by trying first the left
+			   (lambda (fail)    ;then the right
+			     (satisfy (rhs expression)
+				      win
+				      fail))
+			   lose))
+
+		 ((eq? this-op 'not)
+		  (unsatisfy (lhs expression) win lose)))))
+
+	;; if we have an atom, we succeed only if it is true
+	(else (if (eq? expression 'true) (win lose) (lose)))))
+
+;; use demorgan's theorem to find a satisfying assignment for the
+;; negation of an expression.  complementary in form to satisfy.
+(define (unsatisfy expression win lose)
+  (cond ((logical-variable? expression)
+	 (bind-logical-variable expression 'false win lose))
+
+	((pair? expression)
+	 (let ((this-op (op (expression))))
+	   (cond ((eq? this-op 'and)
+		  (unsatisfy (lhs expression)
+			     win
+			     (lambda ()
+			       (unsatisfy (rhs expression)
+					  win
+					  lose))))
+
+		 ((eq? this-op 'or)
+		  (unsatisfy (lhs expression)
+			     (lambda (fail)
+			       (unsatisfy (rhs expression)
+					  win
+					  fail))
+			     lose))
+		 ((eq? this-op 'not)
+		  (satisfy (lhs expression) win lose)))))
+
+	(else (if (eq? expression 'false) (win lose) (lose)))))
+
+
+;; convert an EXPRESSION to an equivalent that uses logical variables,
+;; attempt to satisfy it and then return either a list of bindings, or
+;; the atom 'failed.
+(define (sat expression)
+
+  ;; convert an EXPRESSION to use logical variables so that updates one
+  ;; place will be reflected everywhere in the expression
+  (let* ((vars (free-vars expression))
+	 (logical-vars (map make-logical-var vars))
+	 (bindings (map cons vars logical-vars)))
+    (satisfy (subs-vars expression bindings)
+	     (lambda (fail)
+	       (map (lambda (var lvar)
+		      (cons var (logical-var-value lvar)))
+		    vars logical-vars))
+	     (lambda () 'failed))))
+
+;; return a list of all satisfying assignments of an EXPRESSION.
+;; works like sat, except, on success, we store the results and try
+;; again.  on failure, we return the empty list.
+(define (all-sat expression)
+  ;; convert an EXPRESSION to use logical variables so that updates one
+  ;; place will be reflected everywhere in the expression
+  (let* ((results '())
+	 (vars (free-vars expression))
+	 (logical-vars (map make-logical-var vars))
+	 (bindings (map cons vars logical-vars)))
+    (satisfy (subs-vars expression bindings)
+	     (lambda (fail)
+	       (set! results
+		     (cons
+		      (map (lambda (var lvar)
+			     (cons var (logical-var-value lvar)))
+			   vars logical-vars)
+			   results))
+	       (fail))
+	     (lambda () results))))
+
+
+;;; *EOF*

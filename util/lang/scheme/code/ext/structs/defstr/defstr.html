@@ -1,0 +1,186 @@
+From Stewart.Clamen@B.GP.CS.CMU.EDU Tue Nov 24 17:42:26 1987
+Date: Tue Nov 10 15:38:17 EST 1987
+From: Stewart.Clamen@B.GP.CS.CMU.EDU
+To: mkatz@A.ISI.EDU
+Cc: jinx%geneva@MC.LCS.MIT.EDU
+Subject: define-structure
+Reply-To: clamen@CS.CMU.EDU
+
+
+Morry, the code you sent me had a few typos, and some extra @-signs in
+the body.  I assume this version does the lookup on the
+unsyntaxer-package at eval-time, and so doesn't include the entire
+runtime environment in the compile.  Here it is back to you, with some
+minor comments added to the head...
+
+JINX:  "I hearby submit this macro package for the CScheme part of the
+        Scheme library.  It is highly implementation-dependent, and so
+        I expect that it is not easily portable to other Schemes."
+
+
+
+
+						SMC
+
+
+- - - - - - - - - - - 
+;;; An implementation of DEFSTRUCT for Scheme
+;;; Stewart M Clamen, 1986
+;;;
+;;; Brought up to date (wrt. Release 5.3) by Morris Katz, Fall 1987.
+
+;;;
+;;; Syntax is of form:
+;;;
+;;;         (define-structure (<structname> <field_1> <field_2> ... <field_n>)
+;;;                            <option_1>
+;;;                            <option_2>
+;;;                                .
+;;;                                .
+;;;                                .
+;;;                            <option_n>)
+;;;
+;;;
+;;; Possible options:  :UNTYPED, :PRINTASVECTOR, :PRINTASHASH
+;;;
+;;;     :UNTYPED means that no type checking is done when accessors or 
+;;;              mutators are used on a structure.  (i.e. accessors and
+;;;              mutators will operate on any vector, regardless of
+;;;              whether it is actually a structure of the given type.)
+;;;
+;;;     :PRINTASVECTOR if a structure is typed, this causes it to
+;;;     	       print as a vector of its fields as opposed to
+;;;     	       the default (opaque object) which is
+;;;     	       #[<struct-name> <addr>].  
+;;;
+;;;     :PRINTASHASH if a strucuture is typed, this causes it to print
+;;;     	     as #[<struct-name> <hashed addr>] as opposed to
+;;;     	     the default which is #[<struct-name> <addr>].
+;;;     	     The hash address if preserved over garbage
+;;;     	     collection. 
+
+;;; Utilities
+
+(define-macro (macro-expand exp)
+  `(unsyntax (syntax ',exp *rep-current-syntax-table*)))
+
+
+;;; The Define-structure Macro
+
+(define-macro (define-structure struct . options)
+  (let ((structname (car struct))
+	(fields (cdr struct))
+	(untyped
+	 (member ':UNTYPED options))	;UNTYPED option
+	(print-as-hash
+	 (member ':PRINTASHASH options)) ;PRINTASHASH option
+	(print-as-vector
+	 (member ':PRINTASVECTOR options)) ;PRINTASVECTOR option
+	(struct-string (symbol-print-name (car struct))))
+    
+    (define (list-position l item)
+      (let loop ((l l) (count 0))
+	   (if l
+	       (if (eq? (car l) item)
+		   count
+		   (loop (cdr l) (+ count 1))))))
+    
+    (define ((add-prefix prefix) s)
+      (make-interned-symbol 
+       (string-append prefix "-" (symbol-print-name s))))
+  
+    (define ((add-suffix suffix) s)
+      (make-interned-symbol 
+       (string-append (symbol-print-name s) suffix)))
+
+    (let ((tagname ((add-suffix "-TYPE") structname))
+	  (constructor-name ((add-prefix "MAKE") structname))
+	  (predicate-name ((add-suffix "?") structname))
+	  (selector-names 
+	   (mapcar (add-prefix struct-string) fields))
+	  (mutator-names 
+	   (mapcar (add-suffix "!") 
+		   (mapcar (add-prefix (string-append "SET-" struct-string))
+			   fields)))
+	  (errmsg (string-append "Not of type " struct-string " -- ")))
+
+      (let ((selector-definition 
+	     (lambda (field) 
+	       `(set! ,field
+		      (named-lambda (,field ,structname)
+			(structure-ref 
+			 ,structname 
+			 ,(if untyped
+			      (list-position selector-names field)
+			      (1+ (list-position selector-names field))))))))
+	    (mutator-definition 
+	     (lambda (field) 
+	       `(set! ,field
+		      (named-lambda (,field ,structname val)
+			(structure-set!
+			 ,structname
+			 ,(if untyped
+			      (list-position mutator-names field)
+			      (1+ (list-position mutator-names field)))
+			 val)))))
+	    (make-unassigned
+	     (lambda (procname)
+	       `(define ,procname))))
+	
+	;; definitions
+	`(sequence
+	  ,@(mapcar make-unassigned 
+		    (append (list constructor-name predicate-name)
+			    selector-names
+			    mutator-names))
+
+	  (let ((tag ',(list tagname)))
+
+	    ,(if untyped
+		 `(sequence
+		   (define structure-ref vector-ref)
+		   (define structure-set! vector-set!)
+		   (set! ,constructor-name
+			 (named-lambda (,constructor-name ,@fields)
+			   (vector ,@fields))))
+		 `(sequence
+		   (define (structure-ref struct slot)
+		     (if (,predicate-name struct)
+			 (vector-ref struct slot)
+			 (error ,errmsg struct)))
+		   (define (structure-set! struct slot val)
+		     (if (,predicate-name struct)
+			 (vector-set! struct slot val)
+			 (error ,errmsg struct)))
+		   (set! ,predicate-name
+			 (named-lambda (,predicate-name ,structname)
+			   (if (vector? ,structname) 
+			       (eq? (vector-ref ,structname 0) tag))))
+		   (set! ,constructor-name
+			 (named-lambda (,constructor-name ,@fields)
+			   (vector tag ,@fields)))))
+	    ,@(mapcar selector-definition selector-names)
+	    ,@(mapcar mutator-definition mutator-names)
+	    ,(if (and
+		  (not untyped)
+		  (not print-as-vector))
+		 `((access
+		    add-unparser-special-object!
+		    unparser-package)
+		   tag
+		   (lambda (obj)
+		     (unparse-with-brackets
+		      (lambda ()
+			(write-string (string-append ,struct-string " "))
+			(write
+			 ,(if (not print-as-hash)
+			      `(primitive-datum obj)
+			      `(hash obj))))))))
+	    )
+	  ',structname)))))
+
+
+
+
+
+

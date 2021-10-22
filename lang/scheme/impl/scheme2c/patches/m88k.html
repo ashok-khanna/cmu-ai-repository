@@ -1,0 +1,1233 @@
+Return-Path: brent@amber.ssd.csd.harris.com
+Received: by jove.pa.dec.com; id AA05406; Fri, 12 Mar 93 12:07:09 -0800
+Received: by inet-gw-2.pa.dec.com; id AA23826; Fri, 12 Mar 93 12:06:37 -0800
+Received: from amber.ssd.csd.harris.com by travis.csd.harris.com (5.61/harris-5.1)id AA09832; Fri, 12 Mar 93 15:05:07 -0500
+Received: by amber (5.61/CX/UX-5.0)id AA04277; Fri, 12 Mar 93 15:05:01 -0500
+Date: Fri, 12 Mar 93 15:05:01 -0500
+From: brent@amber.ssd.csd.harris.com (Brent Benson)
+Message-Id: <9303122005.AA04277@amber>
+To: bartlett
+Subject: M88K.PATCHES for Scheme->C
+
+Here are my patches to build Scheme->C on an m88k based Unix machine.
+The shar script unpacks into a build script, build-m88k, and an M88K
+directory containing auxiliary files and patches.  The build-m88k
+script copies the source tree under M88K, adds new files, and patches
+necessary files.  You can then cd to M88K and type `make port'.
+
+I will send you my diffs for an i386/i486 running Linux soon.
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of shell archive."
+# Contents:  build-m88k M88K M88K/README M88K/call.patch
+#   M88K/heap.patch M88K/m88k.s M88K/makefile-head
+#   M88K/options-server.h M88K/options.h
+# Wrapped by brent@amber on Fri Mar 12 14:00:58 1993
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'build-m88k' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'build-m88k'\"
+else
+echo shar: Extracting \"'build-m88k'\" \(1475 characters\)
+sed "s/^X//" >'build-m88k' <<'END_OF_FILE'
+X#!/bin/sh
+XCPU=M88K
+X#
+X# say what we're doing
+X#
+Xecho "Building source tree for M88k architecture..."
+X#
+X# mimic the forANY target of the root makefile
+X#
+Xcp ports/makefile ${CPU}
+Xmkdir ${CPU}/scsc
+Xcat ${CPU}/makefile-head scsc/makefile >${CPU}/scsc/makefile
+Xcd ${CPU}/scsc; make srclinks; cd ../..
+Xmkdir ${CPU}/scrt
+Xcat ${CPU}/makefile-head scrt/makefile >${CPU}/scrt/makefile
+Xcd ${CPU}/scrt; make srclinks; cd ../..
+Xmkdir ${CPU}/server
+Xcat ${CPU}/makefile-head scrt/makefile >${CPU}/server/makefile
+Xcd ${CPU}/server; make srclinks; cd ../..
+Xmkdir ${CPU}/test
+Xcat ${CPU}/makefile-head test/makefile >${CPU}/test/makefile
+Xcd ${CPU}/test; make srclinks; cd ../..
+Xmkdir ${CPU}/cdecl
+Xcat ${CPU}/makefile-head cdecl/makefile >${CPU}/cdecl/makefile
+Xcd ${CPU}/cdecl; make srclinks; cd ../..
+Xmkdir ${CPU}/xlib
+Xcat ${CPU}/makefile-head xlib/makefile >${CPU}/xlib/makefile
+Xcd ${CPU}/xlib; make srclinks; cd ../..
+X#
+X# mimic the rest of a for${CPU} makefile target
+X#
+Xcp ${CPU}/m88k.s ${CPU}/scrt
+Xcp ${CPU}/options.h ${CPU}/scrt
+Xcp ${CPU}/m88k.s ${CPU}/server
+Xcp ${CPU}/options-server.h ${CPU}/server/options.h
+X#
+X# make copies of files we will change
+X#
+Xcd ${CPU}/scrt
+Xcp callcc.c temp; mv temp callcc.c; chmod u+w callcc.c
+Xcp heap.c temp; mv temp heap.c; chmod u+w heap.c
+Xcd ../..
+X#
+X# now apply patches
+X#
+Xpatch ${CPU}/scrt/callcc.c ${CPU}/call.patch
+Xpatch ${CPU}/scrt/heap.c ${CPU}/heap.patch
+X#
+X# all done
+X#
+Xecho "Build succeeded."
+Xecho "Now cd to the ${CPU} director and type \`make port'."
+END_OF_FILE
+if test 1475 -ne `wc -c <'build-m88k'`; then
+    echo shar: \"'build-m88k'\" unpacked with wrong size!
+fi
+chmod +x 'build-m88k'
+# end of 'build-m88k'
+fi
+if test ! -d 'M88K' ; then
+    echo shar: Creating directory \"'M88K'\"
+    mkdir 'M88K'
+fi
+if test -f 'M88K/README' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'M88K/README'\"
+else
+echo shar: Extracting \"'M88K/README'\" \(747 characters\)
+sed "s/^X//" >'M88K/README' <<'END_OF_FILE'
+X
+XScheme->C M88K port
+X===================
+X
+XAlong with the shell script `../build-m88k' this directory contains
+Xthe necessary files to build the Scheme->C system on a Harris
+XNighthawk (a multiprocessor m88k based computer) running CX/UX
+X(Harris' real-time version of Unix).  These patches should probably
+Xwork on any m88k machine running Unix (e.g., a DG Aviion).
+X
+XExecuting the shell script build-m88k should build a source directory
+Xunder this directory and then patch and add the necessary files to
+Xthat tree.  If all goes well, you can then type `make port' in this
+Xdirectory to build the interpreter, sci, and compiler, sccomp.
+X
+XPlease send bug reports and questions about the m88k specific code and
+Xbuild process to brent@ssd.csd.harris.com.
+X
+END_OF_FILE
+if test 747 -ne `wc -c <'M88K/README'`; then
+    echo shar: \"'M88K/README'\" unpacked with wrong size!
+fi
+# end of 'M88K/README'
+fi
+if test -f 'M88K/call.patch' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'M88K/call.patch'\"
+else
+echo shar: Extracting \"'M88K/call.patch'\" \(465 characters\)
+sed "s/^X//" >'M88K/call.patch' <<'END_OF_FILE'
+X*** scrt/callcc.c	Tue Feb 23 18:25:41 1993
+X--- M88K/scrt/callcc.c	Fri Mar 12 10:04:50 1993
+X***************
+X*** 91,96 ****
+X--- 91,102 ----
+X  #define  SETJMP( x )		sc_setjmp( x )
+X  #endif
+X  
+X+ #ifdef M88K
+X+ extern  sc_setsp();
+X+ #define  LONGJMP( x, y )	longjmp( x, y )
+X+ #define  SETJMP( x )		setjmp( x )
+X+ #endif
+X+ 
+X  TSCP  sc_clink;		/* Pointer to inner most continuation on stack. */
+X  
+X  /* Static declarations for data structures internal to the module.  These
+END_OF_FILE
+if test 465 -ne `wc -c <'M88K/call.patch'`; then
+    echo shar: \"'M88K/call.patch'\" unpacked with wrong size!
+fi
+# end of 'M88K/call.patch'
+fi
+if test -f 'M88K/heap.patch' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'M88K/heap.patch'\"
+else
+echo shar: Extracting \"'M88K/heap.patch'\" \(1052 characters\)
+sed "s/^X//" >'M88K/heap.patch' <<'END_OF_FILE'
+X*** scrt/heap.c	Mon Feb 22 11:11:33 1993
+X--- M88K/scrt/heap.c	Fri Mar 12 10:04:12 1993
+X***************
+X*** 66,71 ****
+X--- 66,74 ----
+X  #ifdef VAX
+X  extern  sc_r2tor11( );
+X  #endif
+X+ #ifdef M88K
+X+ extern  sc_r14tor24( S2CINT* a );
+X+ #endif
+X  
+X  /* Forward declarations */
+X  
+X***************
+X*** 397,402 ****
+X--- 400,430 ----
+X  	   move_continuation_ptr( (SCP)*pp );
+X  	   pp = (S2CINT*)(((char*)pp)+2);
+X  	}
+X+ }
+X+ #endif
+X+ 
+X+ #ifdef M88K
+X+ /* The following code is used to read the stack pointer.  The register
+X+    number is passed in to force an argument to be on the stack, which in
+X+    turn can be used to find the address of the top of stack.
+X+ */
+X+ 
+X+ S2CINT  *sc_processor_register( S2CINT reg )
+X+ {
+X+ 	return( &reg );
+X+ }
+X+ 
+X+ /* All processor registers which might contain pointers are traced by the
+X+    following procedure.
+X+ */
+X+ 
+X+ static  trace_stack_and_registers()
+X+ {
+X+ 	S2CINT  r14tor25[12], *pp;
+X+ 
+X+ 	sc_r14tor25( r14tor25 );
+X+ 	STACKPTR( pp );
+X+ 	while  (pp != sc_stackbase)  move_continuation_ptr( ((SCP)*pp++) );
+X  }
+X  #endif
+X  
+END_OF_FILE
+if test 1052 -ne `wc -c <'M88K/heap.patch'`; then
+    echo shar: \"'M88K/heap.patch'\" unpacked with wrong size!
+fi
+# end of 'M88K/heap.patch'
+fi
+if test -f 'M88K/m88k.s' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'M88K/m88k.s'\"
+else
+echo shar: Extracting \"'M88K/m88k.s'\" \(3019 characters\)
+sed "s/^X//" >'M88K/m88k.s' <<'END_OF_FILE'
+X/*
+X * SCHEME->C
+X *
+X * MIPS assembly code.
+X *
+X */
+X
+X/*              Copyright 1989 Digital Equipment Corporation
+X *                         All Rights Reserved
+X *
+X * Permission to use, copy, and modify this software and its documentation is
+X * hereby granted only under the following terms and conditions.  Both the
+X * above copyright notice and this permission notice must appear in all copies
+X * of the software, derivative works or modified versions, and any portions
+X * thereof, and both notices must appear in supporting documentation.
+X *
+X * Users of this software agree to the terms and conditions set forth herein,
+X * and hereby grant back to Digital a non-exclusive, unrestricted, royalty-free
+X * right and license under any changes, enhancements or extensions made to the
+X * core functions of the software, including but not limited to those affording
+X * compatibility with other hardware or software environments, but excluding
+X * applications which incorporate this software.  Users further agree to use
+X * their best efforts to return to Digital any such changes, enhancements or
+X * extensions that they make and inform Digital of noteworthy uses of this
+X * software.  Correspondence should be provided to Digital at:
+X * 
+X *                       Director of Licensing
+X *                       Western Research Laboratory
+X *                       Digital Equipment Corporation
+X *                       250 University Avenue
+X *                       Palo Alto, California  94301  
+X * 
+X * This software may be distributed (but not offered for sale or transferred
+X * for compensation) to third parties, provided such third parties agree to
+X * abide by the terms and conditions of this notice.  
+X * 
+X * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
+X * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF
+X * MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
+X * CORPORATION BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+X * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+X * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+X * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+X * SOFTWARE.
+X*/
+X
+X/* sc_r14tor25 returns the values of r14-r25 in the caller supplied buffer. 	 
+X   These are the "callee" save registers which need to be examined during 
+X   garbage collection.
+X*/
+X
+X	text	
+X	align	2
+X	global	_sc_r14tor25
+X_sc_r14tor25:
+X	st	r14,r2,4
+X	st	r15,r2,8
+X	st	r16,r2,12
+X	st	r17,r2,16
+X	st	r18,r2,20
+X	st	r19,r2,24
+X	st	r20,r2,28
+X	st	r21,r2,32
+X	st	r22,r2,36
+X	st	r23,r2,40
+X	st	r24,r2,44
+X	st	r25,r2,48
+X	jmp	r1
+X
+X
+X/*
+X	text	
+X	align	2
+X	global	_sc_r3tor9
+X_sc_r3tor9:
+X	st	r3,r2,0
+X	st	r4,r2,4
+X	st	r5,r2,8
+X	st	r6,r2,12
+X	st	r7,r2,16
+X	st	r8,r2,20
+X	st	r9,r2,24
+X	jmp	r1
+X*/
+X/* sc_setsp sets the stack pointer to the argument value.  It is necessary
+X   as longjmp checks to assure that the call is an "upexit".
+X*/
+X	.text
+X	.align	4
+X	global	_sc_setsp
+X_sc_setsp:
+X	or	r31,r0,r2
+X	jmp	r1
+END_OF_FILE
+if test 3019 -ne `wc -c <'M88K/m88k.s'`; then
+    echo shar: \"'M88K/m88k.s'\" unpacked with wrong size!
+fi
+# end of 'M88K/m88k.s'
+fi
+if test -f 'M88K/makefile-head' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'M88K/makefile-head'\"
+else
+echo shar: Extracting \"'M88K/makefile-head'\" \(332 characters\)
+sed "s/^X//" >'M88K/makefile-head' <<'END_OF_FILE'
+X#
+X# This is the header file for constructing make files for M88K.
+X#
+X
+X# Default flags to use when invoking the C compiler.
+X
+XCFLAGS = -O
+XCC = cc
+X
+X# Assembly language object files.
+X
+XAruntime = m88k.o 
+X
+X# Profiled library
+X
+XPlib =
+X
+X# Installation tools
+X
+XRANLIB = ranlib
+X
+X# X library
+X
+XXLIB = -lX11
+XXLIBCFLAGS = -G0
+X
+X# End of M88K header.
+END_OF_FILE
+if test 332 -ne `wc -c <'M88K/makefile-head'`; then
+    echo shar: \"'M88K/makefile-head'\" unpacked with wrong size!
+fi
+# end of 'M88K/makefile-head'
+fi
+if test -f 'M88K/options-server.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'M88K/options-server.h'\"
+else
+echo shar: Extracting \"'M88K/options-server.h'\" \(11839 characters\)
+sed "s/^X//" >'M88K/options-server.h' <<'END_OF_FILE'
+X/* SCHEME->C */
+X
+X/*           Copyright 1989-1993 Digital Equipment Corporation
+X *                         All Rights Reserved
+X *
+X * Permission to use, copy, and modify this software and its documentation is
+X * hereby granted only under the following terms and conditions.  Both the
+X * above copyright notice and this permission notice must appear in all copies
+X * of the software, derivative works or modified versions, and any portions
+X * thereof, and both notices must appear in supporting documentation.
+X *
+X * Users of this software agree to the terms and conditions set forth herein,
+X * and hereby grant back to Digital a non-exclusive, unrestricted, royalty-free
+X * right and license under any changes, enhancements or extensions made to the
+X * core functions of the software, including but not limited to those affording
+X * compatibility with other hardware or software environments, but excluding
+X * applications which incorporate this software.  Users further agree to use
+X * their best efforts to return to Digital any such changes, enhancements or
+X * extensions that they make and inform Digital of noteworthy uses of this
+X * software.  Correspondence should be provided to Digital at:
+X * 
+X *                       Director of Licensing
+X *                       Western Research Laboratory
+X *                       Digital Equipment Corporation
+X *                       250 University Avenue
+X *                       Palo Alto, California  94301  
+X * 
+X * This software may be distributed (but not offered for sale or transferred
+X * for compensation) to third parties, provided such third parties agree to
+X * abide by the terms and conditions of this notice.  
+X * 
+X * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
+X * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF
+X * MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
+X * CORPORATION BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+X * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+X * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+X * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+X * SOFTWARE.
+X*/
+X
+X/* This file defines compilation options for a specific implementation */
+X
+X#define CHECKSTACK	1	/* 0 = don't check stack height */
+X				/* 1 = check stack height */
+X
+X#define TIMESLICE	1	/* 0 = don't time slice execution */
+X				/* 1 = time slice execution */
+X
+X#define COMPACTPUSHTRACE 0	/* 0 = inline procedure entry checks.
+X				   1 = emit procedure call for procedure
+X				       entry checks.
+X				*/
+X
+X#define COMPACTPOPTRACE 1	/* 0 = inline procedure exit cleanup.
+X				   1 = emit procedure call for procedure exit
+X				       cleanup.
+X				*/
+X
+X#define S2CSIGNALS	0	/* 0 = Scheme->C doesn't handle signals */
+X				/* 1 = Scheme->C does handle signals */
+X
+X#define	MATHTRAPS	0	/* 0 = don't detect fixed point overflow */
+X				/* 1 = recover on fixed point overflow */
+X
+X/* Define only one of the supported processor types:
+X
+X	AOSF		Alpha AXP OSF/1
+X	HP700		HP 9000/700
+X	MAC		Macintosh system 7.1 with Think-C 5.0
+X	MC680X0		HP 9000/300, Sun 3, Next
+X	MIPS		DECstation, SGI, Sony News
+X	VAX		Vax ULTRIX
+X	WIN16		Microsoft Windows 3.1
+X*/
+X
+X#define M88K 1
+X
+X/* Attributes of the selected architecture:
+X
+X   The following four macros define specific aspects of the system.  They
+X   are defined as strings, or specifically undefined:
+X
+X	IMPLEMENTATION_MACHINE	machine type
+X	IMPLEMENTATION_CPU	cpu type
+X	IMPLEMENTATION_OS	operating system
+X	IMPLEMENTATION_FS	file system
+X
+X   Big endian vs. little endian:
+X
+X	BIGENDIAN		defined to 1 to denote bigendian systems
+X
+X   C compiler:
+X
+X	OLD_FASHIONED_C		defined to 1 for pre-ANSI compilers
+X
+X   Alignment:
+X
+X	DOUBLE_ALIGN		defined to 1 to force doubles to be aligned on
+X				an even S2CINT boundary
+X
+X   Macro expansion:
+X
+X	NEED_MACRO_ARGS		defined to 1 to declare a macro like X() as
+X				X(dummy)
+X
+X   The types S2CINT and S2CUINT are defined to be signed and unsigned integers
+X   that are the same size as pointers.  This is the basic "word" used by
+X   Scheme->C.
+X
+X   The machine state when a continuation is created is captured in the
+X   sc_jmp_buf data structure.
+X
+X   STACKPTR( x ) is a define that stores the address of the stack pointer
+X   in x.
+X
+X   Unix flavors:
+X
+X	POSIX			POSIX.1 compliant
+X	SYSV			System V or derivative
+X	SYSV4			System V release 4 (also define SYSV, POSIX)
+X*/
+X
+X/**************/
+X/*    AOSF    */
+X/**************/
+X
+X#ifdef AOSF
+X#define IMPLEMENTATION_MACHINE	"Alpha AXP"
+X#undef  IMPLEMENTATION_CPU	
+X#define IMPLEMENTATION_OS	"OSF/1"
+X#undef  IMPLEMENTATION_FS
+X
+Xtypedef long int S2CINT;		/* Signed pointer size integer */
+Xtypedef long unsigned S2CUINT;		/* Unsigned pointer size interger */
+X
+Xtypedef int PAGELINK;			/* 32-bit sc_pagelink values */
+X#define MAXS2CINT  0x7fffffffffffffffL	/* Maximum value of an S2CINT */
+X#define MSBS2CUINT 0x8000000000000000L	/* S2CUINT with 1 in the MSB */
+X
+Xtypedef long int sc_jmp_buf[ 9 ]; /* The buffer contains the following items:
+X				     s0-s6	saved registers
+X				     ra		return address
+X				     sp	        stack pointer
+X				  */
+X
+X#define STACKPTR( x ) x = sc_getsp()
+Xextern  S2CINT*  sc_getsp();
+X
+X#define NEED_MACRO_ARGS 1
+X#endif
+X
+X/***************/
+X/*    HP700    */
+X/***************/
+X
+X#ifdef HP700
+X
+X#ifdef __hp9000s700
+X#define IMPLEMENTATION_MACHINE	"HP9000/700"
+X#else
+X#ifdef __hp9000s800
+X#define IMPLEMENTATION_MACHINE	"HP9000/800"
+X#endif
+X#endif
+X
+X#define IMPLEMENTATION_CPU	"HP-PA"
+X
+X#define BIGENDIAN 1
+X
+X#define DOUBLE_ALIGN 1
+X
+Xtypedef int S2CINT;			/* Signed pointer size integer */
+Xtypedef unsigned S2CUINT;		/* Unsigned pointer size interger */
+X
+Xtypedef int PAGELINK;			/* 32-bit sc_pagelink values */
+X#define MAXS2CINT  0x7fffffff		/* Maximum value of an S2CINT */
+X#define MSBS2CUINT 0x80000000		/* S2CUINT with 1 in the MSB */
+X
+X#define STACKPTR(x) ((x) = (sc_processor_register (30)))
+X
+X#define STACK_GROWS_POSITIVE 1
+X
+X#endif
+X
+X#ifdef __hpux
+X#define IMPLEMENTATION_OS	"HP-UX"
+X#undef  IMPLEMENTATION_FS
+X
+X#ifdef __STDC__
+X#undef OLD_FASHIONED_C
+X#else
+X#define OLD_FASHIONED_C 1
+X#endif
+X
+X#include <setjmp.h>
+Xtypedef jmp_buf sc_jmp_buf;
+X
+X#define SYSV 1
+X#define POSIX 1
+X
+X#endif
+X
+X/*************/
+X/*    MAC    */
+X/*************/
+X
+X#ifdef MAC
+X#define IMPLEMENTATION_MACHINE	"Apple Macintosh"
+X#define IMPLEMENTATION_CPU	"680x0"
+X#define IMPLEMENTATION_OS	"7.1"
+X#undef  IMPLEMENTATION_FS
+X
+X#define BIGENDIAN 1
+X
+Xtypedef long int S2CINT;		/* Signed pointer size integer */
+Xtypedef long unsigned S2CUINT;		/* Unsigned pointer size interger */
+X
+Xtypedef short int PAGELINK;		/* 16-bit sc_pagelink values */
+X#define MAXS2CINT  0x7fffffffL		/* Maximum value of an S2CINT */
+X#define MSBS2CUINT 0x80000000L		/* S2CUINT with 1 in the MSB */
+X
+X#include <setjmp.h>
+Xtypedef jmp_buf sc_jmp_buf;
+X#undef TRUE
+X#undef FALSE
+X
+X#define STACKPTR( x ) x = sc_getsp()
+Xextern  S2CINT*  sc_getsp();
+X
+X#define SCHEAP 1
+X#define SCMAXHEAP 15
+X#endif
+X
+X/****************/
+X/*   MC680X0    */
+X/****************/ 
+X
+X#ifdef MC680X0
+X#define IMPLEMENTATION_CPU	"680x0"
+X
+X#define BIGENDIAN 1
+X
+Xtypedef int S2CINT;			/* Signed pointer size integer */
+Xtypedef unsigned S2CUINT;		/* Unsigned pointer size interger */
+X
+Xtypedef int PAGELINK;			/* 32-bit sc_pagelink values */
+X#define MAXS2CINT  0x7fffffff		/* Maximum value of an S2CINT */
+X#define MSBS2CUINT 0x80000000		/* S2CUINT with 1 in the MSB */
+X
+X#define STACKPTR(x) ((x) = (sc_processor_register (15)))
+X
+X#ifdef __hp9000s400
+X#define IMPLEMENTATION_MACHINE	"HP9000/400"
+X#else
+X#ifdef __hp9000s300
+X#define IMPLEMENTATION_MACHINE	"HP9000/300"
+X#endif
+X#endif
+X
+X/* HP-UX dependent conditionalizations performed above.  */
+X
+X#endif
+X
+X/**************/
+X/*    MIPS    */
+X/**************/
+X
+X#ifdef MIPS
+X#define IMPLEMENTATION_MACHINE	"DECstation"
+X#define IMPLEMENTATION_CPU	"Rx000"
+X#define IMPLEMENTATION_OS	"ULTRIX"
+X#undef  IMPLEMENTATION_FS
+X
+X#define DOUBLE_ALIGN 1
+X
+Xtypedef int S2CINT;			/* Signed pointer size integer */
+Xtypedef unsigned S2CUINT;		/* Unsigned pointer size interger */
+X
+Xtypedef int PAGELINK;			/* 32-bit sc_pagelink values */
+X#define MAXS2CINT  0x7fffffff		/* Maximum value of an S2CINT */
+X#define MSBS2CUINT 0x80000000		/* S2CUINT with 1 in the MSB */
+X
+X#ifndef MIPSEL
+X#define BIGMIPS 1
+X#define BIGENDIAN 1
+X#undef  IMPLEMENTATION_MACHINE
+X#define IMPLEMENTATION_MACHINE	"Big Endian MIPS"
+X#undef  IMPLEMENTATION_OS
+X
+X/* Not sure what the correct conditionalization is here -- NEWS-OS
+X   5.xx defines both "sony" and "sonyrisc", but apparently NEWS-OS
+X   4.xx defines "sony_mips", because the previous version of Scheme->C
+X   was conditionalized on "sony_mips" which is *not* defined by
+X   NEWS-OS 5.xx.  If there's an intersection between the symbols
+X   defined by 4.xx and 5.xx then a member of that intersection should
+X   be used for the conditionalization; otherwise test for both.
+X*/
+X#ifdef sonyrisc
+X
+X#undef  IMPLEMENTATION_MACHINE
+X#define IMPLEMENTATION_MACHINE	"Sony MIPS"
+X#undef  IMPLEMENTATION_CPU
+X#define IMPLEMENTATION_CPU	"R3000"
+X#undef  IMPLEMENTATION_OS
+X#define IMPLEMENTATION_OS	"NEWS-OS"
+X
+X#ifdef SYSTYPE_SYSV
+X
+X#define SYSV4 1
+X#define SYSV 1
+X#define POSIX 1
+X
+X/* This can be implemented but requires generalizing the signal
+X   handler to know about SYSV4 siginfo structure.
+X*/
+X
+X#undef  MATHTRAPS
+X#define MATHTRAPS 0
+X
+X#define NEED_MACRO_ARGS 1
+X
+X#define COPY_STACK_BEFORE_LONGJMP 1
+X
+X#endif
+X#endif
+X#endif
+X
+X#include <setjmp.h>
+Xtypedef jmp_buf sc_jmp_buf;
+X
+X#define STACKPTR( x ) x = sc_processor_register( 29 )
+X#endif
+X
+X/*************/
+X/*    VAX    */
+X/*************/
+X
+X#ifdef VAX
+X#define IMPLEMENTATION_MACHINE	"VAX"
+X#undef  IMPLEMENTATION_CPU
+X#define IMPLEMENTATION_OS	"ULTRIX"
+X#undef  IMPLEMENTATION_FS
+X
+X#define OLD_FASHIONED_C 1
+X
+Xtypedef int S2CINT;			/* Signed pointer size integer */
+Xtypedef unsigned S2CUINT;		/* Unsigned pointer size interger */
+X
+Xtypedef int PAGELINK;			/* 32-bit sc_pagelink values */
+X#define MAXS2CINT  0x7fffffff		/* Maximum value of an S2CINT */
+X#define MSBS2CUINT 0x80000000		/* S2CUINT with 1 in the MSB */
+X
+Xtypedef int sc_jmp_buf[ 16 ];	/* The buffer contains the following items:
+X				   R2-R11	saved registers
+X				   SIGM		saved signal mask
+X				   SP		stack pointer on entry to
+X				   		setjmp
+X				   PSW		PSW word from stack frame
+X				   AP		saved argument ptr from frame
+X				   FP		saved frame ptr from frame
+X				   PC		saved program cntr from frame
+X				*/
+X
+X#define STACKPTR( x ) x = sc_processor_register( 14 )
+X#endif
+X
+X/***************/
+X/*    WIN16    */
+X/***************/
+X
+X#ifdef WIN16
+X#define IMPLEMENTATION_MACHINE	"Generic PC"
+X#define IMPLEMENTATION_CPU	"Intelx86"
+X#define IMPLEMENTATION_OS	"Microsoft Windows 3.1"
+X#undef  IMPLEMENTATION_FS
+X
+Xtypedef long int S2CINT;		/* Signed pointer size integer */
+Xtypedef long unsigned S2CUINT;		/* Unsigned pointer size interger */
+X
+Xtypedef short int PAGELINK;		/* 16-bit sc_pagelink values */
+X#define MAXS2CINT  0x7fffffffL		/* Maximum value of an S2CINT */
+X#define MSBS2CUINT 0x80000000L		/* S2CUINT with 1 in the MSB */
+X
+X#include <windows.h>
+X#undef TRUE
+X#undef FALSE
+Xtypedef CATCHBUF sc_jmp_buf;
+X
+X#define STACKPTR( x ) x = sc_processor_register( 0 )
+X
+X#define MAXSTRINGSIZE	       ((S2CINT)65532)
+X#define MAXVECTORSIZE	       ((S2CINT)16383)
+X
+X#define SCHEAP 2
+X#define SCMAXHEAP 15
+X#endif
+X
+X/***************/
+X/*    M88K     */
+X/***************/
+X
+X#ifdef M88K
+X
+X#define IMPLEMENTATION_MACHINE	"NightHawk"
+X#define IMPLEMENTATION_CPU	"88100"
+X#define IMPLEMENTATION_OS	"CX/UX"
+X#undef  IMPLEMENTATION_FS
+X
+X#define DOUBLE_ALIGN 1
+X
+Xtypedef int S2CINT;			/* Signed pointer size integer */
+Xtypedef unsigned S2CUINT;		/* Unsigned pointer size interger */
+X
+Xtypedef int PAGELINK;			/* 32-bit sc_pagelink values */
+X#define MAXS2CINT  0x7fffffff		/* Maximum value of an S2CINT */
+X#define MSBS2CUINT 0x80000000		/* S2CUINT with 1 in the MSB */
+X
+X#define BIGENDIAN 1
+X
+X#include <setjmp.h>
+Xtypedef jmp_buf sc_jmp_buf;
+X
+X#define STACKPTR( x ) x = sc_processor_register( 29 )
+X#endif
+X
+END_OF_FILE
+if test 11839 -ne `wc -c <'M88K/options-server.h'`; then
+    echo shar: \"'M88K/options-server.h'\" unpacked with wrong size!
+fi
+# end of 'M88K/options-server.h'
+fi
+if test -f 'M88K/options.h' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'M88K/options.h'\"
+else
+echo shar: Extracting \"'M88K/options.h'\" \(11839 characters\)
+sed "s/^X//" >'M88K/options.h' <<'END_OF_FILE'
+X/* SCHEME->C */
+X
+X/*           Copyright 1989-1993 Digital Equipment Corporation
+X *                         All Rights Reserved
+X *
+X * Permission to use, copy, and modify this software and its documentation is
+X * hereby granted only under the following terms and conditions.  Both the
+X * above copyright notice and this permission notice must appear in all copies
+X * of the software, derivative works or modified versions, and any portions
+X * thereof, and both notices must appear in supporting documentation.
+X *
+X * Users of this software agree to the terms and conditions set forth herein,
+X * and hereby grant back to Digital a non-exclusive, unrestricted, royalty-free
+X * right and license under any changes, enhancements or extensions made to the
+X * core functions of the software, including but not limited to those affording
+X * compatibility with other hardware or software environments, but excluding
+X * applications which incorporate this software.  Users further agree to use
+X * their best efforts to return to Digital any such changes, enhancements or
+X * extensions that they make and inform Digital of noteworthy uses of this
+X * software.  Correspondence should be provided to Digital at:
+X * 
+X *                       Director of Licensing
+X *                       Western Research Laboratory
+X *                       Digital Equipment Corporation
+X *                       250 University Avenue
+X *                       Palo Alto, California  94301  
+X * 
+X * This software may be distributed (but not offered for sale or transferred
+X * for compensation) to third parties, provided such third parties agree to
+X * abide by the terms and conditions of this notice.  
+X * 
+X * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
+X * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF
+X * MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
+X * CORPORATION BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
+X * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
+X * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
+X * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
+X * SOFTWARE.
+X*/
+X
+X/* This file defines compilation options for a specific implementation */
+X
+X#define CHECKSTACK	0	/* 0 = don't check stack height */
+X				/* 1 = check stack height */
+X
+X#define TIMESLICE	0	/* 0 = don't time slice execution */
+X				/* 1 = time slice execution */
+X
+X#define COMPACTPUSHTRACE 0	/* 0 = inline procedure entry checks.
+X				   1 = emit procedure call for procedure
+X				       entry checks.
+X				*/
+X
+X#define COMPACTPOPTRACE 1	/* 0 = inline procedure exit cleanup.
+X				   1 = emit procedure call for procedure exit
+X				       cleanup.
+X				*/
+X
+X#define S2CSIGNALS	1	/* 0 = Scheme->C doesn't handle signals */
+X				/* 1 = Scheme->C does handle signals */
+X
+X#define	MATHTRAPS	0	/* 0 = don't detect fixed point overflow */
+X				/* 1 = recover on fixed point overflow */
+X
+X/* Define only one of the supported processor types:
+X
+X	AOSF		Alpha AXP OSF/1
+X	HP700		HP 9000/700
+X	MAC		Macintosh system 7.1 with Think-C 5.0
+X	MC680X0		HP 9000/300, Sun 3, Next
+X	MIPS		DECstation, SGI, Sony News
+X	VAX		Vax ULTRIX
+X	WIN16		Microsoft Windows 3.1
+X*/
+X
+X#define M88K 1
+X
+X/* Attributes of the selected architecture:
+X
+X   The following four macros define specific aspects of the system.  They
+X   are defined as strings, or specifically undefined:
+X
+X	IMPLEMENTATION_MACHINE	machine type
+X	IMPLEMENTATION_CPU	cpu type
+X	IMPLEMENTATION_OS	operating system
+X	IMPLEMENTATION_FS	file system
+X
+X   Big endian vs. little endian:
+X
+X	BIGENDIAN		defined to 1 to denote bigendian systems
+X
+X   C compiler:
+X
+X	OLD_FASHIONED_C		defined to 1 for pre-ANSI compilers
+X
+X   Alignment:
+X
+X	DOUBLE_ALIGN		defined to 1 to force doubles to be aligned on
+X				an even S2CINT boundary
+X
+X   Macro expansion:
+X
+X	NEED_MACRO_ARGS		defined to 1 to declare a macro like X() as
+X				X(dummy)
+X
+X   The types S2CINT and S2CUINT are defined to be signed and unsigned integers
+X   that are the same size as pointers.  This is the basic "word" used by
+X   Scheme->C.
+X
+X   The machine state when a continuation is created is captured in the
+X   sc_jmp_buf data structure.
+X
+X   STACKPTR( x ) is a define that stores the address of the stack pointer
+X   in x.
+X
+X   Unix flavors:
+X
+X	POSIX			POSIX.1 compliant
+X	SYSV			System V or derivative
+X	SYSV4			System V release 4 (also define SYSV, POSIX)
+X*/
+X
+X/**************/
+X/*    AOSF    */
+X/**************/
+X
+X#ifdef AOSF
+X#define IMPLEMENTATION_MACHINE	"Alpha AXP"
+X#undef  IMPLEMENTATION_CPU	
+X#define IMPLEMENTATION_OS	"OSF/1"
+X#undef  IMPLEMENTATION_FS
+X
+Xtypedef long int S2CINT;		/* Signed pointer size integer */
+Xtypedef long unsigned S2CUINT;		/* Unsigned pointer size interger */
+X
+Xtypedef int PAGELINK;			/* 32-bit sc_pagelink values */
+X#define MAXS2CINT  0x7fffffffffffffffL	/* Maximum value of an S2CINT */
+X#define MSBS2CUINT 0x8000000000000000L	/* S2CUINT with 1 in the MSB */
+X
+Xtypedef long int sc_jmp_buf[ 9 ]; /* The buffer contains the following items:
+X				     s0-s6	saved registers
+X				     ra		return address
+X				     sp	        stack pointer
+X				  */
+X
+X#define STACKPTR( x ) x = sc_getsp()
+Xextern  S2CINT*  sc_getsp();
+X
+X#define NEED_MACRO_ARGS 1
+X#endif
+X
+X/***************/
+X/*    HP700    */
+X/***************/
+X
+X#ifdef HP700
+X
+X#ifdef __hp9000s700
+X#define IMPLEMENTATION_MACHINE	"HP9000/700"
+X#else
+X#ifdef __hp9000s800
+X#define IMPLEMENTATION_MACHINE	"HP9000/800"
+X#endif
+X#endif
+X
+X#define IMPLEMENTATION_CPU	"HP-PA"
+X
+X#define BIGENDIAN 1
+X
+X#define DOUBLE_ALIGN 1
+X
+Xtypedef int S2CINT;			/* Signed pointer size integer */
+Xtypedef unsigned S2CUINT;		/* Unsigned pointer size interger */
+X
+Xtypedef int PAGELINK;			/* 32-bit sc_pagelink values */
+X#define MAXS2CINT  0x7fffffff		/* Maximum value of an S2CINT */
+X#define MSBS2CUINT 0x80000000		/* S2CUINT with 1 in the MSB */
+X
+X#define STACKPTR(x) ((x) = (sc_processor_register (30)))
+X
+X#define STACK_GROWS_POSITIVE 1
+X
+X#endif
+X
+X#ifdef __hpux
+X#define IMPLEMENTATION_OS	"HP-UX"
+X#undef  IMPLEMENTATION_FS
+X
+X#ifdef __STDC__
+X#undef OLD_FASHIONED_C
+X#else
+X#define OLD_FASHIONED_C 1
+X#endif
+X
+X#include <setjmp.h>
+Xtypedef jmp_buf sc_jmp_buf;
+X
+X#define SYSV 1
+X#define POSIX 1
+X
+X#endif
+X
+X/*************/
+X/*    MAC    */
+X/*************/
+X
+X#ifdef MAC
+X#define IMPLEMENTATION_MACHINE	"Apple Macintosh"
+X#define IMPLEMENTATION_CPU	"680x0"
+X#define IMPLEMENTATION_OS	"7.1"
+X#undef  IMPLEMENTATION_FS
+X
+X#define BIGENDIAN 1
+X
+Xtypedef long int S2CINT;		/* Signed pointer size integer */
+Xtypedef long unsigned S2CUINT;		/* Unsigned pointer size interger */
+X
+Xtypedef short int PAGELINK;		/* 16-bit sc_pagelink values */
+X#define MAXS2CINT  0x7fffffffL		/* Maximum value of an S2CINT */
+X#define MSBS2CUINT 0x80000000L		/* S2CUINT with 1 in the MSB */
+X
+X#include <setjmp.h>
+Xtypedef jmp_buf sc_jmp_buf;
+X#undef TRUE
+X#undef FALSE
+X
+X#define STACKPTR( x ) x = sc_getsp()
+Xextern  S2CINT*  sc_getsp();
+X
+X#define SCHEAP 1
+X#define SCMAXHEAP 15
+X#endif
+X
+X/****************/
+X/*   MC680X0    */
+X/****************/ 
+X
+X#ifdef MC680X0
+X#define IMPLEMENTATION_CPU	"680x0"
+X
+X#define BIGENDIAN 1
+X
+Xtypedef int S2CINT;			/* Signed pointer size integer */
+Xtypedef unsigned S2CUINT;		/* Unsigned pointer size interger */
+X
+Xtypedef int PAGELINK;			/* 32-bit sc_pagelink values */
+X#define MAXS2CINT  0x7fffffff		/* Maximum value of an S2CINT */
+X#define MSBS2CUINT 0x80000000		/* S2CUINT with 1 in the MSB */
+X
+X#define STACKPTR(x) ((x) = (sc_processor_register (15)))
+X
+X#ifdef __hp9000s400
+X#define IMPLEMENTATION_MACHINE	"HP9000/400"
+X#else
+X#ifdef __hp9000s300
+X#define IMPLEMENTATION_MACHINE	"HP9000/300"
+X#endif
+X#endif
+X
+X/* HP-UX dependent conditionalizations performed above.  */
+X
+X#endif
+X
+X/**************/
+X/*    MIPS    */
+X/**************/
+X
+X#ifdef MIPS
+X#define IMPLEMENTATION_MACHINE	"DECstation"
+X#define IMPLEMENTATION_CPU	"Rx000"
+X#define IMPLEMENTATION_OS	"ULTRIX"
+X#undef  IMPLEMENTATION_FS
+X
+X#define DOUBLE_ALIGN 1
+X
+Xtypedef int S2CINT;			/* Signed pointer size integer */
+Xtypedef unsigned S2CUINT;		/* Unsigned pointer size interger */
+X
+Xtypedef int PAGELINK;			/* 32-bit sc_pagelink values */
+X#define MAXS2CINT  0x7fffffff		/* Maximum value of an S2CINT */
+X#define MSBS2CUINT 0x80000000		/* S2CUINT with 1 in the MSB */
+X
+X#ifndef MIPSEL
+X#define BIGMIPS 1
+X#define BIGENDIAN 1
+X#undef  IMPLEMENTATION_MACHINE
+X#define IMPLEMENTATION_MACHINE	"Big Endian MIPS"
+X#undef  IMPLEMENTATION_OS
+X
+X/* Not sure what the correct conditionalization is here -- NEWS-OS
+X   5.xx defines both "sony" and "sonyrisc", but apparently NEWS-OS
+X   4.xx defines "sony_mips", because the previous version of Scheme->C
+X   was conditionalized on "sony_mips" which is *not* defined by
+X   NEWS-OS 5.xx.  If there's an intersection between the symbols
+X   defined by 4.xx and 5.xx then a member of that intersection should
+X   be used for the conditionalization; otherwise test for both.
+X*/
+X#ifdef sonyrisc
+X
+X#undef  IMPLEMENTATION_MACHINE
+X#define IMPLEMENTATION_MACHINE	"Sony MIPS"
+X#undef  IMPLEMENTATION_CPU
+X#define IMPLEMENTATION_CPU	"R3000"
+X#undef  IMPLEMENTATION_OS
+X#define IMPLEMENTATION_OS	"NEWS-OS"
+X
+X#ifdef SYSTYPE_SYSV
+X
+X#define SYSV4 1
+X#define SYSV 1
+X#define POSIX 1
+X
+X/* This can be implemented but requires generalizing the signal
+X   handler to know about SYSV4 siginfo structure.
+X*/
+X
+X#undef  MATHTRAPS
+X#define MATHTRAPS 0
+X
+X#define NEED_MACRO_ARGS 1
+X
+X#define COPY_STACK_BEFORE_LONGJMP 1
+X
+X#endif
+X#endif
+X#endif
+X
+X#include <setjmp.h>
+Xtypedef jmp_buf sc_jmp_buf;
+X
+X#define STACKPTR( x ) x = sc_processor_register( 29 )
+X#endif
+X
+X/*************/
+X/*    VAX    */
+X/*************/
+X
+X#ifdef VAX
+X#define IMPLEMENTATION_MACHINE	"VAX"
+X#undef  IMPLEMENTATION_CPU
+X#define IMPLEMENTATION_OS	"ULTRIX"
+X#undef  IMPLEMENTATION_FS
+X
+X#define OLD_FASHIONED_C 1
+X
+Xtypedef int S2CINT;			/* Signed pointer size integer */
+Xtypedef unsigned S2CUINT;		/* Unsigned pointer size interger */
+X
+Xtypedef int PAGELINK;			/* 32-bit sc_pagelink values */
+X#define MAXS2CINT  0x7fffffff		/* Maximum value of an S2CINT */
+X#define MSBS2CUINT 0x80000000		/* S2CUINT with 1 in the MSB */
+X
+Xtypedef int sc_jmp_buf[ 16 ];	/* The buffer contains the following items:
+X				   R2-R11	saved registers
+X				   SIGM		saved signal mask
+X				   SP		stack pointer on entry to
+X				   		setjmp
+X				   PSW		PSW word from stack frame
+X				   AP		saved argument ptr from frame
+X				   FP		saved frame ptr from frame
+X				   PC		saved program cntr from frame
+X				*/
+X
+X#define STACKPTR( x ) x = sc_processor_register( 14 )
+X#endif
+X
+X/***************/
+X/*    WIN16    */
+X/***************/
+X
+X#ifdef WIN16
+X#define IMPLEMENTATION_MACHINE	"Generic PC"
+X#define IMPLEMENTATION_CPU	"Intelx86"
+X#define IMPLEMENTATION_OS	"Microsoft Windows 3.1"
+X#undef  IMPLEMENTATION_FS
+X
+Xtypedef long int S2CINT;		/* Signed pointer size integer */
+Xtypedef long unsigned S2CUINT;		/* Unsigned pointer size interger */
+X
+Xtypedef short int PAGELINK;		/* 16-bit sc_pagelink values */
+X#define MAXS2CINT  0x7fffffffL		/* Maximum value of an S2CINT */
+X#define MSBS2CUINT 0x80000000L		/* S2CUINT with 1 in the MSB */
+X
+X#include <windows.h>
+X#undef TRUE
+X#undef FALSE
+Xtypedef CATCHBUF sc_jmp_buf;
+X
+X#define STACKPTR( x ) x = sc_processor_register( 0 )
+X
+X#define MAXSTRINGSIZE	       ((S2CINT)65532)
+X#define MAXVECTORSIZE	       ((S2CINT)16383)
+X
+X#define SCHEAP 2
+X#define SCMAXHEAP 15
+X#endif
+X
+X/***************/
+X/*    M88K     */
+X/***************/
+X
+X#ifdef M88K
+X
+X#define IMPLEMENTATION_MACHINE	"NightHawk"
+X#define IMPLEMENTATION_CPU	"88100"
+X#define IMPLEMENTATION_OS	"CX/UX"
+X#undef  IMPLEMENTATION_FS
+X
+X#define DOUBLE_ALIGN 1
+X
+Xtypedef int S2CINT;			/* Signed pointer size integer */
+Xtypedef unsigned S2CUINT;		/* Unsigned pointer size interger */
+X
+Xtypedef int PAGELINK;			/* 32-bit sc_pagelink values */
+X#define MAXS2CINT  0x7fffffff		/* Maximum value of an S2CINT */
+X#define MSBS2CUINT 0x80000000		/* S2CUINT with 1 in the MSB */
+X
+X#define BIGENDIAN 1
+X
+X#include <setjmp.h>
+Xtypedef jmp_buf sc_jmp_buf;
+X
+X#define STACKPTR( x ) x = sc_processor_register( 29 )
+X#endif
+X
+END_OF_FILE
+if test 11839 -ne `wc -c <'M88K/options.h'`; then
+    echo shar: \"'M88K/options.h'\" unpacked with wrong size!
+fi
+# end of 'M88K/options.h'
+fi
+echo shar: End of shell archive.
+exit 0

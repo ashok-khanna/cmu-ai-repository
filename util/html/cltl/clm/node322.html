@@ -1,0 +1,81 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node322.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 10:10:47 GMT -->
+<HEAD>
+<TITLE>29.3.7. Named Restarts</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Named Restarts">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html5719 HREF="node323.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5717 HREF="node315.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5711 HREF="node321.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5721 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5722 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5720 HREF="node323.html"> Restart Functions</A>
+<B>Up:</B> <A NAME=tex2html5718 HREF="node315.html"> Survey of Concepts</A>
+<B> Previous:</B> <A NAME=tex2html5712 HREF="node321.html"> Anonymous Restarts</A>
+<HR> <P>
+<H2><A NAME=SECTION003337000000000000000>29.3.7. Named Restarts</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+In addition to anonymous restarts, one can have named restarts, which can be invoked
+by name from within code.  As a trivial example, one could write
+<P><pre>
+(restart-case (invoke-restart 'foo 3) 
+  (foo (x) (+ x 1)))
+</pre><P>
+to add <tt>3</tt> to <tt>1</tt>, returning <tt>4</tt>. This trivial example is conceptually analogous to 
+writing:
+<P><pre>
+(+ (catch 'something (throw 'something 3)) 1)
+</pre><P>
+<P>
+For a more realistic example, the code for the function <tt>symbol-value</tt> might signal an
+unbound variable error as follows:
+<P><pre>
+(restart-case (error &quot;The variable ~S is unbound.&quot; variable) 
+  (continue () 
+      :report 
+        (lambda (s)     ;Argument <tt>s</tt> is a stream 
+          (format s &quot;Retry getting the value of ~S.&quot; variable)) 
+    (symbol-value variable)) 
+  (use-value (value) 
+      :report 
+        (lambda (s)     ;Argument <tt>s</tt> is a stream 
+          (format s &quot;Specify a value of ~S to use this time.&quot; 
+                  variable)) 
+    value) 
+  (store-value (value) 
+      :report 
+        (lambda (s)     ;Argument <tt>s</tt> is a stream 
+          (format s &quot;Specify a value of ~S to store and use.&quot; 
+                  variable)) 
+    (setf (symbol-value variable) value) 
+    value))
+</pre><P>
+If this were part of the implementation of <tt>symbol-value</tt>, then it would be possible
+for users to write a variety of automatic handlers for unbound variable
+errors. For example, to make unbound variables evaluate to themselves, one
+might write
+<P><pre>
+(handler-bind ((unbound-variable 
+                 #'(lambda (c)     ;Argument <tt>c</tt> is a condition 
+                     (when (find-restart 'use-value) 
+                       (invoke-restart 'use-value 
+                                       (cell-error-name c)))))) 
+  <i>body</i>)
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html5719 HREF="node323.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5717 HREF="node315.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5711 HREF="node321.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5721 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5722 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5720 HREF="node323.html"> Restart Functions</A>
+<B>Up:</B> <A NAME=tex2html5718 HREF="node315.html"> Survey of Concepts</A>
+<B> Previous:</B> <A NAME=tex2html5712 HREF="node321.html"> Anonymous Restarts</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

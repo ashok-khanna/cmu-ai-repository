@@ -1,0 +1,95 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node318.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 10:10:47 GMT -->
+<HEAD>
+<TITLE>29.3.3. Handling Conditions</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Handling Conditions">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html5671 HREF="node319.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5669 HREF="node315.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5663 HREF="node317.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5673 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5674 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5672 HREF="node319.html"> Object-Oriented Basis of </A>
+<B>Up:</B> <A NAME=tex2html5670 HREF="node315.html"> Survey of Concepts</A>
+<B> Previous:</B> <A NAME=tex2html5664 HREF="node317.html"> Trapping Errors</A>
+<HR> <P>
+<H2><A NAME=SECTION003333000000000000000>29.3.3. Handling Conditions</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<A NAME=HANDLINGCONDITIONS>Blind</A>
+transfer of control to a <tt>handler-case</tt> is only one possible kind
+of recovery action that can be taken when a condition is signaled.  The
+low-level mechanism offers great flexibility in how to continue once
+a condition has been signaled.
+<P>
+The basic idea behind condition handling is that a piece of code called the
+<i>signaler</i> recognizes and announces the existence of an exceptional
+situation using <tt>signal</tt> or some function built on <tt>signal</tt> (such as <tt>error</tt>).
+<P>
+The process of signaling involves the search for and invocation of a
+<i>handler</i>, a piece of code that will attempt to deal appropriately with
+the situation.
+<P>
+If a handler is found, it may either <i>handle</i> the situation, by performing
+some non-local transfer of control, or <i>decline</i> to handle it, by failing to perform a
+non-local transfer of control. If it declines, other handlers are sought.
+<P>
+Since the lexical environment of the signaler might not be available to
+handlers, a data structure called a <i>condition</i> is created to represent
+explicitly the relevant state of the situation. A condition either is created
+explicitly using <tt>make-condition</tt> and then passed to a function such as <tt>signal</tt>,
+or is created implicitly by a function such as <tt>signal</tt> when given appropriate
+non-condition arguments.
+<P>
+In order to handle the error, a handler is permitted to use any non-local
+transfer of control such as <tt>go</tt> to a tag in a <tt>tagbody</tt>,
+<tt>return</tt> from a <tt>block</tt>, or
+<tt>throw</tt> to a <tt>catch</tt>. In addition, structured abstractions of these
+primitives are provided for convenience in exception handling.
+<P>
+A handler can be made dynamically accessible to a program by use of
+<tt>handler-bind</tt>. For example, to create a handler for a condition of type
+<tt>arithmetic-error</tt>, one might write:
+<P><pre>
+(handler-bind ((arithmetic-error <i>handler</i>))<i>body</i>)
+</pre><P>
+The handler is a function of one argument, the condition. If a condition of
+the designated type is signaled while the <i>body</i> is executing (and there are no
+intervening handlers), the handler would be invoked on the given condition,
+allowing it the option of transferring control. For example, one might write a
+macro that executes a body, returning either its value(s) or the two values
+<tt>nil</tt> and the condition:
+<pre>
+(defmacro without-arithmetic-errors (&amp;body forms) 
+  (let ((tag (gensym))) 
+    `(block ,tag 
+       (handler-bind ((arithmetic-error 
+                         #'(lambda (c)     ;Argument <tt>c</tt> is a condition 
+                             (return-from ,tag (values nil c))))) 
+         ,@body)))) 
+
+</pre><P>
+The handler is executed in the dynamic context of the signaler, except
+that the set of available condition handlers will have been rebound to
+the value that was active at the time the condition handler was made
+active. If a handler declines (that is, it does not transfer control), other 
+handlers are sought. If no handler is found and the condition was signaled
+by <tt>error</tt> or <tt>cerror</tt> (or some function such as <tt>assert</tt> that behaves like
+these functions), the debugger is entered, still in the dynamic context 
+of the signaler.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html5671 HREF="node319.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5669 HREF="node315.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5663 HREF="node317.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5673 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5674 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5672 HREF="node319.html"> Object-Oriented Basis of </A>
+<B>Up:</B> <A NAME=tex2html5670 HREF="node315.html"> Survey of Concepts</A>
+<B> Previous:</B> <A NAME=tex2html5664 HREF="node317.html"> Trapping Errors</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

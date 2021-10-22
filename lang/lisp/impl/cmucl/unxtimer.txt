@@ -1,0 +1,227 @@
+[The code in the original version of this post has been replaced with
+corrected code received from Marco Antoniotti <marcoxa@mosaic.NYU.EDU>
+on 7-OCT-94. --mk]
+
+From marcoxa@graphics.cs.nyu.edu Wed May 11 13:40:17 EDT 1994
+Article: 12697 of comp.lang.lisp
+Xref: glinda.oz.cs.cmu.edu comp.lang.lisp:12697
+Path: honeydew.srv.cs.cmu.edu!das-news.harvard.edu!noc.near.net!paperboy.wellfleet.com!news-feed-1.peachnet.edu!news.duke.edu!MathWorks.Com!panix!cmcl2!slinky.cs.nyu.edu!slinky!marcoxa
+From: marcoxa@graphics.cs.nyu.edu (Marco Antoniotti)
+Newsgroups: comp.lang.lisp
+Subject: Adding Missing System Calls to CMUCL
+Date: 28 Apr 1994 18:36:03 GMT
+Organization: Courant Institute of Mathematical Sciences
+Lines: 209
+Distribution: world
+Message-ID: <MARCOXA.94Apr28143603@graphics.cs.nyu.edu>
+NNTP-Posting-Host: graphics.cs.nyu.edu
+
+Good Afternoon,
+
+Any help would be appreciated!
+
+CMUCL is a fine piece of software, but here and there it lacks
+documentation ... and pieces.
+
+I am trying to use the SunOS system calls 'setitimer' and 'getitimer'.
+After some digging in the CMUCL source code I found that the relevant
+structures are defined, but the system calls are not.
+
+Marco Antoniotti - Resistente Umano
+-------------------------------------------------------------------------------
+Robotics Lab		| room: 1220 - tel. #: (212) 998 3370
+Courant Institute NYU	| e-mail: marcoxa@cs.nyu.edu
+-------------------------------------------------------------------------------
+
+In file .../code/unix.lisp you can find
+-------------------------------------------------------------------------------
+;;; From sys/time.h
+
+(def-alien-type nil
+  (struct timeval
+    (tv-sec long)		; seconds
+    (tv-usec long)))		; and microseconds
+
+(def-alien-type nil
+  (struct timezone
+    (tz-minuteswest int)		; minutes west of Greenwich
+    (tz-dsttime				; type of dst correction
+     (enum nil :none :usa :aust :wet :met :eet :can))))
+
+(def-alien-type nil
+  (struct itimerval
+    (it-interval (struct timeval))	; timer interval
+    (it-value (struct timeval))))	; current value
+-------------------------------------------------------------------------------
+
+But no trace of the two system calls (which instead are present in the
+'syscall.lisp' file, which I decided does not get loaded since it
+refers to the "MACH" package).
+
+Therefore I set out to write the two functions and came up with the
+following result.
+
+
+-------------------------------------------------------------------------------
+;;; -*- Mode: CLtL -*-
+
+;;; unix-timers.lisp --
+;;; CMUCL 17e does not provide many system calls which are found in
+;;; SunOS.
+;;; 'setitimer' and 'getitimer' are sorely missing. I'd also like to
+;;; add 'ualarm' which is a simpler interface to the timer syscalls.
+;;;
+;;; Copyright (C) 1994 Marco Antoniotti
+;;;
+;;; Author: Marco Antoniotti
+;;;
+;;; Address: Robotics Laboratory
+;;;          Courant Institute for Mathematical Sciences
+;;;          New York University
+;;;          719 Broadway, 1220
+;;;          New York, NY, 10003, U.S.A.
+;;;
+;;; $Id: SunOS-timers.lisp,v 1.2 1994/05/05 22:36:03 marcoxa Exp $
+;;;
+;;; History:
+;;; $Log: SunOS-timers.lisp,v $
+;;; Revision 1.2  1994/05/05  22:36:03  marcoxa
+;;; First (incomplete) implementation.
+;;;
+;;; Revision 1.1  1994/04/27  21:47:55  marcoxa
+;;; Initial revision
+;;;
+
+;;;============================================================================
+;;; Prologue
+
+(in-package "UNIX")
+
+(use-package "ALIEN")
+(use-package "C-CALL")
+(use-package "SYSTEM")
+(use-package "EXT")
+
+(export '(setitimer
+	  getitimer
+	  disableitimer
+	  ualarm))
+
+;;;============================================================================
+;;; Global Declarations
+
+;;; ITIMER-REAL, ITIMER-VIRTUAL, ITIMER-PROF --
+;;; Lifted from 'syscall.lisp' in the CMUCL source code, where the
+;;; MACH syscalls are held.
+;;; Check also <sys/time.h> for the SunOS C declaration.
+
+(defconstant +ITIMER-REAL+    0   "SunOS Real time intervals.")
+(defconstant +ITIMER-VIRTUAL+ 1   "SunOS Virtual time intervals.")
+(defconstant +ITIMER-PROF+    2   "SunOS User/system virtual time.")
+
+
+;;;============================================================================
+;;; Functions
+
+;;; setitimer which itimer-spec &optional result-itimerval --
+;;; I do not follow the same conventions found for the MACH 'setitimer'.
+;;; Instead, I stick to the standard SunOS definition.
+
+#+:SUNOS
+(defun setitimer (which itimer-spec
+			&optional
+			(result-itimerval
+			 (make-alien (struct itimerval))))
+  "UNIX (SunOS) system call."
+  ;; Not necessary to initialize 'result-itimerval'.
+  (declare (fixnum which))
+  (syscall ("setitimer" int
+			(* (struct itimerval))
+			(* (struct itimerval)))
+	   result-itimerval
+	   (coerce which '(signed-byte 32))
+	   itimer-spec
+	   result-itimerval))
+
+
+;;; getitimer which  &optional result-itimerval --
+
+#+:SUNOS
+(defun getitimer (which &optional
+			(result-itimerval
+			 (make-alien (struct itimerval))))
+  "UNIX (SunOS) system call."
+  ;; Not necessary to initialize 'result-itimerval'.
+  (declare (fixnum which))
+  (syscall ("getitimer" int (* (struct itimerval)))
+	   result-itimerval
+	   (coerce which '(signed-byte 32))
+	   result-itimerval))
+
+
+;;; disableitimer which itimer-spec --
+
+#+:SUNOS
+(defun disableitimer (which &optional
+			    (itimer-spec
+			     (make-alien (struct itimerval))
+			     itimer-supplied-p))
+  (when (and itimer-supplied-p
+	     (or (plusp (slot (slot itimer-spec 'it-interval) 'tv-sec))
+		 (plusp (slot (slot itimer-spec 'it-interval) 'tv-usec)))
+	     (or (plusp (slot (slot itimer-spec 'it-value) 'tv-sec))
+		 (plusp (slot (slot itimer-spec 'it-value) 'tv-usec)))
+	     )
+    (warn "Timer ~A will not be disabled."
+	  (case which
+	    (+ITIMER-REAL+ "+ITIMER-REAL+")
+	    (+ITIMER-VIRTUAL+ "+ITIMER-VIRTUAL+")
+	    (+ITIMER-PROF+ "+ITIMER-PROF+"))))
+  (when (not itimer-supplied-p)
+    (setf (slot (slot itimer-spec 'it-interval) 'tv-sec) 0)
+    (setf (slot (slot itimer-spec 'it-interval) 'tv-usec) 0)
+  
+    (setf (slot (slot itimer-spec 'it-value) 'tv-sec) 0)
+    (setf (slot (slot itimer-spec 'it-value) 'tv-usec) 0))
+
+  (setitimer +ITIMER-REAL+ itimer-spec nil)
+  itimer-spec
+  )
+
+;;;============================================================================
+;;; Test
+
+(defvar *test-itimer*
+  (make-alien (struct itimerval)))
+
+
+(defun test-itimer ()
+  (let ((i 10))
+    (declare (fixnum i))
+    (flet ((alarm-handler (signal code scp)
+	     (declare (ignore code scp))
+	     (cond ((plusp (decf i))
+		    (format t ">> ZUT! Got signal ~S~%" signal))
+		   (t
+		    (setf (slot (slot *test-itimer* 'it-interval) 'tv-sec) 0)
+		    (setf (slot (slot *test-itimer* 'it-interval) 'tv-usec) 0)
+
+		    (setf (slot (slot *test-itimer* 'it-value) 'tv-sec) 0)
+		    (setf (slot (slot *test-itimer* 'it-value) 'tv-usec) 0)
+		    (setitimer +ITIMER-REAL+ *test-itimer*)
+		    (enable-interrupt :sigalrm #'sigalrm-handler))))
+	   )
+
+    
+      (setf (slot (slot *test-itimer* 'it-interval) 'tv-sec) 2)
+      (setf (slot (slot *test-itimer* 'it-interval) 'tv-usec) 0)
+
+      (setf (slot (slot *test-itimer* 'it-value) 'tv-sec) 2)
+      (setf (slot (slot *test-itimer* 'it-value) 'tv-usec) 0)
+
+      (enable-interrupt :sigalrm #'alarm-handler)
+
+      (setitimer +ITIMER-REAL+ *test-itimer*))))
+  
+;;; end of file -- SunOS-timers.lisp --
+

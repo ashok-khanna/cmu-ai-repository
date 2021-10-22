@@ -1,0 +1,547 @@
+; From mcg@waikato.ac.nz Sun Jun 19 21:07:49 EDT 1994
+; Article: 13118 of comp.lang.lisp
+; Xref: glinda.oz.cs.cmu.edu comp.lang.lisp:13118
+; Path: honeydew.srv.cs.cmu.edu!das-news.harvard.edu!noc.near.net!paperboy.wellfleet.com!news-feed-1.peachnet.edu!gatech!swrinde!pipex!uknet!EU.net!uunet!comp.vuw.ac.nz!waikato!waikato.ac.nz!mcg
+; From: mcg@waikato.ac.nz (Armadeus)
+; Newsgroups: comp.lang.lisp
+; Subject: Stepper/Debugger for Common Lisp...
+; Message-ID: <1994Jun12.111243.29554@waikato.ac.nz>
+; Date: 12 Jun 94 11:12:43 +1200
+; Organization: University of Waikato, Hamilton, New Zealand
+; Lines: 533
+; 
+
+;;
+;; File: STEP.LSP
+;; Author: Ray Comas (comas@math.lsa.umich.edu)
+;;
+;; Modifications and corrections by Tom Almy
+;; The program did not correctly handle RETURN (as reported by Martin
+;; Glanvill, mcg@waikato.ac.nz). In the process of fixing the the
+;; problem it was discovered that the nexting printout did not work
+;; properly for all return, return-from, throw, and many cases of go.
+;; This version has been fixed for hopefully all of the above, although
+;; go will still not produce proper printout if the jump is outside the
+;; most enclosing tagbody, and the tag arguments of catch/throw must
+;; either be symbols or quoted symbols.  I'm making no attempt here to
+;; correctly handle tracing of unwind-protect, either!
+;; Modifications marked "TAA"
+;; Tom Almy  5/92
+;;-----------------------------------------
+;; Modifications -
+;;
+;; Function : Eval-hook-function
+;;
+;; Modifcation :- MCG 19/5/93
+;; modified it for use on COMMON LISP/ XLISP:- multiple-value-setq/bind, values, values-list
+;; See notes at bottom.
+
+;(in-package :senac)
+
+#+clisp 
+  (defun trap-error-handler1 (condition)
+ (format *error-output* "~&~A~&" condition)
+ (throw 'trap-errors nil))
+
+#+clisp 
+ (defmacro errset (&rest forms) 
+ `(catch 'trap-errors
+   (handler-bind ((error #'trap-error-handler1)
+                  (file-error #'trap-error-handler1)
+                  (division-by-zero #'trap-error-handler1)
+                  (condition #'trap-error-handler1)
+                  (package-error #'trap-error-handler1)
+                  (program-error #'trap-error-handler1)
+                  (simple-type-error #'trap-error-handler1)
+                  (simple-warning #'trap-error-handler1)
+                  (serious-condition #'trap-error-handler1)
+                  (reader-error #'trap-error-handler1)   
+                  (floating-point-overflow #'trap-error-handler1)
+                  (floating-point-underflow  #'trap-error-handler1)
+                  (end-of-file  #'trap-error-handler1)
+                  (control-error  #'trap-error-handler1)
+                  (arithmetic-error  #'trap-error-handler1)
+                  (parse-error #'trap-error-handler1)
+                  (warning #'trap-error-handler1)
+                  (simple-error #'trap-error-handler1)
+                  (simple-condition #'trap-error-handler1)
+                  (stream-error #'trap-error-handler1))
+     ,@forms)))
+
+#-(or clisp vms) 
+(defun evalhook (form fn app &optional env)
+  (cltl1:evalhook form fn app env))
+ 
+(defmacro while (test &rest forms) `(do () ((not ,test)) ,@forms))
+
+(defparameter *hooklevel* 0)            ;create the nesting level counter.
+(defvar *pdepth*        3)              ;create depth counter
+(defvar *plen*          3)              ;create length counter
+(defparameter *fcn*     '*all*)         ;create "one-shot" breakpoint specifier
+(defvar *steplist*      nil)            ;create breakpoint list
+(defparameter *steptrace* '(t . t))     ;create stepping flags
+(defparameter *callist* nil)            ;create call list for backtrace
+(defvar *stepover* nil)
+ 
+; this macro invokes the stepper - MCG 5/5/93 step -> usr-step , CL mod.
+(defmacro usr-step (form &aux val)
+  `(progn
+     (setq *hooklevel*  0               ;init nesting counter
+           *fcn*        '*all*          ;init break-point specifier
+           *steptrace*  '(t . t))
+     (setq *callist* (list (car ',form))) ;init call list
+     (terpri *debug-io*)
+    ; (setp-flush)
+     (princ *hooklevel* *debug-io*)
+     (princ " >==> " *debug-io*)
+     (prin1 ',form *debug-io*)          ;print the form
+     (setq val (multiple-value-list 
+                      (evalhook ',form         ;eval, and kick off stepper
+                         #'eval-hook-function
+                         nil
+                        ; nil
+              )))
+     (terpri *debug-io*)
+     (princ *hooklevel* *debug-io*)     ;print returned value
+     (princ " <==< " *debug-io*)
+     (prin1 val *debug-io*)
+     (terpri *debug-io*)
+     (values-list val)))                              ;and return it
+ 
+(defun eval-hook-function (form env &aux cmd val)
+  (setq *hooklevel* (1+ *hooklevel*))   ;incr. the nesting level
+  (cond ((consp form)                   ;if interpreted function ...
+         (step-add-level form env)  ;; add to *call-list*  TAA
+         (tagbody
+          (loop                         ;repeat forever ...
+                                        ;check for a breakpoint
+           (when (and (not (equal *fcn* '*all*))
+                      (not (equal *fcn* (car form)))
+                      (not (and (numberp *fcn*) (>= *fcn* *hooklevel*))))
+                 (unless (and *fcn* (member (car form) *steplist*))
+ 
+                                        ;no breakpoint reached -- continue
+                         (setf (cdr *steptrace*) nil)
+                         (when (car *steptrace*)
+                               (setf (cdr *steptrace*) t)
+                               (step-print-compressed form))
+                        ;(cond
+                        ;  ( (and (fboundp (car form)) (not (member (car form) *stepover*)))
+                        ;      (setq val (list     form
+                        ;                   #'eval-hook-function
+                        ;                   nil
+                        ;                 env)))
+                        ;   (t (setq val (list form nil nil env))))
+
+                        (setq val (list    form
+                                           #'eval-hook-function
+                                           nil
+                                           env))                                                                           
+                         (go next)))
+ 
+                                        ;breakpoint reached -- fix things & get a command
+           (step-print-compressed form)
+           (setf (cdr *steptrace*) t)
+           (setq *fcn* '*all*)          ;reset breakpoint specifier
+           (princ " :" *debug-io*)      ;prompt user
+
+;- CL MCG 5/5/93          
+              (setq cmd                    ;get command from user 
+                     (get-key))
+
+;- XL version  (setq cmd                    ;get command from user
+;-                 (char-downcase (code-char (get-key))))
+ 
+                                        ;process user's command
+           (cond
+            ((or (eql cmd #\n) (eql cmd #\Space)) ;step into function
+             (setq val (list     form
+                                 #'eval-hook-function
+                                 nil
+                                 env))
+             (go next))
+            ((or (eql cmd #\s)          ;step over function
+
+;  CL - MCG 5/5/93               (eql cmd #\Newline)
+;  CL - MCG 5/5/93               (eql cmd #\C-M)
+
+             ) ;; Added check for control-M TAA
+             (setq val (list form nil nil env))
+             (go next))
+            ((eql cmd #\g)              ;go until breakpt. reached
+             (setq *fcn* t)
+             (setq val (list     form
+                                 #'eval-hook-function
+                                 nil
+                                 env))
+             (go next))
+            ((eql cmd #\w)              ;backtrace
+             (step-baktrace))
+            ((eql cmd #\h)              ;display help
+             (step-help))
+            ((eql cmd #\p)              ;pretty-print form
+             (terpri *debug-io*)
+             (pprint form *debug-io*))
+            ((eql cmd #\f)              ;set function breakpoint
+             (princ "Go to fn.: " *debug-io*)
+             (setq *fcn* (read *debug-io*))
+        ;     (step-flush)
+             )
+            ((eql cmd #\u)              ;go up one level
+             (setq *fcn* (1- *hooklevel*)))
+            
+             ((eql cmd #\b)              ;set breakpoint
+             (princ "Bkpt.: " *debug-io*)
+             (step-set-breaks (read *debug-io*))
+          ;  (step-flush)
+              )
+             ((eql cmd #\o)              ;set breakpoint
+             (princ "Skip-over fn.: " *debug-io*)
+             (setq *stepover* (cons (read *debug-io*) *stepover*))
+          ;  (step-flush)
+              )
+
+             ((eql cmd #\*)              ;set breakpoint
+             (princ "Flushing stepover buffer" *debug-io*)
+             (setq *stepover* nil)
+          ;  (step-flush)
+              )
+
+
+            ((eql cmd #\c)              ;clear a breakpoint
+             (princ "Clear: " *debug-io*)
+             (step-clear-breaks (read *debug-io*))
+           ;  (step-flush)
+              )
+            ((eql cmd #\t)              ;toggle trace mode
+             (setf (car *steptrace*)
+                   (not (car *steptrace*)))
+             (princ "Trace = " *debug-io*)
+             (prin1 (car *steptrace*) *debug-io*))
+            ((eql cmd #\q)              ;quit stepper
+             (setq *fcn* nil))
+            ((eql cmd #\e)              ;evaluate a form
+             (princ "Eval: " *debug-io*)
+             #+clisp (errset (step-do-form (read *debug-io*) env))
+             #-clisp (step-do-form (read *debug-io*) env)
+            ; (step-flush)
+              )
+            ((eql cmd #\r)              ;return given expression
+             (princ "Return: " *debug-io*)
+             #+clisp (errset (step-do-form (read *debug-io*) env))
+             #-clisp (step-do-form (read *debug-io*) env)
+            ; (setq val (list (read *debug-io*) nil nil env))
+            ;(setp-flush)  
+             )
+;------| MCG 12/6/94 'k' kills current step level to exit cleanly |----
+            ((eql cmd #\k)              ;kill level
+             (error "exiting stepper .."))
+
+            ((eql cmd #\#)              ;set new compress level
+             (princ "Depth: " *debug-io*)
+             (step-set-depth (read *debug-io*))
+            ; (step-flush)
+              )
+            ((eql cmd #\.)
+             (princ "Len.: " *debug-io*)
+             (step-set-length (read *debug-io*))
+             ;(step-flush)
+           )
+            ((eql cmd #\x)              ;print environment
+             (step-print-env env))
+            (t (princ "Bad command.  Type h for help\n" *debug-io*))))
+ 
+          next                          ;exit from loop
+          ;; call of evalhook was done prior to "go next" in the loop above.
+          ;; now it's done outside the loop to solve problems handling
+          ;; return.  TAA
+          (step-fix-levels)
+          #+clisp (cond ((null (errset (setq val (multiple-value-list (apply #'evalhook val))) t))
+                            (setq val nil)
+                            (setq *fcn* '*all*)
+                            (step-baktrace)))
+          #-clisp (setq val (multiple-value-list (apply #'evalhook val)))
+          (step-fix-throw)
+          (when (cdr *steptrace*)
+                (terpri *debug-io*)
+                (step-spaces *hooklevel*)
+                (princ *hooklevel* *debug-io*)
+                (princ " <==< " *debug-io*) ;print the result
+               (cond                                                   ;; MCG - CL
+                ((= (length val) 1) 
+                   (prin1 (first val) *debug-io*))   ;; MCG - CL
+                (t (prin1 val *debug-io*))))                         ;; MCG - CL
+          (step-prune-level))) ;; step-prune-level replaces inline code TAA
+ 
+                        ;not an interpreted function -- just trace thru.
+        (t (unless (not (symbolp form))
+                   (when (car *steptrace*)
+                         (terpri *debug-io*)
+                         (step-spaces *hooklevel*) ;if form is a symbol ...
+                         (princ "         " *debug-io*)
+                         (prin1 form *debug-io*) ;... print the form ...
+                         (princ " = " *debug-io*)))
+           #+clisp (cond ((null (errset (setq val (multiple-value-list (evalhook form nil nil env))) t)) ;eval it 
+                            (setq val nil)
+                            (setq *fcn* '*all* )
+                            (step-baktrace)))
+
+           #-clisp (setq val (multiple-value-list (evalhook form nil nil env)))
+           (setq *hooklevel* (1- *hooklevel*))  ;decrement level
+           (unless (not (symbolp form))
+                   (when (car *steptrace*)
+                           (cond                                                   ;; MCG - CL
+                             ((= (length val) 1) 
+                                 (prin1 (first val) *debug-io*))                   ;; MCG - CL
+                             (t (prin1 val *debug-io*)))
+                     )))) ;... and the value
+  (values-list val))                                  ;and return the value
+ 
+
+;; Made compress local function
+;; and changed name fcprt to step-print-compressed  TAA
+
+;compress and print a form
+(defun step-print-compressed (form)
+       (labels ((compress (l cd cl ol)  ; cd = depth, cl = length, 
+                                        ; ol = orig. length
+                          (cond
+                           ((null l) nil)
+
+;; - CL modification  ... -> "..."
+
+                           ((eql cl 0) '("..."))
+                           ((atom l) l)
+                           ((eql cd 0) '#\#)
+                           (t (cons (compress (car l) (1- cd) ol ol)
+                                    (compress (cdr l) cd (1- cl) ol))))))
+               (terpri *debug-io*)
+               (step-spaces (min 20 *hooklevel*))
+               (princ *hooklevel* *debug-io*)
+               (princ " >==> " *debug-io*)
+               (prin1 (compress form *pdepth* *plen* *plen*) *debug-io*)
+               (princ " " *debug-io*)))
+ 
+;a non-recursive fn to print spaces (not as elegant, easier on the gc)
+(defun step-spaces (n) (dotimes (i n) (princ " " *debug-io*)))
+ 
+;and one to clear the input buffer
+(defun step-flush () (while (not (eql (read-char *debug-io*) #\newline))))
+ 
+;print help
+(defun step-help ()
+(terpri *debug-io*)
+   (format *debug-io* "Stepper Commands~%" )
+
+  (format  *debug-io* "----------------~%" )
+
+  (format  *debug-io* " n or space - next form~%" )
+
+  (format  *debug-io* " s or <cr>  - step over form~%" )
+
+  (format  *debug-io* " f FUNCTION - go until FUNCTION is called~%" )
+
+  (format  *debug-io* " b FUNCTION - set breakpoint at FUNCTION~%" )
+
+  (format  *debug-io* " b <list>   - set breakpoint at each function in list~%" )
+  (format  *debug-io* " k          - exit cleanly without further execution.~%")
+  (format  *debug-io* " c FUNCTION - clear breakpoint at FUNCTION~%" )
+  (format  *debug-io* " c <list>   - clear breakpoint at each function in list~%" )
+  (format  *debug-io* " c *all*    - clear all breakpoints~%" )
+  (format  *debug-io* "          g - go until a breakpoint is reached~%" )
+  (format  *debug-io* "          u - go up; continue until enclosing form is done~%" )
+
+  
+  (format   *debug-io*"          w - where am I? -- backtrace~%" )
+  (format   *debug-io*"          t - toggle trace on/off~%" )
+  (format  *debug-io* "          q - quit stepper, continue execution~%" )
+
+
+  (format  *debug-io* "          p - pretty-print current form (uncompressed)~%" )
+  (format  *debug-io* "          x - examine environment~%" )
+  (format  *debug-io* "   e <expr> - evaluate expression in current environment~%" )
+  (format  *debug-io* "   r <expr> - execute and return expression~%" )
+
+  (format  *debug-io* "       # nn - set print depth to nn~%" )
+  (format  *debug-io* "       . nn - set print length to nn~%" )
+
+  (format  *debug-io* "          h - print this summary~%" )
+  (terpri *debug-io*))
+ 
+ 
+;evaluate a form in the given environment
+(defun step-do-form (f1 env)
+  (step-spaces *hooklevel*)
+  (princ *hooklevel* *debug-io*)
+  (princ " res: " *debug-io*)
+  (prin1 (evalhook f1 nil nil env) *debug-io*)
+  )
+ 
+;set new print depth
+(defun step-set-depth (cf)
+  (cond ((numberp cf)
+         (setq *pdepth* (truncate cf)))
+        (t (setq *pdepth* 3))))
+ 
+;set new print length
+(defun step-set-length (cf)
+  (cond ((numberp cf)
+         (setq *plen* (truncate cf)))
+        (t (setq *plen* 3))))
+ 
+;print environment
+(defun step-print-env (env)
+  (terpri *debug-io*)
+  (step-spaces *hooklevel*)
+  (princ *hooklevel* *debug-io*)
+  (princ " env: " *debug-io*)
+  (prin1 env *debug-io*)
+  (terpri *debug-io*))
+ 
+;set breakpoints
+(defun step-set-breaks (l)
+  (cond ((null l) t)
+        ((symbolp l) (setq *steplist* (cons l *steplist*)))
+        ((listp l)
+         (step-set-breaks (car l))
+         (step-set-breaks (cdr l)))))
+ 
+;clear breakpoints
+(defun step-clear-breaks (l)
+  (cond ((null l) t)
+        ((eql l '*all*) (setq *steplist* nil))
+        ((symbolp l) (delete l *steplist*))
+        ((listp l)
+         (step-clear-breaks (car l))
+         (step-clear-breaks (cdr l)))))
+ 
+;print backtrace
+(defun step-baktrace (&aux l n)
+  (setq l *callist*
+        n *hooklevel*)
+  (while (>= n 0)
+    (terpri *debug-io*)
+    (step-spaces n)
+    (prin1 n *debug-io*)
+    (princ " " *debug-io*)
+    (if (consp (car l)) ;; must handle case where item is list TAA
+        (format *debug-io* "~s ~s" (caar l) (cdar l))
+        (prin1 (car l) *debug-io*))
+    (setq l (cdr l))
+    (setq n (1- n)))
+  (terpri *debug-io*))
+ 
+;; Added function step-add-level for clarity, since function has
+;; become more complex. TAA
+
+(defun step-add-level (form env)
+       (setq *callist*  ;; Modified so that callist entry can be
+                        ;; list where cadr is a tag saved for later
+                        ;; match. This us used for block, return-from,
+                        ;; catch, and throw.
+             (cons (case (car form)
+                         ((block return-from)
+                          (cons (car form) (cadr form)))
+                         ((catch throw) ;; we may need to eval symbol
+                          (if (symbolp (cadr form))
+                              (cons (car form) 
+                                    (evalhook (cadr form) nil nil env))
+                              (if (eq (caadr form) 'quote) ;; quoted tag
+                                  (cons (car form) (cadadr form))
+                                  nil))) ;; out of luck!
+                         (t (car form)))
+                   *callist*))) ;add fn. to call list
+
+;; Added function step-prune-level for clarity  TAA
+
+(defun step-prune-level ()
+       (setq *hooklevel* (1- *hooklevel*))
+       (setq *callist* (cdr *callist*)))
+
+;; Deleted fix-go, replaced with step-fix-levels which handles go, return,
+;; and return-from. TAA
+
+(defun step-fix-levels ()
+  (cond ((eq (car *callist*) 'go) ;; go -- prune back to tagbody
+         (loop
+          (when (null *callist*) (return))      ;; we are lost!
+          (when (member (car *callist*)
+                        '(loop do do* dolist dotimes prog prog* tagbody))
+                (return))
+          (step-prune-level)))
+
+
+        ((or (eq (car *callist*) 'return) ;; return -- prune back before block
+             (and (consp (car *callist*)) ;; return-from nil is same
+                  (eq (caar *callist*) 'return-from) 
+                  (null (cdar *callist*))))
+         (loop
+          (step-prune-level)
+          (when (null *callist*) (return))      ;; we are lost!
+          (when (member (car *callist*)
+                        '(loop do do* dolist dotimes prog prog*))
+                (return))))
+
+        ((and (consp (car *callist*)) ;; return-from - prune back before block
+              (eq (caar *callist*) 'return-from))
+         (let ((target (cdar *callist*)))
+              (loop
+               (step-prune-level)
+               (when (null *callist*) (return)) ;; we are lost!
+               (when (or (eq target (car *callist*))
+                         (and (consp (car *callist*))
+                              (eq (caar *callist*) 'block)
+                              (eq (cdar *callist*) target)))
+                     (return)))))))
+
+;; Added step-fix-throw TAA
+
+(defun step-fix-throw () ;; fix levels after evalhook for throw
+       (when (and (consp (car *callist*))
+                  (eq (caar *callist*) 'throw))
+             (let ((target (cdar *callist*)))
+                  (loop
+                   (step-prune-level)
+                   (when (null *callist*) (return))     ;; we are lost!
+                   (when (and (consp (car *callist*))
+                              (eq (caar *callist*) 'catch)
+                              (eq (cdar *callist*) target))
+                         (return))))))
+
+;;-- Modification MCG 5/5/93
+#-xlisp
+ (defun get-key ()
+  (let ((val1 nil))
+  (while (or (null val1) (eq val1 #\newline))
+         (setq val1 (read-char))
+   ) 
+ (char-downcase val1)))
+ 
+       
+#+xlisp (defmacro multiple-value-list1 (body) body)
+
+
+#+xlisp (defmacro multiple-value-setq (varlist &rest body &aux val)
+ `(progn
+   (setq val (first body))
+   (dolist (i varlist) 
+         (setq ,i (first body)) 
+         (setq body (cdr body)))
+   val))
+
+#+xlisp (defmacro values (&rest body) body)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

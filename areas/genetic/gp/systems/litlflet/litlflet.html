@@ -1,0 +1,1251 @@
+;;; -*- Mode:Common-Lisp; Package:FOO; Base:10 -*-
+
+;===========================
+
+;;; Boolean Even-5-Parity Problem
+
+(defvar d0)
+(defvar d1)
+(defvar d2)
+(defvar d3)
+(defvar d4)
+(defvar arg0)
+(defvar arg1)
+(defvar arg2)
+
+(defun nand (a b)
+  (not (and a b))
+)
+
+(defun nor (a b)
+  (not (or a b))
+)
+
+(defun define-terminal-set-for-EVEN-5-PARITY-ADF0 ()
+  (values '(arg0 arg1 arg2))
+)
+
+(defun define-function-set-for-EVEN-5-PARITY-ADF0 ()
+  (values '(and or nand nor)
+          '(  2  2    2   2)
+  )
+)
+
+(defun define-terminal-set-for-EVEN-5-PARITY-ADF1 ()
+  (values '(arg0 arg1 arg2))
+)
+
+(defun define-function-set-for-EVEN-5-PARITY-ADF1 ()
+  (values '(and or nand nor ADF0)
+          '(  2  2    2   2    3)
+  )
+)
+
+(defun define-terminal-set-for-EVEN-5-PARITY-RPB0 ()
+  (values '(d4 d3 d2 d1 d0))
+)
+
+(defun define-function-set-for-EVEN-5-PARITY-RPB0 ()
+  (values '(and or nand nor ADF0 ADF1)
+          '(  2  2    2   2    3    3)
+  )
+)
+
+(defvar *adf0*)
+
+(defun adf0 (arg0 arg1 arg2)
+  (eval *adf0*)
+)
+
+(defvar *adf1*)
+
+(defun adf1 (arg0 arg1 arg2)
+  (eval *adf1*)
+)
+
+(defstruct EVEN-5-PARITY-fitness-case
+  d0
+  d1
+  d2
+  d3
+  d4
+  target
+)
+
+;;; This definition may be superfluous in some Lisp
+;;; implementations.
+(defun xor (&rest args)
+  (let ((result nil))
+    (dolist (value args result)
+      (when value (setf result (not result)))
+    )
+  )
+)
+
+(defun define-fitness-cases-for-EVEN-5-PARITY ()
+  (let (fitness-case fitness-cases index)
+    (setf fitness-cases (make-array *number-of-fitness-cases*))
+    (format t "~%Fitness cases")
+    (setf index 0)
+    (dolist (d4 '(t nil))
+     (dolist (d3 '(t nil))
+      (dolist (d2 '(t nil))
+       (dolist (d1 '(t nil))
+        (dolist (d0 '(t nil))
+            (setf fitness-case
+                  (make-EVEN-5-PARITY-fitness-case)
+            )
+            (setf (EVEN-5-PARITY-fitness-case-d0 fitness-case) d0)
+            (setf (EVEN-5-PARITY-fitness-case-d1 fitness-case) d1)
+            (setf (EVEN-5-PARITY-fitness-case-d2 fitness-case) d2)
+            (setf (EVEN-5-PARITY-fitness-case-d3 fitness-case) d3)
+            (setf (EVEN-5-PARITY-fitness-case-d4 fitness-case) d4)
+            (setf (EVEN-5-PARITY-fitness-case-target fitness-case)
+                  (not (xor d4 d3 d2 d1 d0))
+            )
+            (setf (aref fitness-cases index) fitness-case)
+            (incf index)
+            (format t
+                    "~% ~3D   ~10S~10S~10S~10S~10S~15S"
+                    index d4 d3 d2 d1 d0
+                    (EVEN-5-PARITY-fitness-case-target
+                      fitness-case
+                    )
+            )
+        )
+       )
+      )
+     )
+    )
+    (values fitness-cases)
+  )
+)
+
+(defun EVEN-5-PARITY-wrapper (result-from-program)
+  (values result-from-program)
+)
+
+
+(defun evaluate-standardized-fitness-for-EVEN-5-PARITY
+           (program fitness-cases)
+  (let (raw-fitness hits standardized-fitness target-value
+        match-found value-from-program fitness-case rpb0
+       )
+    (setf raw-fitness 0.0)
+    (setf hits 0)
+    (setf rpb0 (ADF-program-RPB0 program))
+    (setf *adf0* (ADF-program-ADF0 program))
+    (setf *adf1* (ADF-program-ADF1 program))
+    (dotimes (index *number-of-fitness-cases*)
+      (setf fitness-case (aref fitness-cases index))
+      (setf d0 (EVEN-5-PARITY-fitness-case-d0 fitness-case))
+      (setf d1 (EVEN-5-PARITY-fitness-case-d1 fitness-case))
+      (setf d2 (EVEN-5-PARITY-fitness-case-d2 fitness-case))
+      (setf d3 (EVEN-5-PARITY-fitness-case-d3 fitness-case))
+      (setf d4 (EVEN-5-PARITY-fitness-case-d4 fitness-case))
+      (setf target-value
+            (EVEN-5-PARITY-fitness-case-target fitness-case))
+      (setf value-from-program
+            (EVEN-5-PARITY-wrapper (eval rpb0)))
+      (setf match-found (eq target-value value-from-program))
+      (incf raw-fitness (if match-found 1.0 0.0))
+      (when match-found (incf hits))
+    )
+    (setf standardized-fitness (- 32 raw-fitness))
+    (values standardized-fitness hits)
+  )
+)
+
+(defun define-parameters-for-EVEN-5-PARITY ()
+  (setf *number-of-fitness-cases* 32)
+  (setf *max-depth-for-new-individuals* 5)
+  (setf *max-depth-for-new-subtrees-in-mutants* 4)
+  (setf *max-depth-for-individuals-after-crossover* 17)
+  (setf *reproduction-fraction* 0.1)
+  (setf *crossover-at-any-point-fraction* 0.2)
+  (setf *crossover-at-function-point-fraction* 0.7)
+  (setf *method-of-selection* :tournament)
+  (setf *tournament-size* 7) 
+  (setf *method-of-generation* :ramped-half-and-half)
+  (values)
+)
+
+(defun define-termination-criterion-for-EVEN-5-PARITY
+           (current-generation
+            maximum-generations
+            best-standardized-fitness
+            best-hits)
+  (declare (ignore best-standardized-fitness))
+  (values (or (>= current-generation maximum-generations)
+              (>= best-hits *number-of-fitness-cases*)
+          )
+  )
+)
+
+(defun EVEN-5-PARITY ()
+  (values 'define-function-set-for-EVEN-5-PARITY-ADF0
+          'define-function-set-for-EVEN-5-PARITY-ADF1
+          'define-function-set-for-EVEN-5-PARITY-RPB0
+          'define-terminal-set-for-EVEN-5-PARITY-ADF0
+          'define-terminal-set-for-EVEN-5-PARITY-ADF1
+          'define-terminal-set-for-EVEN-5-PARITY-RPB0
+          'define-fitness-cases-for-EVEN-5-PARITY
+          'evaluate-standardized-fitness-for-EVEN-5-PARITY
+          'define-parameters-for-EVEN-5-PARITY
+          'define-termination-criterion-for-EVEN-5-PARITY
+  )
+)
+
+;-----------------------------------------------------------------
+
+;;; Tests.
+(run-genetic-programming-system
+  'EVEN-5-PARITY 1.0 1 1
+  (make-ADF-program
+    :adf0 '(or (and arg0 arg1)
+               (and (nand arg0 arg0)
+                    (nand arg1 arg1))) ;;; (EQV arg0 arg1)
+    :adf1 '(nand (or (and arg0 arg1)
+                     (and (nand arg0 arg0) (nand arg1 arg1)))
+                 (or (and arg0 arg1)
+                     (and (nand arg0 arg0)
+                          (nand arg1 arg1)))) ;;; (XOR arg0 arg1)
+    :rpb0 '(adf1 (adf0 (adf0 d0 d1 d0) (adf0 d2 d3 d0) d0)
+                 d4 d0)))
+
+
+;============================================================
+
+;;; Kernel
+
+(defstruct individual
+  program 
+  (standardized-fitness 0)
+  (adjusted-fitness 0)
+  (normalized-fitness 0)
+  (hits 0))
+
+;;; A data structure to represent the ADFs within a program.
+;;; We supply a print method to map the internal
+;;; representation into the usual progn/defun form.
+;;; The print function has hard-wired into it the arglists
+;;; of the ADFs.  These would be parameterised in a more
+;;; flexible implementation.
+(defstruct
+  (adf-program
+    (:print-function
+     (lambda (instance stream depth)
+       (declare (ignore depth))
+       (format stream
+         "(progn (defun ADF0 (ARG0 ARG1 ARG2)~
+        ~%         (values ~S))~
+        ~%       (defun ADF0 (ARG0 ARG1 ARG2)~
+        ~%         (values ~S))~
+        ~%       (values ~S))"
+        (adf-program-adf0 instance)
+        (adf-program-adf1 instance)
+        (adf-program-rpb0 instance)))))
+  adf0
+  adf1
+  rpb0)
+
+(defvar *number-of-fitness-cases* :unbound
+  "The number of fitness cases")
+
+(defvar *max-depth-for-new-individuals* :unbound
+  "The maximum depth for individuals of the initial
+   random generation")
+
+(defvar *max-depth-for-individuals-after-crossover* :unbound
+  "The maximum depth of new individuals created by crossover")
+
+(defvar *reproduction-fraction* :unbound
+  "The fraction of the population that will experience fitness
+   proportionate reproduction (with reselection)
+   during each generation")
+
+(defvar *crossover-at-any-point-fraction* :unbound
+  "The fraction of the population that will experience
+   crossover at any point in the tree (including terminals)
+   during each generation")
+
+(defvar *crossover-at-function-point-fraction* :unbound
+  "The fraction of the population that will experience
+   crossover at a function (internal) point in the tree
+   during each generation.")
+
+(defvar *max-depth-for-new-subtrees-in-mutants* :unbound
+  "The maximum depth of new subtrees created by mutation")
+
+(defvar *method-of-selection* :unbound
+  "The method of selecting individuals in the population.
+   Either :fitness-proportionate, :tournament or
+   :fitness-proportionate-with-over-selection.")
+
+(defvar *tournament-size* :unbound
+  "The group size to use when doing tournament selection.")
+
+(defvar *method-of-generation* :unbound
+  "Can be any one of :grow, :full, :ramped-half-and-half")
+
+(defvar *seed* :unbound
+  "The seed for the Park-Miller congruential randomizer.")
+
+(defvar *best-of-run-individual* :unbound
+  "The best individual found during this run.")
+
+(defvar *generation-of-best-of-run-individual* :unbound
+  "The generation at which the best-of-run individual was found.")
+
+(defun run-genetic-programming-system
+           (problem-function
+            seed
+            maximum-generations
+            size-of-population
+            &rest seeded-programs)
+;; Check validity of some arguments
+  (assert (and (integerp maximum-generations)
+               (not (minusp maximum-generations)))
+          (maximum-generations)
+          "Maximum-generations must be a non-negative ~
+           integer, not ~S" maximum-generations)
+  (assert (and (integerp size-of-population)
+               (plusp size-of-population))
+          (size-of-population)
+          "Size-Of-Population must be a positive integer, ~
+           not ~S" size-of-population)
+  (assert (or (and (symbolp problem-function)
+                   (fboundp problem-function))
+              (functionp problem-function))
+          (problem-function)
+          "Problem-Function must be a function.")
+  (assert (numberp seed) (seed)
+          "The randomizer seed must be a number")
+;; Set the global randomizer seed.
+  (setf *seed* (coerce seed 'double-float))
+;; Initialize best-of-run recording variables
+  (setf *generation-of-best-of-run-individual* 0)
+  (setf *best-of-run-individual* nil)
+;; Get the problem-specific functions needed to 
+;; specify this problem as returned by a call to
+;; problem-function
+  (multiple-value-bind (adf0-function-set-creator
+                        adf1-function-set-creator
+                        rpb0-function-set-creator
+                        adf0-terminal-set-creator
+                        adf1-terminal-set-creator
+                        rpb0-terminal-set-creator
+                        fitness-cases-creator
+                        fitness-function
+                        parameter-definer
+                        termination-predicate)
+      (funcall problem-function)
+;; Get the function sets and associated
+;; argument maps
+    (multiple-value-bind (adf0-function-set adf0-argument-map)
+        (funcall adf0-function-set-creator)
+      (multiple-value-bind (adf1-function-set adf1-argument-map)
+          (funcall adf1-function-set-creator)
+        (multiple-value-bind (rpb0-function-set rpb0-argument-map)
+            (funcall rpb0-function-set-creator)
+;; Set up the parameters using parameter-definer
+          (funcall parameter-definer)
+;; Print out parameters report
+          (describe-parameters-for-run
+        maximum-generations size-of-population)
+;; Set up the terminal-set using terminal-set-creator
+          (let ((adf0-terminal-set
+                  (funcall adf0-terminal-set-creator))
+                (adf1-terminal-set
+                  (funcall adf1-terminal-set-creator))
+                (rpb0-terminal-set
+                  (funcall rpb0-terminal-set-creator)))
+;; Create the population
+            (let ((population
+                    (create-population
+                      size-of-population
+                      adf0-function-set adf0-argument-map
+                      adf0-terminal-set
+                      adf1-function-set adf1-argument-map
+                      adf1-terminal-set
+                      rpb0-function-set rpb0-argument-map
+                      rpb0-terminal-set
+                      seeded-programs)))
+;; Define the fitness cases using the
+;; fitness-cases-creator function
+              (let ((fitness-cases
+                      (funcall fitness-cases-creator))
+                    ;; New-Programs is used in the breeding of the
+                    ;; new population.  Create it here to reduce
+                    ;; consing.
+                    (new-programs
+                      (make-array size-of-population)))
+;; Now run the Genetic Programming Paradigm using 
+;; the fitness-function and termination-predicate provided
+                (execute-generations
+                  population new-programs fitness-cases
+                  maximum-generations fitness-function
+                  termination-predicate
+                  adf0-function-set adf0-argument-map
+                  adf0-terminal-set
+                  adf1-function-set adf1-argument-map
+                  adf1-terminal-set
+                  rpb0-function-set rpb0-argument-map
+                  rpb0-terminal-set)
+;; Finally print out a report
+                (report-on-run)
+;; Return the population and fitness cases
+;; (for debugging) 
+                (values population fitness-cases)))))))))
+
+(defun report-on-run ()
+  "Prints out the best-of-run individual."
+  (let ((*print-pretty* t))
+    (format t "~5%The best-of-run individual program ~
+               for this run was found on ~%generation ~D and had ~
+               a standardized fitness measure ~
+               of ~D and ~D hit~P.  ~%It was:~%~S"
+            *generation-of-best-of-run-individual*
+            (individual-standardized-fitness
+              *best-of-run-individual*)
+            (individual-hits *best-of-run-individual*)
+            (individual-hits *best-of-run-individual*)
+            (individual-program *best-of-run-individual*))))
+
+(defun report-on-generation (generation-number population)
+  "Prints out the best individual at the end of each generation"
+  (let ((best-individual (aref population 0))
+        (size-of-population (length population))
+        (sum 0.0)
+        (*print-pretty* t))
+    ;; Add up all of the standardized fitnesses to get average
+    (dotimes (index size-of-population)
+      (incf sum (individual-standardized-fitness
+                  (aref population index))))
+    (format t "~2%Generation ~D:  Average standardized-fitness ~
+               = ~S.  ~%~
+               The best individual program of the population ~
+               had a ~%standardized fitness measure of ~D ~
+               and ~D hit~P. ~%It was: ~%~S"
+            generation-number (/ sum (length population))
+            (individual-standardized-fitness best-individual)
+            (individual-hits best-individual)
+            (individual-hits best-individual)
+            (individual-program best-individual))))
+
+(defun print-population (population)
+  "Given a population, this prints it out (for debugging) "
+  (let ((*print-pretty* t))
+    (dotimes (index (length population))
+      (let ((individual (aref population index)))
+        (format t "~&~D   ~S    ~S"
+                index
+                (individual-standardized-fitness individual)
+                (individual-program individual))))))
+
+(defun describe-parameters-for-run
+    (maximum-generations size-of-population)
+  "Lists the parameter settings for this run."
+  (format t "~2%Parameters used for this run.~
+              ~%=============================")
+  (format t "~%Maximum number of Generations:~50T~D"
+          maximum-generations)
+  (format t "~%Size of Population:~50T~D" size-of-population)
+  (format t "~%Maximum depth of new individuals:~50T~D"
+          *max-depth-for-new-individuals*)
+  (format t "~%Maximum depth of new subtrees for mutants:~50T~D"
+          *max-depth-for-new-subtrees-in-mutants*)
+  (format t
+     "~%Maximum depth of individuals after crossover:~50T~D"
+     *max-depth-for-individuals-after-crossover*)
+  (format t "~%Reproduction fraction:~50T~D"
+     *reproduction-fraction*)
+  (format t "~%Crossover at any point fraction:~50T~D"
+          *crossover-at-any-point-fraction*)
+  (format t "~%Crossover at function points fraction:~50T~D"
+          *crossover-at-function-point-fraction*)
+  (format t "~%Number of fitness cases:~50T~D"
+          *number-of-fitness-cases*)
+  (format t "~%Selection method: ~50T~A" *method-of-selection*)
+  (format t "~%Tournament group size: ~50T~A" *tournament-size*)
+  (format t "~%Generation method: ~50T~A" *method-of-generation*)
+  (format t "~%Randomizer seed: ~50T~D" *seed*))
+
+(defvar *generation-0-uniquifier-table*
+        (make-hash-table :test #'equal)
+  "Used to guarantee that all generation 0 individuals
+   are unique")
+
+(defun create-program-branch
+       (function-set argument-map terminal-set
+        minimum-depth-of-trees maximum-depth-of-trees
+        individual-index full-cycle-p)
+  "Creates a complete branch for an ADF-containing program."
+  (create-individual-subtree
+    function-set argument-map
+    terminal-set 
+    (ecase *method-of-generation*
+      ((:full :grow) maximum-depth-of-trees)
+      (:ramped-half-and-half
+       (+ minimum-depth-of-trees
+          (mod individual-index
+               (- maximum-depth-of-trees
+                  minimum-depth-of-trees)))))
+    t
+    (ecase *method-of-generation*
+      (:full t)
+      (:grow nil)
+      (:ramped-half-and-half full-cycle-p))))
+
+(defun create-new-program (individual-index full-cycle-p
+                           minimum-depth-of-trees
+                           maximum-depth-of-trees
+                           adf0-function-set adf0-argument-map
+                           adf0-terminal-set
+                           adf1-function-set adf1-argument-map
+                           adf1-terminal-set
+                           rpb0-function-set rpb0-argument-map
+                           rpb0-terminal-set)
+  "Creates a new individual with ADF structure."
+  (make-adf-program
+    :adf0
+    (create-program-branch
+      adf0-function-set adf0-argument-map
+      adf0-terminal-set minimum-depth-of-trees
+      maximum-depth-of-trees individual-index full-cycle-p)
+    :adf1
+    (create-program-branch
+      adf1-function-set adf1-argument-map
+      adf1-terminal-set minimum-depth-of-trees
+      maximum-depth-of-trees individual-index full-cycle-p)
+    :rpb0
+    (create-program-branch
+      rpb0-function-set rpb0-argument-map
+      rpb0-terminal-set minimum-depth-of-trees
+      maximum-depth-of-trees individual-index full-cycle-p)))
+
+(defun create-population (size-of-population
+                          adf0-function-set adf0-argument-map
+                          adf0-terminal-set
+                          adf1-function-set adf1-argument-map
+                          adf1-terminal-set
+                          rpb0-function-set rpb0-argument-map
+                          rpb0-terminal-set
+                          seeded-programs)
+  "Creates the population.  This is an array of size
+   size-of-population that is initialized to contain individual
+   records.  The Program slot of each individual is initialized
+   to a suitable random program except for the first N programs,
+   where N = (length seeded-programs).  For these first N
+   individuals the individual is initialized with the respective
+   seeded program.  This is very useful in debugging."
+  (let ((population (make-array size-of-population))
+        (minimum-depth-of-trees 1)
+        (attempts-at-this-individual 0)
+        (full-cycle-p nil))
+    (do ((individual-index 0))
+        ((>= individual-index size-of-population))
+      (when (zerop (mod individual-index
+                        (max 1 (- *max-depth-for-new-individuals*
+                               minimum-depth-of-trees))))
+        (setf full-cycle-p (not full-cycle-p)))
+      (let ((new-program
+              (if (< individual-index (length seeded-programs))
+                  ;; Pick a seeded individual
+                  (nth individual-index seeded-programs)
+                  ;; Create a new random program.
+                  (create-new-program
+                    individual-index full-cycle-p
+                    minimum-depth-of-trees
+                    ;; We count one level of depth for the
+                    ;; root above all of the branches that
+                    ;; get evolved.
+                    (- *max-depth-for-new-individuals* 1)
+                    adf0-function-set adf0-argument-map
+                    adf0-terminal-set
+                    adf1-function-set adf1-argument-map
+                    adf1-terminal-set
+                    rpb0-function-set rpb0-argument-map
+                    rpb0-terminal-set))))
+        ;; Check if we have already created this program.
+        ;; If not then store it and move on.
+        ;; If we have then try again.
+        (let ((program-as-list
+                (list (adf-program-adf0 new-program)
+                      (adf-program-adf1 new-program)
+                      (adf-program-rpb0 new-program))))
+          ;; Turn the defstruct representation of the
+          ;; program into a list so that it can be
+          ;; compared using an EQUAL hash table.
+          ;; defstruct instances have to be compared with EQUALP
+          (cond ((< individual-index (length seeded-programs))
+                 (setf (aref population individual-index)
+                       (make-individual :program new-program))
+                 (incf individual-index))
+                ((not (gethash program-as-list
+                               *generation-0-uniquifier-table*))
+                 (setf (aref population individual-index)
+                       (make-individual :program new-program))
+                 (setf (gethash program-as-list
+                                *generation-0-uniquifier-table*)
+                       t)
+                 (setf attempts-at-this-individual 0)
+                 (incf individual-index))
+                ((> attempts-at-this-individual 20)
+                 ;; Then this depth has probably filled up, so
+                 ;; bump the depth counter.
+                 (incf minimum-depth-of-trees)
+                 ;; Bump the max depth too to keep in line with
+                 ;; new minimum.
+                 (setf *max-depth-for-new-individuals*
+                       (max *max-depth-for-new-individuals*
+                            minimum-depth-of-trees)))
+                (:otherwise
+                 (incf attempts-at-this-individual))))))
+    ;; Flush out uniquifier table to that no pointers
+    ;; are kept to generation 0 individuals.
+    (clrhash *generation-0-uniquifier-table*)
+    ;; Return the population that we've just created.
+    population))
+
+(defun choose-from-terminal-set (terminal-set)
+  "Chooses a random terminal from the terminal set. 
+   If the terminal chosen is the ephemeral
+   :Floating-Point-Random-Constant,
+   then a floating-point single precision random constant
+   is created in the range -5.0->5.0.
+   If :Integer-Random-Constant is chosen then an integer random 
+   constant is generated in the range -10 to +10."
+  (let ((choice (nth (random-integer (length terminal-set))
+                     terminal-set)))
+    (case choice
+      (:floating-point-random-constant
+        ;; pick a random number in the range -5.0 ---> +5.0.
+        ;; Coerce it to be single precision floating-point.
+        ;; Double precision is more expensive
+        ;; A similar clause to this could be used to coerce it
+        ;; to double prevision if you really need
+        ;; double precision.
+        ;; This is also the place to modify if you need a range
+        ;; other than -5.0 ---> +5.0.
+        (coerce (- (random-floating-point-number 10.0) 5.0)
+                'single-float))
+      (:integer-random-constant
+        ;; pick a random integer in the range -10 ---> +10.
+        (- (random-integer 21) 10))
+      (otherwise choice))))
+
+(defun create-individual-subtree
+           (function-set argument-map terminal-set
+            allowable-depth top-node-p full-p)
+  "Creates a subtree recursively using the specified functions
+   and terminals.  Argument map is used to determine how many
+   arguments each function in the function set is supposed to
+   have if it is selected.  Allowable depth is the remaining
+   depth of the tree we can create, when we hit zero we will
+   only select terminals.  Top-node-p is true only when we
+   are being called as the top node in the tree.  This allows
+   us to make sure that we always put a function at the top
+   of the tree.  Full-p indicates whether this individual
+   is to be maximally bushy or not."
+  (cond ((<= allowable-depth 0)
+         ;; We've reached maxdepth, so just pack a terminal.
+         (choose-from-terminal-set terminal-set))
+        ((or full-p top-node-p)
+         ;; We are the top node or are a full tree,
+         ;; so pick only a function.
+         (let ((choice (random-integer (length function-set))))
+           (let ((function (nth choice function-set))
+                 (number-of-arguments
+                   (nth choice argument-map)))
+             (cons function
+                   (create-arguments-for-function
+                     number-of-arguments function-set
+                     argument-map terminal-set
+                     (- allowable-depth 1) full-p)))))
+        (:otherwise
+         ;; choose one from the bag of functions and terminals.
+         (let ((choice (random-integer
+                         (+ (length terminal-set)
+                            (length function-set)))))
+           (if (< choice (length function-set))
+               ;; We chose a function, so pick it out and go
+               ;; on creating the tree down from here.
+               (let ((function (nth choice function-set))
+                     (number-of-arguments
+                       (nth choice argument-map)))
+                 (cons function
+                       (create-arguments-for-function
+                         number-of-arguments function-set
+                         argument-map terminal-set
+                         (- allowable-depth 1) full-p)))
+               ;; We chose an atom, so pick it out.
+               (choose-from-terminal-set terminal-set))))))
+
+(defun create-arguments-for-function
+           (number-of-arguments function-set
+            argument-map terminal-set allowable-depth
+            full-p)
+  "Creates the argument list for a node in the tree.  
+   Number-Of-Arguments is the number of arguments still
+   remaining to be created.  Each argument is created
+   in the normal way using Create-individual-subtree."
+  (if (= number-of-arguments 0)
+      nil
+      (cons (create-individual-subtree
+              function-set argument-map terminal-set
+              allowable-depth nil full-p)
+            (create-arguments-for-function
+              (- number-of-arguments 1) function-set
+              argument-map terminal-set
+              allowable-depth full-p))))
+
+(defun execute-generations
+    (population new-programs fitness-cases maximum-generations
+     fitness-function termination-predicate
+     adf0-function-set adf0-argument-map
+     adf0-terminal-set
+     adf1-function-set adf1-argument-map
+     adf1-terminal-set
+     rpb0-function-set rpb0-argument-map
+     rpb0-terminal-set)
+  "Loops until the user's termination predicate says to stop."
+  (do ((current-generation 0 (+ 1 current-generation)))
+      ;; loop incrementing current generation until
+      ;; termination-predicate succeeds.
+      ((let ((best-of-generation (aref population 0)))
+         (funcall
+           termination-predicate current-generation
+           maximum-generations
+           (individual-standardized-fitness best-of-generation)
+           (individual-hits best-of-generation))))
+    (when (> current-generation 0)
+      ;; Breed the new population to use on this generation
+      ;; (except gen 0, of course).
+      (breed-new-population population new-programs
+                            adf0-function-set adf0-argument-map
+                            adf0-terminal-set
+                            adf1-function-set adf1-argument-map
+                            adf1-terminal-set
+                            rpb0-function-set rpb0-argument-map
+                            rpb0-terminal-set))
+    ;; Clean out the fitness measures.
+    (zeroize-fitness-measures-of-population population)
+    ;; Measure the fitness of each individual.  Fitness values
+    ;; are stored in the individuals themselves.
+    (evaluate-fitness-of-population
+      population fitness-cases fitness-function)
+    ;; Normalize fitness in preparation for crossover, etc.
+    (normalize-fitness-of-population population)
+    ;; Sort the population so that the roulette wheel is easy.
+    (sort-population-by-fitness population)
+    ;; Keep track of best-of-run individual
+    (let ((best-of-generation (aref population 0)))
+      (when (or (not *best-of-run-individual*)
+                (> (individual-standardized-fitness
+                     *best-of-run-individual*)
+                   (individual-standardized-fitness
+                     best-of-generation)))
+        (setf *best-of-run-individual*
+              (copy-individual best-of-generation))
+        (setf *generation-of-best-of-run-individual*
+              current-generation)))
+    ;; Print out the results for this generation.
+    (report-on-generation current-generation population)))
+
+(defun zeroize-fitness-measures-of-population (population)
+  "Clean out the statistics in each individual in the
+   population.  This is not strictly necessary, but it helps to
+   avoid confusion that might be caused if, for some reason, we
+   land in the debugger and there are fitness values associated 
+   with the individual records that actually matched the program 
+   that used to occupy this individual record."
+  (dotimes (individual-index (length population))
+    (let ((individual (aref population individual-index)))
+      (setf (individual-standardized-fitness individual) 0.0)
+      (setf (individual-adjusted-fitness individual) 0.0)
+      (setf (individual-normalized-fitness individual) 0.0)
+      (setf (individual-hits individual) 0))))
+
+(defun evaluate-fitness-of-population (population fitness-cases
+                                       fitness-function)
+  "Loops over the individuals in the population evaluating and
+   recording the fitness and hits."
+  (dotimes (individual-index (length population))
+    (let ((individual (aref population individual-index)))
+      (multiple-value-bind (standardized-fitness hits)
+          (funcall fitness-function
+                   (individual-program individual)
+                   fitness-cases)
+        ;; Record fitness and hits for this individual.
+        (setf (individual-standardized-fitness individual)
+              standardized-fitness)
+        (setf (individual-hits individual) hits)))))
+
+(defun normalize-fitness-of-population (population)
+  "Computes the normalized and adjusted fitness of each
+   individual in the population."
+  (let ((sum-of-adjusted-fitnesses 0.0))
+    (dotimes (individual-index (length population))
+      (let ((individual (aref population individual-index)))
+        ;; Set the adjusted fitness.
+        (setf (individual-adjusted-fitness individual)
+              (/ 1.0 (+ 1.0 (individual-standardized-fitness
+                              individual))))
+        ;; Add up the adjusted fitnesses so that we can
+        ;; normalize them.
+        (incf sum-of-adjusted-fitnesses
+              (individual-adjusted-fitness individual))))
+    ;; Loop through population normalizing the adjusted fitness.
+    (dotimes (individual-index (length population))
+      (let ((individual (aref population individual-index)))
+        (setf (individual-normalized-fitness individual)
+              (/ (individual-adjusted-fitness individual)
+                 sum-of-adjusted-fitnesses))))))
+
+(defun sort-population-by-fitness (population)
+  "Sorts the population according to normalized fitness. 
+   The population array is destructively modified."
+  (sort population #'> :key #'individual-normalized-fitness))
+
+(defun breed-new-population
+      (population new-programs
+       adf0-function-set adf0-argument-map adf0-terminal-set
+       adf1-function-set adf1-argument-map adf1-terminal-set
+       rpb0-function-set rpb0-argument-map rpb0-terminal-set)
+  "Controls the actual breeding of the new population.  
+   Loops through the population executing each operation
+   (e.g., crossover, fitness-proportionate reproduction,
+   mutation) until it has reached the specified fraction.  
+   The new programs that are created are stashed in new-programs
+   until we have exhausted the population, then we copy the new
+   individuals into the old ones, thus avoiding consing a new
+   bunch of individuals."
+  (let ((population-size (length population)))
+    (do ((index 0)
+         (fraction 0 (/ index population-size)))
+        ((>= index population-size))
+      (let ((individual-1
+              (find-individual population)))
+        (cond ((and (< index (- population-size 1))
+                    (< fraction
+                       (+ *crossover-at-function-point-fraction*
+                          *crossover-at-any-point-fraction*)))
+               (multiple-value-bind (new-male new-female)
+                 (funcall
+                  (if (< fraction
+                         *crossover-at-function-point-fraction*)
+                      'crossover-at-function-points
+                      'crossover-at-any-points)
+                  individual-1
+                  (find-individual population))
+                 (setf (aref new-programs index) new-male)
+                 (setf (aref new-programs (+ 1 index))
+                       new-female))
+               (incf index 2))
+              ((< fraction
+                (+ *reproduction-fraction*
+                   *crossover-at-function-point-fraction*
+                   *crossover-at-any-point-fraction*))
+               (setf (aref new-programs index) individual-1)
+               (incf index 1))
+              (:otherwise
+               (setf (aref new-programs index)
+                     (mutate individual-1
+                             adf0-function-set adf0-argument-map
+                             adf0-terminal-set
+                             adf1-function-set adf1-argument-map
+                             adf1-terminal-set
+                             rpb0-function-set rpb0-argument-map
+                             rpb0-terminal-set))
+               (incf index 1)))))
+    (dotimes (index population-size)
+      (setf (individual-program (aref population index))
+            (aref new-programs index)))))
+
+(defun find-individual (population)
+  "Finds an individual in the population according to the
+   defined selection method."
+  (ecase *method-of-selection*
+    (:tournament (find-individual-using-tournament-selection
+                   population))
+    (:fitness-proportionate-with-over-selection
+      (find-fitness-proportionate-individual
+        (random-floating-point-number-with-over-selection
+          population)
+        population))
+    (:fitness-proportionate
+      (find-fitness-proportionate-individual
+        (random-floating-point-number 1.0) population))))
+
+(defun random-floating-point-number-with-over-selection
+       (population)
+  "Picks a random number between 0.0 and 1.0 biased using the
+   over-selection method."
+  (let ((pop-size (length population)))
+    (when (< pop-size 1000)
+      (error "A population size of ~D is too small ~
+              for over-selection." pop-size))
+    (let ((boundary (/ 320.0 pop-size)))
+      ;; The boundary between the over and under selected parts.
+      (if (< (random-floating-point-number 1.0) 0.8)
+          ;; 80% are in the over-selected part
+          (random-floating-point-number boundary)
+          (+ boundary
+             (random-floating-point-number (- 1.0 boundary)))))))
+
+(defun pick-k-random-individual-indices (k max)
+  "Returns a list of K random numbers between 0 and (- max 1)."
+  (let ((numbers nil))
+    (loop for number = (random-integer max)
+          unless (member number numbers :test #'eql)
+          do (push number numbers)
+          until (= (length numbers) k))
+    numbers))
+
+(defun find-individual-using-tournament-selection (population)
+  "Picks *tournament-size* individuals from the population at
+   random and returns the best one."
+  (let ((numbers (pick-k-random-individual-indices
+                   *tournament-size* (length population))))
+    (loop with best = (aref population (first numbers))
+          with best-fitness
+               = (individual-standardized-fitness best)
+          for number in (rest numbers)
+          for individual = (aref population number)
+          for this-fitness
+              = (individual-standardized-fitness individual)
+          when (< this-fitness best-fitness)
+          do (setf best individual)
+             (setf best-fitness this-fitness)
+          finally (return (individual-program best)))))
+
+(defun find-fitness-proportionate-individual
+    (after-this-fitness population)
+  "Finds an individual in the specified population whose
+   normalized fitness is greater than the specified value.
+   All we need to do is count along the population from the
+   beginning adding up the fitness until we get past the
+   specified point."
+  (let ((sum-of-fitness 0.0)
+        (population-size (length population)))
+    (let ((index-of-selected-individual
+            (do ((index 0 (+ index 1)))
+                ;; Exit condition
+                ((or (>= index population-size)
+                     (>= sum-of-fitness after-this-fitness))
+                 (if (>= index population-size)
+                     (- (length population) 1)
+                     (- index 1)))
+              ;; Body.  Sum up the fitness values.
+              (incf sum-of-fitness
+                    (individual-normalized-fitness
+                      (aref population index))))))
+      (individual-program
+        (aref population index-of-selected-individual)))))
+
+(defun select-branch (within-program)
+  "Returns two values:
+    - A keyword in {:ADF0, :ADF1, :RPB0} to denote a
+      branch selected at random.  The selection of the
+      branch is biased according to the number of
+      points in that branch.
+    - The subtree for the branch selected."
+  (let ((adf0 (adf-program-adf0 within-program))
+        (adf1 (adf-program-adf1 within-program))
+        (rpb0 (adf-program-rpb0 within-program)))
+    (let ((adf0-points (count-crossover-points adf0))
+          (adf1-points (count-crossover-points adf1))
+          (rpb0-points (count-crossover-points rpb0)))
+      (let ((selected-point
+              (random-integer
+                (+ adf0-points adf1-points rpb0-points))))
+        (cond ((< selected-point adf0-points) (values :adf0 adf0))
+              ((< selected-point (+ adf1-points adf0-points))
+               (values :adf1 adf1))
+              (t (values :rpb0 rpb0)))))))
+
+(defun adf-program-branch (branch program)
+  "Returns a branch from Program selected by the keyword Branch."
+  (ecase branch
+    (:adf0 (adf-program-adf0 program))
+    (:adf1 (adf-program-adf1 program))
+    (:rpb0 (adf-program-rpb0 program))))
+
+(defun copy-individual-substituting-branch
+       (branch new-branch-subtree program-to-copy)
+  "Makes a copy of Program-To-Copy only substituting
+   the branch selected by Branch with the new branch
+   subtree created by crossover."
+  (make-adf-program
+    :adf0 (if (eq :adf0 branch)
+              new-branch-subtree
+              (copy-tree (adf-program-adf0 program-to-copy)))
+    :adf1 (if (eq :adf1 branch)
+              new-branch-subtree
+              (copy-tree (adf-program-adf1 program-to-copy)))
+    :rpb0 (if (eq :rpb0 branch)
+              new-branch-subtree
+              (copy-tree (adf-program-rpb0 program-to-copy)))))
+
+(defun crossover-selecting-branch
+       (how-to-crossover-function male female)
+  "Performs crossover on the programs Male and Female by calling
+   the function How-To-Crossover-Function, which will cause it
+   to perform crossover at either function points or at any point.
+   The crossover happens between a compatible pair of branches
+   in the two parents.
+   Once the crossover has happened the function returns two new
+   individuals to insert into the next generation."
+  (let ((branch (select-branch male)))
+    (multiple-value-bind (new-male-branch new-female-branch)
+        (funcall how-to-crossover-function
+                 (adf-program-branch branch male)
+                 (adf-program-branch branch female))
+      (values (copy-individual-substituting-branch
+                branch new-male-branch male)
+              (copy-individual-substituting-branch
+                branch new-female-branch female)))))
+
+(defun crossover-at-any-points (male female)
+  "Performs crossover on the programs at any point
+   in the trees."
+  (crossover-selecting-branch
+    #'crossover-at-any-points-within-branch male female))
+
+(defun crossover-at-any-points-within-branch (male female)
+  "Performs crossover on the program branches at any point
+   in the subtrees."
+  ;; Pick points in the respective trees 
+  ;; on which to perform the crossover.
+  (let ((male-point
+          (random-integer (count-crossover-points male)))
+        (female-point
+          (random-integer (count-crossover-points female))))
+    ;; First, copy the trees because we destructively modify the
+    ;; new individuals to do the crossover.  Reselection is
+    ;; allowed in the original population.  Not copying would
+    ;; cause the individuals in the old population to
+    ;; be modified.
+    (let ((new-male   (list (copy-tree male)))
+          (new-female (list (copy-tree female))))
+      ;; Get the pointers to the subtrees indexed by male-point
+      ;; and female-point
+      (multiple-value-bind (male-subtree-pointer male-fragment)
+          (get-subtree (first new-male) new-male male-point)
+        (multiple-value-bind
+          (female-subtree-pointer female-fragment)
+            (get-subtree
+              (first new-female) new-female female-point)
+          ;; Modify the new individuals by smashing in the
+          ;; (copied) subtree from the old individual.
+          (setf (first   male-subtree-pointer) female-fragment)
+          (setf (first female-subtree-pointer) male-fragment)))
+      ;; Make sure that the new individuals aren't too big.
+      (validate-crossover male new-male female new-female))))
+
+(defun count-crossover-points (program)
+  "Counts the number of points in the tree (program).  
+   This includes functions as well as terminals."
+  (if (consp program)
+      (+ 1 (reduce #'+ (mapcar #'count-crossover-points
+                               (rest program))))
+      1))
+
+(defun max-depth-of-tree (tree)
+  "Returns the depth of the deepest branch of the
+   tree (program)."
+  (if (consp tree)
+      (+ 1 (if (rest tree)
+               (apply #'max
+                      (mapcar #'max-depth-of-tree (rest tree)))
+               0))
+      1))
+
+(defun get-subtree (tree pointer-to-tree index)
+  "Given a tree or subtree, a pointer to that tree/subtree and
+   an index return the component subtree that is numbered by
+   Index.  We number left to right, depth first."
+  (if (= index 0)
+      (values pointer-to-tree (copy-tree tree) index)
+      (if (consp tree)
+          (do* ((tail (rest tree) (rest tail))
+                (argument (first tail) (first tail)))
+               ((not tail) (values nil nil index))
+            (multiple-value-bind
+                (new-pointer new-tree new-index)
+                (get-subtree argument tail (- index 1))
+              (if (= new-index 0)
+                  (return
+                    (values new-pointer new-tree new-index))
+                  (setf index new-index))))
+          (values nil nil index))))
+
+(defun validate-crossover (male new-male female new-female)
+  "Given the old and new males and females from a crossover
+   operation check to see whether we have exceeded the maximum
+   allowed depth.  If either of the new individuals has exceeded
+   the maxdepth then the old individual is used."
+  (let ((male-depth   (max-depth-of-tree (first new-male)))
+        (female-depth (max-depth-of-tree (first new-female))))
+    (values
+      (if (or (= 1 male-depth)
+              (>= male-depth ;; >= counts 1 depth for root above
+                  ;; branches.
+                  *max-depth-for-individuals-after-crossover*))
+          male
+          (first new-male))
+      (if (or (= 1 female-depth)
+              (>= female-depth
+                  *max-depth-for-individuals-after-crossover*))
+          female
+          (first new-female)))))
+
+(defun crossover-at-function-points (male female)
+  "Performs crossover on the two programs at a function
+   (internal) point in a randomly selected branch of the trees."
+  (crossover-selecting-branch
+    #'crossover-at-function-points-within-branch male female))
+
+(defun crossover-at-function-points-within-branch (male female)
+  "Performs crossover on the two program branches at a function
+   (internal) point in the trees."
+  ;; Pick the function (internal) points in the respective trees 
+  ;; on which to perform the crossover.
+  (let ((male-point
+          (random-integer (count-function-points male)))
+        (female-point
+          (random-integer (count-function-points female))))
+    ;; Copy the trees because we destructively modify the new
+    ;; individuals to do the crossover and Reselection is
+    ;; allowed in the original population. Not copying would
+    ;; cause the individuals in the old population to
+    ;; be modified.
+    (let ((new-male   (list (copy-tree male)))
+          (new-female (list (copy-tree female))))
+      ;; Get the pointers to the subtrees indexed by male-point
+      ;; and female-point
+      (multiple-value-bind (male-subtree-pointer male-fragment)
+          (get-function-subtree
+            (first new-male) new-male male-point)
+        (multiple-value-bind
+          (female-subtree-pointer female-fragment)
+            (get-function-subtree
+              (first new-female) new-female female-point)
+          ;; Modify the new individuals by smashing in
+          ;; the (copied) subtree from the old individual.
+          (setf (first   male-subtree-pointer) female-fragment)
+          (setf (first female-subtree-pointer) male-fragment)))
+      ;; Make sure that the new individuals aren't too big.
+      (validate-crossover male new-male female new-female))))
+
+(defun count-function-points (program)
+  "Counts the number of function (internal) points
+   in the program."
+  (if (consp program)
+      (+ 1 (reduce #'+ (mapcar #'count-function-points
+                               (rest program))))
+      0))
+
+(defun get-function-subtree (tree pointer-to-tree index)
+  "Given a tree or subtree, a pointer to that tree/subtree and
+   an index return the component subtree that is labeled with
+   an internal point that is numbered by Index.  We number left
+   to right, depth first."
+  (if (= index 0)
+      (values pointer-to-tree (copy-tree tree) index)
+      (if (consp tree)
+          (do* ((tail (rest tree) (rest tail))
+                (argument (first tail) (first tail)))
+               ((not tail) (values nil nil index))
+            (multiple-value-bind
+              (new-pointer new-tree new-index)
+                (if (consp argument)
+                    (get-function-subtree
+                      argument tail (- index 1))
+                    (values nil nil index))
+              (if (= new-index 0)
+                  (return
+                    (values new-pointer new-tree new-index))
+                  (setf index new-index))))
+          (values nil nil index))))
+
+(defun mutate
+       (program
+        adf0-function-set adf0-argument-map adf0-terminal-set
+        adf1-function-set adf1-argument-map adf1-terminal-set
+        rpb0-function-set rpb0-argument-map rpb0-terminal-set)
+  "Mutates the argument program by picking a random point in
+   the tree and substituting in a brand new subtree created in
+   the same way that we create the initial random population."
+  ;; Pick the mutation point.
+  (multiple-value-bind (branch branch-tree)
+      (select-branch program)
+    (let ((mutation-point
+            (random-integer (count-crossover-points branch-tree)))
+          ;; Create a brand new subtree.
+          (new-subtree
+            (create-individual-subtree
+              (case branch
+                (:adf0 adf0-function-set)
+                (:adf1 adf1-function-set)
+                (:rpb0 rpb0-function-set))
+              (case branch
+                (:adf0 adf0-argument-map)
+                (:adf1 adf1-argument-map)
+                (:rpb0 rpb0-argument-map))
+              (case branch
+                (:adf0 adf0-terminal-set)
+                (:adf1 adf1-terminal-set)
+                (:rpb0 rpb0-terminal-set))
+              *max-depth-for-new-subtrees-in-mutants* t nil)))
+      (let ((new-branch (list (copy-tree branch-tree))))
+        (multiple-value-bind (subtree-pointer fragment)
+            ;; Get the pointer to the mutation point.
+            (get-subtree (first new-branch)
+                         new-branch mutation-point)
+          ;; Not interested in what we're snipping out.
+          (declare (ignore fragment))
+          ;; Smash in the new subtree.
+          (setf (first subtree-pointer) new-subtree))
+        (values (copy-individual-substituting-branch
+                  branch (first new-branch) program)
+                 new-subtree)))))
+
+(defun park-miller-randomizer ()
+  "The Park-Miller multiplicative congruential randomizer
+   (CACM, October 88, Page 1195).  Creates pseudo random floating
+   point numbers in the range 0.0 < x <= 1.0.  The seed value
+   for this randomizer is called *seed*, so you should
+   record/set this if you want to make your runs reproducible."
+  (assert (not (zerop *seed*)) () "*seed* cannot be zero.")
+  (let ((multiplier 16807.0d0);16807 is (expt 7 5)
+        (modulus 2147483647.0d0))
+             ;2147483647 is (- (expt 2 31) 1)
+    (let ((temp (* multiplier *seed*)))
+      (setf *seed* (mod temp modulus))
+      ;;Produces floating-point number in the range
+      ;;  0.0 < x <= 1.0
+      (/ *seed* modulus))))
+
+(defun random-floating-point-number (n)
+  "Returns a pseudo random floating-point number
+                in range 0.0 <= number < n"
+  (let ((random-number (park-miller-randomizer)))
+    ;; We subtract the randomly generated number from 1.0
+    ;; before scaling so that we end up in the range
+    ;; 0.0 <= x < 1.0, not 0.0 < x <= 1.0
+    (* n (- 1.0d0 random-number))))
+
+(defun random-integer (n)
+  "Returns a pseudo-random integer in the range 0 ---> n-1."
+  (let ((random-number (random-floating-point-number 1.0)))
+    (floor (* n random-number))))
+
+;;------------------
+
+;; The programs, procedures, and applications presented in this book have been tested with care.  Neither the publisher nor the author offer any warranties of fitness or merchantability for any particular purpose or accept any liability with respect to these programs, procedures, and applications.  U.S. patent number 4,935,877 and patents pending.
+
+;; The programs, procedures, and applications presented in this book have been included for their instructional value.  The publisher and author offer NO WARRANTY OF FITNESS OR MERCHANTABILITY FOR ANY PARTICULAR PURPOSE or accept any liability with respect to these programs, procedures, and applications.  
+
+

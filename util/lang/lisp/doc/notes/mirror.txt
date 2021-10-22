@@ -1,0 +1,84 @@
+Article 3998 of comp.lang.lisp:
+Path: pt.cs.cmu.edu!rochester!rutgers!usc!wuarchive!decwrl!shelby!neon!news
+From: iam@Gang-of-Four.Stanford.EDU (Ian Mason)
+Newsgroups: comp.lang.lisp
+Subject: deriving mirror
+Message-ID: <1990Oct13.205439.7240@Neon.Stanford.EDU>
+Date: 13 Oct 90 20:54:39 GMT
+Sender: news@Neon.Stanford.EDU (USENET News System)
+Organization: Computer Science Department, Stanford University
+Lines: 73
+
+Using the very elegant version of mirror by Noritake Yonezawa as
+a specification of the desired algorithm:
+
+(defun mirror (x) 
+  (if (atom x)
+      x
+      (reverse (mapcar #'mirror x))))
+
+We derive an efficient implementation of the algorithm. 
+We first observe that since mapcar conses up a new list,
+the spine of this list maybe safely reused. hence 
+an operationally equivalent version is 
+
+(defun mirror (x) 
+  (if (atom x)
+      x
+      (nreverse (mapcar #'mirror x))))
+
+This new version should now only need half the cons cells
+of the origonal specification.
+Now one possible definition of nreverse is the following
+
+(defun nreverse (x) (nrev x nil))
+
+(defun nrev (x y) (if x (nrev (cdr x) (rplacd x y)) y))
+
+So unfolding the call to nreverse in the body of mirror results
+in
+
+(defun mirror (x) 
+  (if (atom x)
+      x
+      (nrev (mapcar #'mirror x) nil)))
+
+Now in the spirit of Scherlis we concentrate on simplifying
+the expression  (nrev (mapcar #'mirror x) nil). To do this we
+define the function f
+
+(defun f (x y) (nrev (mapcar #'mirror x) y))
+
+the aim now is to find a tail-recursive version of f.
+Unfolding the call to mapcar and simplifying yields
+
+
+(defun f (x y) 
+  (if x
+      (nrev (cons (mirror (car x)) (mapcar #'mirror (cdr x))) y)
+      y))
+
+Unfolding the call to nrev and simplifying yields
+
+(defun f (x y) 
+  (if x
+      (nrev (mapcar #'mirror (cdr x)) (cons (mirror (car x)) y))
+      y))
+
+and now folding yields
+
+(defun f (x y) (if x (f (cdr x) (cons (mirror (car x)) y))  y))
+
+Thus the final result is the program
+
+(defun mirror (x) 
+ (labels ((f (x y) (if x (f (cdr x) (cons (mirror (car x))  y)) y)))
+    (if (atom x)  x (f x nil))))
+
+
+Of course to fairly compare these programs, as well as the other solutions
+presented, one should time the compiled versions rather than the
+interpreted ones.
+ 
+--
+		-iam-		

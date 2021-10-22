@@ -1,0 +1,176 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node95.html by HTTrack Website Copier/3.x [XR&CO'2014], Thu, 21 Oct 2021 14:57:18 GMT -->
+<HEAD>
+<TITLE>7.10.2. Rules Governing the Passing of Multiple Values</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Rules Governing the Passing of Multiple Values">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2707 HREF="node96.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2705 HREF="node93.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2701 HREF="node94.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2709 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2710 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2708 HREF="node96.html"> Dynamic Non-Local Exits</A>
+<B>Up:</B> <A NAME=tex2html2706 HREF="node93.html"> Multiple Values</A>
+<B> Previous:</B> <A NAME=tex2html2702 HREF="node94.html"> Constructs for Handling </A>
+<HR> <P>
+<H2><A NAME=SECTION0011102000000000000000>7.10.2. Rules Governing the Passing of Multiple Values</A></H2>
+<P>
+It is often the case that the value
+of a special form or macro call
+is defined to be the value of one of its subforms.
+For example, the
+value of a <tt>cond</tt> is the value of the last form in the selected clause.
+<P>
+In most such cases, if the subform produces multiple values, then the original
+form will also produce all of those values.
+This <i>passing back</i> of
+multiple values of course has no effect unless eventually one of the
+special forms for receiving multiple values is reached.
+<P>
+To be explicit, multiple values can result from a special form
+under precisely these circumstances:
+<p>
+<i>Evaluation and application</i>
+<ul>
+<LI>
+<tt>eval</tt> returns multiple values if the form given it to
+evaluate produces multiple values.
+<P>
+<LI>
+<tt>apply</tt>, <tt>funcall</tt>, and <tt>multiple-value-call</tt>
+pass back multiple values from the function applied or called.
+</UL>
+<P>
+<i>Implicit <tt>progn</tt> contexts</i>
+<UL><LI>
+The special form <tt>progn</tt>
+passes back multiple values resulting from evaluation of the
+last subform.  Other situations referred to as ``implicit <tt>progn</tt>,''
+where several forms are evaluated and the results of all but the last form
+are discarded, also pass back multiple values from the last form.
+These situations include the body of a lambda-expression,
+in particular those constructed by <tt>defun</tt>,
+<tt>defmacro</tt>, and <tt>deftype</tt>.
+Also included are bodies of the constructs
+<tt>eval-when</tt>,
+<tt>progv</tt>, <tt>let</tt>,
+<tt>let*</tt>, <tt>when</tt>, <tt>unless</tt>,
+<tt>block</tt>,
+<tt>multiple-value-bind</tt>, and <tt>catch</tt>,
+as well as clauses in such conditional
+constructs as
+<tt>case</tt>, <tt>typecase</tt>,
+<tt>ecase</tt>, <tt>etypecase</tt>, <tt>ccase</tt>, and <tt>ctypecase</tt>.
+</UL>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 has voted to add many new constructs to the language that contain
+implicit <tt>progn</tt> contexts.  I won't attempt to list them all here.
+Of particular interest, however, is <tt>locally</tt>, which may be regarded
+as simply a version of <tt>progn</tt> that permits declarations before its
+body.  This provides a useful building block for constructing macros
+that permit declarations (but not documentation strings)
+before their bodies and pass back any multiple values
+produced by the last sub-form of a body.  (If a body can contain a documentation
+string, most likely <tt>lambda</tt> is the correct building block to use.)
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<i>Conditional constructs</i>
+<UL><LI>
+<tt>if</tt> passes back multiple values from whichever subform is selected
+(the <i>then</i> form or the <i>else</i> form).
+<P>
+<LI>
+<tt>and</tt> and <tt>or</tt> pass back multiple values from the last subform
+but not from subforms other than the last.
+<P>
+<LI>
+<tt>cond</tt> passes back multiple values from the last subform of
+the implicit <tt>progn</tt> of the selected clause.
+If, however, the clause selected is a singleton clause,
+then only a single value (the non-<tt>nil</tt> predicate value)
+is returned.  This is true even if the singleton clause is
+the last clause of the <tt>cond</tt>.  It is <i>not</i> permitted to
+treat a final clause <tt>(x)</tt> as being the same as <tt>(t x)</tt>
+for this reason; the latter passes back multiple values from the form <tt>x</tt>.
+</UL>
+<P>
+<i>Returning from a block</i>
+<UL><LI>
+The <tt>block</tt> construct passes back multiple values from its last subform
+when it exits normally.  If <tt>return-from</tt> (or <tt>return</tt>) is
+used to terminate the <tt>block</tt> prematurely, then <tt>return-from</tt>
+passes back multiple values from its subform as the values of the
+terminated <tt>block</tt>.  Other constructs that create implicit blocks,
+such as
+<tt>do</tt>, <tt>dolist</tt>, <tt>dotimes</tt>, <tt>prog</tt>, and
+<tt>prog*</tt>, also pass back multiple values specified by
+<tt>return-from</tt> (or <tt>return</tt>).
+<P>
+<LI>
+<tt>do</tt> passes back multiple values from
+the last form of the exit clause, exactly as if the exit clause
+were a <tt>cond</tt> clause.  Similarly, <tt>dolist</tt> and <tt>dotimes</tt>
+pass back multiple values from the <i>resultform</i> if that is executed.
+These situations are all examples of implicit uses of <tt>return-from</tt>.
+</UL>
+<P>
+<i>Throwing out of a catch</i>
+<UL><LI>
+The <tt>catch</tt> construct returns multiple values if
+the result form in a <tt>throw</tt> exiting from
+such a catch produces multiple values.
+</UL>
+<P>
+<i>Miscellaneous situations</i>
+<UL><LI>
+<tt>multiple-value-prog1</tt> passes back multiple values from its first
+subform.  However, <tt>prog1</tt> always returns a single value.
+<P>
+<LI>
+<tt>unwind-protect</tt> returns multiple values if the form it protects
+returns multiple values.
+<P>
+<LI>
+<tt>the</tt> returns multiple values if the form it contains returns
+multiple values.
+</UL>
+<P>
+Among special forms that <i>never</i> pass back multiple values are
+<tt>prog1</tt>,
+<tt>prog2</tt>, <tt>setq</tt>, and <tt>multiple-value-setq</tt>.
+The conventional way to force only one value to be returned from a form <tt>x</tt>
+is to write <tt>(values x)</tt>.
+<P>
+The most important rule about multiple values is:
+<b>No matter how many values a form produces,
+if the form is an argument form in a function call,
+then exactly one value (the first one) is used.</b>
+<P>
+For example, if you write <tt>(cons (floor x))</tt>, then <tt>cons</tt> will always
+receive <i>exactly</i> one argument (which is of course an error),
+even though <tt>floor</tt> returns two values.  To pass both values from <tt>floor</tt>
+to <tt>cons</tt>, one must write something like
+<tt>(multiple-value-call #'cons (floor x))</tt>.
+In an ordinary function call,
+each argument form produces exactly <i>one</i> argument;  if such a form
+returns zero values, <tt>nil</tt> is used for the argument, and if more than one
+value, all but the first are discarded.
+Similarly, conditional constructs such as <tt>if</tt> that test the value of a form
+will use exactly one value, the first one, from that form and discard the rest;
+such constructs will use <tt>nil</tt> as the test value if zero values are returned.
+<P>
+<BR> <HR><A NAME=tex2html2707 HREF="node96.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2705 HREF="node93.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2701 HREF="node94.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2709 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2710 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2708 HREF="node96.html"> Dynamic Non-Local Exits</A>
+<B>Up:</B> <A NAME=tex2html2706 HREF="node93.html"> Multiple Values</A>
+<B> Previous:</B> <A NAME=tex2html2702 HREF="node94.html"> Constructs for Handling </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

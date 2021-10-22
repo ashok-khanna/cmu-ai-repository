@@ -1,0 +1,156 @@
+Article 9773 of comp.lang.prolog:
+Xref: glinda.oz.cs.cmu.edu comp.lang.prolog:9773
+Newsgroups: comp.lang.prolog
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!news.mic.ucla.edu!library.ucl
+a.edu!csulb.edu!nic-nac.CSU.net!usc!elroy.jpl.nasa.gov!swrinde!cs.utexas.edu!uun
+et!news.ingr.com!quintus!quintus!dave
+From: dave@quintus.com (David Bowen)
+Subject: Re: How to write portable code ????
+Message-ID: <1994Feb24.033639.5791@quintus.com>
+Sender: news@quintus.com (USENET news account)
+Nntp-Posting-Host: pokey
+Organization: Quintus Corporation, Palo Alto, CA
+References:  <2kdj7h$n5p@paperboy.gsfc.nasa.gov>
+Date: Thu, 24 Feb 1994 03:36:39 GMT
+Lines: 33
+
+You can use term-expansion to roll your own conditional compilation.
+E.g.
+
+:- dynamic '$suppress'/1.
+
+term_expansion((:-ifdef(X)), []) :-
+    !,
+    (   call(X) ->
+        Suppressing=off
+    ;   Suppressing=on
+    ),
+    asserta('$suppress'(Suppressing)).
+term_expansion((:-endif), []) :-
+    !,
+    retract('$suppress'(_)),
+    !.
+term_expansion(Clause, []) :-
+    '$suppress'(on),
+    !.
+
+This (untested) code is just a sketch; it doesn't handle "else" or do any
+error checking. But you get the idea I hope.  Term expanding a clause to []
+effectively discards it.  The dynamic predicate begins with a '$' just so
+that it is unlikely to conflict with a predicate in a program; you could
+alternatively use a special module to hide it away.
+
+--
+===========================================================================
+David Bowen                          Chief Scientist
+Quintus Corporation                  InterNet:       Dave.Bowen@quintus.com
+2100 Geng Road                       Phone:          415 813 3851
+Palo Alto, California 94303          Fax:            415 494 7608
+===========================================================================
+Article 9786 of comp.lang.prolog:
+Xref: glinda.oz.cs.cmu.edu comp.lang.prolog:9786
+Path: honeydew.srv.cs.cmu.edu!rochester!udel!gatech!howland.reston.ans.net!vixen
+.cso.uiuc.edu!uwm.edu!msuinfo!harbinger.cc.monash.edu.au!aggedor.rmit.EDU.AU!goa
+nna.cs.rmit.oz.au!not-for-mail
+From: ok@goanna.cs.rmit.oz.au (Richard A. O'Keefe)
+Newsgroups: comp.lang.prolog
+Subject: Re: How to write portable code ????
+Date: 25 Feb 1994 18:01:23 +1100
+Organization: Comp Sci, RMIT, Melbourne, Australia
+Lines: 91
+Message-ID: <2kk7o3$npr@goanna.cs.rmit.oz.au>
+References: <2kdm7a$ahh@hobbes.cc.uga.edu> <2kflln$5cp@sleepy.cs.keele.ac.uk>
+NNTP-Posting-Host: goanna.cs.rmit.oz.au
+NNTP-Posting-User: ok
+
+paul@cs.keele.ac.uk (Paul Singleton) writes:
+>Prolog should be seen, not as a language which lacks a source preprocessor,
+>but as a wide-spectrum language which does not impose an arbitrary dichotomy
+>between compile-time and run-time constructs.
+
+>"Conditional text" is a limited special case of partial evaluation.
+
+For the special case of conditional compilation, think of
+        <head> :- <condition>, <rest of body>.
+If <condition> is "obviously" false, we can safely drop the clause.
+(This might result in the predicate disappearing.  Fine.)
+If <condition> is "obviously" true, we can drop _it_.
+
+Consider
+
+        simplify(Head :- Body0), (Head :- Body)) :-
+            guard_part(Body0, Guard, Body),
+            (   setof(Guard, call(Guard), Solutions) ->
+                Solutions = [Guard],
+                !
+            ;/* Guard is false */
+                !,
+                fail
+            ).
+        simplify(Clause, Clause).
+            /* otherwise */
+
+        guard_part((A,Body0), (A,Guard), Body) :-
+            nonvar(A),
+            known_simple_predicate(A),
+            !,
+            guard_part(Body0, Guard, Body).
+        guard_part(A, A, true) :-
+            nonvar(A),
+            known_simple_predicate(A),
+            !.
+        guard_part(Body, true, Body).
+
+        known_simple_predicate(environment(_)).
+
+
+This Quintus library contains a file environment.pl.  I encourage other
+Prolog providers to adopt that interface.  It was very carefully designed
+to provide answers to the kind of questions that come up when porting.
+
+Now plug simplify/2 into term_expansion.  (If only every Prolog provided
+offered term_expansion/2...)  Then you would get
+
+        p(X) :- environment(dialect(quintus(_))), q(X), r(X).
+        p(X) :- environment(dialect(open_prolog(_))), s(X), t(X).
+        p(0) :- environment(dialect(sictus(_))).
+
+Compile this in Quintus Prolog and you get
+        p(X) :- q(X), r(X).
+Compile it in SICStus Prolog, and you get
+        p(0).
+Compile it in LPA Prolog-386, and you get
+        /* no clauses */
+which is _right_.  (There shouldn't be an "else" because you don't know
+what other dialects might do to you.)
+
+This is not in the least to *contradict* Paul Singleton, but rather to
+*illustrate* his point.  The code I've shown _is_ a trivial partial
+executor for Prolog.  It will, for example, handle
+
+        nl :- environment(character(end_of_line(C))), put(C).
+
+which would expand to
+        nl :- put(10).
+on a UNIX system, or to
+        nl :- put(13).
+on a Macintosh.  (This is in fact the wrong way to do it, because VMS, to
+name but one operating system, supports _several_ line termination methods,
+so that in one run of a single program, there may be streams using CR, LF,
+CRLF, counts, or fixed lengths.)
+
+What can you do if your Prolog system doesn't support term_expansion/2,
+other than throw it away and get a better one?  Write your own program
+that _installs_ your suite of files, using code like
+
+    repeat,
+        read(Clause),
+        simplify(Clause, Simplified),
+        (   Simplified = end_of_file
+        ;   portray_clause(Simplified), fail
+        ),
+    !
+
+--
+Richard A. O'Keefe; ok@goanna.cs.rmit.oz.au; RMIT, Melbourne, Australia.
+The last good thing written in C was Franz Schubert's Symphony number 9.

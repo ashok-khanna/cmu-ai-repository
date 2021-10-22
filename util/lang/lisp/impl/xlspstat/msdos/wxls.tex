@@ -1,0 +1,282 @@
+\documentstyle[11pt]{article}
+
+\setlength{\textwidth}{6in}
+\setlength{\textheight}{8.75in}
+\setlength{\topmargin}{-0.25in}
+\setlength{\oddsidemargin}{0.25in}
+
+\newcommand{\macbold}[1]{{\bf #1}}
+\newcommand{\dcode}[1]{{\tt #1}}
+\newcommand{\LS}{Lisp}
+\newcommand{\XLS}{XLISP-STAT}
+\newcommand{\WXLS}{WXLS}
+\newcommand{\LSE}{LSPEDIT}
+
+\title{\XLS\ for Microsoft Windows 3.0\\Version 2.1 Alpha 6}
+\author{Luke Tierney\\School of Statistics\\University of Minnesota}
+
+\begin{document}
+\maketitle
+\section{Basics}
+This note outlines an implementation of \XLS\ for Microsoft Windows
+3.0. The executable is called \WXLS. \WXLS\ must be run in protected
+mode and requires at least a 286 processor with at least 2MB of
+memory. Only one instance of \WXLS\ can be run at one time.
+
+This implementation uses an MDI-style interface. The listener and
+graphics windows are subwindows of an MDI client window. Menus appear
+in the client window's menu bar. The implementation is quite similar
+to the Macintosh version. This note assumes you are familiar with the
+description of the Macintosh version given Appendix B.2 of
+Tierney~(1990).
+
+The current implementation is experimental; the current release at the
+time of writing is {\em 2.3 Alpha 6}.  I have only tested this version
+on a 386SX notebook with 3MB of memory and a math coprocessor. Please
+let me know if you run into any problems. A detailed description of
+the problem and the hardware configuration would be most helpful.
+
+\subsection{The Listener}
+The listener provides parenthesis matching. Hitting the {\em tab}\/
+key indents code to an appropriate level. Due to memory limitations,
+the amount of text retained in the listener window is limited.
+
+The listener follows standard windows conventions for handling arrow
+keys, cut and paste accelerators, etc.. In addition, hitting {\em
+SHIFT-ENTER}\/ moves the cursor to the end of the current input
+expression.
+
+Hitting and holding down {\em CONTROL-C}\/ should interrupt the
+current calculation. You may need to wait a bit since the state of
+these keys is only checked periodically during calculations.
+
+Closing the listener is equivalent to minimizing it; you cannot remove
+the listener. Minimizing a graphics window is equivalent to hiding
+(i.e.  sending it the \dcode{:hide-window} message). Closing a graph
+window removes it.
+
+\subsection{Editing Files}
+A separate program, \LSE, provides a very simple \LS\ file
+editor.\footnote{This editor is based on the code examples in
+Microsoft (1990).} Like the listener, \LSE\ supports parenthesis
+matching and code indentation. In addition, the \macbold{Edit} menu in
+\LSE\ contains an item for pasting a selected expression into an \XLS\
+application. This is accomplished using the Windows Dynamic Data
+Exchange (DDE) mechanism. It seems to work with one instance of \LSE\
+and one of \XLS\ running. In theory, it should also work if there are
+multiple instances of \LSE\ running.  It would get very confused if
+there were multiple instances of \XLS, but the current version does
+not allow this.
+
+\subsection{Menus}
+As with the Macintosh version, menus can be installed in and removed
+from the menu bar by sending them the \dcode{:install} and
+\dcode{:remove} messages. The \macbold{File} and \macbold{Edit} menus
+that appear in the menu bar on startup are \LS\ menus. They are the
+values of the global variables \dcode{*file-menu*} and
+\dcode{*edit-menu*}. The third menu, the \macbold{Windows} menu, is
+part of the MDI interface and is {\em not}\/ a \LS\ menu; you cannot
+change or remove it.
+
+When a graphics window is the front window and you select the
+\macbold{Copy} item from the \macbold{Edit} menu, a copy of the graph
+is placed in the clipboard. This is done by turning on buffering,
+sending the window the \dcode{:redraw} message, copying the contents
+of the buffer to a bitmap, and placing that bitmap in the clipboard.
+
+\subsection{Environment Variables}
+\XLS\ uses two DOS environment variables. The first, \dcode{XLISPLIB}
+can be used to specify the default directory in which \XLS\ searches
+for its startup files. If you set this variable, it {\em must} end in
+a backslash character \verb+\+. For example, you can set it with a
+line like
+\begin{verbatim}
+set XLISPLIB=C:\XLISP\LIB\
+\end{verbatim}
+in your \dcode{AUTOEXEC.BAT} file. If this variable is not set, \XLS\
+assumes the default directory is the subdirectory \dcode{XLSLIB} of
+the startup directory.
+
+A second variable is \dcode{XLISPMONO}. If this is set to anything,
+only a monochrome buffer is allocated for buffered graphics. If this
+variable is not set, both monochrome and color buffers are allocated
+if the system has color available. On a 16-color standard VGA display,
+not allocating the color buffer saves about 150K. It is the only
+option available for trimming back the memory use of the system.
+
+\subsection{Miscellaneous Notes}
+The feature \dcode{msdos} is included in the \dcode{*features*} list
+and can be used for conditional evaluation of DOS-specific code.
+
+Since the DOS operating system uses the backslash character \verb+\+
+as the directory separator and the backslash character is also the
+\LS\ escape character, a file name string that is specified within
+\XLS, for example as an argument to the \dcode{load} command, must be
+entered with two backslashes. For example, a file \dcode{foo.lsp} in
+the subdirectory \dcode{bar} of the current directory would be loaded
+using
+\begin{verbatim}
+(load "bar\\foo.lsp")
+\end{verbatim}
+or by
+\begin{verbatim}
+(load "bar\\foo")
+\end{verbatim}
+if the \dcode{.lsp} extension is dropped.
+
+Since DOS imposes an 8-character limit on base file names, some
+standard startup files have been renamed. If you have a file that uses
+a longer name on other systems, you can use the second argument to the
+\dcode{require} function to specify a specific file base name. For
+example, the file \dcode{regression.lsp} that contains linear
+regression code has been renamed to \dcode{regress.lsp}, and
+\dcode{require} commands for this module are written as
+\begin{verbatim}
+(require "regression" #+msdos "regress")
+\end{verbatim}
+The module name, and thus the \dcode{provide} command at the beginning
+of the regression module file, are unchanged.
+
+There are several features that are either missing, not yet
+implemented, or only partially implemented:
+\begin{itemize}
+\item
+Clipping is not yet implemented in the graphics system. I have not yet
+figured out how to remove clip regions from a device context.
+\item
+A mouse is essentially required for the graphics windows and dialogs.
+A proper alternate keyboard interface is not yet available.
+\item
+The maximize button on the listener and on graphics windows is
+effectively disabled -- if you attempt to maximize a window it is
+immediately changed back to normal size. The reason for this is that
+strange things seem to happen when the menu bar is modified while
+windows are maximized.  You can maximize the MDI frame and then resize
+windows within the frame.
+\item
+\WXLS\ has access to all the memory Windows makes available to it,
+but because of the segmented architecture of the 80X86 processor, no
+single item larger than 64K can be allocated. This limits the total
+number of elements in a \LS\ array to 16K and the total size of a
+numerical array used in the linear algebra functions to about 8K
+elements. There is little guarantee that violations of these limits
+will be handled gracefully.
+\end{itemize}
+
+\section{More Advanced Features}
+\subsection{Dynamic Link Libraries}
+Dynamic Link Libraries (DLL's) can be used to provide additional
+cursor resources created with SDK or other toolkits, or to provide
+dynamically callable subroutines. The file \dcode{xlsx.c} contains
+startup and cleanup code for a DLL that seems to work with Borland
+C++. This code can be linked with cursor resources or with code into a
+DLL.
+
+Once you have a DLL, the function \dcode{load-dll} can be used to load
+a DLL. The return value of this function is an integer representing
+the DLL handle. The function \dcode{free-dll} can be used to release
+the library.
+
+\subsection{Cursors}
+When the \dcode{make-cursor} function is used to load a cursor from a
+DLL it is given three arguments. The first is a symbol naming the
+cursor.  The second is an integer representing a DLL handle (the DLL
+must have been loaded with \dcode{load-dll}). The third argument can
+be either an integer resource index or a string naming the cursor
+resource. If the DLL \dcode{stick.dll} contains a cursor resource
+defined by a resource file line like
+\begin{verbatim}
+Stick   CURSOR   STICK.CUR
+\end{verbatim}
+then it can be loaded as a cursor named \dcode{stick} using the
+expressions
+\begin{verbatim}
+(setf stick-dll (load-dll "stick.dll"))
+\end{verbatim}
+to load the library and
+\begin{verbatim}
+(make-cursor 'stick stick-dll "Stick")
+\end{verbatim}
+to load the cursor.
+
+The function \dcode{msw-cursor-size} returns a list of the width and
+height of a cursor on the graphics device. \XLS\ expands or truncates
+arrays supplied as arguments to \dcode{make-cursor} to this size.
+
+\subsection*{Dynamic Loading}
+Subroutines in DLL's can also be called from within \XLS.  The
+subroutine should be defined as for dynamic loading on the Macintosh.
+The header file \dcode{xlsx.h} contains the required definitions and
+macros.  The \dcode{call-cfun} function requires two arguments to
+identify the routine to be loaded, a DLL handle and an ordinal index
+or a name string.  Suppose the file \dcode{foo.c} shown on page 362 of
+Tierney (1990) is linked with the DLL code \dcode{xlsx.c} using the
+module definition file \dcode{foo.def} given by
+\begin{verbatim}
+LIBRARY FOO
+EXETYPE WINDOWS
+CODE    PRELOAD MOVEABLE DISCARDABLE
+DATA    PRELOAD MOVEABLE SINGLE
+EXPORTS FOO=_foo
+        WEP
+\end{verbatim}
+If the DLL is loaded as
+\begin{verbatim}
+(setf foo-dll (load-dll "foo.dll"))
+\end{verbatim}
+then the routine \dcode{foo} can be called using either
+\begin{verbatim}
+(call-cfun foo-dll "foo" 5 (float (iseq 1 5)) 0.0)
+\end{verbatim}
+or
+\begin{verbatim}
+(call-cfun foo-dll 1 5 (float (iseq 1 5)) 0.0)
+\end{verbatim}
+The second approach works since \dcode{foo} is the first routine in
+the exports table.
+
+\subsection{Other Functions}
+The function \dcode{msw-free-mem} returns the total amount of free
+global memory that is available in Windows.
+
+The \dcode{system} function takes a command string and an optional
+state arguments and \dcode{WinExec}'s the command string. If the
+command starts a windows application then the application starts
+iconified if the state arguments is \dcode{nil} and normal if the
+argument is \dcode{t}, the default. Thus
+\begin{verbatim}
+(system "clock")
+\end{verbatim}
+starts up a clock in normal state and
+\begin{verbatim}
+(system "clock" nil)
+\end{verbatim}
+starts up an iconified clock. The result returned is either \dcode{t}
+if the exec succeeds or a numerical error code if it fails.
+
+The function \dcode{msw-win-help} provides a minimal interface to the
+windows \dcode{WinHelp} function. Two arguments are required, a string
+naming the help file to be used, and a symbol specifying the type of
+help requested. The symbols \dcode{help}, \dcode{context},
+\dcode{index}, \dcode{key}, and \dcode{quit} are currently supported.
+Context help requires an additional integer argument, and key help
+requires an additional key string. For example,
+\begin{verbatim}
+(msw-win-help "calc.hlp" 'key "operators")
+\end{verbatim}
+opens help for the calculator application at the section on operators.
+No Windows help file for \XLS\ is available at this time, but this
+function provides the necessary hook for using such a file if it
+becomes available.
+
+\section*{References}
+\begin{description}
+\item[]
+Microsoft Corporation, (1990). {\em Microsoft Windows Guide to
+Programming}.  Redmond, WA: Microsoft.
+\item[]
+Tierney, L. (1990). {\em LISP-STAT: An Object-Oriented Environment for
+Statistical Computing and Dynamic Graphics}. New York, NY: Wiley.
+\end{description}
+
+\end{document}

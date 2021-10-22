@@ -1,0 +1,162 @@
+;;; GNU Emacs refer mode package. Last tested under v18.59. 
+;;; Alberto Segre (1989) segre@cs.cornell.edu
+
+(provide 'refer)
+
+;;; Refer-mode definition file.  Each command prompts for each field
+;;; to be filled.  These functions only help in entering the majority
+;;; of cases.  They will not fit all cases and so you have to some
+;;; entering by hand.
+
+;;; Add to auto-mode-alist to go into refer mode for .ref files.
+
+(setq auto-mode-alist (cons '("\\.ref$" . refer-mode) auto-mode-alist))
+
+;;; Refer major mode keymap.
+
+(defvar refer-mode-map nil
+  "Major mode keymap for refer-mode buffers")
+
+(defun refer-mode ()
+  (interactive)
+  (kill-all-local-variables)
+  (or refer-mode-map
+      (progn (setq refer-mode-map (make-sparse-keymap))
+	     (define-key refer-mode-map "\C-ca" 'refer-article)
+	     (define-key refer-mode-map "\C-cb" 'refer-book)
+	     (define-key refer-mode-map "\C-ch" 'refer-help)
+	     (define-key refer-mode-map "\C-cj" 'refer-journal)
+	     (define-key refer-mode-map "\C-cm" 'refer-misc)
+	     (define-key refer-mode-map "\C-cp" 'refer-proceedings)
+	     (define-key refer-mode-map "\C-cr" 'refer-report)
+	     (define-key refer-mode-map "\C-ct" 'refer-thesis)))
+  (use-local-map refer-mode-map)
+  (setq mode-name "Refer")
+  (setq major-mode 'refer-mode)
+  (end-of-buffer)
+  (initialize-refer-help)
+  (refer-help))
+
+(defun initialize-refer-help ()
+  (or (get-buffer "*Refer Help*")
+      (save-excursion
+	(save-window-excursion
+	  (let ((help-buffer (get-buffer-create "*Refer Help*")))
+	    (princ "Refer Mode Help:\n\n" help-buffer)
+	    (princ "  C-c a: Article in book.\n" help-buffer)
+	    (princ "  C-c b: Book.\n" help-buffer)
+	    (princ "  C-c h: Help (this page).\n" help-buffer)
+	    (princ "  C-c j: Journal article.\n" help-buffer)
+	    (princ "  C-c m: Miscellaneous entry.\n" help-buffer)
+	    (princ "  C-c p: Conference Proceedings.\n" help-buffer)
+	    (princ "  C-c r: Technical Report.\n" help-buffer)
+	    (princ "  C-c t: Ph.D. Thesis.\n" help-buffer)
+	    (set-buffer "*Refer Help*")
+	    (set-buffer-modified-p nil)
+	    (setq buffer-read-only t))))))
+
+(defun refer-help ()
+  (interactive)
+  (save-excursion
+    (initialize-refer-help)
+    (delete-other-windows)
+    (split-window (selected-window) (- (screen-height) 14))
+    (display-buffer "*Refer Help*" t)
+    (message "Type C-x 1 to remove refer help window.")))
+
+(defun read-entry (keystring promptstring)
+  (let ((entry (read-string promptstring "")))
+    (cond ((string-equal "" entry) nil)
+	  (t (insert-string (concat keystring entry))
+	     (newline)
+	     entry))))
+
+(defun basic-entry (&optional inpt)
+  (end-of-buffer)
+  (read-entry "%T " "Title: ")
+  (while (read-entry "%A " "Author: ")
+	 nil))
+
+(defun refer-article ()
+  (interactive)
+  (basic-entry)
+  (read-entry "%B " "In Book: ")
+  (while (read-entry "%E " "Editor: ")
+	 nil)
+  (read-entry "%I " "Publisher: ")
+  (read-entry "%C " "City: ")
+  (read-entry "%P " "Page numbers:")
+  (read-entry "%D " "Date: ")
+  (read-entry "%K " "Keywords: ")
+  (newline))
+
+(defun refer-book ()
+  (interactive)
+  (basic-entry)
+  (read-entry "%I " "Publisher: ")
+  (read-entry "%C " "City: ")
+  (read-entry "%D " "Date: ")
+  (read-entry "%K " "Keywords: ")
+  (newline))
+
+(defun refer-journal ()
+  (interactive)
+  (basic-entry)
+  (read-entry "%J " "Journal: ")
+  (read-entry "%V " "Volume number: ")
+  (read-entry "%N " "Issue number: ")
+  (read-entry "%P " "Page numbers: ")
+  (read-entry "%D " "Date: ")
+  (read-entry "%K " "Keywords: ")
+  (newline))
+
+(defun refer-misc ()
+  (interactive)
+  (basic-entry)
+  (read-entry "%S " "Series title: ")
+  (read-entry "%R " "Report number: ")
+  (while (read-entry "%E " "Editor: ")
+	 nil)
+  (read-entry "%J " "Journal: ")
+  (read-entry "%V " "Volume number: ")
+  (read-entry "%N " "Issue number: ")
+  (read-entry "%I " "Publisher: ")
+  (read-entry "%C " "City: ")
+  (read-entry "%P " "Page numbers: ")
+  (read-entry "%D " "Date: ")
+  (read-entry "%G " "Govt. order number: ")
+  (read-entry "%F " "Caption: ")
+  (read-entry "%O " "Other: ")
+  (read-entry "%K " "Keywords: ")
+  (newline))
+
+(defun refer-proceedings ()
+  (interactive)
+  (basic-entry)
+  (read-entry "%J " "Proceedings: ")
+  (read-entry "%C " "City: ")
+  (read-entry "%P " "Page numbers:")
+  (read-entry "%D " "Date: ")
+  (read-entry "%I " "Publisher: ")
+  (read-entry "%K " "Keywords: ")
+  (newline))
+
+(defun refer-report ()
+  (interactive)
+  (basic-entry)
+  (read-entry "%R " "Report number: ")
+  (read-entry "%I " "Institution: ")
+  (read-entry "%C " "City: ")
+  (read-entry "%D " "Date: ")
+  (read-entry "%K " "Keywords: ")
+  (newline))
+
+(defun refer-thesis ()
+  (interactive)
+  (basic-entry)
+  (read-entry "%R " "Report number: ")
+  (read-entry "%I Ph.D. thesis, " "Institution: ")
+  (read-entry "%C " "City: ")
+  (read-entry "%D " "Date: ")
+  (read-entry "%K " "Keywords: ")
+  (newline))

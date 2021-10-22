@@ -1,0 +1,253 @@
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/faqs/ai/fuzzy/part1/faq-doc-4.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 05:30:36 GMT -->
+<HEAD>
+<TITLE>FAQ: Fuzzy Logic and Fuzzy Expert Systems 1/1 [Monthly posting] - [4] What is a fuzzy expert system?</TITLE>
+</HEAD>
+<BODY>
+<H1>[4] What is a fuzzy expert system?</H1>
+<PRE>
+Date: 21-APR-93
+
+A fuzzy expert system is an expert system that uses a collection of
+fuzzy membership functions and rules, instead of Boolean logic, to
+reason about data. The rules in a fuzzy expert system are usually of a
+form similar to the following:
+
+    if x is low and y is high then z = medium
+
+where x and y are input variables (names for know data values), z is an
+output variable (a name for a data value to be computed), low is a
+membership function (fuzzy subset) defined on x, high is a membership
+function defined on y, and medium is a membership function defined on z.
+The antecedent (the rule's premise) describes to what degree the rule
+applies, while the conclusion (the rule's consequent) assigns a
+membership function to each of one or more output variables.  Most tools
+for working with fuzzy expert systems allow more than one conclusion per
+rule. The set of rules in a fuzzy expert system is known as the rulebase
+or knowledge base.
+
+The general inference process proceeds in three (or four) steps. 
+
+1. Under FUZZIFICATION, the membership functions defined on the
+   input variables are applied to their actual values, to determine the
+   degree of truth for each rule premise.
+
+2. Under INFERENCE, the truth value for the premise of each rule is
+   computed, and applied to the conclusion part of each rule.  This results
+   in one fuzzy subset to be assigned to each output variable for each
+   rule.  Usually only MIN or PRODUCT are used as inference rules. In MIN
+   inferencing, the output membership function is clipped off at a height
+   corresponding to the rule premise's computed degree of truth (fuzzy
+   logic AND). In PRODUCT inferencing, the output membership function is
+   scaled by the rule premise's computed degree of truth.
+
+3. Under COMPOSITION, all of the fuzzy subsets assigned to each output
+   variable are combined together to form a single fuzzy subset 
+   for each output variable.  Again, usually MAX or SUM are used. In MAX
+   composition, the combined output fuzzy subset is constructed by taking
+   the pointwise maximum over all of the fuzzy subsets assigned tovariable
+   by the inference rule (fuzzy logic OR).  In SUM composition, the
+   combined output fuzzy subset is constructed by taking the pointwise sum
+   over all of the fuzzy subsets assigned to the output variable by the
+   inference rule.
+
+4. Finally is the (optional) DEFUZZIFICATION, which is used when it is
+   useful to convert the fuzzy output set to a crisp number.  There are
+   more defuzzification methods than you can shake a stick at (at least
+   30). Two of the more common techniques are the CENTROID and MAXIMUM
+   methods.  In the CENTROID method, the crisp value of the output variable
+   is computed by finding the variable value of the center of gravity of
+   the membership function for the fuzzy value.  In the MAXIMUM method, one
+   of the variable values at which the fuzzy subset has its maximum truth
+   value is chosen as the crisp value for the output variable.
+
+Extended Example:
+
+Assume that the variables x, y, and z all take on values in the interval
+[0,10], and that the following membership functions and rules are defined:
+
+  low(t)  = 1 - ( t / 10 )
+  high(t) = t / 10
+
+  rule 1: if x is low and y is low then z is high
+  rule 2: if x is low and y is high then z is low
+  rule 3: if x is high and y is low then z is low
+  rule 4: if x is high and y is high then z is high
+
+Notice that instead of assigning a single value to the output variable z, each
+rule assigns an entire fuzzy subset (low or high).
+
+Notes:
+
+1. In this example, low(t)+high(t)=1.0 for all t.  This is not required, but 
+   it is fairly common.
+
+2. The value of t at which low(t) is maximum is the same as the value of t at
+   which high(t) is minimum, and vice-versa.  This is also not required, but
+   fairly common.
+
+3. The same membership functions are used for all variables.  This isn't
+   required, and is also *not* common.
+
+
+In the fuzzification subprocess, the membership functions defined on the
+input variables are applied to their actual values, to determine the
+degree of truth for each rule premise.  The degree of truth for a rule's
+premise is sometimes referred to as its ALPHA.  If a rule's premise has a
+nonzero degree of truth (if the rule applies at all...) then the rule is
+said to FIRE. For example,
+
+x       y       low(x)  high(x) low(y)  high(y) alpha1  alpha2  alpha3  alpha4
+------------------------------------------------------------------------------
+0.0     0.0     1.0     0.0     1.0     0.0     1.0     0.0     0.0     0.0
+0.0     3.2     1.0     0.0     0.68    0.32    0.68    0.32    0.0     0.0
+0.0     6.1     1.0     0.0     0.39    0.61    0.39    0.61    0.0     0.0
+0.0     10.0    1.0     0.0     0.0     1.0     0.0     1.0     0.0     0.0
+3.2     0.0     0.68    0.32    1.0     0.0     0.68    0.0     0.32    0.0
+6.1     0.0     0.39    0.61    1.0     0.0     0.39    0.0     0.61    0.0
+10.0    0.0     0.0     1.0     1.0     0.0     0.0     0.0     1.0     0.0
+3.2     3.1     0.68    0.32    0.69    0.31    0.68    0.31    0.32    0.31
+3.2     3.3     0.68    0.32    0.67    0.33    0.67    0.33    0.32    0.32
+10.0    10.0    0.0     1.0     0.0     1.0     0.0     0.0     0.0     1.0
+
+
+In the inference subprocess, the truth value for the premise of each rule is
+computed, and applied to the conclusion part of each rule.  This results in
+one fuzzy subset to be assigned to each output variable for each rule.
+
+MIN and PRODUCT are two INFERENCE METHODS or INFERENCE RULES.  In MIN
+inferencing, the output membership function is clipped off at a height
+corresponding to the rule premise's computed degree of truth.  This
+corresponds to the traditional interpretation of the fuzzy logic AND
+operation.  In PRODUCT inferencing, the output membership function is
+scaled by the rule premise's computed degree of truth.
+
+For example, let's look at rule 1 for x = 0.0 and y = 3.2.  As shown in the
+table above, the premise degree of truth works out to 0.68.  For this rule, 
+MIN inferencing will assign z the fuzzy subset defined by the membership
+function:
+
+    rule1(z) = { z / 10, if z &#60;= 6.8
+                 0.68,   if z &#62;= 6.8 }
+
+For the same conditions, PRODUCT inferencing will assign z the fuzzy subset
+defined by the membership function:
+
+    rule1(z) = 0.68 * high(z)
+             = 0.068 * z
+
+Note: The terminology used here is slightly nonstandard.  In most texts,
+the term "inference method" is used to mean the combination of the things
+referred to separately here as "inference" and "composition."  Thus
+you'll see such terms as "MAX-MIN inference" and "SUM-PRODUCT inference"
+in the literature.  They are the combination of MAX composition and MIN
+inference, or SUM composition and PRODUCT inference, respectively.
+You'll also see the reverse terms "MIN-MAX" and "PRODUCT-SUM" -- these
+mean the same things as the reverse order.  It seems clearer to describe
+the two processes separately.
+
+
+In the composition subprocess, all of the fuzzy subsets assigned to each
+output variable are combined together to form a single fuzzy subset for each
+output variable.
+
+MAX composition and SUM composition are two COMPOSITION RULES.  In MAX
+composition, the combined output fuzzy subset is constructed by taking
+the pointwise maximum over all of the fuzzy subsets assigned to the
+output variable by the inference rule.  In SUM composition, the combined
+output fuzzy subset is constructed by taking the pointwise sum over all
+of the fuzzy subsets assigned to the output variable by the inference
+rule.  Note that this can result in truth values greater than one!  For
+this reason, SUM composition is only used when it will be followed by a
+defuzzification method, such as the CENTROID method, that doesn't have a
+problem with this odd case. Otherwise SUM composition can be combined
+with normalization and is therefore a general purpose method again.
+
+For example, assume x = 0.0 and y = 3.2.  MIN inferencing would assign the
+following four fuzzy subsets to z:
+
+      rule1(z) = { z / 10,     if z &#60;= 6.8
+                   0.68,       if z &#62;= 6.8 }
+
+      rule2(z) = { 0.32,       if z &#60;= 6.8
+                   1 - z / 10, if z &#62;= 6.8 }
+
+      rule3(z) = 0.0
+
+      rule4(z) = 0.0
+
+MAX composition would result in the fuzzy subset:
+
+      fuzzy(z) = { 0.32,       if z &#60;= 3.2
+                   z / 10,     if 3.2 &#60;= z &#60;= 6.8
+                   0.68,       if z &#62;= 6.8 }
+
+
+PRODUCT inferencing would assign the following four fuzzy subsets to z:
+
+      rule1(z) = 0.068 * z
+      rule2(z) = 0.32 - 0.032 * z
+      rule3(z) = 0.0
+      rule4(z) = 0.0
+
+SUM composition would result in the fuzzy subset:
+
+      fuzzy(z) = 0.32 + 0.036 * z
+
+
+Sometimes it is useful to just examine the fuzzy subsets that are the
+result of the composition process, but more often, this FUZZY VALUE needs
+to be converted to a single number -- a CRISP VALUE.  This is what the
+defuzzification subprocess does.
+
+There are more defuzzification methods than you can shake a stick at.  A
+couple of years ago, Mizumoto did a short paper that compared about ten
+defuzzification methods.  Two of the more common techniques are the
+CENTROID and MAXIMUM methods.  In the CENTROID method, the crisp value of
+the output variable is computed by finding the variable value of the
+center of gravity of the membership function for the fuzzy value.  In the
+MAXIMUM method, one of the variable values at which the fuzzy subset has
+its maximum truth value is chosen as the crisp value for the output
+variable.  There are several variations of the MAXIMUM method that differ
+only in what they do when there is more than one variable value at which
+this maximum truth value occurs.  One of these, the AVERAGE-OF-MAXIMA
+method, returns the average of the variable values at which the maximum
+truth value occurs.
+
+For example, go back to our previous examples.  Using MAX-MIN inferencing
+and AVERAGE-OF-MAXIMA defuzzification results in a crisp value of 8.4 for
+z.  Using PRODUCT-SUM inferencing and CENTROID defuzzification results in
+a crisp value of 5.6 for z, as follows.
+
+Earlier on in the FAQ, we state that all variables (including z) take on
+values in the range [0, 10].  To compute the centroid of the function f(x),
+you divide the moment of the function by the area of the function.  To compute 
+the moment of f(x), you compute the integral of x*f(x) dx, and to compute the
+area of f(x), you compute the integral of f(x) dx.  In this case, we would
+compute the area as integral from 0 to 10 of (0.32+0.036*z) dz, which is
+
+    (0.32 * 10 + 0.018*100) =
+    (3.2 + 1.8) =
+    5.0
+
+and the moment as the integral from 0 to 10 of (0.32*z+0.036*z*z) dz, which is
+
+    (0.16 * 10 * 10 + 0.012 * 10 * 10 * 10) =
+    (16 + 12) =
+    28
+
+Finally, the centroid is 28/5 or 5.6.
+
+Note: Sometimes the composition and defuzzification processes are
+combined, taking advantage of mathematical relationships that simplify
+the process of computing the final output variable values.
+
+The Mizumoto reference is probably "Improvement Methods of Fuzzy
+Controls", in Proceedings of the 3rd IFSA Congress, pages 60-62, 1989.
+
+================================================================
+</PRE>
+<A NAME=up HREF="faq.html">Go Back Up</A><P>
+<A NAME=up HREF="faq-doc-3.html">Go To Previous</A><P>
+<A NAME=up HREF="faq-doc-5.html">Go To Next</A><P>
+</BODY>

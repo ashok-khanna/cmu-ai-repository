@@ -1,0 +1,221 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node145.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:32:03 GMT -->
+<HEAD>
+<TITLE>14.4. Searching Sequences for Items</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Searching Sequences for Items">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3337 HREF="node146.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3335 HREF="node141.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3329 HREF="node144.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3339 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3340 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3338 HREF="node146.html"> Sorting and Merging</A>
+<B>Up:</B> <A NAME=tex2html3336 HREF="node141.html"> Sequences</A>
+<B> Previous:</B> <A NAME=tex2html3330 HREF="node144.html"> Modifying Sequences</A>
+<HR> <P>
+<H1><A NAME=SECTION001840000000000000000>14.4. Searching Sequences for Items</A></H1>
+<P>
+Each of these functions searches a sequence to locate one or more
+elements satisfying some test.
+<P>
+<BR><b>[Function]</b><BR>
+<pre>
+<tt>find <i>item</i> <i>sequence</i> &amp;key :from-end :test :test-not :start :end :key 
+find-if <i>predicate</i> <i>sequence</i> &amp;key :from-end :start :end :key 
+find-if-not <i>predicate</i> <i>sequence</i> &amp;key :from-end :start :end :key</tt>
+</pre>
+<P>
+If the <i>sequence</i> contains an element satisfying the test,
+then the leftmost such element
+is returned; otherwise <tt>nil</tt> is returned.
+<P>
+If <tt>:start</tt> and <tt>:end</tt> keyword arguments are given,
+only the specified subsequence of <i>sequence</i> is searched.
+<P>
+If a non-<tt>nil :from-end</tt> keyword argument is specified, then the result is
+the <i>rightmost</i> element satisfying the test.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=15926>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<pre>
+<tt>position <i>item</i> <i>sequence</i> &amp;key :from-end :test :test-not 
+          :start :end :key 
+position-if <i>predicate</i> <i>sequence</i> &amp;key :from-end 
+          :start :end :key 
+position-if-not <i>predicate</i> <i>sequence</i> &amp;key :from-end
+          :start :end :key</tt>
+</pre>
+<P>If the <i>sequence</i> contains an element satisfying the test,
+then the index within the sequence of the leftmost such element
+is returned as a non-negative integer; otherwise <tt>nil</tt> is returned.
+<P>
+If <tt>:start</tt> and <tt>:end</tt> keyword arguments are given,
+only the specified subsequence of <i>sequence</i> is searched.
+However, the index returned is relative to the entire sequence,
+not to the subsequence.
+<P>
+If a non-<tt>nil :from-end</tt> keyword argument is specified, then the result is
+the index of the <i>rightmost</i> element satisfying the test.  (The index
+returned, however, is an index from the left-hand end, as usual.)
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=15940>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<P>
+Here is a simple piece of code that uses several of the sequence
+functions, notably <tt>position-if</tt> and <tt>find-if</tt>,
+to process strings.  Note one use of <tt>loop</tt> as well.
+<P><pre>
+(defun debug-palindrome (s) 
+  (flet ((match (x) (char-equal (first x) (third x)))) 
+    (let* ((pairs (loop for c across s 
+                        for j from 0 
+                        when (alpha-char-p c) 
+                          collect (list c j))) 
+           (quads (mapcar #'append pairs (reverse pairs))) 
+           (diffpos (position-if (complement #'match) quads))) 
+      (when diffpos 
+        (let* ((diff (elt quads diffpos)) 
+               (same (find-if #'match quads 
+                              :start (+ diffpos 1)))) 
+          (if same 
+              (format nil 
+                      &quot;/~A/ (at ~D) is not the reverse of /~A/&quot; 
+                      (subseq s (second diff) (second same)) 
+                      (second diff) 
+                      (subseq s (+ (fourth same) 1) 
+                                (+ (fourth diff) 1))) 
+              &quot;This palindrome is completely messed up!&quot;))))))
+</pre><P>
+Here is an example of its behavior.
+<P><pre>
+(setq panama     ;A putative palindrome? 
+      &quot;A man, a plan, a canoe, pasta, heros, rajahs, 
+       a coloratura, maps, waste, percale, macaroni, a gag, 
+       a banana bag, a tan, a tag, a banana bag again 
+       (or a camel), a crepe, pins, Spam, a rut, a Rolo, 
+       cash, a jar, sore hats, a peon, a canal-Panama!&quot;)
+</pre><P>
+<P><pre>
+(debug-palindrome panama) 
+  => &quot;/wast/ (at 73) is not the reverse of /, pins/&quot; 
+
+(replace panama &quot;snipe&quot; :start1 73)     ;Repair it 
+  => &quot;A man, a plan, a canoe, pasta, heros, rajahs, 
+       a coloratura, maps, snipe, percale, macaroni, a gag, 
+       a banana bag, a tan, a tag, a banana bag again 
+       (or a camel), a crepe, pins, Spam, a rut, a Rolo, 
+       cash, a jar, sore hats, a peon, a canal-Panama!&quot; 
+
+(debug-palindrome panama) => nil     ;Copacetic-a true palindrome 
+
+(debug-palindrome &quot;Rubber baby buggy bumpers&quot;) 
+  => &quot;/Rubber / (at 0) is not the reverse of /umpers/&quot; 
+
+(debug-palindrome &quot;Common Lisp: The Language&quot;) 
+  => &quot;/Commo/ (at 0) is not the reverse of /guage/&quot; 
+
+(debug-palindrome &quot;Complete mismatches are hard to find&quot;) 
+  => 
+  &quot;/Complete mism/ (at 0) is not the reverse of /re hard to find/&quot; 
+
+(debug-palindrome &quot;Waltz, nymph, for quick jigs vex Bud&quot;) 
+  => &quot;This palindrome is completely messed up!&quot; 
+
+(debug-palindrome &quot;Doc, note: I dissent.  A fast never 
+                   prevents a fatness.  I diet on cod.&quot;) 
+  =><tt>nil</tt>     ;Another winner 
+
+(debug-palindrome &quot;Top step's pup's pet spot&quot;) => nil
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<pre>
+<tt>count <i>item</i> <i>sequence</i> &amp;key :from-end :test :test-not :start :end :key 
+count-if <i>predicate</i> <i>sequence</i> &amp;key :from-end :start :end :key 
+count-if-not <i>predicate</i> <i>sequence</i> &amp;key :from-end :start :end :key</tt>
+</pre>
+<P>The result is always a non-negative integer, the number of
+elements in the specified subsequence of <i>sequence</i> satisfying
+the test.
+<P>
+The <tt>:from-end</tt> argument does not affect the result returned;
+it is accepted purely for compatibility with other sequence functions.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=15966>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>mismatch <i>sequence1</i> <i>sequence2</i> &amp;key :from-end :test :test-not :key :start1 :start2 :end1 :end2</tt><P>The specified subsequences of
+<i>sequence1</i> and <i>sequence2</i> are compared element-wise.
+If they are of equal length and match in every element, the result is
+<tt>nil</tt>.  Otherwise, the result is a non-negative integer.
+This result is the index within
+<i>sequence1</i> of the leftmost position at which the two
+subsequences fail to match; or,
+if one subsequence is shorter than and a matching prefix of the other,
+the result is the index
+relative to <i>sequence1</i> beyond the last position tested.
+<P>
+If a non-<tt>nil :from-end</tt> keyword argument is given, then
+<i>one plus</i> the index of the <i>rightmost</i>
+position in which the sequences differ is returned.  In effect, the (sub)sequences
+are aligned at their right-hand ends; then, the last elements are compared,
+the penultimate elements, and so on.  The index returned is again
+an index relative to <i>sequence1</i>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=15982>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>search <i>sequence1</i> <i>sequence2</i> &amp;key :from-end :test :test-not :key :start1 :start2 :end1 :end2</tt><P>A search is conducted for a subsequence of <i>sequence2</i> that
+element-wise matches <i>sequence1</i>.
+If there is no such subsequence, the result is <tt>nil</tt>; if there is,
+the result is the index into <i>sequence2</i> of the leftmost element
+of the leftmost such matching subsequence.
+<P>
+If a non-<tt>nil :from-end</tt> keyword argument is given,
+the index of the leftmost
+element of the <i>rightmost</i> matching subsequence is returned.
+<P>
+The implementation may choose to search the sequence in any order;
+there is no guarantee on the number of times the test is made.
+For example, <tt>search</tt> with a non-<tt>nil :from-end</tt>
+argument might actually search a list from left to right
+instead of from right to left (but in either case would return
+the rightmost matching subsequence, of course).  Therefore it is a good
+idea for a user-supplied predicate to be free of side effects.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=15998>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html3337 HREF="node146.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3335 HREF="node141.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3329 HREF="node144.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3339 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3340 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3338 HREF="node146.html"> Sorting and Merging</A>
+<B>Up:</B> <A NAME=tex2html3336 HREF="node141.html"> Sequences</A>
+<B> Previous:</B> <A NAME=tex2html3330 HREF="node144.html"> Modifying Sequences</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

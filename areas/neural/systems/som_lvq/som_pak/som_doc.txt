@@ -1,0 +1,1367 @@
+
+
+
+
+				      
+				   SOM_PAK
+				      
+				      
+				      
+				     The
+				      
+		            Self-Organizing Map
+				      
+			      Program  Package
+				      
+				      
+		       Version 1.2 (November 2, 1992)
+				      
+				      
+				      
+			       Prepared by the
+				      
+			 SOM Programming Team of the
+				      
+		      Helsinki University of Technology
+				      
+	       Laboratory of Computer and Information Science
+				      
+		     Rakentajanaukio 2 C, SF-02150 Espoo
+				      
+				   FINLAND
+				      
+				      
+				      
+			    Copyright (C) 1992 by
+				      
+				Teuvo Kohonen
+				 Jari Kangas
+			       Jorma Laaksonen
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                       1
+
+
+
+Contents
+
+1   General                                                                 3
+
+2   The principle of the SOM                                                4
+
+3   Practical advices for the construction of good maps                     6
+
+4   Installation of the program package                                     7
+
+    4.1  Getting the program code  : : : : : : : : : : : : : : : : : : : :  8
+    4.2  Installation in UNIX  : : : : : : : : : : : : : : : : : : : : : :  8
+    4.3  Installation in DOS : : : : : : : : : : : : : : : : : : : : : : :  9
+    4.4  Hardware requirements   : : : : : : : : : : : : : : : : : : : : : 10
+
+5   File formats                                                           10
+
+    5.1  Data file formats   : : : : : : : : : : : : : : : : : : : : : : : 10
+    5.2  Map file formats  : : : : : : : : : : : : : : : : : : : : : : : : 12
+
+6   Application of this package                                            13
+
+    6.1  The search program vfind  : : : : : : : : : : : : : : : : : : : : 13
+    6.2  Using the programs directly : : : : : : : : : : : : : : : : : : : 13
+    6.3  Program parameters  : : : : : : : : : : : : : : : : : : : : : : : 13
+    6.4  Using the command lines (an example)  : : : : : : : : : : : : : : 15
+         6.4.1   First stage: Map initialization : : : : : : : : : : : : : 15
+         6.4.2   Second stage: Map training  : : : : : : : : : : : : : : : 16
+         6.4.3   Third stage: Evaluation of the quantization error : : : : 16
+         6.4.4   Fourth stage: Map visualization : : : : : : : : : : : : : 16
+
+7   Description of the programs of this package                            17
+
+    7.1  Initialization programs : : : : : : : : : : : : : : : : : : : : : 17
+    7.2  Training programs   : : : : : : : : : : : : : : : : : : : : : : : 18
+    7.3  Quantization accuracy program : : : : : : : : : : : : : : : : : : 18
+    7.4  Monitoring programs : : : : : : : : : : : : : : : : : : : : : : : 18
+    7.5  Graphics program  : : : : : : : : : : : : : : : : : : : : : : : : 19
+    7.6  Other programs  : : : : : : : : : : : : : : : : : : : : : : : : : 19
+
+8   Comments on and experiences of the use of this package                 19
+
+    8.1  Changes in the package  : : : : : : : : : : : : : : : : : : : : : 19
+
+References                                                                 20
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                       2
+
+
+
+1     General
+
+
+This software package contains all the necessary programs for the correct
+application of the Self-Organizing Map [Kohonen 1989][Kohonen 1990] in the
+visualization of complex experimental data.
+
+The Self-Organizing Map (SOM) represents the result of a vector quantiza-
+tion algorithm that places a number of reference or codebook vectors into a
+high-dimensional input data space to approximate to its data sets in an or-
+dered fashion. When local-order relations are defined between the reference
+vectors, the relative values of the latter are made to depend on each other
+as if their neighboring values would lie along an "elastic surface". By means
+of the self-organizing algorithm, this "surface" becomes defined as a kind
+of nonlinear regression of the reference vectors through the data points.  A
+mapping from a high-dimensional data space <n onto, say, a two-dimensional
+lattice of points is thereby also defined.  Such a mapping can effectively be
+used to visualize metric ordering relations of input samples. In practice, the
+mapping is obtained as an asymptotic state in a learning process.
+
+A typical application of this kind of SOM is in the analysis of complex exper-
+imental vectorial data such as process states, where the data elements may
+even be related to each other in a highly nonlinear fashion.
+
+The process in which the SOM is formed is an unsupervised learning process.
+Like any unsupervised classification method,  it may also be used to find
+clusters in the input data, and to identify an unknown data vector within
+one of the clusters. On the other hand, if the data are a priori known to fall
+in a finite number of classes, identification of an unknown data vector would
+optimally be done by some supervised learning algorithm, say, the Learning
+Vector Quantization (LVQ), which is related to the SOM. The corresponding
+software package LVQ_ PAK is available at the same address as this package.
+
+The present program package is thus not intended for optimal classification
+of data, but mainly for their interactive monitoring.
+
+NOTE: This program package is copyrighted in the sense that it may be used
+for scientific purposes. The package as a whole, or parts thereof, cannot be
+included or used in any commercial application without written permission
+granted by its producents. No programs contained in this package may be
+copied for commercial distribution.
+
+This program package is distributed in the hope that it will be useful, but
+without any warranty.  No author or distributor accepts responsibility to
+anyone for the consequences of using it or for whether it serves any particular
+purpose or works at all.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                       3
+
+
+
+2     The  principle  of  the  SOM
+
+
+There exist many versions of the SOM. The basic philosophy, however, is
+very simple and already effective as such, and has been implemented by the
+procedures contained in this package.
+
+The SOM here defines a mapping from the input data space R^n onto a regular
+two-dimensional array of nodes.  With every node i, a parametric reference
+vector mi in R^n is associated.  The lattice type of the array can be defined
+as rectangular or hexagonal in this package; hexagonal is more effective for
+visual display. An input vector x in R^n is compared with the mi, and the best
+match is defined as "response": the input is thus mapped onto this location.
+
+The array and the location of the response (image of input) on it are sup-
+posed to be presented as a graphic display.  For a more insightful analysis,
+each component plane of the array (the numerical values of the correspond-
+ing components of the mivectors) may also be displayed separately in the
+same format as the array, using a gray scale to illustrate the values of the
+components.  Although this program package is intended for any UNIX or
+MS-DOS computer, some problems are caused by different standards used
+in the graphics systems. Therefore we only give the output data as numer-
+ical arrays, and expect that the users can easily convert them into graphic
+displays.  One case example of graphics (Silicon Graphics GL) is included,
+however.
+
+One might say that the SOM is a "nonlinear projection" of the probability
+density function of the high-dimensional input data onto the two-dimensional
+display. Let x in R^n be an input data vector. It may be compared with all
+the mi in any metric; in practical applications, the smallest of the Euclidean
+distances ||x - mi|| is usually made to define the best-matching node,
+signified by the subscript c:
+
+
+
+                  ||x - mc||  =   min{||x - mi||} ;      or
+
+                           c  =   arg min{||x   mi||} :                   (1)
+
+
+Thus x is mapped onto the node c relative to the parameter values mi.
+
+An "optimal" mapping would be one that maps the probability density func-
+tion p(x) in the most "faithful" fashion, trying to preserve at least the local
+structures of p(x).  (You might think of p(x) as a flower that is pressed!)
+Definition of such mi values, however, is far from trivial; a number of peo-
+ple have tried to define them as optima of some objective (energy) function
+(see e.g.  [Ritter et al. 1988], [Luttrell 1989], [Kohonen 1991],
+and  [Erwin et al. 1992]).  As  the  existence  of  a  satisfactory  definition
+is still unclear, we have restricted ourselves in this package to the
+stochastic-approximation-type derivation [Kohonen 1991] that defines the
+original form of the SOM learning procedure.
+
+
+
+
+
+
+
+
+
+
+                                       4
+
+
+
+During learning, those nodes that are topographically close in the array up
+to a certain distance will activate each other to learn from the same input.
+Without mathematical proof we state that useful values of the mi can be
+found as convergence limits of the following learning process, whereby the
+initial values of the mi(0) can be arbitrary, e.g., random:
+
+
+                   mi(t + 1) = mi(t) + hci(t)[x(t) - mi(t)] ;               (2)
+
+where t is an integer, the discrete-time coordinate, and hci(t) is the so-called
+neighborhood kernel; it is a function defined over the lattice points. Usu-
+ally hci(t) = h(||rc - ri||; t), where rc in R^2 and ri in R^2 are the radius
+vectors of nodes c and i, respectively, in the  array. With increasing
+||rc - ri||, hci goes to 0. The average width and form of hci defines the
+"stiffness" of the "elastic surface" to be fitted to the data points. Notice
+that it is usually not desirable to describe the exact form of p(x), especially
+if x is very-high-dimensional; it is more important to be able to automatically
+find those dimensions and domains in the signal space where x has significant
+amounts of sample values!
+
+This package contains two options for the definition of hci(t).  The simpler
+of them refers to a neighborhood set of array points around node c. Let this
+index set be denoted Nc (notice that we can define Nc = Nc(t) as a function
+of time), whereby hci = alpha(t) if i in Nc and hci = 0 if i not in Nc, where
+alpha(t) is some monotonically decreasing function of time (0 < alpha(t) < 1).
+This kind of kernel is nicknamed "bubble", because it relates to certain
+activity "bubbles" in laterally connected neural networks [Kohonen 1989].
+Another widely applied neighborhood kernel can be written in terms of the
+Gaussian function,
+
+
+          hci = alpha(t) * exp(-(||rc-ri||^2)/(2 rad^2(t)));  (3) 
+
+
+where alpha(t) is another scalar-valued "learning rate", and the parameter
+rad(t) defines the width of the kernel; the latter corresponds to
+the radius of Nc above. Both alpha(t) and rad(t) are some monotonically
+decreasing functions of time, and their exact forms are not critical; they
+could thus be selected linear.  Effective choices for these functions and
+their parameters have so far only been determined experimentally; such default
+definitions have been used in this package.
+
+The next step is calibration of the map, in order to be able to locate images
+of different input data items on it. In the practical applications for which
+such maps are intended, it may be usually self-evident from daily routines how
+a particular input data set ought to be interpreted.  By inputting a number
+of typical, manually analyzed data sets and looking where the best matches
+on the map according to Eq.  (1) lie, the map or at least a subset of its
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                       5
+
+
+
+nodes can be labeled to delineate a "coordinate system" or at least a set of
+characteristic reference points on it according to their manual interpretation.
+Since this mapping is assumed to be continuous along some hypothetical
+"elastic surface", it may be self-evident how the unknown data are interpreted
+by means of interpolation and extrapolation with respect to these calibrated
+points.
+
+
+
+3     Practical  advices  for  the  construction  of
+      good  maps
+
+
+Although it is possible to obtain some kind of maps without taking into
+account any precautions, nonetheless it is advisable to pay attention to the
+following arguments in order that the resulting mappings were stable, well
+oriented, and least ambiguous.
+
+Form of the array:  As stated earlier, the hexagonal lattice is to be preferred
+for visual inspection. The edges of the array ought to be rather rectangular
+than square, because the "elastic network" formed of the reference vectors mi
+must be oriented along with p(x) and stabilize in the learning process. Notice
+that if the array were, e.g., circular, it would have no stable orientation in
+the data space; so any oblongated form is to be preferred.  On the other hand,
+since the mi have to approximate to the p(x), it would be desirable to find a
+form for the edges of the array the dimensions of which roughly correspond to
+the major dimensions of p(x). Therefore, visual inspection of the rough form
+of p(x), e.g., by Sammon's mapping (cf. [Sammon Jr. 1969] and Section
+7.4) ought to be done first.
+
+Learning with a small number of available training samples: Since for a good
+statistical accuracy the learning process (2) may require an appreciable num-
+ber, say, 100'000 steps, and the number of available samples is usually much
+smaller, it is obvious that the samples must be used reiteratively in training.
+Several alternatives then exist:  the samples may be applied cyclically or in
+a randomly permuted order, or picked up at random from the basic set (so-
+called bootstrap learning). It has turned out in practice that ordered cyclic
+application is not noticeably worse than the other, mathematically better
+justifiable methods.
+
+Enhancement of rare cases: It may be obvious from the above that the SOM
+in some way tends to represent p(x).  However, in many practical problems
+there may occur important cases (input data) with small statistical frequency,
+whereby they would not get a representation on the SOM. Therefore, such
+important cases can be enhanced in learning by an arbitrary amount by taking
+a higher value of hci for these samples, or repeating these samples in a random
+order a sufficient number of times during the learning process.  The weight
+parameters that correspond to the enhancement may be given in the training
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                       6
+
+
+
+data file, and their determination should be done in cooperation with the
+users of these maps (see Section 5.1).
+
+Quality of learning: Very different learning processes can be defined starting
+with different initial values mi(0), and applying different sequences of the
+training vectors x(t) and different learning parameters.  It is obvious that
+some optimal map for the same input data must exist. It may also be obvious
+that when comparing maps that have the same "stiffness" (same hci),
+the best map is expected to yield the smallest average quantization error
+because it is then fitted best to the same data. The mean of ||x - mc|| defined
+via inputting the training data once again is then a useful performance index.
+Therefore, an appreciable number (say, several tens) of random initializations
+of the mi(0) ought to be tried, and the map with the minimum quantization
+error selected. For this automatic choice there is a procedure in this package.
+
+Notice too that there would be no sense in comparing quantization errors
+for different hci, because, e.g., it is a trivial fact that the error is minimum
+if hci is Kronecker delta. With this kernel, however, there is no self-
+organizing power left. In general the quantization error depends strongly on
+hci.
+
+Scaling of the components:  This is a very subtle problem.  One may easily
+realize that the orientation, or ordered "regression" of the reference vectors
+in the input space must depend on the scaling of the components (or dimen-
+sions) of the input data vectors. However, if the data elements have already
+been represented in different scales, there does not exist any simple rule to
+determine what kind of optimal rescaling should be used before entering the
+training data to the learning algorithm. One may try many heuristically jus-
+tifiable rescalings and check the quality of the resulting maps by means of
+Sammon's mapping or average quantization errors.
+
+Forcing representations to a wanted place on the map: Sometimes, especially
+for monitoring purposes, it may be desirable to map "normal" data onto
+specified locations (say, into the middle) of the map. It is possible to affect
+the orientation and translation of the reference vectors in the input space,
+for instance, by forcing some "normal" data samples to be mapped to some
+specified nodes. The fixed parameters that correspond to specified locations
+may be given in the training data file (see Section 5.1).
+
+
+
+4     Installation  of  the  program  package
+
+
+In the implementation of the SOM_PAK programs we have tried to use as
+simple a code as possible. Therefore the programs are supposed to compile
+in various machines without any specific modifications made on the code. All
+programs have been written in ANSI C.
+
+The programs included in this basic package have not been provided with
+
+
+
+
+
+
+
+
+
+
+
+                                       7
+
+
+
+explicit graphics facilities; this makes it possible to run the programs equally
+well in all computers ranging from PCs to Cray supercomputers. The display
+programs generate lists of coordinates of points, which can be visualized by
+any standard graphics program. Only an exemplary graphics demonstration
+(cf. Sec. 7.5) has been included.
+
+
+
+4.1     Getting the program code
+
+The latest version of the som_pak-program package is available for anonymous
+ftp user at the Internet site cochlea.hut.fi (130.233.168.48). All programs and
+this documentation are stored in the directory /pub/som_pak. The files are
+in multiple formats to ease their downloading and compiling.
+
+The directory /pub/som_pak  contains the following files:
+
+ README              -  short description about the som_pak package
+ som_doc.ps          -  this document in (c) PostScript format
+ som_doc.ps.Z        -  same as above but compressed
+ som_doc.txt         -  this document in ASCII format
+ som_p1r2.exe        -  Self-extracting MS-DOS archive file
+ som_pak-1.2.tar     -  UNIX tape archive file
+ som_pak-1.2.tar.Z   -  same as above but compressed
+
+
+
+4.2     Installation in UNIX
+
+The archive file som_pak-1.2.tar.Z is intended to be used when installing
+som_pak  in  UNIX systems.  It  needs  to  be  uncompressed  to  get  the  file
+som_pak-1.2.tar. If your system doesn't support the BSD compress utility,
+you may download the uncompressed file directly.
+
+The tar archive contains the source code files, makefiles, and example data
+sets of the package, all in one subdirectory called som_pak-1.2. In order to
+create the subdirectory and extract all the files you should use the command
+tar xovf som_pak-1.2.  (The switches of tar unfortunately vary, so you may
+need omit the 'o'.)
+
+The package contains two makefiles for compilation in UNIX systems. Before
+executing the make command, one or the other of them has to be copied
+to the name makefile. The file, makefile.bsd, should work as such in most
+systems, whereas the other one, makefile.sv, while being more distinct and
+refined, is only usable in systems with UNIX System V make utility or GNU
+gmake implementation of make. Whichever makefile is chosen, it has to be
+copied to the name makefile before performing the make command.  If the
+executable files are not properly built up, using the other one of the makefiles
+should help.
+
+We have written the source code for an ANSI standard C compiler and envi-
+ronment. If the cc compiler of your system doesn't fulfill these requirements,
+
+
+
+
+
+
+
+
+
+                                       8
+
+
+
+we recommend you to port the public domain GNU gcc compiler in your
+computer. When using gcc, the makefile macro definition CC=cc has to be
+changed accordingly to CC=gcc. The makefile also contains some other plat-
+form specific definitions, like optimizer and linker switches, that may need to
+be revised.
+
+In order to summarize, the installation procedure is as follows:
+
+> uncompress som_pak-1.2.tar.Z
+
+> tar xovf som_pak-1.2.tar
+
+> cd som_pak-1.2
+
+> cp makefile.sv makefile
+
+> make
+
+After a successful make of the executables, you may test them by executing
+
+> make example
+
+which performs the commands as listed in section "6.4 Using the command
+lines (an example)".
+
+The installation and application of the som_pak package has been successfully
+carried out in the following computers (operating systems/compilers): Silicon
+Graphics Personal Iris, Power Series, and Iris Indigo (IRIX Release 4.0.5
+System V / MIPS C 2.10), Sun Sparcstation (SunOS Release 4.1.2 / gcc
+2.2.2 + makefile.sv), Cray XMP-EA/432 (UNICOS 6.0 / Cray Standard C
+3.0), Apollo 425t (Domain/OS SR10.4 / cc Rev 6.8).
+
+
+
+4.3     Installation in DOS
+
+The archive file som_p1r2.exe is intended to be used when installing som_pak
+in MS-DOS computers. It is a self-extracting packed archive compatible with
+the public domain lha utility.  If your system supports UNIX tar archiving
+and compress file compressing utilities, you may as well use som_pak-1.2.tar
+and som_pak-1.2.tar.Z archives, as described in the previous section.
+
+The som_p1r2.exe archive contains the source code files, makefiles, and ex-
+ample data sets of the package, all in one subdirectory called som_pak.1r2.
+In order to create the subdirectory and extract all the files simply use the
+command som_p1r2.
+
+The package contains a makefile called makefile.dos for building up the object
+files. Before using the make command, makefile.dos has to be copied to the
+name makefile. It is intended to be used with the Borland Make Version 3.5
+and the Borland C++ compiler Version 2.0, and may need to be revised if
+used with other compilation tools. Even with Borland C you may want to
+set some compiler switches, e.g., floating point options, according to your
+hardware.
+
+In order to summarize, the installation procedure is as follows:
+
+
+
+
+
+                                       9
+
+
+
+> som_p1r2
+
+> cd som_pak.1r2
+
+> copy makefile.dos makefile
+
+> make
+
+After a successful make of the executables, you may test them by executing
+
+> make example
+
+which performs the commands as listed in section "6.4 Using the command
+lines (an example)".
+
+
+
+4.4     Hardware requirements
+
+The compressed archive files are about 250 kbytes in size, whereas the ex-
+tracted files take about 600 kbytes.  When compiled and linked in MS-DOS,
+the executables are about 45 kbytes each. It is recommended to have at least
+640 kbytes RAM, when using som_pak in MS-DOS.
+
+The execution times of the programs depend heavily on the hardware.
+For example, the execution of the subprogram {\em vsom} in the example
+takes about 12 seconds in Cray XMP, about 23 seconds in Sun workstations,
+about 12 seconds in Silicon Graphics workstations, about 125 seconds in a
+PC/386DX provided with a math co-processor and running at 25 MHz, and about
+1300 seconds with a similar PC without co-processor.
+
+
+
+5     File formats
+
+
+All data files (input vectors and maps) are stored as ASCII files for their easy
+editing and checking. The files that contain training data and test data are
+formally similar, and can be used interchangeably.
+
+The data and map file formats are similar to the formats used in the LVQ_PAK
+program package. Thus the same data files can be used in both (LVQ_PAK
+and SOM_PAK) packages.
+
+
+
+5.1     Data file formats
+
+The input data is stored in ASCII-form as a list of entries, one line being
+reserved for each vectorial sample.
+
+The first line of the file is reserved for status knowledge of the entries; in
+the present version it is used to define the following items (these items MUST
+occur in the indicated order):
+
+
+    - Dimensionality of the vectors (integer, compulsory).
+    - Topology type, either hexa or rect (string, optional, case-sensitive).
+
+
+
+                                      10
+
+
+
+    - Map dimension in x-direction (integer, optional).
+    - Map dimension in y-direction (integer, optional).
+    - Neighborhood type, either bubble or gaussian (string, optional, case-
+      sensitive).
+
+In data files the optional items are ignored.
+
+Subsequent lines consist of n floating-point numbers followed by an optional
+class label (that can be any string) and two optional qualifiers (see below)
+that determine the usage of the corresponding data entry in training programs.
+The data files can also contain an arbitrary number of comment lines that
+begin with '#', and are ignored. (One '#' for each comment line is needed.)
+
+An  example:  Consider  a  hypothetical  data  file  exam.dat  that  represents
+shades of colors in a three-component form.  This file contains four samples,
+each one comprising a three-dimensional data vector.  (The dimensionality
+of the vectors is given on the first line.)  The labels can be any strings; here
+'yellow' and 'red' are the names of the classes.
+
+      exam.dat:
+
+
+       3
+       # First the yellow entries
+       181.0   196.0    17.0   yellow
+       251.0   217.0    49.0   yellow
+       # Then the red entries
+       248.0   119.0   110.0   red
+       213.0    64.0    87.0   red
+
+Each data line may have two optional qualifiers that determine the usage of
+the data entry during training. The qualifiers are of the form codeword=value,
+where spaces are not allowed between the parts of the qualifier. The optional
+qualifiers are the following:
+
+    - Enhancement factor: e.g. weight=3.
+      The training rate for the corresponding input pattern vector is multi-
+      plied by this parameter so that the reference vectors are updated as if
+      this input vector were repeated 3 times during training (i.e., as if the
+      same vector had been stored 2 extra times in the data file).
+
+    - Fixed-point qualifier: e.g. fixed=2,5.
+      The map unit defined by the fixed-point coordinates (x = 2; y = 5) is
+      selected instead of the best-matching unit for training. (See below for
+      the definition of coordinates over the map.) If several inputs are forced
+      to known locations, a wanted orientation results in the map.
+
+The optional qualifiers are not used by default; see the definition of the pa-
+rameters -fixed and -weights.
+
+
+
+
+
+
+
+
+
+
+
+
+                                      11
+
+
+
+5.2     Map file formats
+
+The reference vectors are stored in ASCII-form. The format of the entries is
+similar to that used in the input data files, except that the optional items of
+data files (topology type, x- and y-dimensions and neighborhood type) are
+now compulsory.
+
+An example: The map file code.cod contains a map of three-dimensional vec-
+tors, with three times two map units. This map corresponds to the training
+vectors in the exam.dat file.
+
+
+      code.cod:
+
+
+       3 hexa 3 2 bubble
+       191.105   199.014   21.6269
+       215.389   156.693   63.8977
+       242.999   111.141   106.704
+       241.07    214.011   44.4638
+       231.183   140.824   67.8754
+       217.914   71.7228   90.2189
+
+
+The x-coordinates of the map units range from 0 to n   1, where n is the
+x-dimension of the map, and the y-coordinates range from 0 to m   1, where
+m is the y-dimension of the map. The reference vectors of the map are stored
+in the map file in the following order:
+
+ 1       The unit with coordinates (0; 0).
+ 2       The unit with coordinates (1; 0).
+         ...
+ n       The unit with coordinates (n - 1; 0).
+ n + 1   The unit with coordinates (0; 1).
+         ...
+ nm      The last unit is the one with coordinates (n - 1; m - 1).
+
+
+   (0,0)--(1,0)--(2,0)--(3,0)--        (0,0)--(1,0)--(2,0)--(3,0)--
+     |      |      |      |               \   /  \   /  \   /  \   /
+     |      |      |      |                \ /    \ /    \ /    \ / 
+   (0,1)--(1,1)--(2,1)--(3,1)--           (0,1)--(1,1)--(2,1)--(3,1)--
+     |      |      |      |                / \    / \    / \    / \ 
+     |      |      |      |               /   \  /   \  /   \  /   \
+   (0,2)--(1,2)--(2,2)  (3,2)--        (0,2)--(1,2)--(2,2)--(3,2)--
+     |      |      |      |               \   /  \   /  \   /  \   /
+
+
+          Rectangular                          Hexagonal
+
+In the picture above the locations of the units in the two possible topological
+structures are shown. The distance between two units in the map is computed
+as an Euclidean distance in the (two dimensional) map topology.
+
+
+
+
+
+
+
+
+                                      12
+
+
+
+6     Application  of  this  package
+
+
+6.1     The searching program vfind
+
+The easiest way to use the som_pak-programs is to run the vfind-program,
+which searches for good mappings by automatically repeating different ran-
+dom initializing and training procedures and their testing several times. The
+criterion of a good mapping is a low quantization error.
+
+The vfind-program asks all the required arguments interactively.  The user
+only needs to start the program without any parameters (except that the
+verbose parameter (-v) and the qualifier parameters (-fixed and -weights) can
+be given).
+
+
+
+6.2     Using the programs directly
+
+Usually the subprograms contained in this package are run separately and
+directly from the console using command lines defined in Section 7.  The
+user should take care of that the programs are then run in the correct order:
+first initialization, then training, and then tests; and that the correct param-
+eters are given (correspondence of the input and output files of subsequent
+programs is particularly important).
+
+Each program needs some parameters: file names, learning parameters, sizes
+of maps, etc.  All these must be given to the program in the beginning;
+the programs are not interactive in the sense that they do not ask for any
+parameters during their running.
+
+
+
+6.3     Program parameters
+
+Various programs need various parameters.  All the parameters that are re-
+quired by any program in this package are listed below. The meaning of the
+parameters is obvious in most cases.  The parameters can be given in any
+order in the commands.
+
+
+  -din        Name of the input data file.
+  -dout       Name of the output data file.
+  -cin        Name of the file from which the reference vectors are read.
+  -cout       Name of the file to which the reference vectors are stored.
+  -rlen       Running length (number of steps) in training.
+  -alpha      Initial learning rate parameter. Decreases linearly to zero dur-
+              ing training.
+  -radius     Initial radius of the training area in som-algorithm. Decreases
+              linearly to one during training.
+
+
+
+
+
+
+
+
+
+
+
+                                      13
+
+
+
+  -xdim       Number of units in the x-direction.
+  -ydim       Number of units in the y-direction.
+  -topol      The topology type used in the map. Possible choices are hexag-
+              onal lattice (hexa) and rectangular lattice (rect).
+  -neigh      The neighborhood function type used. Possible choices are step
+              function (bubble) and Gaussian (gaussian).
+  -plane      The component plane of the reference vectors that is displayed
+              in the graphics routines.
+  -fixed      Defines whether the fixed-point qualifiers are used in the train-
+              ing programs. The value one means that fixed-point qualifiers
+              are taken into account. Default value is zero.
+  -weights    Defines whether the weighting qualifiers are used in the training
+              programs.  The value one means that qualifiers are taken into
+              account. Default value is zero.
+
+
+
+In addition to these, it is always possible to give the -v n parameter (verbose
+parameter), which defines how much diagnostic output the program will gen-
+erate. The value of n can range from 0 upwards, whereby greater values will
+generate more output; the default value is 1.
+
+
+  -v          Verbose parameter defining the output level.
+
+
+In the initialization and training programs the random-number generator is
+used to select the order of the training samples, etc. The parameter -rand de-
+fines whether a new seed for the random number generator is given; when any
+other number than zero is given, that number is used as the seed, otherwise
+the seed is read from the system clock. The default value is zero.
+
+
+  -rand       Parameter that defines whether a new seed for the random-
+              number generator is defined.
+
+
+
+Some examples of the use of the parameters:
+
+> randinit -xdim 12 -ydim 8 -din exam1.dat -cout code1.map -topol hexa
+   -neigh bubble
+
+An initialization program was called above to create a map of 12 times 8 units.
+The input entries used in the initialization were read from the file exam1.dat
+and the map was stored to the file code1.map. The topology of the map was
+selected to be hexagonal and the neighborhood function was step function.
+
+> vsom -din exam1.dat -cin code1.map -cout code1.map -rlen 10000 -alpha
+   0.05 -radius 10
+
+
+
+
+
+
+
+
+
+
+
+                                      14
+
+
+
+A training program was called.  The training entries were read from the file
+exam1.dat; the map to be trained was read from the file code1.map and the
+trained reference vectors were resaved to the same file code1.map. Training
+was defined to take 10000 steps, but if there were fewer entries in the input
+file, the file was iterated a sufficient number of times.  The initial learning
+rate was set to 0.05 and the initial radius of the learning "bubble" was set to
+10.
+
+> qerror -din exam2.dat -cin code1.map
+
+The quantization error relating to the reference vectors stored in the map file
+code1.cod was tested using the test data file exam2.dat.
+
+
+
+6.4     Using the command lines (an example)
+
+The example given in this section demonstrates the direct use of command
+lines. It is meant for an introduction to the application of this package, and
+it may be helpful to study it in detail. (The example may also be run directly
+and automatically by the command make example.)
+
+The data items used in the example stem from practice and describe mea-
+surements taken from a real device.  They are contained in this package and
+consist of four data sets: ex.dat, ex_ fts.dat, ex_ ndy.dat and ex_ fdy.dat. The
+first file (ex.dat) contains 3840 vectorial samples of the device state mea-
+surements and is used for training the map, while the second file (ex_ fts.dat)
+contains 246 examples of faulty states of the device and is used for the cali-
+bration of the map. The other two files contain samples collected during 24
+hours of operation of the device. In ex_ ndy.dat the samples are from normally
+operating device and in ex_ fdy.dat from a device that is overheating. These
+sample files have been intended to demonstrate how the map can be used for
+device monitoring.
+
+Each vector in the files has a dimensionality of 5.
+
+Below, the map is initialized and trained, the quantization error is evaluated,
+and the resulting map is visualized.
+
+
+
+6.4.1   First stage: Map initialization
+
+The reference vectors of the map are first initialized to tentative values. The
+lattice type of the map and the neighborhood  function used in the training
+procedures are also defined in the initialization.
+
+In the example the map is initialized using random numbers (the seed for the
+random number generator is specified with the -rand parameter). The lattice
+type is selected to be hexagonal (hexa) and the neighborhood function type
+is step function (bubble). The map size is here 12 times 8 units.
+
+> randinit -din ex.dat -cout ex.cod -xdim 12 -ydim 8 -topol hexa -neigh bubble
+
+
+
+
+
+
+
+
+                                      15
+
+
+
+   -rand 1
+
+Now the map has been initialized.
+
+
+
+6.4.2   Second stage: Map training
+
+The map is trained by the self-organizing map algorithm using the program
+vsom.
+
+Training is done in two phases. The first of them is the ordering phase during
+which the reference vectors of the map units are ordered. During the second
+phase the values of the reference vectors are fine-tuned.
+
+In the beginning the neighborhood radius is taken almost equal to the diam-
+eter of the map and decreases to one during training, while the learning rate
+decreases to zero. (With lininit initialization the first phase (ordering) can
+be ignored and only the second phase of training is needed.)
+
+> vsom -din ex.dat -cin ex.cod -cout ex.cod -rlen 1000 -alpha 0.05 -radius 10
+   -rand 1
+
+During the second phase the reference vectors in each unit converge to their
+'correct' values.  The second phase is usually longer than the first one.  The
+learning rate is thereby smaller. The neighborhood radius is also smaller on
+the average: in the beginning the units up to a distance of three are covered.
+In this example the training time of the second phase is ten times longer than
+in the first phase.
+
+> vsom -din ex.dat -cin ex.cod -cout ex.cod -rlen 10000 -alpha 0.02 -radius 3
+   -rand 1
+
+After these two phases of training the map is ready to be tested and to be
+used in monitoring applications.
+
+
+
+6.4.3   Third stage: Evaluation of the quantization error
+
+When the entries in the map have been trained to their final values, the
+resulting quantization error can be evaluated.  The training file is used for
+this purpose. The program qerror is used to evaluate the average quantization
+error.
+
+> qerror -din ex.dat -cin ex.cod
+
+This program computes the quantization error over all the samples in the data
+file. The average quantization error with the training set in this example is
+expected to be 3.613.
+
+
+
+6.4.4   Fourth stage: Map visualization
+
+The trained map can now be used for visualization of data samples. In this
+package there are visualization programs, which make an image of the map
+
+
+
+
+                                      16
+
+
+
+(actually one selected component plane of it) and plot the trajectory of the
+best-matching units vs. time upon it.
+
+Before visualization, the map units are calibrated using known input data
+samples. The sample file ex_ fts.dat contains labeled samples from states of
+an overheating device. After calibration some of the units in the map have
+labels showing an area in the map which corresponds to fatal states.
+
+> vcal -din ex_ fts.dat -cin ex.cod -cout ex.cod
+
+The program visual generates a list of coordinates corresponding to all the
+best-matching units in the map for each data sample in the data file.  It
+also returns the quantization errors and the class labels of the best-matching
+units, if the latter have been defined. The list of coordinates can then be
+processed for various graphical outputs.
+
+The data file ex_ ndy.dat contains samples collected during 24 hours from a
+device operating normally. The data file ex_ fdy.dat contains samples collected
+during 24 hours from a device that has overheating problems during the day.
+
+> visual -din ex_ ndy.dat -cin ex.cod -dout ex.nvs
+
+> visual -din ex_ fdy.dat -cin ex.cod -dout ex.fvs
+
+The program visual stores the three-dimensional image points (coordinate
+values of the responses and the quantization errors) in a similar fashion as
+the input data entries are stored.
+
+The package also includes one example of how to make a graphical program for
+viewing the results. The program gvisual has been made for Silicon Graphics'
+GL-library, but it should be no problem to convert the code to other graphics
+standards.
+
+
+
+7     Description  of  the  programs  of  this pack-
+
+      age
+
+
+7.1     Initialization  programs
+
+The initialization programs initialize the reference vectors.
+
+
+    - randinit - This program initializes the reference vectors to random val-
+      ues. The vector components are set to random values that are evenly
+      distributed in the area of corresponding data vector components. The
+      size of the map is given by defining the x-dimension (-xdim) and the
+      y-dimension (-ydim) of the map. The topology of the map is defined
+      with option (-topol) and is either hexagonal (hexa) or rectangular (rect).
+      The neighborhood function is defined with option (-neigh) and is either
+      step function (bubble) or Gaussian (gaussian).
+
+
+
+
+
+
+
+
+                                      17
+
+
+
+      > randinit -xdim 16 -ydim 12 -din file.dat -cout file.cod -neigh bubble
+         -topol hexa
+
+    - lininit - This program initializes the reference vectors in an orderly
+      fashion along a two-dimensional subspace spanned by the two principal
+      eigenvectors of the input data vectors.
+
+      > lininit -xdim 16 -ydim 12 -din file.dat -cout file.cod -neigh bubble
+         -topol hexa
+
+
+
+7.2     Training programs
+
+    - vsom - This program trains the reference vectors using the self-organizing
+      map algorithm. The topology type and the neighborhood  function de-
+      fined in the initialization phase are used throughout the training. The
+      program finds the best-matching unit for each input sample vector and
+      updates those units in the neighborhood of it according to the selected
+      neighborhood function.
+
+      The initial value of the learning rate is defined and will decrease
+      linearly to zero by the end of training.  The initial value of the
+      neighborhood radius is also defined and it will decrease linearly to one
+      during training (in the end only the nearest neighbors are trained).  If
+      the qualifier parameters (-fixed and -weight) are given a value greater
+      than zero, the corresponding definitions in the pattern vector file are
+      used.
+
+      > vsom -din file.dat -cin file1.cod -cout file2.cod -rlen 10000 -alpha 0.03
+         -radius 10 [-fixed 1] [-weights 1]
+
+      Notice that the degree of forcing wanted data into specified map units
+      can be controlled by alternating "fixed" and "nonfixed" training cycles.
+
+
+
+7.3     Quantization accuracy program
+
+    - qerror - The average quantization error is evaluated.  For each input
+      sample vector the best-matching unit in the map is searched for and
+      the average of the respective quantization errors is returned.
+
+      > qerror -din file.dat -cin file.cod
+
+
+
+7.4     Monitoring  programs
+
+    - visual - This program generates a list of coordinates corresponding to
+      the best-matching unit in the map for each data sample in the data file.
+      It also gives the individual quantization errors made and the class labels
+      of the best matching units if the latter have been defined. The program
+      will store the three-dimensional image points (coordinate values and
+
+
+
+
+
+
+
+                                      18
+
+
+
+      the quantization error) in a similar fashion as the input data entries are
+      stored.
+
+      > visual -din file.dat -cin file.cod -dout file.vis
+
+    - sammon - Generates the Sammon mapping [Sammon Jr. 1969    ] from n-
+      dimensional input vectors to 2-dimensional points on a plane whereby
+      the distances between the image vectors tend to approximate to Eu-
+      clidean distances of the input vectors.
+
+      > sammon -cin file.cod -cout file.sam -rlen 100 [-rand 1]
+
+
+
+7.5     Graphics program
+
+This program is provided for to help the planning of graphics demonstrations.
+Users can modify it to suit their own hardware and software environments.
+The program is made using the Silicon Graphics GL-library calls.
+
+
+    - gvisual - This program displays one selected component plane (specified
+      by the parameter -plane) of the map in a graphical form indicating the
+      values of the components using gray levels. If the input data file is also
+      given, the trajectory formed of the best-matching units is superimposed
+      on the map.
+
+      > gvisual -cin file.cod -plane 1 [-din file.dat]
+
+
+
+7.6     Other programs
+
+    - vcal - This program labels the map units according to the samples in
+      the input data file. The best-matching unit in the map corresponding
+      to each data vector is searched for.  The map units are then labeled
+      according to the majority of labels 'hitting' a particular map unit. The
+      units that get no 'hits' are left unlabeled.
+
+      > vcal -din file.dat -cin file.cod -cout file.cod
+
+
+
+8     Comments  on  and  experiences  of  the use
+
+      of  this  package
+
+
+Comments on and experiences of the installation and use of these programs
+are welcome, and may be sent to the e-mail address som@cochlea.hut.fi.
+
+
+
+8.1     Changes in the package
+
+No changes to the central algorithms have been made. The following are the
+details that have been changed from the Version 1.0:
+
+
+
+
+
+                                      19
+
+
+
+1. Those who have already used the Gaussian kernel, Eq. (3), in Version 1.0 may
+   have noticed that the learning rate in the beginning has been rather small.
+   In Version 1.1 we have now revised Eq. (3) into the form in which it has
+   originally appeared in publications.  Anyway it seems necessary to use
+   parameters that are different from the 'bubble' case, and must be found
+   experimentally.  We recommend that for comparison, the 'bubble' kernel
+   should always be tried first, and in the examples we have given
+   recommendable parameter values for it.
+
+2. The function 'strdup' that was used in some functions is not included in
+   the ANSI C standard.  In Version 1.2 we have now written a new function
+   'ostrdup' that is functionally equivalent to 'strdup' and is used
+   throughout the program code.
+
+3. There was an error in the function 'hexa_dist' that introduced a small
+   'random' factor in the distance calculation.  That error has now been
+   corrected.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                      20
+
+
+
+References
+
+
+[Erwin et al. 1992]  Ed  Erwin,  Klaus  Obermayer,  Klaus  Schulten.   Self-
+                     organizing maps: Ordering, convergence properties and
+                     energy functions.  Biological Cybernetics, 67(1):47-55,
+                     1992.
+
+[Kohonen 1989]       Teuvo Kohonen. Self-Organization and Associative Mem-
+                     ory. Springer-Verlag, Berlin-Heidelberg-New York-Tokio,
+                     3 edition, 1989.
+
+[Kohonen 1990]       Teuvo Kohonen. The self-organizing map. Proceedings of
+                     the IEEE, 78(9):1464-1480, 1990.
+
+[Kohonen 1991]       Teuvo Kohonen. Self-organizing maps: Optimization ap-
+                     proaches.  In Proceedings of the International Confer-
+                     ence on Artificial Neural Networks, pages 981-990, Es-
+                     poo, Finland, June 1991.
+
+[Luttrell 1989]      S. Luttrell. Self-organization: a derivation from first
+                     principles of a class of learning algorithms. In Proceedings
+                     of International Joint Conference on Neural Networks,
+                     pages II-495-498, Washington, D.C., 1989.
+
+[Ritter et al. 1988] H. Ritter, K. Schulten.  Kohonen self-organizing maps:
+                     exploring their computational capabilities. In Proceedings
+                     of IEEE International Conference on Neural Networks,
+                     pages 109-116, San Diego, California, July 1988.
+
+[Sammon Jr. 1969]    John W. Sammon Jr.  A nonlinear mapping for data
+                     structure analysis.  IEEE Transactions on Computers,
+                     C-18(5):401-409, May 1969.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                                      21

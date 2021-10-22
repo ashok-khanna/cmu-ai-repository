@@ -1,0 +1,182 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node206.html by HTTrack Website Copier/3.x [XR&CO'2014], Thu, 21 Oct 2021 14:58:19 GMT -->
+<HEAD>
+<TITLE>23.1.3. Structured Directories</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Structured Directories">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4131 HREF="node207.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4129 HREF="node203.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4123 HREF="node205.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4133 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4134 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4132 HREF="node207.html"> Extended Wildcards</A>
+<B>Up:</B> <A NAME=tex2html4130 HREF="node203.html"> File Names</A>
+<B> Previous:</B> <A NAME=tex2html4124 HREF="node205.html"> Case Conventions</A>
+<HR> <P>
+<H2><A NAME=SECTION002713000000000000000>23.1.3. Structured Directories</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<A NAME=STRUCTUREDDIRECTORYSECTION>X3J13</A>
+voted in June 1989 (PATHNAME-SUBDIRECTORY-LIST) <A NAME=26200>&#160;</A> 
+to define a specific pathname component format for structured directories.
+<P>
+The value of a pathname's directory component may be a list.  The
+  <i>car</i> of the list should be a keyword, either <tt>:absolute</tt> or <tt>:relative</tt>.
+  Each remaining element of the list should be a string or a symbol (see below).
+  Each string names a single level of directory structure and should consist
+  of only the directory name without any punctuation characters.
+<P>
+  A list whose <i>car</i> is the symbol <tt>:absolute</tt> represents a directory path
+  starting from the root directory.  For example, the list <tt>(:absolute)</tt> represents
+  the root directory itself;  the list <tt>(:absolute &quot;foo&quot; &quot;bar&quot; &quot;baz&quot;)</tt> represents
+  the directory that in a UNIX file system would be called <tt>/foo/bar/baz</tt>.
+<P>
+  A list whose <i>car</i> is the symbol <tt>:relative</tt> represents a directory path
+  starting from a default directory.  The list <tt>(:relative)</tt> has the same
+  meaning as <tt>nil</tt> and hence normally is not used.  The list <tt>(:relative &quot;foo&quot; &quot;bar&quot;)</tt>
+  represents the directory named <tt>bar</tt> in the directory named <tt>foo</tt> in the
+  default directory.
+<P>
+  In place of a string, at any point in the list, a symbol may occur to
+  indicate a special file notation. The following symbols have standard
+  meanings.
+<DL COMPACT>
+<DT><tt>:wild</tt>
+<DD>            Wildcard match of one level of directory structure
+<DT><tt>:wild-inferiors</tt>
+<DD>  Wildcard match of any number of directory levels
+<DT><tt>:up</tt>
+<DD>              Go upward in directory structure (semantic)
+<DT><tt>:back</tt>
+<DD>            Go upward in directory structure (syntactic)
+<P>
+ </DL>
+  (See section <A HREF="node207.html#WILDPATHNAMESECTION">23.1.4</A> for a discussion of wildcard pathnames.)
+<P>
+  Implementations are permitted to add additional objects of any
+  non-string type if necessary to represent features of their file systems
+  that cannot be represented with the standard strings and symbols.
+  Supplying any non-string, including any of the symbols listed below, to a
+  file system for which it does not make sense signals an error of type
+  <tt>file-error</tt>.  For example, most implementations of the UNIX file system
+  do not support <tt>:wild-inferiors</tt>.  Any directory list in which
+  <tt>:absolute</tt> or <tt>:wild-inferiors</tt> is immediately followed by <tt>:up</tt> or <tt>:back</tt>
+  is illegal and when  processed causes an error to be signaled.
+<P>
+  The keyword <tt>:back</tt> has a ``syntactic'' meaning that depends only on the pathname
+  and not on the contents of the file system.  The keyword <tt>:up</tt> has a ``semantic''
+  meaning that depends on the contents of the file system; to resolve
+  a pathname containing <tt>:up</tt> to a pathname whose directory component
+  contains only <tt>:absolute</tt> and strings requires a search of the file system.
+  Note that use of <tt>:up</tt> instead of <tt>:back</tt> can result in designating a different
+  actual directory only in file systems that support multiple
+  names for directories, perhaps via symbolic links.  For example,
+  suppose that there is a directory link such that
+<P><pre>
+(:absolute &quot;X&quot; &quot;Y&quot;)  is linked to  (:absolute &quot;A&quot; &quot;B&quot;)
+</pre><P>
+and there also exist directories
+<P><pre>
+(:absolute &quot;A&quot; &quot;Q&quot;)  and  (:absolute &quot;X&quot; &quot;Q&quot;)
+</pre><P>
+Then
+<P><pre>
+(:absolute &quot;X&quot; &quot;Y&quot; :up &quot;Q&quot;)  designates  (:absolute &quot;A&quot; &quot;Q&quot;)
+</pre><P>
+but
+<P><pre>
+(:absolute &quot;X&quot; &quot;Y&quot; :back &quot;Q&quot;)  designates  (:absolute &quot;X&quot; &quot;Q&quot;)
+</pre><P>
+<P>
+  If a string is used as the value of the <tt>:directory</tt> argument to
+  <tt>make-pathname</tt>, it should be the name of a top-level directory and should
+  not contain any punctuation characters.  Specifying a string <i>s</i> is
+  equivalent to specifying the list <tt>(:absolute <i>s</i>)</tt>.  Specifying the symbol
+  <tt>:wild</tt> is equivalent to specifying the list <tt>(:absolute :wild-inferiors)</tt>
+  (or <tt>(:absolute :wild)</tt> in a file system that does not support <tt>:wild-inferiors</tt>).
+<P>
+  The function <tt>pathname-directory</tt>  always returns <tt>nil</tt>, <tt>:unspecific</tt>, or a
+  list-never a string, never <tt>:wild</tt>.
+  If a list is returned, it is not guaranteed to be freshly consed; the
+  consequences of modifying this list are undefined.
+<P>
+  In non-hierarchical file systems, the only valid list values for the
+  directory component of a pathname are <tt>(:absolute <i>s</i>)</tt> (where <i>s</i>
+  is a string) and
+  <tt>(:absolute :wild)</tt>.  The keywords <tt>:relative</tt>,
+  <tt>:wild-inferiors</tt>, <tt>:up</tt>, and <tt>:back</tt> are not used in non-hierarchical file
+  systems.
+<P>
+  Pathname merging treats a relative directory specially.  Let
+  <i>pathname</i> and <i>defaults</i> be the first two arguments to
+  <tt>merge-pathnames</tt>.  If <tt>(pathname-directory <i>pathname</i>)</tt> is a list whose
+  <i>car</i> is <tt>:relative</tt>, and <tt>(pathname-directory <i>defaults</i>)</tt> is a list, then
+  the merged directory is the value of
+<P><pre>
+(append (pathname-directory <i>defaults</i>) 
+        (cdr     ;Remove <tt>:relative</tt> from the front 
+          (pathname-directory <i>pathname</i>)))
+</pre><P>
+  except that if the resulting list contains a string or <tt>:wild</tt> immediately
+  followed by <tt>:back</tt>, both of them are removed.  This removal of redundant
+  occurrences of <tt>:back</tt> is repeated as many times as possible.
+  If <tt>(pathname-directory <i>defaults</i>)</tt> is not a list or
+  <tt>(pathname-directory <i>pathname</i>)</tt> is not a list whose <i>car</i> is <tt>:relative</tt>, the
+  merged directory is the value of
+<P><pre>
+(or (pathname-directory <i>pathname</i>) 
+    (pathname-directory <i>defaults</i>))
+</pre><P>
+<P>
+  A relative directory in the pathname argument to a function such as
+  <tt>open</tt> is merged with the value of <tt>*default-pathname-defaults*</tt> before the
+  file system is accessed.
+<P>
+Here are some examples of the use of structured directories.
+Suppose that host <tt>L</tt> supports a Symbolics Lisp Machine file system,
+host <tt>U</tt> supports a UNIX file system, and
+host <tt>V</tt> supports a VAX/VMS file system.
+<P><pre>
+(pathname-directory (parse-namestring &quot;V:[FOO.BAR]BAZ.LSP&quot;)) 
+   => (:ABSOLUTE &quot;FOO&quot; &quot;BAR&quot;)
+</pre><P>
+<P><pre>
+(pathname-directory (parse-namestring &quot;U:/foo/bar/baz.lisp&quot;)) 
+   => (:ABSOLUTE &quot;foo&quot; &quot;bar&quot;)
+</pre><P>
+<P><pre>
+(pathname-directory (parse-namestring &quot;U:../baz.lisp&quot;)) 
+   => (:RELATIVE :UP)
+</pre><P>
+<P><pre>
+(pathname-directory (parse-namestring &quot;U:/foo/bar/../mum/baz&quot;)) 
+   => (:ABSOLUTE &quot;foo&quot; &quot;bar&quot; :UP &quot;mum&quot;)
+</pre><P>
+<P><pre>
+(pathname-directory (parse-namestring &quot;U:bar/../../ztesch/zip&quot;)) 
+   => (:RELATIVE &quot;bar&quot; :UP :UP &quot;ztesch&quot;)
+</pre><P>
+<P><pre>
+(pathname-directory (parse-namestring &quot;L:&gt;foo&gt;**&gt;bar&gt;baz.lisp&quot;)) 
+   => (:ABSOLUTE &quot;FOO&quot; :WILD-INFERIORS &quot;BAR&quot;)
+</pre><P>
+<P><pre>
+(pathname-directory (parse-namestring &quot;L:&gt;foo&gt;*&gt;bar&gt;baz.lisp&quot;)) 
+   => (:ABSOLUTE &quot;FOO&quot; :WILD &quot;BAR&quot;)
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html4131 HREF="node207.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4129 HREF="node203.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4123 HREF="node205.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4133 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4134 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4132 HREF="node207.html"> Extended Wildcards</A>
+<B>Up:</B> <A NAME=tex2html4130 HREF="node203.html"> File Names</A>
+<B> Previous:</B> <A NAME=tex2html4124 HREF="node205.html"> Case Conventions</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

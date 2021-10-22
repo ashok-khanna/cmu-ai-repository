@@ -1,0 +1,208 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node174.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 10:09:53 GMT -->
+<HEAD>
+<TITLE>19.6. By-Position Constructor Functions</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" By-Position Constructor Functions">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3702 HREF="node175.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3700 HREF="node168.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3694 HREF="node173.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3704 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3705 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3703 HREF="node175.html"> Structures of Explicitly </A>
+<B>Up:</B> <A NAME=tex2html3701 HREF="node168.html"> Structures</A>
+<B> Previous:</B> <A NAME=tex2html3695 HREF="node173.html"> Defstruct Options</A>
+<HR> <P>
+<H1><A NAME=SECTION002360000000000000000>19.6. By-Position Constructor Functions</A></H1>
+<P>
+<A NAME=DEFSTRUCTCONSTRUCTORSYNTAX>If</A>
+the <tt>:constructor</tt> option is given as
+<tt>(<tt>:constructor</tt> <i>name</i> <i>arglist</i>)</tt>,
+then instead of making a keyword-driven constructor function,
+<tt>defstruct</tt> defines a ``positional'' constructor function,
+taking arguments whose meaning is determined by the argument's position
+rather than by a keyword.
+The <i>arglist</i> is used to describe what the arguments to the
+constructor will be.  In the simplest case something like
+<tt>(<tt>:constructor</tt> make-foo (a b c))</tt> defines <tt>make-foo</tt> to be
+a three-argument constructor function whose arguments are used to initialize the
+slots named <tt>a</tt>, <tt>b</tt>, and <tt>c</tt>.
+<P>
+In addition, the keywords <tt>&amp;optional</tt>, <tt>&amp;rest</tt>, and <tt>&amp;aux</tt> are
+recognized in the argument list.  They work in the way you might expect,
+but there are a few fine points worthy of explanation.
+Consider this example:
+<P><pre>
+(<tt>:constructor</tt> create-foo 
+        (a &amp;optional b (c 'sea) &amp;rest d &amp;aux e (f 'eff)))
+</pre><P>
+This defines <tt>create-foo</tt> to be a constructor of one or more arguments.
+The first argument is used to initialize the <tt>a</tt> slot.  The second
+argument is used to initialize the <tt>b</tt> slot.  If there isn't any
+second argument, then the default value given in the body of the
+<tt>defstruct</tt> (if given) is used instead.  The third argument is used to
+initialize the <tt>c</tt> slot.  If there isn't any third argument, then the
+symbol <tt>sea</tt> is used instead.  Any arguments following the third
+argument are collected into a list and used to initialize the <tt>d</tt>
+slot.  If there are three or fewer arguments, then <tt>nil</tt> is placed in
+the <tt>d</tt> slot.  The <tt>e</tt> slot <i>is not initialized</i>; its initial
+value is undefined.  Finally, the <tt>f</tt> slot is initialized to contain
+the symbol <tt>eff</tt>.
+<P>
+The actions taken in the <tt>b</tt> and <tt>e</tt> cases were carefully
+chosen to allow the user to specify all possible behaviors.  Note that
+the <tt>&amp;aux</tt> ``variables'' can be used to completely override the default
+initializations given in the body.
+<P>
+With this definition, one can write
+<P><pre>
+(create-foo 1 2)
+</pre><P>
+instead of
+<P><pre>
+(make-foo <tt>:a</tt> 1 <tt>:b</tt> 2)
+</pre><P>
+and of course <tt>create-foo</tt> provides defaulting different
+from that of <tt>make-foo</tt>.
+<P>
+It is permissible to use the
+<tt>:constructor</tt> option more than once, so that you can define several
+different constructor functions, each taking different parameters.
+<P>
+Because a constructor of this type operates By Order of Arguments,
+it is sometimes known as a BOA constructor.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(DEFSTRUCT-CONSTRUCTOR-KEY-MIXTURE) <A NAME=18920>&#160;</A> 
+to allow <tt>&amp;key</tt> and <tt>&amp;allow-other-keys</tt>
+in the
+parameter list of a ``positional'' constructor.  The initialization of slots
+corresponding to keyword parameters
+is performed in the same manner as for <tt>&amp;optional</tt> parameters.
+A variant of the example shown above illustrates this:
+<P><pre>
+(<tt>:constructor</tt> create-foo 
+        (a &amp;optional b (c 'sea) 
+         &amp;key p (q 'cue) ((:why y)) ((:you u) 'ewe) 
+         &amp;aux e (f 'eff)))
+</pre><P>
+The treatment of slots <tt>a</tt>, <tt>b</tt>, <tt>c</tt>, <tt>e</tt>, and <tt>f</tt>
+is the same as in the original example.  In addition,
+if there is a <tt>:p</tt> keyword argument, it is
+used to initialize the <tt>p</tt> slot;  if there isn't any
+<tt>:p</tt> keyword argument, then the default value given in the body of the
+<tt>defstruct</tt> (if given) is used instead.  Similarly,
+if there is a <tt>:q</tt> keyword argument, it is
+used to initialize the <tt>q</tt> slot;  if there isn't any
+<tt>:q</tt> keyword argument, then
+the symbol <tt>cue</tt> is used instead.
+<P>
+In order thoroughly to flog this presumably already dead horse,
+we further observe that if there is a <tt>:why</tt> keyword argument, it is
+used to initialize the <tt>y</tt> slot; otherwise
+the default value for slot <tt>y</tt> is used instead.  Similarly,
+if there is a <tt>:you</tt> keyword argument, it is
+used to initialize the <tt>u</tt> slot;  otherwise
+the symbol <tt>ewe</tt> is used instead.
+<P>
+If memory serves me correctly, <tt>defstruct</tt> was included in the original
+design for Common Lisp some time before keyword arguments were approved.
+The failure of positional constructors to accept keyword arguments may well
+have been an oversight on my part; there is no logical reason to exclude
+them.  I am grateful to X3J13 for rectifying this.
+<P>
+A remaining difficulty is that the possibility of keyword arguments
+renders the term ``positional constructor'' a misnomer.  Worse yet,
+it ruins the term ``BOA constructor.''  I suggest that
+they continue to be called BOA constructors, as I refuse to abandon
+a good pun.  (I regret appearing to have more compassion for puns than
+for horses.)
+<P>
+As part of the same vote X3J13 also changed <tt>defstruct</tt>
+to allow BOA constructors to have
+parameters (including supplied-p parameters)
+that do not correspond to any
+slot.  Such parameters may be used in subsequent initialization forms in the
+parameter list. Consider this example:
+<P><pre>
+(defstruct (ice-cream-factory 
+             (:constructor fabricate-factory 
+               (&amp;key (capacity 5) 
+                      location 
+                      (local-flavors 
+                        (case location 
+                          ((hawaii) '(pineapple macadamia guava)) 
+                          ((massachusetts) '(lobster baked-bean)) 
+                          ((california) '(ginger lotus avocado 
+                                          bean-sprout garlic)) 
+                          ((texas) '(jalapeno barbecue)))) 
+                      (flavors (subseq (append local-flavors 
+                                               '(vanilla 
+                                                 chocolate 
+                                                 strawberry 
+                                                 pistachio 
+                                                 maple-walnut 
+                                                 peppermint)) 
+                                       0 capacity))))) 
+  (capacity 3) 
+  (flavors '(vanilla chocolate strawberry mango)))
+</pre><P>
+<P>
+The structure type <tt>ice-cream-factory</tt> has two constructors.
+The standard constructor, <tt>make-ice-cream-factory</tt>,
+takes two keyword arguments named <tt>:capacity</tt> and <tt>:flavors</tt>.
+For this constructor, the default for the <tt>capacity</tt> slot is <tt>3</tt>
+and the default list of <tt>flavors</tt> is America's favorite threesome
+and a dark horse (not a dead one).
+The BOA constructor <tt>fabricate-factory</tt>
+accepts four different keyword arguments.  The <tt>:capacity</tt>
+argument defaults to <tt>5</tt>, and the <tt>:flavors</tt> argument
+defaults in a complicated manner based on the other three.
+The <tt>:local-flavors</tt> argument may be specified directly,
+or may be allowed to default based on the <tt>:location</tt> of the factory.
+Here are examples of various factories:
+<P>
+<pre>
+(setq houston (fabricate-factory :capacity 4 :location 'texas)) 
+(setq cambridge (fabricate-factory :location 'massachusetts)) 
+(setq seattle (fabricate-factory :local-flavors '(salmon))) 
+(setq wheaton (fabricate-factory :capacity 4 :location 'illinois)) 
+(setq pittsburgh (fabricate-factory :capacity 4)) 
+(setq cleveland (make-factory :capacity 4)) 
+
+(ice-cream-factory-flavors houston) 
+ => (jalapeno barbecue vanilla chocolate)
+</pre><P>
+<P><pre>
+(ice-cream-factory-flavors cambridge) 
+ => (lobster baked-bean vanilla chocolate strawberry) 
+
+(ice-cream-factory-flavors seattle) 
+ => (salmon vanilla chocolate strawberry pistachio) 
+
+(ice-cream-factory-flavors wheaton) 
+ => (vanilla chocolate strawberry pistachio) 
+
+(ice-cream-factory-flavors pittsburgh) 
+ => (vanilla chocolate strawberry pistachio) 
+
+(ice-cream-factory-flavors cleveland) 
+ => (vanilla chocolate strawberry mango)
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html3702 HREF="node175.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3700 HREF="node168.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3694 HREF="node173.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3704 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3705 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3703 HREF="node175.html"> Structures of Explicitly </A>
+<B>Up:</B> <A NAME=tex2html3701 HREF="node168.html"> Structures</A>
+<B> Previous:</B> <A NAME=tex2html3695 HREF="node173.html"> Defstruct Options</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

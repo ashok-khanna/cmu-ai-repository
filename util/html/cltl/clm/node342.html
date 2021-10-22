@@ -1,0 +1,122 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node342.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:32:03 GMT -->
+<HEAD>
+<TITLE>29.4.8. Finding and Manipulating Restarts</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Finding and Manipulating Restarts">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html5968 HREF="node343.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5966 HREF="node334.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5960 HREF="node341.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5970 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5971 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5969 HREF="node343.html"> Warnings</A>
+<B>Up:</B> <A NAME=tex2html5967 HREF="node334.html"> Program Interface to </A>
+<B> Previous:</B> <A NAME=tex2html5961 HREF="node341.html"> Establishing Restarts</A>
+<HR> <P>
+<H2><A NAME=SECTION003348000000000000000>29.4.8. Finding and Manipulating Restarts</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+The following functions determine what restarts are
+active and invoke restarts.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>compute-restarts &amp;optional <i>condition</i></tt><P>  Uses the dynamic state of the program to compute a list of the restarts
+  that are currently active. See <tt>restart-bind</tt>.
+<P>
+If <i>condition</i> is <tt>nil</tt> or not supplied, all outstanding restarts
+are returned.
+If <i>condition</i> is not <tt>nil</tt>, only restarts associated
+with that condition are returned.
+<P>
+  Each restart represents a function that can be called to perform some
+  form of recovery action, usually a transfer of control to an outer point
+  in the running program. Implementations are free to implement these objects
+  in whatever manner is most convenient; the objects need have only dynamic
+  extent (relative to the scope of the binding form that instantiates them).
+<P>
+  The list that results from a call to <tt>compute-restarts</tt> is ordered so that
+  the inner (that is, more recently established) restarts are nearer the head
+  of the list.
+<P>
+  Note, too, that <tt>compute-restarts</tt> returns all valid restarts, including
+  anonymous ones, even if some of them have the same name as others and
+  would therefore not be found by <tt>find-restart</tt> when given a symbol argument.
+<P>
+  Implementations are permitted, but not required, to return different 
+  (that is, non-<tt>eq</tt>) lists from repeated calls to <tt>compute-restarts</tt> while in
+  the same dynamic environment. It is an error to modify the list that
+  is returned by <tt>compute-restarts</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>restart-name <i>restart</i></tt><P>  Returns the name of the given <i>restart</i>, or <tt>nil</tt> if it is not named.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>find-restart <i>restart-identifier</i> &amp;optional <i>condition</i></tt><P>  Searches for a particular restart in the current dynamic environment.
+<P>
+If <i>condition</i> is <tt>nil</tt> or not supplied, all outstanding restarts
+are considered.
+If <i>condition</i> is not <tt>nil</tt>, only restarts associated
+with that condition are considered.
+<P>
+  If the <i>restart-identifier</i> is a non-<tt>nil</tt>
+  symbol, then the innermost (that is, most recently
+  established) restart with that name is returned;  <tt>nil</tt> is returned if no
+  such restart is found.
+<P>
+  If <i>restart-identifier</i> is a restart object, then it is simply returned,
+  unless it is not currently active, in which case <tt>nil</tt> is returned.
+<P>
+  Although anonymous restarts have a name of <tt>nil</tt>, it is an error for
+  the symbol <tt>nil</tt> to be given as the <i>restart-identifier</i>.  Applications that 
+  would seem to require this should be rewritten to make appropriate use 
+  of <tt>compute-restarts</tt> instead.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>invoke-restart <i>restart-identifier</i> &amp;rest <em>arguments</em></tt><P>  Calls the function associated with the given <i>restart-identifier</i>, passing any given
+  <i>arguments</i>. The <i>restart-identifier</i> must be a restart or the non-null name of a
+  restart that is valid in the current dynamic context. If the argument
+  is not valid, an error of type <tt>control-error</tt> will be signaled.
+<P>
+<hr>
+<b>Implementation note:</b> Restart functions call this function, not
+vice versa. 
+<hr>
+<P>
+  <BR><b>[Function]</b><BR>
+<tt>invoke-restart-interactively <i>restart-identifier</i></tt><P>  Calls the function associated with the given <i>restart-identifier</i>, prompting for any
+  necessary arguments. The <i>restart-identifier</i> must be a restart or the non-null name
+  of a restart that is valid in the current dynamic context. If the
+  argument is not valid, an error of type <tt>control-error</tt> will be signaled.
+<P>
+  The function <tt>invoke-restart-interactively</tt> will prompt for arguments by executing
+  the code provided in the <tt>:interactive</tt> keyword to <tt>restart-case</tt> or 
+  <tt>:interactive-function</tt> keyword to <tt>restart-bind</tt>.
+<P>
+  If no <tt>:interactive</tt> or <tt>:interactive-function</tt>
+  option has been supplied in the corresponding
+  <tt>restart-case</tt> or <tt>restart-bind</tt>, then it is an error if the restart takes
+  required arguments. If the arguments are optional, an empty argument list
+  will be used in this case.
+<P>
+  Once <tt>invoke-restart-interactively</tt> has calculated the arguments, it simply
+  performs
+  <tt>(apply #'invoke-restart <i>restart-identifier</i> <i>arguments</i>)</tt>.
+<P>
+  <tt>invoke-restart-interactively</tt> is used internally by the debugger and may also be useful
+  in implementing other portable, interactive debugging tools.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html5968 HREF="node343.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5966 HREF="node334.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5960 HREF="node341.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5970 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5971 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5969 HREF="node343.html"> Warnings</A>
+<B>Up:</B> <A NAME=tex2html5967 HREF="node334.html"> Program Interface to </A>
+<B> Previous:</B> <A NAME=tex2html5961 HREF="node341.html"> Establishing Restarts</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

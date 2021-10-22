@@ -1,0 +1,121 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node66.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:32:06 GMT -->
+<HEAD>
+<TITLE>5.3.1. Defining Named Functions</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Defining Named Functions">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2334 HREF="node67.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2332 HREF="node65.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2326 HREF="node65.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2336 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2337 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2335 HREF="node67.html"> Declaring Global Variables </A>
+<B>Up:</B> <A NAME=tex2html2333 HREF="node65.html"> Top-Level Forms</A>
+<B> Previous:</B> <A NAME=tex2html2327 HREF="node65.html"> Top-Level Forms</A>
+<HR> <P>
+<H2><A NAME=SECTION00931000000000000000>5.3.1. Defining Named Functions</A></H2>
+<P>
+The <tt>defun</tt> special form is the usual means of defining named functions.
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>defun</tt> <tt><i>name</I></tt> <tt><i>lambda-list</I></tt> <tt><b>[[</b></tt> <tt>{<i>declaration</I>}*</tt> <tt>|</tt> <tt><i>doc-string</I></tt> <tt><b>]]</b></tt> <tt>{<i>form</I>}*</tt><P>Evaluating a <tt>defun</tt> form causes the symbol <i>name</i> to be a global name
+for the function specified by the lambda-expression
+<P><pre>
+(lambda <i>lambda-list</i> {<i>declaration</i> | <i>doc-string</i>}* {<i>form</i>}*)
+</pre><P>
+defined in the lexical environment in which the <tt>defun</tt> form was
+executed.  Because <tt>defun</tt> forms normally appear at top level, this is
+normally the null lexical environment.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (DEFINING-MACROS-NON-TOP-LEVEL) <A NAME=3529>&#160;</A> 
+to clarify that, while defining forms normally appear at top level,
+it is meaningful to place them in non-top-level contexts;
+<tt>defun</tt> must define the function
+within the enclosing lexical environment, not within the null lexical
+environment.
+<P>
+X3J13 voted in March 1989 (FUNCTION-NAME) <A NAME=3533>&#160;</A>  to extend <tt>defun</tt>
+to accept any function-name (a symbol or a list
+whose <i>car</i> is <tt>setf</tt> - see section <A HREF="node77.html#FUNCTIONNAMESECTION">7.1</A>)
+as a <i>name</i>.
+Thus one may write
+<P><pre>
+(defun (setf cadr) ...)
+</pre><P>
+to define a <tt>setf</tt>
+expansion function for <tt>cadr</tt> 
+(although it may be much more convenient to
+use <tt>defsetf</tt> or <tt>define-modify-macro</tt>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+If the optional documentation string <i>doc-string</i> is present,
+then it is attached to the <i>name</i>
+as a documentation string of type <tt>function</tt>; see <tt>documentation</tt>.
+If <i>doc-string</i> is not
+followed by a declaration, it may be
+present only if at least one <i>form</i> is also specified, as it is
+otherwise taken to be a <i>form</i>.
+It is an error if more than one <i>doc-string</i> is present.
+<P>
+The <i>forms</i> constitute the body of the defined function; they are
+executed as an implicit <tt>progn</tt>.
+<P>
+The body of the defined function is implicitly enclosed
+in a <tt>block</tt> construct whose name is the same as the <i>name</i>
+of the function.  Therefore <tt>return-from</tt>
+may be used to exit from the function.
+<P>
+Other implementation-dependent bookkeeping actions may be taken as well
+by <tt>defun</tt>.  The <i>name</i> is returned as the value of the <tt>defun</tt>
+form.
+For example:
+<P><pre>
+(defun discriminant (a b c) 
+  (declare (number a b c)) 
+  &quot;Compute the discriminant for a quadratic equation. 
+   Given a, b, and c, the value b^2-4*a*c is calculated. 
+   The quadratic equation a*x^2+b*x+c=0 has real, multiple, 
+   or complex roots depending on whether this calculated 
+   value is positive, zero, or negative, respectively.&quot; 
+  (- (* b b) (* 4 a c))) 
+   => discriminant 
+   and now (discriminant 1 2/3 -2) => 76/9
+</pre><P>
+
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+The documentation string in this example neglects to mention that the
+coefficients <tt>a</tt>, <tt>b</tt>, and <tt>c</tt>
+must be real for the discrimination criterion to hold.
+Here is an improved version:
+<P><pre>
+  &quot;Compute the discriminant for a quadratic equation. 
+   Given a, b, and c, the value b^2-4*a*c is calculated. 
+   If the coefficients a, b, and c are all real (that is, 
+   not complex), then the quadratic equation a*x^2+b*x+c=0 
+   has real, multiple, or complex roots depending on 
+   whether this calculated value is positive, zero, or 
+   negative, respectively.&quot;
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+</pre><P>
+<P>
+It is permissible to use <tt>defun</tt> to redefine a function,
+to install a corrected version of an incorrect definition, for example.
+It is permissible to redefine a macro as a function.
+It is an error to attempt to redefine the name of a special
+form (see table <A HREF="node59.html#SPECIALFORMTABLE">5-1</A>) as a function.
+<P>
+<BR> <HR><A NAME=tex2html2334 HREF="node67.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2332 HREF="node65.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2326 HREF="node65.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2336 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2337 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2335 HREF="node67.html"> Declaring Global Variables </A>
+<B>Up:</B> <A NAME=tex2html2333 HREF="node65.html"> Top-Level Forms</A>
+<B> Previous:</B> <A NAME=tex2html2327 HREF="node65.html"> Top-Level Forms</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

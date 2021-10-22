@@ -1,0 +1,371 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node144.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:47:06 GMT -->
+<HEAD>
+<TITLE>14.3. Modifying Sequences</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Modifying Sequences">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3325 HREF="node145.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3323 HREF="node141.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3317 HREF="node143.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3327 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3328 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3326 HREF="node145.html"> Searching Sequences for </A>
+<B>Up:</B> <A NAME=tex2html3324 HREF="node141.html"> Sequences</A>
+<B> Previous:</B> <A NAME=tex2html3318 HREF="node143.html"> ConcatenatingMapping, and </A>
+<HR> <P>
+<H1><A NAME=SECTION001830000000000000000>14.3. Modifying Sequences</A></H1>
+<P>
+Each of these functions alters the contents of a sequence or produces
+an altered copy of a given sequence.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>fill <i>sequence</i> <i>item</i> &amp;key :start :end</tt><P>The <i>sequence</i> is destructively modified by replacing each element of
+the subsequence specified by the <tt>:start</tt> and <tt>:end</tt> parameters
+with the <i>item</i>.  The <i>item</i> may be any Lisp object but must be a
+suitable element for the <i>sequence</i>.  The <i>item</i> is stored into all
+specified components of the <i>sequence</i>, beginning at the one specified
+by the <tt>:start</tt> index (which defaults to zero), up to but not
+including the one specified by the <tt>:end</tt> index (which defaults to the
+length of the sequence).  <tt>fill</tt> returns the modified <i>sequence</i>.
+For example:
+<P><pre>
+(setq x (vector 'a 'b 'c 'd 'e)) => #(a b c d e) 
+(fill x 'z <tt>:start</tt> 1 <tt>:end</tt> 3) => #(a z z d e) 
+  and now x => #(a z z d e) 
+(fill x 'p) => #(p p p p p) 
+  and now x => #(p p p p p)
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>replace <i>sequence1</i> <i>sequence2</i> &amp;key :start1 :end1 :start2 :end2</tt><P>The sequence <i>sequence1</i> is destructively modified by copying successive
+elements into it from <i>sequence2</i>.  The elements of
+<i>sequence2</i> must be of a type that may be stored into
+<i>sequence1</i>.  The subsequence of <i>sequence2</i>
+specified by <tt>:start2</tt> and <tt>:end2</tt> is copied into the
+subsequence of <i>sequence1</i> specified by <tt>:start1</tt> and <tt>:end1</tt>.
+(The arguments <tt>:start1</tt> and <tt>:start2</tt> default to zero.
+The arguments <tt>:end1</tt> and <tt>:end2</tt> default
+to <tt>nil</tt>, meaning the end of the appropriate sequence.)
+If these subsequences are not of the same length, then
+the shorter length determines how many elements are copied; the extra
+elements near the end of the longer subsequence are not involved in the
+operation.
+The number of elements copied may be expressed as:
+<P><pre>
+(min (- <i>end1</i> <i>start1</i>) (- <i>end2</i> <i>start2</i>))
+</pre><P>
+The value returned by <tt>replace</tt> is the modified <i>sequence1</i>.
+<P>
+If <i>sequence1</i> and <i>sequence2</i> are the same (<tt>eq</tt>) object
+and the region being modified overlaps the region being copied
+from, then it is as if the entire source region were copied to another
+place and only then copied back into the target region.
+However, if <i>sequence1</i> and <i>sequence2</i> are <i>not</i> the same,
+but the region being modified overlaps the region being copied from
+(perhaps because of shared list structure or displaced arrays),
+then after the <tt>replace</tt> operation
+the subsequence of <i>sequence1</i> being modified will have
+unpredictable contents.
+<P>
+<BR><b>[Function]</b><BR>
+<pre>
+<tt>remove <i>item</i> <i>sequence</i> &amp;key :from-end :test :test-not 
+           :start :end :count :key 
+</tt><tt>remove-if predicate sequence &amp;key :from-end 
+           :start :end :count :key 
+</tt><tt>remove-if-not predicate sequence &amp;key :from-end 
+           :start :end :count :key</tt>
+</pre>
+<P>The result is a sequence of the same kind as the argument <i>sequence</i>
+that has the same elements except that those in the subsequence
+delimited by <tt>:start</tt> and <tt>:end</tt> and satisfying the test (see
+above) have been removed.  This is a non-destructive operation; the result
+is a copy of the input <i>sequence</i>, save that some elements are not
+copied.  Elements not removed occur in the same order in the result
+as they did in the argument.
+<P>
+The <tt>:count</tt> argument, if supplied, limits the number of elements
+removed; if more than <tt>:count</tt> elements satisfy the test,
+then of these elements only the leftmost are removed,
+as many as specified by <tt>:count</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(RANGE-OF-COUNT-KEYWORD) <A NAME=15720>&#160;</A> 
+to clarify that the <tt>:count</tt> argument must be either <tt>nil</tt>
+or an integer, and that supplying a negative integer produces the
+same behavior as supplying zero.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+A non-<tt>nil :from-end</tt> specification
+matters only when the <tt>:count</tt> argument
+is provided; in that case only the rightmost <tt>:count</tt> elements satisfying
+the test are removed.
+For example:
+<P><pre>
+(remove 4 '(1 2 4 1 3 4 5)) => (1 2 1 3 5) 
+(remove 4 '(1 2 4 1 3 4 5) <tt>:count</tt> 1) => (1 2 1 3 4 5) 
+(remove 4 '(1 2 4 1 3 4 5) <tt>:count</tt> 1 <tt>:from-end</tt> t) 
+   => (1 2 4 1 3 5) 
+(remove 3 '(1 2 4 1 3 4 5) <tt>:test</tt> #'&gt;) => (4 3 4 5) 
+(remove-if #'oddp '(1 2 4 1 3 4 5)) => (2 4 4) 
+(remove-if #'evenp '(1 2 4 1 3 4 5) <tt>:count</tt> 1 <tt>:from-end</tt> t) 
+   => (1 2 4 1 3 5)
+</pre><P>
+The result of <tt>remove</tt> may share
+with the argument <i>sequence</i>; a list result may share a tail
+with an input list, and the result may be <tt>eq</tt> to the input <i>sequence</i>
+if no elements need to be removed.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=15741>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<pre>
+<tt>delete <i>item</i> <i>sequence</i> &amp;key :from-end :test :test-not 
+           :start :end :count :key 
+delete-if predicate sequence &amp;key :from-end 
+           :start :end :count :key 
+delete-if-not predicate sequence &amp;key :from-end 
+           :start :end :count :key</tt>
+</pre>
+<P>This is the destructive counterpart to <tt>remove</tt>.
+The result is a sequence of the same kind as the argument <i>sequence</i>
+that has the same elements except that those in the subsequence
+delimited by <tt>:start</tt> and <tt>:end</tt> and satisfying the test (see
+above) have been deleted.  This is a destructive operation.
+The argument <i>sequence</i> may be destroyed and used to construct
+the result; however, the result may or may not be <tt>eq</tt> to <i>sequence</i>.
+Elements not deleted occur in the same order in the result
+as they did in the argument.
+<P>
+The <tt>:count</tt> argument, if supplied, limits the number of elements
+deleted; if more than <tt>:count</tt> elements satisfy the test,
+then of these elements only the leftmost are deleted,
+as many as specified by <tt>:count</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(RANGE-OF-COUNT-KEYWORD) <A NAME=15757>&#160;</A> 
+to clarify that the <tt>:count</tt> argument must be either <tt>nil</tt>
+or an integer, and that supplying a negative integer produces the
+same behavior as supplying zero.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+A non-<tt>nil :from-end</tt> specification
+matters only when the <tt>:count</tt> argument
+is provided; in that case only the rightmost <tt>:count</tt> elements satisfying
+the test are deleted.
+For example:
+<P><pre>
+(delete 4 '(1 2 4 1 3 4 5)) => (1 2 1 3 5) 
+(delete 4 '(1 2 4 1 3 4 5) <tt>:count</tt> 1) => (1 2 1 3 4 5) 
+(delete 4 '(1 2 4 1 3 4 5) <tt>:count</tt> 1 <tt>:from-end</tt> t) 
+   => (1 2 4 1 3 5) 
+(delete 3 '(1 2 4 1 3 4 5) <tt>:test</tt> #'&gt;) => (4 3 4 5) 
+(delete-if #'oddp '(1 2 4 1 3 4 5)) => (2 4 4) 
+(delete-if #'evenp '(1 2 4 1 3 4 5) <tt>:count</tt> 1 <tt>:from-end</tt> t) 
+   => (1 2 4 1 3 5)
+</pre><P>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=15774>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<P>
+X3J13 voted in March 1989 (REMF-DESTRUCTION-UNSPECIFIED) <A NAME=15778>&#160;</A> 
+to clarify the permissible side effects of certain operations.
+When the <i>sequence</i> is a list,
+<tt>delete</tt> is permitted to perform a <tt>setf</tt> on any part,
+<i>car</i> or <i>cdr</i>, of the top-level list structure of that list.
+When the <i>sequence</i> is an array,
+<tt>delete</tt> is permitted to alter the dimensions of the given array
+and to slide some of its elements into new positions without permuting them
+in order to produce the resulting array.
+<P>
+Furthermore, <tt>(delete-if <i>predicate</i> <i>sequence</i> ...)</tt>
+is required to behave exactly like
+<P><pre>
+(delete nil <i>sequence</i> 
+        :test #'(lambda (unused item) 
+                   (declare (ignore unused)) 
+                   (funcall <i>predicate</i> item)) 
+        ...)
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<hr>
+<b>Compatibility note:</b> In MacLisp, the <tt>delete</tt> function uses
+an <tt>equal</tt> comparison rather than <tt>eql</tt>, which is the default
+test for <tt>delete</tt> in Common Lisp.  Where in MacLisp one would write
+<tt>(delete x y)</tt>, one must in Common Lisp write <tt>(delete x y :test #'equal)</tt>
+to get the completely identical effect.  Similarly, one can get the
+precise effect, and no more, of the MacLisp <tt>(delq x y)</tt>
+by writing in Common Lisp <tt>(delete x y :test #'eq)</tt>.
+<hr>
+<P>
+<BR><b>[Function]</b><BR>
+<pre>
+<tt>remove-duplicates <i>sequence</i> &amp;key :from-end :test :test-not 
+              :start :end :key 
+delete-duplicates sequence &amp;key :from-end :test :test-not 
+              :start :end :key</tt>
+</pre>
+<P>The elements of <i>sequence</i> are compared pairwise, and if any two match,
+then the one occurring earlier in the sequence
+is discarded (but if the <tt>:from-end</tt> argument is true, then the one
+later in the sequence is discarded).
+The result is a sequence of the same kind as the
+argument sequence with enough elements removed so that no two of the remaining
+elements match.  The order of the elements remaining in the result
+is the same as the order in which they appear in <i>sequence</i>.
+<P>
+<tt>remove-duplicates</tt> is the non-destructive version
+of this operation.
+The result of <tt>remove-duplicates</tt> may share
+with the argument <i>sequence</i>; a list result may share a tail
+with an input list, and the result may be <tt>eq</tt> to the input <i>sequence</i>
+if no elements need to be removed.
+<P>
+<tt>delete-duplicates</tt> may destroy the argument <i>sequence</i>.
+<P>
+Some examples:
+<P><pre>
+(remove-duplicates '(a b c b d d e)) => (a c b d e) 
+(remove-duplicates '(a b c b d d e) <tt>:from-end</tt> t) => (a b c d e) 
+(remove-duplicates '((foo #\a) (bar #\%) (baz #\A)) 
+                   <tt>:test</tt> #'char-equal <tt>:key</tt> #'cadr) 
+   => ((bar #\%) (baz #\A)) 
+(remove-duplicates '((foo #\a) (bar #\%) (baz #\A)) 
+                   <tt>:test</tt> #'char-equal <tt>:key</tt> #'cadr <tt>:from-end</tt> t) 
+   => ((foo #\a) (bar #\%))
+</pre><P>
+<P>
+These functions are useful for converting a sequence into a canonical
+form suitable for representing a set.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=15834>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<P>
+X3J13 voted in March 1989 (REMF-DESTRUCTION-UNSPECIFIED) <A NAME=15838>&#160;</A> 
+to clarify the permissible side effects of certain operations.
+When the <i>sequence</i> is a list,
+<tt>delete-duplicates</tt> is permitted to perform a <tt>setf</tt> on any part,
+<i>car</i> or <i>cdr</i>, of the top-level list structure of that list.
+When the <i>sequence</i> is an array,
+<tt>delete-duplicates</tt> is permitted to alter the dimensions of the given array
+and to slide some of its elements into new positions without permuting them
+in order to produce the resulting array.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<pre>
+<tt>substitute <i>newitem</i> <i>olditem</i> <i>sequence</i> &amp;key :from-end :test :test-not 
+           :start :end :count :key 
+substitute-if <i>newitem</i> <i>test</i> <i>sequence</i> &amp;key :from-end 
+           :start :end :count :key 
+substitute-if-not <i>newitem</i> <i>test</i> <i>sequence</i> &amp;key :from-end
+           :start :end :count :key</tt>
+</pre>
+<P>The result is a sequence of the same kind as the argument <i>sequence</i>
+that has the same elements except that those in the subsequence
+delimited by <tt>:start</tt> and <tt>:end</tt> and satisfying the test (see
+above) have been replaced by <i>newitem</i>.  This is a non-destructive
+operation; the result is a copy of the input <i>sequence</i>, save that some
+elements are changed.
+<P>
+The <tt>:count</tt> argument, if supplied, limits the number of elements
+altered; if more than <tt>:count</tt> elements satisfy the test,
+then of these elements only the leftmost are replaced,
+as many as specified by <tt>:count</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(RANGE-OF-COUNT-KEYWORD) <A NAME=15858>&#160;</A> 
+to clarify that the <tt>:count</tt> argument must be either <tt>nil</tt>
+or an integer, and that supplying a negative integer produces the
+same behavior as supplying zero.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+A non-<tt>nil :from-end</tt> specification
+matters only when the <tt>:count</tt> argument
+is provided; in that case only the rightmost <tt>:count</tt> elements satisfying
+the test are replaced.
+For example:
+<P><pre>
+(substitute 9 4 '(1 2 4 1 3 4 5)) => (1 2 9 1 3 9 5) <BR>(substitute 9 4 '(1 2 4 1 3 4 5) <tt>:count</tt> 1) => (1 2 9 1 3 4 5) <BR>(substitute 9 4 '(1 2 4 1 3 4 5) <tt>:count</tt> 1 <tt>:from-end</tt> t) <BR>   => (1 2 4 1 3 9 5) <BR>(substitute 9 3 '(1 2 4 1 3 4 5) <tt>:test</tt> #'&gt;) => (9 9 4 9 3 4 5) <BR>(substitute-if 9 #'oddp '(1 2 4 1 3 4 5)) => (9 2 4 9 9 4 9) <BR>(substitute-if 9 #'evenp '(1 2 4 1 3 4 5) <tt>:count</tt> 1 <tt>:from-end</tt> t) <BR>   => (1 2 4 1 3 9 5)
+</pre><P>
+The result of <tt>substitute</tt> may share
+with the argument <i>sequence</i>; a list result may share a tail
+with an input list, and the result may be <tt>eq</tt> to the input <i>sequence</i>
+if no elements need to be changed.
+<P>
+See also <tt>subst</tt>, which performs substitutions throughout a tree.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=15880>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<pre>
+<tt>nsubstitute <i>newitem</i> <i>olditem</i> <i>sequence</i> &amp;key :from-end :test :test-not 
+               :start :end :count :key 
+nsubstitute-if <i>newitem</i> <i>test</i> <i>sequence</i> &amp;key :from-end 
+               :start :end :count :key 
+nsubstitute-if-not <i>newitem</i> <i>test</i> <i>sequence</i> &amp;key :from-end 
+               :start :end :count :key</tt>
+</pre>
+<P>This is the destructive counterpart to <tt>substitute</tt>.
+The result is a sequence of the same kind as the argument <i>sequence</i>
+that has the same elements except that those in the subsequence
+delimited by <tt>:start</tt> and <tt>:end</tt> and satisfying the test (see
+above) have been replaced by <i>newitem</i>.  This is a destructive operation.
+The argument <i>sequence</i> may be destroyed and used to construct
+the result; however, the result may or may not be <tt>eq</tt> to <i>sequence</i>.
+<P>
+See also <tt>nsubst</tt>, which performs destructive
+substitutions throughout a tree.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=15895>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<P>
+X3J13 voted in March 1989 (REMF-DESTRUCTION-UNSPECIFIED) <A NAME=15899>&#160;</A> 
+to clarify the permissible side effects of certain operations.
+When the <i>sequence</i> is a list,
+<tt>nsubstitute</tt> or <tt>nsubstitute-if</tt>
+is required to perform a <tt>setf</tt> on any
+<i>car</i> of the top-level list structure of that list
+whose old contents must be replaced with <i>newitem</i>
+but is forbidden to perform a <tt>setf</tt> on any <tt>cdr</tt> of the list.
+When the <i>sequence</i> is an array,
+<tt>nsubstitute</tt> or <tt>nsubstitute-if</tt>
+is required to perform a <tt>setf</tt> on any element of the array
+whose old contents must be replaced with <i>newitem</i>.
+These functions, therefore, may successfully be
+used solely for effect, the caller discarding the returned value
+(though some programmers find this stylistically distasteful).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html3325 HREF="node145.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3323 HREF="node141.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3317 HREF="node143.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3327 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3328 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3326 HREF="node145.html"> Searching Sequences for </A>
+<B>Up:</B> <A NAME=tex2html3324 HREF="node141.html"> Sequences</A>
+<B> Previous:</B> <A NAME=tex2html3318 HREF="node143.html"> ConcatenatingMapping, and </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

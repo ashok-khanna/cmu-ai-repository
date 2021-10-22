@@ -1,0 +1,168 @@
+10  REM-- "Newrule.bas" is a primitive implementation of the Backpropagation
+20  REM-- method of training the weights for an Artificial Neural Network.
+25  REM--
+30  REM-- Copyright 1990 by Gary Coulter.  All rights reserved.
+31  REM--
+32  REM-- fidonet 1:130/40, 817-923-8888
+35  REM-- Permission is granted to distribute this program through computer
+37  REM-- bulletin board systems.  No fee may be charged and commercial use
+39  REM-- is forbidden without the permission of the author.
+40  REM-- The sole purpose of this program was so that the author could
+45  REM-- test out his own understanding of the method called Backpropagation.
+47  REM-- No claims are made about the utility or value of the program.  I can
+49  REM-- only hope that it may prove useful as an educational tool for someone
+50  REM-- attempting to understand artificial neural networks.
+75                                                                       REM
+85                                                                       REM
+100 DIM WEIGHTJ[21,21] ,  WEIGHTK[21,10] : REM- 20 bit input and 10 bit output
+125 DIM NETJ[21], NETK[10] : REM --- Hold the net values for each neuron
+150 DIM OUTJ[21] , OUTK[10], DELTAJ[21], DELTAK[10]
+250 DIM BIT[10,21] : REM-- bit map of each character in the training set
+300 DIM TARGET$[10] : REM -- the ascii target we're training for
+325 DIM TARGET[10,10] : REM-- The "coded" equivalent of the target
+330                                                                     REM
+340                                                                     REM
+345 CLS
+350 RANDOMIZE : REM -- stir up the random number generator
+399 CLS
+400 FOR J = 1 TO 21  : REM initialize weights with value from -1.25 to 1.25
+410             FOR K = 1 TO 21
+420                     WEIGHTJ[J,K] = RND * 2.5 - 1.25  : REM Layer J
+430             NEXT
+440 NEXT
+500 FOR J = 1 TO 21  : REM also for weights in the K layer
+510             FOR K = 1 TO 10
+520                     WEIGHTK[J,K] = RND  * 2.5 - 1.25 : REM and layer K
+530             NEXT
+540 NEXT
+700 FOR J = 1 TO 10
+750     FOR K = 1 TO 20
+760              READ BIT[J,K]
+775     NEXT
+780     READ TARGET$[J]
+782     FOR K = 1 TO 10
+783              TARGET[J,K] = 0
+784     NEXT
+785     BIT =(ASC(TARGET$[J])-48)
+786     IF BIT = 0 THEN TARGET[J,10] = 1 ELSE TARGET[J,BIT] = 1
+788     BIT[J,21] = 1  : REM this is the bias value
+790 NEXT
+800                                                                     REM
+850     REM  --- The trainning loop starts here
+900 FOR N = 1 TO 1000   :  REM This is an arbitrary count value
+1000    FOR M = 1 TO 10 :  REM for each character in the training set
+1050            REM  FORWARD PASS calculates the nets and outs for each neuron
+1100            FOR K = 1 TO 21  : REM -- 20 input bits and a bias value
+1125                    NETJ[K] = 0   : REM clear the value from the prev pass
+1150                    FOR L = 1 TO 21
+1200                        NETJ[K] = NETJ[K] + BIT[M,L] * WEIGHTJ[L,K]
+1300                    NEXT
+1350                    OUTJ[K] = 1/(1+EXP((-1)*NETJ[K])) : REM non - linearity
+1400            NEXT
+1450            OUTJ[21] = 1  : REM --- force the bias neuron to one
+1475            REM -- calculate nets and out for layer K (Output layer)
+1480            CLS
+1500            FOR K = 1 TO 10
+1525                NETK[K] = 0  : REM -- clear out the previous value
+1550                    FOR L = 1 TO 21
+1600                        NETK[K] = NETK[K] + OUTJ[L] * WEIGHTK[L,K]
+1700                    NEXT
+1750                    OUTK[K] = 1/(1+EXP((-1)*NETK[K])) : REM -- Squashing
+1760                                                      : REM -- Function
+1770            REM -- Find the Deltas for the output layer
+1775                    DELTAK[K] = OUTK[K] * (1-OUTK[K]) * (TARGET[M,K] -  OUTK[K])
+1780                    X = CSRLIN
+1785                    PRINT "Neuron # "; K ; " actual = ";:                                                   PRINT USING ".####"; OUTK[K] , : LOCATE X,30 :                                        PRINT "target = " ; TARGET[M,K]
+1800            NEXT
+1850                    PRINT : PRINT "Pass number " N , "Character number "; M
+1900            REM reverse pass.. start adjusting the weights
+2110            FOR J =1 TO 21
+2550                SUMDELTA = 0  : REM -- clear out from previous pass
+2600                FOR K = 1 TO 10
+2650                       REM -- Prepare for the hidden layer, first
+2700                       SUMDELTA = SUMDELTA + DELTAK[K] * WEIGHTK[J,K]
+2750                       REM -- Then adjust the weights for the K layer
+2800                       WEIGHTK[J,K] = WEIGHTK[J,K] + DELTAK[K]* OUTJ[J]
+2850                NEXT
+2875                REM -- Now get the deltas for the hidden layer.
+2900                DELTAJ[J] = OUTJ[J] * (1-OUTJ[J]) * SUMDELTA
+3000            NEXT
+3001            REM     Adjust the weights for the hidden layer.
+3100            FOR K = 1 TO 21
+3200                FOR J = 1 TO 21
+3300                       WEIGHTJ[J,K] = WEIGHTJ[J,K] + DELTAJ[K] * BIT[M,J]
+3400                    NEXT
+3500            NEXT
+3600    NEXT
+3700 NEXT
+3800  REM  -- The program should be modified if you want to save the weights
+3900  REM -- or for that matter, do anything that is actually useful.  Each of
+4000  REM -- the ascii characters '0' - '9' are translated into one of ten 
+4100  REM -- bits being on.  So an output of 100000000 = "1", 0100000000 ="2",
+4200  REM -- 0010000000 = "3" and so on ... until 0000000001 = "0".
+4300  REM -- The program never actually produces zeroes or ones precisely, 
+4400  REM -- but they are relatively close to the desired values.
+4500  REM -- By adjusting the appropriate indices and providing a training set,
+4600  REM -- this program could be modified learn much larger character arrays.
+5000                                                                    REM
+5010    DATA    0, 1, 0, 0  : REM  -- These are 4 x 5 bit maps of the numerals
+5011    DATA    1, 1, 0, 0  : REM --- "1" thru "9" and "0"
+5012    DATA    0, 1, 0, 0
+5013    DATA    0, 1, 0, 0
+5014    DATA    1, 1, 1, 0
+5020    DATA    "1"         :  REM --    These are the "Targets"
+5031    DATA    0, 1, 1, 0
+5032    DATA    1, 0, 0, 1
+5033    DATA    0, 0, 1, 0
+5034    DATA    0, 1, 0, 0
+5035    DATA    1, 1, 1, 1
+5040    DATA    "2"
+5051    DATA    1, 1, 1, 0
+5052    DATA    0, 0, 0, 1
+5053    DATA    0, 1, 1, 0
+5054    DATA    0, 0, 0, 1
+5055    DATA    1, 1, 1, 0
+5060    DATA    "3"
+5071    DATA    1, 0, 0, 0
+5072    DATA    1, 0, 1, 0
+5073    DATA    1, 1, 1, 1
+5074    DATA    0, 0, 1, 0
+5075    DATA    0, 0, 1, 0
+5080    DATA    "4"
+5091    DATA    1, 1, 1, 1
+5092    DATA    1, 0, 0, 0
+5093    DATA    1, 1, 1, 0
+5094    DATA    0, 0, 0, 1
+5095    DATA    1, 1, 1, 0
+5100    DATA    "5"
+5111    DATA    0, 1, 1, 1
+5112    DATA    1, 0, 0, 0
+5113    DATA    1, 1, 1, 0
+5114    DATA    1, 0, 0, 1
+5115    DATA    0, 1, 1, 0
+5120    DATA    "6"
+5131    DATA    1, 1, 1, 1
+5132    DATA    1, 0, 0, 1
+5133    DATA    0, 0, 1, 0
+5134    DATA    0, 1, 0, 0
+5135    DATA    0, 1, 0, 0
+5140    DATA    "7"
+5151    DATA    0, 1, 1, 0
+5152    DATA    1, 0, 0, 1
+5153    DATA    0, 1, 1, 0
+5154    DATA    1, 0, 0, 1
+5155    DATA    0, 1, 1, 0
+5160    DATA    "8"
+5171    DATA    0, 1, 1, 0
+5172    DATA    1, 0, 0, 1
+5173    DATA    0, 1, 1, 1
+5174    DATA    0, 0, 0, 1
+5175    DATA    1, 1, 1, 0
+5180    DATA    "9"
+5191    DATA    0, 1, 1, 0
+5192    DATA    1, 0, 0, 1
+5193    DATA    1, 0, 0, 1
+5194    DATA    1, 0, 0, 1
+5195    DATA    0, 1, 1, 0
+5200    DATA    "0"
+

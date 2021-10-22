@@ -1,0 +1,120 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node345.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:46:43 GMT -->
+<HEAD>
+<TITLE>29.4.11. Debugging Utilities</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Debugging Utilities">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html6002 HREF="node346.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html6000 HREF="node334.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5996 HREF="node344.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html6004 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html6005 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html6003 HREF="node346.html"> Predefined Condition Types</A>
+<B>Up:</B> <A NAME=tex2html6001 HREF="node334.html"> Program Interface to </A>
+<B> Previous:</B> <A NAME=tex2html5997 HREF="node344.html"> Restart Functions</A>
+<HR> <P>
+<H2><A NAME=SECTION0033411000000000000000>29.4.11. Debugging Utilities</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<A NAME=DEBUGGINGUTILITIES>Common</A>
+Lisp does not specify exactly what a debugger is or does,
+but it does provide certain means for indicating intent to transfer control
+to a supervisory or debugging facility.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>break &amp;optional <i>format-string</i> &amp;rest <i>format-arguments</i></tt><P>   [This supersedes the description of <tt>break</tt>
+   given in section <A HREF="node220.html#ERRORSIGNALLINGFUNCTIONS">24.1</A>.-GLS]
+<P>
+  The function <tt>break</tt> prints the message described by the
+  <i>format-string</i> and <i>format-arguments</i> and then
+  goes directly into the debugger without allowing any possibility of
+  interception by programmed error-handling facilities.
+<P>
+  If no <i>format-string</i> is supplied, a suitable default will be generated.
+<P>
+  If continued, <tt>break</tt> returns <tt>nil</tt>.
+<P>
+  Note that <tt>break</tt> is presumed to be used as a way of inserting temporary debugging
+  ``breakpoints'' in a program, not as a way of signaling errors; it is
+  expected that continuing from a <tt>break</tt> will not trigger any unusual recovery
+  action. For this reason, <tt>break</tt> does not take the additional format control
+  string that <tt>cerror</tt> takes as its first argument. This and the lack of any
+  possibility of interception by programmed error handling are the only
+  program-visible differences between <tt>break</tt> and <tt>cerror</tt>. The user interface
+  aspects of these functions are permitted to vary more widely; for example,
+  it is permissible for a read-eval-print loop to be entered by <tt>break</tt> rather
+  than by the conventional debugger.
+<P>
+  <tt>break</tt> could be defined by
+<P><pre>
+(defun break (&amp;optional (format-string &quot;Break&quot;) 
+              &amp;rest format-arguments) 
+  (with-simple-restart (continue &quot;Return from BREAK.&quot;) 
+    (invoke-debugger 
+      (make-condition 'simple-condition 
+                      :format-string format-string 
+                      :format-arguments format-arguments))) 
+  nil)
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>invoke-debugger <i>condition</i></tt><P>  Attempts interactive handling of its argument, which must be a condition.
+<P>
+  If the variable <tt>*debugger-hook*</tt> is not <tt>nil</tt>, it will be called as a function on two
+  arguments: the <i>condition</i> being handled and the value of <tt>*debugger-hook*</tt>.
+  If a hook function returns normally, the standard debugger will be tried.
+<P>
+  The standard debugger will never directly return. Return can occur only by a
+  special transfer of control, such as the use of a restart.
+<P>
+<hr>
+<b>Remark:</b> The exact way in which the debugger interacts with users is expected to
+    vary considerably from system to system. For example, some systems may
+    use a keyboard interface, while others may use a mouse interface. Of those
+    systems using keyboard commands, some may use single-character commands
+    and others may use parsed line-at-a-time commands. The exact set of commands
+    will vary as well. The important properties of a debugger are that
+it makes information about the error accessible and that
+it makes the set of apparent restarts easily accessible.
+<P>
+    It is desirable to have a mode where the debugger allows other features,
+    such as the ability to inspect data, stacks, etc. However, it may
+    sometimes be appropriate to have this kind of information hidden from
+    users. Experience on the Lisp Machines has shown that some users who are
+    not programmers develop a terrible phobia of debuggers. The reason for
+    this usually may be traced to the fact that the debugger is very foreign to them
+    and provides an overwhelming amount of information of
+    interest only to programmers. With the advent of restarts, there is a clear
+    mechanism for the construction of ``friendly'' debuggers. Programmers can
+    be taught how to get to the information they need for debugging, but it
+    should be possible to construct user interfaces to the debugger that are
+    natural, convenient, intelligible, and friendly even to non-programmers.
+<hr>
+<P>
+<BR><b>[Variable]</b><BR>
+<tt>*debugger-hook*</tt><P>  This variable should hold either <tt>nil</tt> or a function of two arguments, a
+  condition and the value of <tt>*debugger-hook*</tt>. This function may either
+  handle the condition (transfer control) or return normally (allowing the
+  standard debugger to run).
+<P>
+  Note that, to minimize recursive errors while debugging, <tt>*debugger-hook*</tt> is
+  bound to <tt>nil</tt> when calling this function. When evaluating code typed in
+  by the user interactively, the hook function may want to bind
+  <tt>*debugger-hook*</tt> to the function that was its second argument so that
+  recursive errors can be handled using the same interactive facility.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html6002 HREF="node346.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html6000 HREF="node334.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5996 HREF="node344.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html6004 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html6005 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html6003 HREF="node346.html"> Predefined Condition Types</A>
+<B>Up:</B> <A NAME=tex2html6001 HREF="node334.html"> Program Interface to </A>
+<B> Previous:</B> <A NAME=tex2html5997 HREF="node344.html"> Restart Functions</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

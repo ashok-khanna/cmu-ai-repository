@@ -1,0 +1,4854 @@
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of shell archive."
+# Contents:  anag.lsp curves.lsp expand.lsp init.lsp sort.lsp
+#   benchmar.lsp demos.lsp fgtest.lsp mathtest.lsp test.lsp bignum.lsp
+#   dict.lsp fra.lsp menu.lsp times.lsp chaos.lsp doctor.lsp fsmoo.lsp
+#   oops.lsp tstrand.lsp circle.lsp drawing.lsp gc.lsp patter.lsp
+#   view.lsp clock.lsp exit.lsp gob.lsp qtime.lsp search.lsp calc.lsp
+#   grep.lsp queen.lsp rules.lsp prolog.lsp common.lsp gui.lsp fib.lsp
+#   shake.lsp profile.lsp scheme.lsp church.scm lexical.lsp
+#   account.scm
+# Wrapped by bbirch@brno on Mon Mar  8 20:14:46 1993
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'anag.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'anag.lsp'\"
+else
+echo shar: Extracting \"'anag.lsp'\" \(4587 characters\)
+sed "s/^X//" >'anag.lsp' <<'END_OF_FILE'
+X; anag.lsp                 24 Sept 1990
+X;
+X;	Attempt at writing a program to discover anagrams by cycling
+X;	through combinations.
+X;
+X;
+X;	Bill Birch    23 Sept 1990
+X;
+X;
+X;
+X(setq SP " ")
+X;
+X(defun flatten (x)
+X   (cond
+X      ((null x) nil)
+X	  ((consp (car x)) (append (car x)(flatten (cdr x))))
+X      (t (cons (car x) (flatten (cdr x))))))
+X
+X;	Slow function to remove one occurrence of an atom from a list.
+X;
+X;	returns 'failed if the atom is not in the list.
+X;
+X;	eg (remove 'a '(1 2 3 e q a 3 4)) ==> (4 3 q e 1 2 3)
+X;
+X(defun remove (x y)
+X     (removeaux x y nil))
+X
+X(defun removeaux (letter list residue)
+X     (cond
+X          ((null list) 'failed)
+X          ((equal (car list) letter) (append (cdr list) residue))
+X          (t (removeaux letter (cdr list) (cons (car list) residue)))))
+X;
+X;	Faster version of remove
+X;
+X(defun fastremove (letter list)
+X     (setq result 'failed)
+X     (setq residue nil)
+X	 (do-while list         ; null list terminates the loop
+X          (cond
+X               ((equal (car list) letter) 
+X               (setq result (append (cdr list) residue))
+X		  (setq list nil)) ; force termination of loop
+X          
+X          (t   (setq residue (cons (car list) residue))
+X                    (setq list (cdr list)))))
+X     result)
+X;
+X; Function to test if a list could be legally derived from another list.
+X;
+X; returns 'failed if not
+X;
+X;	eg '(b a n k) cannot be made from '(b a n a n a) because
+X;		 there is no 'k in 'banana
+X;
+X(defun validp (word tst)
+X     (cond ((null word) t)
+X          (t
+X          (setq result (fastremove (car word) tst))
+X               (cond
+X               ((equal result 'failed) nil)
+X          (t (validp (cdr word) result))))))
+X;
+X; Function to scan a dictionary of words to extract all the words that could
+X; legally be used in an anagram
+X;
+X(defun scan (word filename)
+X	 (setq wordlist nil)                ; accumulated list of valid words.
+X	 (setq fd (open filename :direction :input))      ; open the dictionary file
+X	 (setq ofd (open "cwords" :direction :output))      ; open trace file
+X
+X	 (do-while (not (equal (setq aword (read fd)) *eof*))
+X          (cond
+X               ((validp aword word) 
+X                         (setq wordlist (cons aword wordlist))
+X                         (write ofd aword CR)
+X                         (force-output ofd))
+X               (t nil)))
+X     (close ofd)
+X     '(scan finished))
+X;
+X; Predicate function to test if a list is an anagram.
+X;
+X;	returns   t if anag is an exact anagram of word,
+X;		 'incomplete if it is too short
+X;		 'excess if too long
+X;
+X;	it successively removes all the letters of word from anag,
+X;	if it's an anagram there will be none left at the end.
+X;
+X(defun checkp (target anag)  
+X	(cond 
+X		((null target)  (cond
+X			((null anag) t) ; exact match
+X			(t 'excess)))    ; too long to be an anagram
+X		(t
+X		(cond
+X		 ((null anag) 'incomplete) ; too short
+X         (t          
+X            (setq result (fastremove (car anag) target))
+X                  (cond
+X					 ((equal result 'failed) 'failed) ; not a letter
+X                   (t (checkp result (cdr anag) ))))))))
+X;
+X;
+X(defun cycle (target current wl)
+X     (do-while wl
+X      (setq res (checkp target (flatten (append current (car wl)))))
+X          (cond 
+X               ((equal res 'failed) nil)
+X               ((equal res 'excess) nil)
+X         ((equal res 'incomplete)
+X            (cycle target (cons (car wl) current) wordlist))
+X         (t
+X            (writeana outfd (append current (car wl)))
+X            (force-output outfd)))
+X      (setq wl (cdr wl))))
+X;
+X; Function to print out a list in the form ((a s d)(q w e))
+X; as: asd qwe
+X;
+X(defun writeana (fd x)
+X   (cond
+X      ((null x) (write fd CR))
+X      ((atom (car x)) (writeword fd x)(write fd CR))
+X      (t   (writeword fd (car x))
+X         (write fd SP)
+X         (writeana fd (cdr x)))))
+X
+X(defun writeword (fd y)
+X   (cond
+X      ((null y) nil)
+X      (t    (write fd (car y)) 
+X         (writeword fd (cdr y)))))
+X
+X;
+X;	Do it
+X;
+X;
+X(defun find-anag ()
+X'(checkp '(w e n d y) '(w e n))
+X
+X(checkp '(w e n d y) '(w e n))
+X'(checkp '(w e n d y) '(w e n n))
+X(checkp '(w e n d y) '(w e n n))
+X'(checkp '(w e n d y) '())
+X(checkp '(w e n d y) '())
+X'(checkp '(w e n d y) '(w e n d y))
+X(checkp '(w e n d y) '(w e n d y))
+X'(checkp '(w e n d y) '(d y))
+X(checkp '(w e n d y) '(d y))
+X
+X(setq word '(l i s p))  ; phrase to create
+X									; anagrams from
+X(print "Scanning dictionary for suitable words ")
+X(scan word "dict.lsp")
+X(print "Results in cwords")
+X(setq outfd (open "cycle" :direction :output))
+X(print "Searching for Anagrams .... ")
+X(cycle word nil wordlist)
+X(close outfd)
+X(print "Results in file CYCLE")
+X
+X)
+END_OF_FILE
+if test 4587 -ne `wc -c <'anag.lsp'`; then
+    echo shar: \"'anag.lsp'\" unpacked with wrong size!
+fi
+# end of 'anag.lsp'
+fi
+if test -f 'curves.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'curves.lsp'\"
+else
+echo shar: Extracting \"'curves.lsp'\" \(1597 characters\)
+sed "s/^X//" >'curves.lsp' <<'END_OF_FILE'
+X; Lisp example to show how to draw
+X; dragon and c!-curves
+X
+X; (drawc) ; draws a c-curve
+X; (drawd) ; draws a dragon curve
+X; this example will only work in medium or high resolution
+X; (in low resolution the example is drawn mostly of the screen !)
+X; try chnging the value of min!-length to 8 and try again
+X; then change it to 1 and try (drawc) it will take a long time !!
+X(defun sqrt (i) (exp (/ (log i) 2.0)))
+X(setq minlength 100)
+X(setq pi 3.1415927)
+X
+X(defun init ()
+X	(GraphOpen)
+X)
+X
+X
+X; use this to draw a nice c curve on a medium res screen
+X
+X(defun drawc ()
+X  (init)
+X  (setq curx 4500)
+X  (setq cury 1600)
+X  (ccurve 1350 pi)
+X  (princ "Continue Y? ")
+X  (read)
+X	(GraphClose)
+X)
+X
+X; use this to draw a nice dragon curve on a medium res screen
+X
+X(defun drawd ()
+X  (init)
+X  (setq curx 1700)
+X  (setq cury 900)
+X  (dragon 1600 0 1)
+X  (princ "Continue Y? ")
+X  (read)
+X	(GraphClose)
+X)
+X
+X(defun plotline (length angle)
+X  ((lambda (x1 y1)
+X    (line curx cury x1 y1)
+X    (setq curx x1)
+X    (setq cury y1)
+X  )
+X (+ curx (* 2 (cos angle) length))
+X (+ cury (* (sin angle) length))
+X )
+X)
+X
+X(defun ccurve (length angle)
+X   (cond ((< length minlength)(plotline length angle))
+X         (t (ccurve (/ length (sqrt 2.0))
+X                      (+ angle (/ pi 4.0)))
+X            (ccurve (/ length (sqrt 2.0))
+X                      (- angle (/ pi 4.0))))))
+X
+X(defun dragon (length angle sign)
+X  (cond ((< length minlength)(plotline length angle))
+X        (t (dragon (/ length (sqrt 2.0))
+X              (+ angle (* sign (/ pi 4.0))) 1.0)
+X           (dragon (/ length (sqrt 2.0))
+X              (- angle (* sign (/ pi 4.0))) -1.0)))) 
+X
+X
+END_OF_FILE
+if test 1597 -ne `wc -c <'curves.lsp'`; then
+    echo shar: \"'curves.lsp'\" unpacked with wrong size!
+fi
+# end of 'curves.lsp'
+fi
+if test -f 'expand.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'expand.lsp'\"
+else
+echo shar: Extracting \"'expand.lsp'\" \(2378 characters\)
+sed "s/^X//" >'expand.lsp' <<'END_OF_FILE'
+X; /*
+X;  *
+X;  * A supposed solution to the FUNARG problem,
+X;  * and also a way to speed up your programs.
+X;  *
+X;  * This routine returns a copy of the <form>, with any BOUND variables
+X;  * evaluated, UNBOUND variables remain untouched. Any identifyers
+X;  * in the <except> list are left untouched.
+X;  *
+X;  * Example: page 328 "LISP" 2nd edition, Winston&Horn
+X;  *
+X;  * (setq x 3) ; we want this binding
+X;  * (setq y 100) ; we want to avoid this binding
+X;  *
+X;  * (expand '(lambda (y) (* x y)) '(y))
+X;  *
+X;  * yeilds:
+X;  *
+X;  * (lambda (y) (<subrp:89329> 3 y))
+X;  *
+X;  * To pass a function in a function do:
+X;  *
+X;  * (defun twice (p x) (p (p x)))
+X;  * (twice (expand '(lambda (y) (* x y)) '(y))  2) ; ==> 18 !
+X;  *
+X;  * A simple classic FUNCTION routine for non-recursive functions
+X;  * ( with no local use of "setq") would be:
+X;  *
+X;  * (df function (fn)
+X;  *	(setq form (eval fn))
+X;  *	(expand form (cons fn (car(cdr form))))
+X;  * )
+X;  * NB. It is very important to include the function name in
+X;  * such use of re-writes in self-recursive functions!
+X;  * If there is local use of setq inside a functions, then
+X;  * put these variable names in the exceptions list also.
+X;  * Recursive functions must be replaced with re-written function.
+X;  *
+X;  ****************************************************
+X (defun expand (form except)
+X	(cond
+X		((null form) nil)
+X		((symbolp form) ; Only symbols get re-written.
+X			(cond
+X				((member form except) form) ; don't do exceptions
+X				((not (boundp form)) form) ; cannot re-write an UNBOUND!
+X				(t (eval form)) ; replace with current value
+X			)
+X		)
+X		((consp form) (cons (expand (car form) except)
+X							(expand (cdr form) except) 
+X						)
+X		)
+X		(t  form) ; numbers, strings, atoms...
+X	)
+X)		
+X; /*
+X;  * And here it is again in 'C' :
+X;  */
+X; EXP expand(form, except)
+X; EXP form, except;
+X; {
+X;	if(null(form))
+X;		return(NIL);
+X;	else if( symbolp(form) ) {
+X;		if( member( form, except)|| unboundp(form))
+X;			return(form);
+X;		else
+X;			return( eval(form) );
+X;	}
+X;	else if( listp(form) ) {
+X;		return( cons( 	expand( car(form), except),
+X;						expand( cdr(form), except)
+X;					)
+X;			);
+X;	}
+X;	else
+X;		return(form);
+X; }
+X;
+X(setq x 3) ; we want this binding
+X(setq y 100) ; we want to avoid this binding
+X
+X(expand '(lambda (y) (* x y)) '(y))
+X; (lambda (y) (<subrp:89329> 3 y))
+X
+X(defun twice (p x) (p (p x)))
+X(twice (expand '(lambda (y) (* x y)) '(y))  2)
+END_OF_FILE
+if test 2378 -ne `wc -c <'expand.lsp'`; then
+    echo shar: \"'expand.lsp'\" unpacked with wrong size!
+fi
+# end of 'expand.lsp'
+fi
+if test -f 'init.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'init.lsp'\"
+else
+echo shar: Extracting \"'init.lsp'\" \(3758 characters\)
+sed "s/^X//" >'init.lsp' <<'END_OF_FILE'
+X;;;	init.lsp                     init.lsp
+X;;;
+X;;;	NAME
+X;;;	   init.lsp      Version 1.0
+X;;;
+X;;;	SYNOPSIS
+X;;;	   This file is read every time LISP is run, and contains
+X;;;	   defintions of useful functions not in the interpreter.
+X;;;
+X;;;
+X;(ROOM) ; Print out the banner and memory statistics
+X;;
+X;; Some commonly used functions, not present in the interpreter.
+X;
+X;	Useful atoms:
+X;
+X(setq CR "\n")       ; Carriage Return
+X(setq *eol* "\n")       ; Carriage Return
+X(setq BLANK '\ )    ; Space character
+X(setq *tab* "\t")   ; Tab character
+X;
+X;   LISP Functions
+X;
+X; Shorthand forms for list components
+X(defun caar (x) (car(car x)))
+X(defun cdar (x) (cdr(car x)))
+X(defun cddr (x) (cdr(cdr x)))
+X(defun caaar (x) (car(car(car x))))
+X(defun caadr (x) (car(car(cdr x))))
+X(defun cadar (x) (car(cdr(car x))))
+X(defun cdaar (x) (cdr(car(car x))))
+X(defun cdadr (x) (cdr(car(cdr x))))
+X(defun cddar (x) (cdr(cdr(car x))))
+X(defun cdddr (x) (cdr(cdr(cdr x))))
+X;;;
+X;;; Scheme style stuff
+X(setq else t)
+X;;;
+X
+X(defun min2 ( u v)
+X  (cond ((> u v) v) (t u)))
+X
+X; Other functions
+X;
+X(defun add1 (x) (+ 1 x))
+X(defun sub1 (x) (- x 1))
+X(defun minusp (x) (< x 0))
+X(defun not (x) (null x))
+X
+X; useful function to read a file without display of results
+X(defun loadquiet (f) (load f :print nil :verbose nil))
+X
+X;; Editor
+X;;
+X(defun ed (&rest filenames)
+X	(cond
+X		((null filenames) (system "emacs"))
+X		(t  (system "emacs" (car filenames))) ) )
+X
+X; Normal & Cattell page 170
+X(defun subst (a b s)
+X   (cond
+X      ((eq s b) a)   
+X      ((atom s) s)
+X      (t (cons (subst a b (car s))
+X             (subst a b (cdr s)) )  ) ) )
+X
+X; COMMON LISP function which makes a list out of its arguments.
+X(defun list (&rest _u) _u)
+X
+X(defun print (object &optional (stream *standard-output*))
+X	(princ "\n" stream)
+X	(prin1 object stream)
+X	(princ " " stream) )
+X
+X(defun terpri (&optional (stream *standard-output*)) (princ CR stream))
+X
+X; (last) returns the last element of a list
+X(defun last (_list)
+X   (cond
+X      ((null (cdr _list)) _list)
+X      (t (last (cdr _list)))))
+X
+X;N&C page 64
+X;
+X;
+X(df print* (&rest x)
+X   (princ CR)
+X   (do-while x
+X      (princ (eval (car x)))
+X      (setq x (cdr x)) )
+X   (princ " ") )
+X
+X;N&C page 145
+X(defun mapc (l fn)
+X   (cond
+X      ((null l) ())
+X      (t (cons (fn (car l)) 
+X             (mapc (cdr l) fn) ) ) ) )
+X
+X; N&C page 171
+X; Debugs ordinary (defun (args ...) ... ) type functions.
+X; ie (scope append) will trace append.
+X;
+X(df trace (&rest fn)
+X   (setq fn (car fn))         ; select first parameter
+X   (put fn 'olddef (eval fn))   ; save old definition
+X   (set fn (subst fn 'fn
+X      '(lambdaq (&rest *x)
+X         (setq *x (mapc *x eval))
+X         (print 'fn)(princ " ")(prin1 *x)
+X         (setq *x (apply (get 'fn 'olddef) *x))
+X         (print 'fn)(princ "= ")(prin1 *x)
+X         *x ) ) )
+X   fn )
+X
+X; N&C page 171
+X(df untrace (&rest fn)
+X   (setq fn (car fn))
+X   (set fn (get fn 'olddef))
+X;   (remprop fn 'olddef)
+X   (list fn 'untraced))
+X
+X(setq XOR 3) ; Exclusive or screen writing mode
+X; Graphics modes for (GraphOpen) on MS-DOS
+X(setq CGA 1)
+X(setq MCGA 2)
+X(setq EGA 3)
+X(setq EGA64 4)
+X(setq EGAMONO 5)
+X(setq VGA 9)
+X
+X(df function (_s2) _s2 )
+X;;;
+X;;; Define #! macro to access arbitrary pname symbols.
+X;;;
+X(defmacro quser1 (_s) ; 
+X	(addsym (_bq1 _s)) )
+X;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+X;;;
+X;;;		User stuff below here.------>>>
+X;;;
+X(defun princ* (&rest _sexp)
+X	(do-while _sexp
+X		(princ (car _sexp))
+X		(setq _sexp (cdr _sexp)) ) )
+X;;
+X(load "common.lsp")
+X;;
+X;; Treat the command line arguments as a list of files to load.
+X;;
+X((lambda (argv)
+X	(do-while (setq argv (cdr argv))
+X		(cond ( (equal (load (car argv)) NIL)
+X				(princ "; *** Warning! Could not load: ")
+X						(princ (car argv))
+X						(terpri)))))
+X	command-line-args )
+X;;
+X;; What's the time?
+X;;
+X(load "qtime.lsp" :verbose nil)
+X(english-time)
+END_OF_FILE
+if test 3758 -ne `wc -c <'init.lsp'`; then
+    echo shar: \"'init.lsp'\" unpacked with wrong size!
+fi
+# end of 'init.lsp'
+fi
+if test -f 'sort.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'sort.lsp'\"
+else
+echo shar: Extracting \"'sort.lsp'\" \(1652 characters\)
+sed "s/^X//" >'sort.lsp' <<'END_OF_FILE'
+X(defun print (x)
+X   (princ x)
+X   (princ CR)
+X)
+X;
+X; Sorting example taken from LISP for the BBC micro by
+X;   Normal & Cattell
+X;
+X; (sort '(12 4 5 444 7 9) ) ==> (4 57 9 444)
+X;
+X;To test try (sort (gen-ran-list 100))
+X;
+X(defun make-node (val left right)
+X   (list left val right))
+X;(defun left-subtree (tree)
+X;   (car tree))
+X;(defun right-subtree (tree)
+X;   (caddr tree))
+X;(defun item-in-node (tree)
+X;   (cadr tree))
+X(defun left-subtree (x) (car x))
+X(defun right-subtree (tree)
+X   (car (cdr (cdr tree))))
+X(defun item-in-node (tree)
+X   (car (cdr tree)))
+X(defun print-tree (tree)
+X   (cond
+X      ((null tree) nil)
+X      (t    (print-tree (left-subtree tree))
+X         (print (item-in-node tree))
+X         (print-tree (right-subtree tree))
+X      )
+X   )
+X)
+X(defun sort (item-list &optional tree)
+X   (do-while item-list
+X      (setq tree (add-item (car item-list) tree))
+X      (setq item-list (cdr item-list))
+X   )
+X   (print-tree tree)
+X)
+X(defun add-item (item tree)
+X   (cond
+X      ((null tree) (make-node item nil nil))
+X      ((> item (item-in-node tree))
+X            (left-put-in-subtree item tree)
+X      )
+X      (t (right-put-in-subtree item tree))
+X   )
+X)
+X(defun left-put-in-subtree (item tree)
+X   (make-node
+X      (item-in-node tree)
+X      (add-item item (left-subtree tree))
+X      (right-subtree tree)
+X   )
+X)
+X(defun right-put-in-subtree (item tree)
+X   (make-node
+X      (item-in-node tree)
+X      (left-subtree tree)
+X      (add-item item (right-subtree tree))
+X   )
+X)
+X;
+X; Generate a list of <n> random strings
+X;
+X(defun gen-ran-list (n)
+X   (setq return nil)
+X   (do-while (> n 0)
+X      (setq n (- n 1))
+X      (setq return (cons (random 3000) return))
+X   )
+X   return
+X)
+END_OF_FILE
+if test 1652 -ne `wc -c <'sort.lsp'`; then
+    echo shar: \"'sort.lsp'\" unpacked with wrong size!
+fi
+# end of 'sort.lsp'
+fi
+if test -f 'benchmar.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'benchmar.lsp'\"
+else
+echo shar: Extracting \"'benchmar.lsp'\" \(417 characters\)
+sed "s/^X//" >'benchmar.lsp' <<'END_OF_FILE'
+X;;;;
+X;;;;	Simple performance benchmarking.
+X;;;;
+X;;;	Some results:
+X;;
+X;;	Machine				Time
+X;;	==========================================
+X;;	Zenith 386 SX/20 PC		50 seconds
+X;;	Bull DPX/2 (68040)		35 seconds
+X;;	RS/6000				23 seconds
+X;;
+X(load "times.lsp")
+X(load "bignum.lsp")
+X(load "sort.lsp")
+X;;;
+X(princ*
+X	"Benchmark time taken: "
+X	(time:perf (b-power-of-2 300)
+X		(seed 0)
+X		(sort (gen-ran-list 80))
+X	)
+X	" seconds."
+X	CR
+X)
+END_OF_FILE
+if test 417 -ne `wc -c <'benchmar.lsp'`; then
+    echo shar: \"'benchmar.lsp'\" unpacked with wrong size!
+fi
+# end of 'benchmar.lsp'
+fi
+if test -f 'demos.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'demos.lsp'\"
+else
+echo shar: Extracting \"'demos.lsp'\" \(3001 characters\)
+sed "s/^X//" >'demos.lsp' <<'END_OF_FILE'
+X(load "menu.lsp")
+X(defmenu top
+X   ("About RefLisp" (ROOM))
+X     ("Exit RefLisp"   (exit))
+X     ("Maths Demos"   (menu math-demos))
+X     ("Regression Testing" (menu regression))
+X      ("Musical Demos" (menu musicals))
+X     ("Graphics Demos"  (load "curves.lsp")
+X						(load "drawing.lsp")
+X                  		(menu graphics))
+X	("Push-button Graphics" (load "gob.lsp"))
+X      ("List Processing" (menu lproc))
+X      ("Computer Programming" (menu software)))
+X
+X(defmenu software
+X   ("Use Micro-Prolog" (load "prolog.lsp"))
+X   ("Expert Systems" (load "rules.lsp"))
+X   ("Generating Assembler" (load "gc.lsp"))
+X   ("Pattern Matching" (load "doctor.lsp"))
+X   ("Memoization" (load "fib.lsp"))
+X   ("Execution Profile" (load "profile.lsp")
+X   		(princ* "Execution Profile of sorting program SORT.LSP:")
+X		(load "sort.lsp")
+X		(setq tr (filter (shake-tree 'sort)))
+X		(princ* "Profiling the functions:\n")
+X		(print tr)
+X		(profile tr)
+X		(sort (gen-ran-list 10))
+X		(profile-report tr)
+X		(profile-clear tr))
+X
+X   ("Run Scheme Programs"
+X			   (load "scheme.lsp") 
+X			   (load "account.scm"))
+X   ("Convert to Lexical Scoping Rules"
+X			   (load "lexical.lsp")) 
+X   ("Object-Oriented Finite State Machine" 
+X			   (load "oops.lsp") 
+X			   (load "fsmoo.lsp"))
+X   ("Search source code for functions with 3 arguments." 
+X		(load "grep.lsp") 
+X		(grep	'(defun * (* * *) *)
+X				'(lambda (tok) (print (cadr tok))
+X						(prin1 (caddr tok))
+X						(terpri)))))
+X
+X(defmenu lproc
+X	 ("Tell the time"  (load "qtime.lsp") (english-time))
+X	 ("Anagrams" (load "anag.lsp") (find-anag))
+X	("Find a route in a network. " (load "search.lsp"))
+X	("Place Queens on a Chess Board" (load "queen.lsp") (queen 4))
+X   ("Sort some random numbers" 
+X				  (load "sort.lsp")
+X                  (sort (gen-ran-list 20))))
+X
+X(defmenu graphics
+X   ("Line Drawing" (evrubber))
+X   ("Selecting with the Mouse" (evhit))
+X   ("Dragging with the Mouse" (evfollow))
+X   ("Tracing Mouse & MIDI events" (evprint))
+X   ("The Clock" (load "clock.lsp") (clock 1000))
+X   ("Draw the Dragon Curve" (drawd))
+X   ("Draw the C Curve" (drawc))
+X   ("Graph Editor" (load "gui.lsp"))
+X   ("3D Perspective" (load "view.lsp"))
+X   ("Chaos: Bifurcation" (load "chaos.lsp"))
+X   ("Draw random lines." (load "fgtest.lsp")(fgtest 1000))
+X   ("Flight Simulator" (load "fsim.lsp")))
+X
+X(defmenu musicals
+X   ("Musical Fractals" (load "fra.lsp")
+X               (princ* "brownian motion notes" CR)
+X               (princ* "Press RETURN to continue" CR)
+X               (read-char)
+X               (brownba 50)
+X			   (princ* "i/f noise generated notes" CR)
+X               (ioverf 50)))
+X
+X(defmenu regression
+X   ("Run a Benchmark" (load "benchmar.lsp"))
+X   ("Maths Functions" (load "mathtest.lsp")))
+X
+X(defmenu math-demos
+X   ("Reverse-Polish Calculator" (load "calc.lsp")(calc))
+X   ("Very Large Numbers" (load "bignum.lsp") (b-power-of-2 100))
+X   ("Test the Random Number Generator" (load "tstrand.lsp"))
+X   ("Differential Equations" (load "circle.lsp")(r)))
+X
+X(menu top)
+X(princ* "; Type (exit) to leave RefLisp" CR)
+X
+END_OF_FILE
+if test 3001 -ne `wc -c <'demos.lsp'`; then
+    echo shar: \"'demos.lsp'\" unpacked with wrong size!
+fi
+# end of 'demos.lsp'
+fi
+if test -f 'fgtest.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'fgtest.lsp'\"
+else
+echo shar: Extracting \"'fgtest.lsp'\" \(198 characters\)
+sed "s/^X//" >'fgtest.lsp' <<'END_OF_FILE'
+X(defun fgtest (i)
+X	(setq screen (GraphOpen))
+X	(setq h (cdr screen))
+X	(setq w (car screen))
+X	(do-while (> i 0)
+X		(line (random w)(random h)(random w)(random h))
+X		(setq i (- i 1))
+X	)
+X	(GraphClose)
+X)
+END_OF_FILE
+if test 198 -ne `wc -c <'fgtest.lsp'`; then
+    echo shar: \"'fgtest.lsp'\" unpacked with wrong size!
+fi
+# end of 'fgtest.lsp'
+fi
+if test -f 'mathtest.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'mathtest.lsp'\"
+else
+echo shar: Extracting \"'mathtest.lsp'\" \(164 characters\)
+sed "s/^X//" >'mathtest.lsp' <<'END_OF_FILE'
+X(dump 1)
+X1.0
+X-1.2
+X1.9e4
+X1.7e-6
+X(* 8.4 -1.2e-8)
+X; On logs
+X"Logarithms"
+X(log10 100) 2.0
+X(exp (log 23)) 23.0
+X
+X"e equals " (exp 1)
+X; (rem 1 0) ; should barf !
+X(dump 0)
+END_OF_FILE
+if test 164 -ne `wc -c <'mathtest.lsp'`; then
+    echo shar: \"'mathtest.lsp'\" unpacked with wrong size!
+fi
+# end of 'mathtest.lsp'
+fi
+if test -f 'test.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'test.lsp'\"
+else
+echo shar: Extracting \"'test.lsp'\" \(3715 characters\)
+sed "s/^X//" >'test.lsp' <<'END_OF_FILE'
+X; Test Suite
+X;
+X(setq ATARI_ST t)
+X; play with file reading
+X(defun type (file)
+X   (print (setq fd (open file )))
+X   (do-while (null (equal (setq ch (read-char fd)) *eof*))
+X      (write-char ch)
+X      (cond ((equal ch 10)(force-output))(t t) ))
+X   (close fd)
+X)
+X(progn
+X   (princ "view source code? ")(princ CR)
+X   (cond
+X      ((equal (read) 'y) (type "test.lsp"))
+X      (t t)
+X   )
+X)
+X;
+X; miscellany
+X;
+X(equal (member 'c '(a b c d)) '(c d))
+X(cond ((equal (last '(a s d f g h the_end)) 'the_end) t) 
+X   (t '(last failed)))
+X
+X
+X; Function which draws random lines on the screen
+X; i - number of lines to draw.
+X;
+X(defun lines (i)
+X   (GraphOpen)
+X   (do-while (> i 0)
+X       (line (random 20000)(random 10000) (random 20000)  (random 10000) )
+X   (setq i (- i 1)) 
+X   )
+X   (GraphClose)
+X)
+X(cond (ATARI_ST (lines 100))(t "no lines"))
+X;
+X; function which constructs MIDI notes from a simple list of
+X; ( (note# length) ....)
+X;
+X(defun melod (l)
+X   (setq return ())
+X   (do-while l
+X      (setq return
+X          (cons (list 0 
+X               (car(car l)) 
+X               63 
+X               (eval(car(cdr(car l)))) 
+X            )
+X          return)
+X      )
+X      (setq l (cdr l))
+X   )
+X   (reverse return)
+X)
+X(setq q 2)    ; long note
+X(setq c 1)   ; short note
+X(setq queen '((60 q )(60 q)(62 q)(59 3)(60 c)(62 c))) ; God save the queen !
+X(defun gsq ()
+X   (PlayTune (melod queen))
+X)
+X"Music 1."
+X(cond (ATARI_ST (gsq))(t "no music"))
+X"Music 2."
+X(defun tune (l)
+X   (cond
+X      ((null l) t)
+X      (t (PlayNote 0 (car l) 63 1)
+X         (tune (cdr l))
+X      )
+X   )
+X)
+X
+X; function to print a list one per line.
+X(defun printl (list)
+X   (do-while list
+X      (princ (car list))
+X	  ;(princ " ")(princ (ccr (car list)))
+X      (princ CR)
+X      (setq list (cdr list))
+X   )
+X)
+X; Function to find out the maximum calling depth
+X; (depth 0) will crash eventually
+X(defun depth (x) 
+X    
+X   (princ x)(princ CR)(depth (+ 1 x))
+X)
+X(defun lminus (a b)
+X   (cond
+X      ((null a) nil)
+X      (t (cons (- (car a) (car b)) 
+X             (lminus (cdr a) (cdr b))
+X         )
+X      )
+X   )
+X)
+X; Good old towers of Hanoi
+X;
+X; Usage:
+X;	  (hanoi <n>)
+X;		  <n> - an integer the number of discs
+X
+X(defun hanoi(n)
+X   (setq xcur 0)
+X   (setq ycur (* (/ xcur 640) 10))
+X   ;(GraphOpen)
+X     ( transfer 60 65 70 n )
+X   ;(GraphClose)
+X)
+X
+X(defun print-move ( from to )
+X(cond
+X   (ATARI_ST
+X	  (PlayNote 0 from 63 1) ; play it
+X      (PlayNote 0 to 63 1)
+X	  (line xcur (+ ycur (* from 2)) (+ xcur 10) (+ ycur (* to 2))); draw it
+X      (setq xcur (+ xcur 15))
+X      (setq ycur (* (/ xcur 640) 20))
+X   )
+X   (t   
+X   ; old printing version:
+X   ;
+X      (princ '(Move Disk From ))
+X      (princ from)
+X      (princ 'to)
+X      (princ to)
+X      (princ CR)
+X   )
+X)
+X)
+X
+X
+X(defun transfer ( from to via n )
+X  (cond ((equal n 1) (print-move from to ))
+X   (t (transfer from via to (- n 1))
+X      (print-move from to)
+X      (transfer via to from (- n 1)))))
+X
+X(setq propt 0)
+X(put 'propt 'age 67)
+X(plist 'propt)
+X; play about with cix
+X(defun time (i) (setq result nil)
+X         (putstr 1 "time\n")
+X         (delay 10)
+X         (do-while (> i 0)
+X            
+X            (cons (getstr 1 10) result)
+X            
+X            (setq i (- i 1)) 
+X         )
+X         result
+X)
+X(load "expand.lsp")
+X; test function closure via re-write
+X(defun twice (p x) (p (p x)))
+X(setq x 3)
+X(cond ((equal 
+X      (twice (expand '(lambda (y) (* x y)) '(y)) 2)
+X      18)
+X         (princ "expand") (princ " 18 ok\n")
+X   )
+X   (t (princ "expand") (princ "not ok\n"))
+X)
+X(df function (fn)
+X   (setq form (eval fn))
+X   (expand form (cons fn (car(cdr form))))
+X)
+X; see if expand makes things faster?
+X (perf (hanoi 5))
+X(setq transfer (expand transfer '( transfer from to via n )))
+X(setq hanoi (expand hanoi '( hanoi xcur ycur n transfer )))
+X (perf (hanoi 5))
+END_OF_FILE
+if test 3715 -ne `wc -c <'test.lsp'`; then
+    echo shar: \"'test.lsp'\" unpacked with wrong size!
+fi
+# end of 'test.lsp'
+fi
+if test -f 'bignum.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'bignum.lsp'\"
+else
+echo shar: Extracting \"'bignum.lsp'\" \(1858 characters\)
+sed "s/^X//" >'bignum.lsp' <<'END_OF_FILE'
+X'(see chapter (23 . 4) in Norman and Cattell)
+X
+X'(generalized to allow arbitrary power of 10 as base)
+X
+X'(to test try (b-power-of-2 12))
+X
+X
+X(setq radix 100)
+X(defun // (a b) (floor (/ a b))) ; keep everything integer
+X
+X
+X(defun b-print (n) (cond
+X   ((numberp n) (princ n))
+X   (t (b-print (cdr n))
+X             (b-digits (car n) radix))))
+X
+X(defun b-digits (n r) (cond
+X   ((equal r 10) (princ n))
+X   (t (b-digits (// n 10) (// r 10))
+X      (princ (rem n 10)))))
+X
+X(defun b-plus (a b) (cond
+X    ((numberp a) (s-plus-b a b))
+X    ((numberp b) (s-plus-b b a))
+X    (t (join-digit
+X         (+ (car a) (car b))
+X         (b-plus (cdr a) (cdr b))))))
+X
+X(defun b-number (n) (cond
+X   ((< n radix) n)
+X    (t (cons (rem n radix)
+X             (b-number (// n radix))))))
+X
+X(defun s-plus-b (a b) (cond
+X   ((numberp b) (b-number (+ a b)))
+X   (t (join-digit
+X         (+ a (car b))
+X         (cdr b)))))
+X
+X(defun join-digit (n a) (cond
+X   ((< n radix) (cons n a))
+X   (t (cons
+X         (rem n radix)
+X         (s-plus-b (// n radix) a)))))
+X
+X
+X(defun b-times (a b) (cond
+X   ((numberp a) (s-times-b a b))
+X   ((numberp b) (s-times-b b a))
+X   (t (b-plus
+X         (s-times-b (car b) a)
+X         (cons 0 (b-times a (cdr b)))))))
+X
+X(defun s-times-b (a b) (cond
+X   ((numberp b) (b-number (* a b)))
+X   (t (join-digit
+X         (* a (car b))
+X         (s-times-b a (cdr b))))))
+X
+X(defun b-power-of-2 (n)
+X   (terpri)
+X   (princ*  "2 to the power " n " is: ")
+X   (b-print (b-expt 2 n))
+X   (terpri))
+X
+X(defun b-expt (a n) (cond
+X   ((< n 1) 1)
+X   (t (_big-expt
+X          a
+X         (b-expt a (// n 2))
+X         (rem n 2)))))
+X
+X(defun _big-expt (a apower nrem)
+X   (cond
+X      ((zerop nrem) (b-times apower apower))
+X      (t (b-times
+X             (b-times a apower)
+X             apower))))
+X
+X(setq bignum '(s-plus-b join-digit b-times b-print 
+X	b-digits // b-plus b-number s-times-b b-power-of-2 b-expt _big-expt))
+X
+END_OF_FILE
+if test 1858 -ne `wc -c <'bignum.lsp'`; then
+    echo shar: \"'bignum.lsp'\" unpacked with wrong size!
+fi
+# end of 'bignum.lsp'
+fi
+if test -f 'dict.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'dict.lsp'\"
+else
+echo shar: Extracting \"'dict.lsp'\" \(77 characters\)
+sed "s/^X//" >'dict.lsp' <<'END_OF_FILE'
+X(l i p)
+X(l i p s)
+X(s l i p)
+X(b a n a n a)
+X(s i p)
+X(p i )
+X(p i l s)
+X(l i s p)
+END_OF_FILE
+if test 77 -ne `wc -c <'dict.lsp'`; then
+    echo shar: \"'dict.lsp'\" unpacked with wrong size!
+fi
+# end of 'dict.lsp'
+fi
+if test -f 'fra.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'fra.lsp'\"
+else
+echo shar: Extracting \"'fra.lsp'\" \(3002 characters\)
+sed "s/^X//" >'fra.lsp' <<'END_OF_FILE'
+X;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+X;
+X;	B Y T E    June 1986
+X;
+X;	MUSICAL FRACTALS by Charles Dodge and Cutis R. Bahn
+X;
+X;
+X;
+X;
+X(defun not (pred)
+X	(null pred))
+X(defun blank() (princ '\ ))
+X(defun terpri () (princ '\
+X))
+X;
+X;	Translation of WHITE.BAS into bLISP:
+X;	"a program to generate white noise" (sic)
+X;
+X(defun white (n)		; n -- number of notes to play
+X	(setq out ()) 	; start with an empty tune
+X	; Build a tune in a list:
+X	(do-while (not (equal n 0))
+X		(setq out (cons 
+X			(list 0 		; Channel
+X			(+ (random 25) 45)	; Note number
+X			 64 			; Velocity
+X			(random 4))		; Note Length
+X			out)			;
+X		)
+X		(setq n (- n 1)) 	; decrement the number of notes
+X	)
+X	; Now play the tune
+X	(PlayTune out)
+X)
+X;
+X;
+X;	Translation of BROWN.BAS into bLISP:
+X;	"a program to generate Brownian noise" (sic)
+X;
+X;
+X(defun brownbas (number)
+X	(setq out ())
+X	(setq n 6000)				; N=60
+X	(setq l 200)				; L=2
+X	(setq x 1)
+X	(do-while (< x (+ number 1))		; FOR x = 1 TO 25
+X							; REM R varies the range
+X		(setq d (brownian 300))			; GOSUB 130
+X		(setq n (+ n d))			; N=N+D
+X		(cond 
+X			; IF N>120 or N<25 THEN N=N-2*D
+X			((or (> n 12000) (< n 2500))
+X				 (setq n (- n (* d 2)))
+X			)
+X			(t t)
+X		)
+X							; R=.667
+X		(setq d (brownian 66))			; GOSUB 130
+X		(setq l (+ l d))			; l = l + d
+X		(cond 
+X			; IF L<1 or L>4 THEN L=L-2*D
+X			((or (> l 400) (< l 100))
+X				(setq l (- l (* d 2)))
+X			)
+X			(t t)
+X		)
+X		; _PHRASE(1,"L=L;",N=N;")
+X		; But build a list to be played later
+X		(setq out (cons 
+X			(list 0 (/ n 100) 64 (/ l 100))
+X					out)
+X		)
+X		(setq x (+ x 1))	; NEXT X
+X	)
+X	(PlayTune out)
+X)
+X; REM BROWNIAN ROUTINE
+X(defun brownian (range)
+X	(setq s 0)					; S=0 ; REM S is Sum
+X	(setq I 1)					; FOR I = 1 to 12
+X	(do-while (< I 13)
+X		(setq s (+ s (random 100)))		; S = S+RND(1)
+X		(setq I (+ I 1))			; NEXT I
+X	)
+X	; D = INT(R*(S-6))
+X	(/ (* range (- s 600)) 100)
+X	; RETURN
+X)
+X;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+X;
+X;	IOVERF.BAS
+X;
+X;	Listing 3: a program to generate 1/f noise.
+X;
+X(defun ioverf (number)
+X	(setq out ())
+X	(setq N 0)
+X	(setq L 0)
+X	(setq LL 800)
+X	(setq LN 1600)
+X	(setq S 6000)
+X	(setq x 1)
+X	(do-while (< x (+ number 1))		; FOR x = 1 TO 25
+X		(setq D N)			; D = N
+X		(sub130)			; GOSUB 130
+X		(setq N D)			; N = D
+X		(setq SN (+ N S))	; SN = N + S
+X		(setq D L)			; D = L
+X		(sub130)			; GOSUB 130
+X		(setq L D)			; L = D
+X		(setq SL (+ L 100))		; SL = L+1
+X		; _PHRASE(1,"L=SL;",N=SN;")
+X		; But build a list to be played later
+X		(setq out (cons 
+X			(list 0 (/ SN 100) 64 (/ SL 100))
+X					out)
+X		)
+X		(setq x (+ x 1))	; NEXT X
+X	)
+X	(PlayTune out)
+X)
+X
+X;130 REM 1/f Routine
+X;135 REM L is last value. K is 1/2 poss
+X;136 REM values. PROBIT=1/K
+X;
+X(defun sub130 ()
+X	(setq L D)
+X	(setq D 0)
+X	(setq K 1600)
+X	(setq PROBIT 4)	
+X	(sub150)
+X)
+X
+X(defun sub150 ()
+X	(setq J (/ L K))
+X	(cond ((equal J 1) (setq L (- L K))) (t t))
+X	(setq U (random 100))
+X	(cond ((< U PROBIT) (setq J (- 1 J))) (t t))
+X	(setq D (+ D (* J K) ))
+X	(setq K (/ K 2))
+X	(setq PROHIBIT (* PROBIT 2))
+X	(cond ((> K 100) (sub150)) (t t))
+X)
+END_OF_FILE
+if test 3002 -ne `wc -c <'fra.lsp'`; then
+    echo shar: \"'fra.lsp'\" unpacked with wrong size!
+fi
+# end of 'fra.lsp'
+fi
+if test -f 'menu.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'menu.lsp'\"
+else
+echo shar: Extracting \"'menu.lsp'\" \(740 characters\)
+sed "s/^X//" >'menu.lsp' <<'END_OF_FILE'
+X(setq TAB "\t")
+X(defun terpri () (princ CR))
+X
+X(setq finished nil)
+X
+X(defmacro defmenu (name &rest items)
+X	`(setq ,name '(
+X			("Exit" (setq finished t)) 
+X			("Return" (setq backup t))
+X			,@items)))
+X
+X(defun menu (tree &optional backup)
+X	 (do-while (and (not finished) (not backup))
+X          (pmenu tree)
+X          (setq response (read))
+X		  (princ* "selected" TAB response CR)
+X          (when (and (numberp response) (< response (length tree)))
+X						(eval `(progn ,@(cdr (nth response tree)))))))
+X
+X(defun pmenu (tree)
+X   (terpri)
+X   (pmenuaux 0 tree)
+X   (princ* CR "Option? "))
+X
+X(defun pmenuaux (choice tree)
+X      (unless (null tree) 
+X		 (princ* TAB choice TAB (caar tree))
+X         (terpri)
+X         (pmenuaux (add1 choice) (cdr tree))))
+X
+END_OF_FILE
+if test 740 -ne `wc -c <'menu.lsp'`; then
+    echo shar: \"'menu.lsp'\" unpacked with wrong size!
+fi
+# end of 'menu.lsp'
+fi
+if test -f 'times.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'times.lsp'\"
+else
+echo shar: Extracting \"'times.lsp'\" \(1519 characters\)
+sed "s/^X//" >'times.lsp' <<'END_OF_FILE'
+X;;;;
+X;;;; File contains functions to manipulate time.
+X;;;; 
+X;;;; Reminder: (get-decoded-time) returns (ss mm hh dd mm yy ..)
+X;;;;
+X;;
+X;; Function to convert decoded-time to seconds since midnight
+X;;
+X(defun time:convert (dec-time)
+X	(+  (nth 0 dec-time)					; seconds
+X		(* 60 (+ (nth 1 dec-time)			; minutes
+X				(* 60 (nth 2 dec-time))))))	; hours
+X;;
+X;; Function to get number of seconds since midnight.
+X;; 
+X;;
+X(defun time:get-secs ()
+X	 (time:convert (get-decoded-time))) ; fetch the time now, convert
+X;;
+X;; Function delays for specified time, less than a day.
+X;; Does NOT work near midnight! Fixed modulo version needed...
+X;;
+X(defun time:Delay (secs)
+X	 (time:wait  (+ (time:get-secs) secs)))			; timeout time
+X
+X;;;
+X;;; Wait until the appointed time (secs since midnight).
+X;;;
+X(defun time:wait (end)
+X	(do-while (< (time:get-secs) end) t)) ; do nothing loop
+X
+X;;;
+X;;; Wait until a particular date, time
+X;;; INPUT: time in decoded-time format.
+X;;;
+X(defun time:alarm (bing)
+X	(do-while (not(equal bing (get-decoded-time))) t))	; do nothing loop
+X
+X
+X;;;
+X;;; Function to measure the time taken to execute something.
+X;;;
+X(defmacro time:perf (&rest forms)
+X   `(progn
+X		(setq start (get-decoded-time))
+X		,@forms
+X		(-  (time:convert (get-decoded-time)) (time:convert start))))
+X
+X;;;
+X;;; Function to print out the time in Digital form
+X;;;
+X(defun time:print ()
+X	(time:print-aux (get-decoded-time)))
+X
+X(defun time:print-aux (time:now)
+X	(princ (nth 2 time:now))
+X	(princ ":")
+X	(princ (nth 1 time:now))
+X	(princ ":")
+X	(princ (nth 0 time:now)) )
+END_OF_FILE
+if test 1519 -ne `wc -c <'times.lsp'`; then
+    echo shar: \"'times.lsp'\" unpacked with wrong size!
+fi
+# end of 'times.lsp'
+fi
+if test -f 'chaos.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'chaos.lsp'\"
+else
+echo shar: Extracting \"'chaos.lsp'\" \(695 characters\)
+sed "s/^X//" >'chaos.lsp' <<'END_OF_FILE'
+X;;;;
+X;;;; The Fiegenbaum Equation
+X;;;; The Logistic Difference Equation
+X;;;;
+X(defun ra (start nu det)
+X;   (GraphOpen)
+X   (setq r (+ start 1.0))
+X   (setq lr 0.8) (setq ly 0.0)
+X   (do-while (< r 4.0)
+X      (setq m  nu)
+X      (setq x (/ (random 8000) 10000.0))
+X      (do-while (> m 0.0)
+X         (setq y (* r x (- 1.0 x)))
+X         (setq x y)
+X         (setq m (- m 1))
+X      )
+X	  ; (princ r y CR)
+X      (point (- r (+ start 1.0)) (+ 0.5 y))
+X      (setq lr r) (setq ly y)
+X      (setq r (+ r det))
+X   )
+X;   (GraphClose)
+X)
+X(defun point (px py)
+X   (line (+ 1 (* 2000 px))
+X         (+ 1 (* 2000 py))
+X         (* px 2000)
+X         (* py 2000)
+X   )
+X)
+X;; Run it
+X(GraphOpen)
+X(ra 1.5 50 0.005)
+X(GraphClose)
+X
+END_OF_FILE
+if test 695 -ne `wc -c <'chaos.lsp'`; then
+    echo shar: \"'chaos.lsp'\" unpacked with wrong size!
+fi
+# end of 'chaos.lsp'
+fi
+if test -f 'doctor.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'doctor.lsp'\"
+else
+echo shar: Extracting \"'doctor.lsp'\" \(1609 characters\)
+sed "s/^X//" >'doctor.lsp' <<'END_OF_FILE'
+X;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+X;
+X;	DOCTOR
+X;
+X;	Example of pattern matching taken from the book:
+X;			"LISP" Second Edition, by Patrick Henry Winston & 
+X;			Berthold Klaus Paul Horn, Addison-Wesley, 1984
+X;			Problem 17-4 (page 266).
+X;
+X;	RESTRICT is not implemented.
+X;
+X;	See also: "ELIZA - A Computer Program For the Study of Natural Language
+X;			Communication Between Man and Machine", Joseph Weizenbaum,
+X;			Communications of the ACM, Vol. 9, No. 1, January 1966
+X;
+X;
+X;
+X
+X(defun doctor ()
+X	(setq mother nil)
+X	(setq not-finished t)
+X	(princ "Type in a sentence enclosed in brackets \(\) ")
+X	(terpri)
+X	(do-while  not-finished
+X		(setq s (read))
+X		(cond
+X			((setq a-list (match '(+ worried (+ L)) s nil))
+X				(print (append '(how long have you been worried)
+X					(match-value 'L a-list))))
+X
+X			((setq a-list (match '(i have (+ L)) s nil))
+X				(print (append '(how long have you had)
+X					(match-value 'L a-list))))
+X
+X			((match '(+ mother +) s nil)
+X				(setq mother t)
+X				(print '(tell me more about your family)))
+X
+X
+X			((match '(+ computers +) s nil)
+X				(print '(do machines frighten you )))
+X
+X			((or (match '(no) s nil)
+X				(match '(yes) s nil))
+X				(print '(please do not be so short with me)))
+X
+X			((match '(+ (restrict * badwordp) +) s nil)
+X				(print '(please do not use words like that)))
+X
+X			(mother (setq mother nil)	
+X				(print '(earlier\, you spoke of your mother)))
+X
+X			(t (print '(I am sorry \, our time is up))
+X				(print 'goodbye)
+X				(setq not-finished nil) ) )	 
+X		(terpri)) )
+X
+X(defun badwordp (word) (member word '(bollocks damm blast)))
+X(load "patter.lsp")
+X(doctor)
+END_OF_FILE
+if test 1609 -ne `wc -c <'doctor.lsp'`; then
+    echo shar: \"'doctor.lsp'\" unpacked with wrong size!
+fi
+# end of 'doctor.lsp'
+fi
+if test -f 'fsmoo.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'fsmoo.lsp'\"
+else
+echo shar: Extracting \"'fsmoo.lsp'\" \(3029 characters\)
+sed "s/^X//" >'fsmoo.lsp' <<'END_OF_FILE'
+X;;;;-----------------------------------------------------
+X;;;;   OBJECT ORIENTED Finite State Machine
+X;;;;
+X;;;; Define the basic class for FSMs
+X;;;;
+X
+X(defnew 'fsm 'classes 
+X   ; Inheritable Slots
+X   '(
+X   (state nil)   ; State of the FSM
+X   )   
+X   ; Non-Inherited Slots (These are Methods)
+X   '(
+X   ;   Basic method to process incoming events
+X   (handle-event 
+X          (lambda (this event) 
+X(princ*
+X  "handle-event: " "FSM= " this 
+X   " state= " (get this 'state) 
+X   " event= " event)
+X   (cond ((null (get this 'state)) ; check state
+X      (princ "handle-event nil state" ))
+X      (t 
+X	  ;  The next statements:
+X	  ;   Invoke the method for this event in the
+X	  ;   object for the current state.  Set the FSM state
+X	  ;   to the return value of the dispatch.
+X         (putprop this 
+X            (dispatch    
+X               event
+X               (get this 'state)  
+X               (list (get this 'state) event)
+X            ) 
+X            'state
+X         )
+X		 (princ*
+X            "handle-event:" " Changing " "state " "to "
+X            (get this 'state) CR CR)
+X      )
+X   )
+X)
+X    )
+X   )
+X)
+X;
+X; Generic function to send an event to an FSM
+X(defun ev (fsm event)
+X   (dispatch 'handle-event fsm (list fsm event)))
+X;
+X;------------------------------------------------------------------------------
+X; EXAMPLE Finite State Machine.:
+X;A PARSER FOR COLLECTING QUOTED STRINGS
+X;
+X
+X;  First define the FSM
+X(defnew 'qp 'fsm    ; <name> followed by its <class>
+X   ; Inheritable slots
+X   '(
+X   (state qp-not-in)
+X   )
+X   ; Non-inheritable slots which are usually methods.
+X   nil; No special methods for this FSM
+X)
+X
+X
+X; Now define the default actions for any given state
+X;
+X(defnew 'qp-state 'classes nil '(
+X   ;
+X   (char          ; This is a method for the CHAR event
+X		(lambda (i j)   'qp-not-in))   ; No actions, newstate only
+X
+X   (aquote          ; This is a method for the AQUOTE event
+X		(lambda (i j)  'qp-not-in)) ) )
+X
+X; Now fill out the states, each one in turn.
+X;
+X; NB. Each of these declarations inherits its behaviour from the above
+X;   so these event handlers replace the inherited behaviour.
+X;
+X;  The FSM is in this state when searching for a leading quote.
+X;	ie it is not-in the quoted region.
+X;
+X(defnew 'qp-not-in 'qp-state nil
+X   '(
+X   (aquote          ; when a quote character is received...
+X(lambda (i j) 
+X   (print* "Action:" " reset " "save " "buffer" ) 
+X   'qp-in))   ; New State
+X   )
+X)
+X;  The FSM is in this state when accumulating the quoted string.
+X;	ie it is in the quoted region.
+X;
+X(defnew 'qp-in 'qp-state nil
+X   '(
+X   (char ; event = character
+X		(lambda (i j) 
+X			(print* "Action: " "save " "char " "in " "buffer, " "increment" ) 
+X			'qp-in)   ; New state
+X   )
+X   (aquote 
+X	(lambda (i j) 
+X		(print* "Action: " "write " "out " "collected " "string" ) 
+X   		'qp-not-in)   ; New State
+X   ) ) )
+X;------------------------------------------------------------------------------
+X; Test sequence   A"A"A"
+X(defun r ()
+X	(ev 'qp 'char)     
+X	(ev 'qp 'aquote)
+X	(ev 'qp 'char)
+X	(ev 'qp 'aquote)
+X	(ev 'qp 'char)
+X	(ev 'qp 'aquote))
+X(r)
+END_OF_FILE
+if test 3029 -ne `wc -c <'fsmoo.lsp'`; then
+    echo shar: \"'fsmoo.lsp'\" unpacked with wrong size!
+fi
+# end of 'fsmoo.lsp'
+fi
+if test -f 'oops.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'oops.lsp'\"
+else
+echo shar: Extracting \"'oops.lsp'\" \(4826 characters\)
+sed "s/^X//" >'oops.lsp' <<'END_OF_FILE'
+X(defun putprop (sym val prop ) (put sym prop val))
+X;----------------------------------------------------------------------------
+X;    OBJECT ORIENTED INTERPRETER
+X;
+X;   AUTHOR: BILL BIRCH         DATE: 10 APRIL 1990
+X;----------------------------------------------------------------------------
+X;
+X;   SERVICES OFFERED BY THE INTERPRETER
+X;
+X;   (defnew <name> <parent-classes> <slots> <methods>)
+X;
+X;   (dispatch <method> <object> <args>)
+X;
+X;   (self-dispatch <method> <object>)
+X;
+X; This OO extension treats LISP symbols as objects. 
+X; There is no distinction made between objects and 
+X; classes, objects inherit methods and slots from other objects.  Methods and
+X; variables of an object are stored in the symbol's property list; the 
+X; symbol's value is not used. Objects are created with the function (defnew)
+X; which invokes the 'new method:
+X;   (defnew <object name> <parent object> 
+X;      '((<variable-name> <initial-values>) ... )
+X;      '((<method-name> <method-code>)  ....  )) 
+X;
+X; More correctly the only difference between variables and methods is that 
+X; variables are inherited by  any child objects, whereas methods are not 
+X; inherited.
+X; 
+X;Thus 
+X;   (defnew 'fred 'person '( (age 27)) '((print  pprint)))
+X;
+X; changes the symbol 'fred into an object of class person which uses the 
+X; pretty printer and has an age of 27.  All the other slots and methods are 
+X; inherited from 'person and its super-objects.  Psychologically it does help
+X; to think of some objects as being classes, and to organise slots into data 
+X; storage and executable types. Therefore for our purposes a class is simply 
+X; an object that is used as a parent of many objects; and a method is a non-
+X; inheritable slot.
+X;
+X; Methods are invoked by calling the (dispatch) function:
+X;   (dispatch <method> <object> <arguments>)
+X;
+X; for example:
+X;   (dispatch 'print 'hello '(hello))
+X;
+X; causes the 'hello object to print itself. (dispatch) simply searches for a 
+X; method to execute in the current object and all of its parents. 
+X; The top level object is called 'classes and has default methods for 'new 
+X; 'print 'display and 'sets.   Above that is an object is called 'root, 
+X; which has no purpose but to provoke error messages. 
+X
+X;------------------------------------------------------------------------------
+X;
+X;   CORE FUNCTIONS OF THE INTERPRETER
+X;
+X; Function to execute a method, searching the classes
+X(defun dispatch (method object args)
+X	(apply  (slot object method) args)
+X)
+X; Function to dispatch, but with no arguments, pass self to method
+X(defun self-dispatch (method object)
+X   (dispatch method object (list object))
+X)
+X; Function to inherit slots from all parent-classes
+X(defun inherit (sym class)
+X   (cond
+X      ((null class) t)
+X      ((null (get class 'slots)) t)
+X      (t   
+X         (inherit sym (get class 'class))
+X         (putprs sym (get class 'slots))
+X      )
+X   )
+X)
+X
+X; Function to initialise a list of properties
+X(defun putprs (ident proplist)
+X   (cond
+X      ((null proplist) t)
+X      (t    
+X         (putprop ident  (cadar proplist)(caar proplist))
+X         (putprs ident (cdr proplist))
+X      )
+X   )
+X)
+X; General purpose Function to set up a new object
+X(defun newobj (symbol class slots methods)
+X         (inherit symbol class)         ; pick up slots from parents
+X         (putprop symbol class 'class)   ; stash class
+X         (putprop symbol slots 'slots)   ; save this object's own slots
+X         (putprs symbol slots)      ; stash slots (overwrites    
+X                              ; parents if included)
+X         (putprs symbol methods)   ; stash methods
+X   symbol                        ; return value
+X)
+X
+X;------------------------------------------------------------------------
+X;   GENERIC FUNCTIONS AND METHODS 
+X;
+X; Shorthand Function to define a new object using the 'new method
+X(defun defnew (name parent-classes slots methods)
+X      (dispatch 'new parent-classes 
+X            (list name parent-classes slots methods)
+X      )
+X)
+X;  *BROKEN* Function to create an instance of another object
+X; instances do not have proper names
+X;(defun instance (parent-class slots methods)
+X;   (defnew (gensym) parent-class slots methods))
+X;
+X; GENERIC UTILITY FUNCTIONS
+X(defun op (x) (self-dispatch 'print x))   ; print method
+X(defun od (x) (self-dispatch 'display x))   ; dump out all the properties
+X;------------------------------------------------------------------------
+X;   root of the classes tree 
+X;
+X(newobj 'classes 'root nil          ; no slots
+X
+X   '(                ; methods
+X   ; print the value of the symbol
+X   (print (lambda (s) (pprint (eval s))))
+X
+X   ; method to set up new objects
+X   (new    newobj)
+X
+X   ; method to display all the slots of the object
+X   (display (lambda (x) (pprint (symbol-plist x))))
+X
+X   ; method to set the value of a slot
+X   (sets (lambda (this value slot) (putprop this value slot)))
+X))
+END_OF_FILE
+if test 4826 -ne `wc -c <'oops.lsp'`; then
+    echo shar: \"'oops.lsp'\" unpacked with wrong size!
+fi
+# end of 'oops.lsp'
+fi
+if test -f 'tstrand.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'tstrand.lsp'\"
+else
+echo shar: Extracting \"'tstrand.lsp'\" \(410 characters\)
+sed "s/^X//" >'tstrand.lsp' <<'END_OF_FILE'
+X;
+X;	23 Sept 1990
+X;
+X;	Dumb program to test the ablity of the random number generator to
+X;	supply odd/even numbers in an equal ratio.
+X;
+X((lambda (range balance n)
+X(do-while (> n 1)
+X	 (princ* "random number: " (setq r (random range)) " ")
+X     (setq balance (cond 
+X          ((zerop (rem r 2))(+ balance 1))
+X     (t (- balance 1))
+X     ))
+X	 (princ* "balance " balance "\r")
+X     (setq n (- n 1))
+X)
+X)
+X256 0 100
+X)
+X
+END_OF_FILE
+if test 410 -ne `wc -c <'tstrand.lsp'`; then
+    echo shar: \"'tstrand.lsp'\" unpacked with wrong size!
+fi
+# end of 'tstrand.lsp'
+fi
+if test -f 'circle.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'circle.lsp'\"
+else
+echo shar: Extracting \"'circle.lsp'\" \(799 characters\)
+sed "s/^X//" >'circle.lsp' <<'END_OF_FILE'
+X;	Function to draw a circle without using trigonometric
+X;	functions
+X;
+X;	r - radius,  n - number of iterations,
+X;	cx, cy coordinates of center
+X;
+X(setq pi 3.14159)
+X(defun circle (radius n cx cy)
+X	((lambda (da x y xd yd) ; delta a, x, y, x-dash y-dash
+X		(do-while (not (zerop n))
+X			(setq yd (+ (* da x) y))
+X			(setq xd (- x (* da  yd)))
+X			(line (+ x cx)(+ y cy)(+ xd cx)(+ yd cy))
+X			(setq x xd)
+X			(setq y yd)
+X			(setq n (- n 1)) ) )
+X	(/ (* 2.0 pi)(float n))	; da = 2*pi/n
+X	(* radius 0.707106)(* radius 0.707106) 	; Starting coordinates
+X	0 0			 ) )
+X
+X; function to test the above
+X(defun r ()
+X	
+X	((lambda (n)
+X		(princ (GraphOpen))
+X		(mode 3)
+X		(do-while (> n 3)
+X			(circle 500.0 n 2000 2000)	; draw a circle
+X			(circle 500 n 2000 2000)	; clear
+X			(setq n (- n 50)) )
+X		(GraphClose)
+X	) 180 ))  ; n = 0
+END_OF_FILE
+if test 799 -ne `wc -c <'circle.lsp'`; then
+    echo shar: \"'circle.lsp'\" unpacked with wrong size!
+fi
+# end of 'circle.lsp'
+fi
+if test -f 'drawing.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'drawing.lsp'\"
+else
+echo shar: Extracting \"'drawing.lsp'\" \(2776 characters\)
+sed "s/^X//" >'drawing.lsp' <<'END_OF_FILE'
+X
+X(setq button textxy)
+X(defun cadddr (x)
+X   (car (cdr (cdr (cdr x))))
+X)
+X(defun evprint ()
+X   (GraphOpen)
+X   (do-while (not (equal (car (setq ev (getevent))) *keys*))
+X      (princ ev) 
+X      (princ CR)
+X   )
+X   (GraphClose)
+X)
+X(defun evfollow ()
+X   (setq c 0)
+X   (GraphOpen)
+X   (do-while (not (equal (car (setq ev (getevent))) *keys*))
+X      (cond 
+X		 ((equal (car ev) *move*)
+X            (colour (setq c
+X               (rem (+ c 1) 16)))
+X            (button (caddr ev) (cadddr ev) "."))
+X         (t nil)
+X      ) 
+X   )
+X   (GraphClose)
+X)
+X(defun evrubber ()
+X      (setq posx 0)(setq posy 0)
+X            (setq lastx 0)
+X            (setq lasty 0)
+X   (GraphOpen)
+X   (mode 3)    ; XOR mode
+X	(line lastx lasty posx posy)	; initialise
+X   (do-while (not (equal (car (setq ev (getevent))) *keys*))
+X      (cond 
+X		 ((equal (car ev) *move*)
+X			(line lastx lasty posx posy)    ; undraw the last existing line
+X			(setq posx (caddr ev))          ; get the new position of the line
+X            (setq posy (cadddr ev))
+X			(line  lastx lasty posx posy))  ; draw the new line
+X		 ((equal (car ev) *up*)
+X			(setq lastx posx )              ; save the new coodinates
+X            (setq lasty posy )
+X         )
+X         (t nil)
+X      ) 
+X   )
+X   (GraphClose)
+X)
+X(defun draw:hitp (mx my x1 y1 x2 y2)
+X   (and (> mx x1) 
+X      (< mx x2) 
+X      (> my y1) 
+X      (< my y2)
+X   )
+X)
+X(defun draw:box (x1 y1 x2 y2)
+X   (line x1 y1 x1 y2)
+X   (line x2 y1 x2 y2)
+X   (line x1 y1 x2 y1)
+X   (line x1 y2 x2 y2)
+X)
+X(defun evhit ()
+X   (GraphOpen)
+X   (draw:box 1000 1000 1100 1100)
+X   (do-while (not (equal (car (setq ev (getevent))) *keys*))
+X      (cond 
+X		 ((equal (car ev) *up*)
+X            (cond
+X               ((draw:hitp (caddr ev) (cadddr ev) 1000 1000 1100 1100)
+X                  (button 500 500 "Hit!")
+X                  ; (Delay 12)
+X                  (button 500 500 "    ")
+X               )
+X               (t nil)
+X            )
+X         )
+X         (t nil)
+X      ) 
+X   )
+X   (GraphClose)
+X)
+X
+X(defun evselect ()
+X   (GraphOpen)
+X   (setq extent (button 1000 1000 "printtty"))
+X   (button 5000 1000 (itoa (car extent)) )
+X   (button 7000 1000 (itoa (cdr extent)) )
+X   (do-while (not (equal (car (setq ev (getevent))) *keys*))
+X      (cond 
+X		 ((equal (car ev) *up*)
+X            (cond
+X               ((draw:hitp (caddr ev) (cadddr ev) 
+X                  1000 1000 (car extent)(cdr extent) )
+X                  (button 500 500 "Hit!")(Delay 12)
+X                  (button 500 500 "    ")
+X               )
+X               (t nil)
+X            )
+X         )
+X		 ((equal (car ev) *move*)
+X            (button 5000 1000 (itoa (caddr ev)))
+X            (button 7000 1000 (itoa (cadddr ev)))
+X         )
+X         (t nil)
+X      ) 
+X   )
+X   (GraphClose)
+X
+X)
+X;( to use this try (evrubber) -- line drawings)
+X;(evfollow)
+X;(-- (evprint))
+X;(-- (evhit))
+END_OF_FILE
+if test 2776 -ne `wc -c <'drawing.lsp'`; then
+    echo shar: \"'drawing.lsp'\" unpacked with wrong size!
+fi
+# end of 'drawing.lsp'
+fi
+if test -f 'gc.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'gc.lsp'\"
+else
+echo shar: Extracting \"'gc.lsp'\" \(583 characters\)
+sed "s/^X//" >'gc.lsp' <<'END_OF_FILE'
+X; "Norman & Cattell Page 120"
+X(setq SP " ")
+X(defun printc (&rest x) (princ x)(princ CR))
+X(defun gc (x)
+X   (cond
+X      ((numberp x) (printc 'LDA SP '@ SP x))
+X      ((atom x) (printc 'LDA SP x))
+X      (t (gc (cadr x))
+X         (printc 'PushA)
+X         (gc (caddr x))
+X         (printc 'StoreA SP 'TEMP)
+X         (printc 'PopA)
+X         (printc (get (car x) 'opcode) SP 'TEMP) ) ) )
+X
+X(put '+ 'opcode 'ADC)
+X(put '- 'opcode 'SBC)
+X(put '& 'opcode 'AND)
+X(put '| 'opcode 'ORA)
+X
+X(setq testexpression '(+ (& A B) (- 2 B)))
+X(printc "Compilation of:")
+X(princ testexpression)
+X(gc testexpression)
+X
+END_OF_FILE
+if test 583 -ne `wc -c <'gc.lsp'`; then
+    echo shar: \"'gc.lsp'\" unpacked with wrong size!
+fi
+# end of 'gc.lsp'
+fi
+if test -f 'patter.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'patter.lsp'\"
+else
+echo shar: Extracting \"'patter.lsp'\" \(2789 characters\)
+sed "s/^X//" >'patter.lsp' <<'END_OF_FILE'
+X;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+X;
+X;	Pattern matching routines taken from the book:
+X;	"LISP" Second Edition, by Patrick Henry Winston &
+X;	Berthold Klaus Paul Horn, Addison-Wesley, 1984
+X;	page 259.
+X;
+X;
+X
+X(defun match (p d assignments)
+X	(cond
+X		((and (null p) (null d)) 
+X			(cond ((null assignments) t)
+X				(t assignments) ) )
+X
+X		((or (null p) (null d)) nil)
+X		((or (equal (car p) '*)
+X			(equal (car p) (car d)) ) 
+X			(match (cdr p) (cdr d) assignments))
+X
+X		((equal (car p) '+)
+X			(or (match (cdr p) (cdr d) assignments)
+X				(match p (cdr d) assignments) ) )
+X
+X		((equal (pattern-indicator (car p)) '>)
+X			(match (cdr p) (cdr d)
+X				(shove-gr (pattern-variable (car p))
+X					(car d)
+X					assignments ) ) )
+X
+X		((equal (pattern-indicator (car p)) '<)
+X			(match 
+X				(cons 
+X					(pull-value (pattern-variable (car p)) assignments)
+X					(cdr p))
+X				d
+X				assignments))
+X
+X		((equal (pattern-indicator (car p)) '+)
+X			((lambda (new-assignments)
+X				(or (match (cdr p) (cdr d) new-assignments)
+X					(match p (cdr d) new-assignments) ) )
+X			(shove-pl (pattern-variable (car p)) (car d) assignments) ) )
+X
+X		((and (equal (pattern-indicator (car p))
+X			'restrict)
+X			(equal (restriction-indicator (car p)) '*)
+X			(test (restriction-predicates (car p)) (car d)))
+X		  (match (cdr p) (cdr d) assignments))
+X
+X		(t nil) ) )
+X;;
+X(defun restriction-indicator (pattern-item) (cadr pattern-item))
+X(defun restriction-predicates (pattern-item) (cddr pattern-item))
+X(DEFUN TEST (PREDICATES ARGUMENT)
+X	(COND ((NULL PREDICATES) T)					; All tests T?
+X		((FUNCALL (CAR PREDICATES) ARGUMENT)	; This test T?
+X		 (TEST (CDR PREDICATES) ARGUMENT))
+X		(T NIL)))								; This test NIL?
+X
+X(defun pattern-indicator (l) (cond ((consp l) (car l)) (t l)))
+X(defun pattern-variable (l) (cond ((consp l) (cadr l)) (t l)))
+X(defun shove-gr (var item a-list)
+X	(append a-list (list (list var item)))
+X)
+X(defun match-value (key a-list)
+X	(cadr (assoc key a-list))
+X)
+X(defun pull-value (vari a-list)
+X	(cadr (assoc vari a-list))
+X)
+X(defun shove-pl (var item a-list)
+X	(cond
+X		((null a-list) (list (list var (list item))))
+X		((equal var (caar a-list))
+X			(cons (list var (append (cadar a-list) (list item)))
+X				(cdr a-list)
+X			)
+X		)
+X		(t (cons (car a-list)
+X				(shove-pl var item (cdr a-list)) ) ) )	 )
+X
+X;;;;;;;;;;;;;;;;;;;;;
+X;
+X;	Test cases from the book.
+X;
+X;'(match '(expt (> a) (> b)) '(expt 2 3) nil)
+X;(match '(expt (> a) (> b)) '(expt 2 3) nil)
+X;'(match '((+ l) mother (+ r)) '(since my mother spoke) nil)
+X;(match '((+ l) mother (+ r)) '(since my mother spoke) nil)
+X;'(match '((> this) + (< this)) '(abc is the same as abc) nil)
+X;(match '((> this) + (< this)) '(abc is the same as abc) nil)
+X;'(match '((> this) + (< this)) '(abc is the same as xyz) nil)
+X;(match '((> this) + (< this)) '(abc is the same as xyz) nil)
+END_OF_FILE
+if test 2789 -ne `wc -c <'patter.lsp'`; then
+    echo shar: \"'patter.lsp'\" unpacked with wrong size!
+fi
+# end of 'patter.lsp'
+fi
+if test -f 'view.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'view.lsp'\"
+else
+echo shar: Extracting \"'view.lsp'\" \(1900 characters\)
+sed "s/^X//" >'view.lsp' <<'END_OF_FILE'
+X;
+X; (view (object point x y z)) ==> (x y)
+X;
+X(setq angles '(0.0 0.0 0.0))
+X
+X(setq button textxy)
+X(setq square '(
+X;   ((-1.0e20 0.0 1.0e7)      (1.0e20 0.0 1.0e7)) ;horizon
+X   ;((-20.0 0.0 0.0)      (-20.0 0.0 1.0e3)) ;receding
+X   ;((20.0 0.0 0.0)      (20.0 0.0 1.0e3)) ;receding
+X   ((-1.0 -1.0 1.0)      (1.0 -1.0 1.0))
+X   ((1.0 -1.0 1.0)       (1.0 -1.0 -1.0))
+X   ((1.0 -1.0 -1.0)    (-1.0 -1.0 -1.0))
+X   ((-1.0 -1.0 -1.0)    (-1.0 -1.0 1.0))
+X
+X   ((-1.0 1.0 1.0)      (1.0 1.0 1.0))
+X   ((1.0 1.0 1.0)       (1.0 1.0 -1.0))
+X   ((1.0 1.0 -1.0)    (-1.0 1.0 -1.0))
+X   ((-1.0 1.0 -1.0)    (-1.0 1.0 1.0))
+X
+X   ((-1.0 1.0 1.0)      (-1.0 -1.0 1.0))
+X   ((1.0 1.0 1.0)       (1.0 -1.0 1.0))
+X   ((1.0 1.0 -1.0)    (1.0 -1.0 -1.0))
+X   ((-1.0 1.0 -1.0)    (-1.0 -1.0 -1.0))
+X))
+X(setq AMSL 0.5)
+X(defun sv (xp)
+X   (setview 
+X	   (list xp AMSL zpos) ; camera position
+X	   (list xang yang 0.0) ; camera angle
+X	   focal            ; camera focal length
+X	   (/ 6400.0 35e-3)        ; pixels/meter of screen x
+X	   (/ 6400.0 35e-3)        ; pixels/meter of screen y
+X	   3200 2000   0))
+X
+X(defun r ()
+X
+X   (setq end t)
+X   (setq xang 0.0)(setq yang 0.0)
+X   (setq zpos -30.0)
+X   (setq focal 50.0)
+X	(sv 0.0)
+X   (GraphOpen)
+X   (mode XOR) 
+X (do-while end
+X;
+X   (button 200 200 "forward (f), backward (b), up (u), down(d) , quit (q) ? ")
+X   (button 200 300 "zoom in (in), zoom out (out), left (l), right (r) ?")
+X   (show square)
+X
+X   (setq i (read))
+X   (cond    ((equal i 'u) (setq xang (+ xang 5.0)) )
+X		 ((equal i 'd) (setq xang (- xang 5.0)) )
+X         ((equal i 'l) (setq yang (+ yang 5.0)) )
+X		 ((equal i 'r) (setq yang (- yang 5.0)) )
+X         ((equal i 'f) (setq zpos (+ zpos 3.0)) )
+X		 ((equal i 'b) (setq zpos (- zpos 3.0)) )
+X         ((equal i 'in) (setq focal (+ focal 50.0)))
+X		 ((equal i 'out) (setq focal (- focal 50.0)))
+X         ((equal i 'q) (setq end nil)))
+X	(sv 0.0)
+X   	(clear))
+X
+X	(GraphClose))
+X
+X(r)            
+END_OF_FILE
+if test 1900 -ne `wc -c <'view.lsp'`; then
+    echo shar: \"'view.lsp'\" unpacked with wrong size!
+fi
+# end of 'view.lsp'
+fi
+if test -f 'clock.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'clock.lsp'\"
+else
+echo shar: Extracting \"'clock.lsp'\" \(2115 characters\)
+sed "s/^X//" >'clock.lsp' <<'END_OF_FILE'
+X; Load circle if it is not already
+X(cond ((not (boundp 'circle)) (load "circle.lsp")) (t t))
+X
+X(defun clock (&optional duration)
+X
+X    (setq dim (GraphOpen))
+X    (setq oy (/ (float (cdr dim)) 2.0))
+X    (setq ox (/ (float (car dim)) 2.0))
+X   (setq size 1900)
+X   ; Draw the clock face
+X   (circle size 180 ox oy)
+X   ((lambda (hour)
+X      (do-while (> hour 0)
+X         (hand (* 5 hour) size (* size 0.10))
+X         (setq hour (- hour 1)) )
+X   )12)
+X
+X	(mode 3)      ; Exclusive OR
+X   
+X   ; Now the clock
+X	(setq time (get-decoded-time))   ; Whats the time
+X   (setq initialise t)      ; Flag to disp1 that it's initialisation
+X
+X   (dissec (setq oldsec (car time))) ; Seconds Hand
+X   (disp1 (setq old time))                  ; Other hands
+X
+X   (setq initialise nil)
+X   ; Now loop a 
+X   
+X	(cond  			; if duration is NIL (not in arglist)
+X    	((null duration)
+X			(do-while t (display (get-decoded-time)))) ; loop forever
+X		(t  (do-while (> duration 0)
+X				(display (get-decoded-time))
+X        		(setq duration (- duration 1)) ) ) )
+X
+X   (GraphClose) )
+X
+X(defun handtox () (+ ox (* rad (sin (* 0.1046 (float angle))))))
+X(defun handtoy () (+ oy (* rad (cos (* 0.1046 (float angle))))))
+X(defun hand (angle rad len)
+X
+X   ; First work out the out-side end
+X   (setq nx (handtox))
+X   (setq ny (handtoy))
+X
+X   ; Now work out the inner end
+X   (setq rad (- rad len))
+X   (setq mx (handtox))
+X   (setq my (handtoy))
+X   (line mx my nx ny) )
+X
+X;   Display the seconds hand.
+X(defun dissec (s)
+X      (hand s (* size 0.8) (* size 0.8)) )
+X
+X; Display the Clock
+X(defun display (new)
+X   (cond 
+X      ((not (equal (setq s (car new)) oldsec))
+X		 (dissec oldsec) ; Seconds
+X		 (dissec  s)    ; Seconds
+X         (setq oldsec s)
+X
+X         (cond ((or (zerop s) initialise)
+X               (disp1 old)
+X               (disp1 new)
+X               (setq old new) )) )) )
+X
+X(defun disp1 (time)
+X   ((lambda (h m s)
+X      (hand (+ m (/ s 60.0)) (* size 0.8) (* size 0.8))
+X         (hand (* 5.0 (+ h (/ (+ m (/ s 60.0)) 60.0))) 
+X                  (* size 0.6) (* size 0.6) )  )
+X
+X	  (rem (caddr time) 12)	; Hours
+X	  (car(cdr time))     	; Minutes
+X	  (car time))) 			; Seconds
+END_OF_FILE
+if test 2115 -ne `wc -c <'clock.lsp'`; then
+    echo shar: \"'clock.lsp'\" unpacked with wrong size!
+fi
+# end of 'clock.lsp'
+fi
+if test -f 'exit.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'exit.lsp'\"
+else
+echo shar: Extracting \"'exit.lsp'\" \(205 characters\)
+sed "s/^X//" >'exit.lsp' <<'END_OF_FILE'
+X;;;
+X;;; File to run last in a list supplied at the command line
+X;;;
+X(load "qtime.lsp" :verbose nil)
+X(load "times.lsp" :verbose nil)
+X(english-time)
+X(time:delay 5.0) 	; Wait some seconds
+X(exit)		; exit Lisp
+END_OF_FILE
+if test 205 -ne `wc -c <'exit.lsp'`; then
+    echo shar: \"'exit.lsp'\" unpacked with wrong size!
+fi
+# end of 'exit.lsp'
+fi
+if test -f 'gob.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'gob.lsp'\"
+else
+echo shar: Extracting \"'gob.lsp'\" \(5911 characters\)
+sed "s/^X//" >'gob.lsp' <<'END_OF_FILE'
+X	(GraphOpen VGA 2) ; Has to be here because 'new calls button.
+X	(progn
+X		; Draw a border around the screen
+X		(line 10 10 6390 10)
+X		(line 10 10 10 4800)
+X		(line 10 4800 6390 4800)
+X		(line 6390 10 6390 4800))
+X
+X(setq button textxy)
+X;
+X; Elementary O O functions.
+X;
+X; Utility function to call a method without arguments. 
+X(defun selfx (method)
+X   ((slot this method) this) )
+X
+X; definition of the class of graphics objects
+X; Abstract Data Type
+X(put 'object '*down* '(lambda () ))
+X
+X; Define the dollar #! quote syntax to get slots from 'this
+X; #!r => (slot this 'r)
+X(df quser1 (slotname) (slot this slotname))
+X
+X; Handy function to set the value of a slot.
+X(defun setslot (slotname value)
+X	(put this slotname value))
+X
+X(defun defclass (_child _parent) (put _child 'class _parent))
+X;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+X; definition of the class - buttons
+X(setq menuheight (-  4800 17))
+X(defclass 'button 'obj)    ; buttons are objects
+X(put 'button 'children nil) ; no instances yet
+X
+X; simplification of initialization
+X(put 'button 'new '(lambda (this label function) 
+X	(setslot 'h 
+X		(cond 
+X			((get 'button 'children)
+X				(+      (get (car(get 'button 'children)) 'h)
+X						(get (car(get 'button 'children)) 'wi)
+X						100 ) )
+X			(t 100) ) )
+X
+X   (setslot 'v menuheight)
+X   (setslot 'label label)
+X   (setslot 'class 'button)
+X   (setslot 'function function)
+X	; add it to the list of these objects
+X	(put 'button 'children 
+X		(cons this (get 'button 'children)) )
+X	(selfx 'draw)  ))
+X
+X(put 'button 'draw '(lambda (this) 
+X; button draw method
+X      ((lambda (ret) 
+X	 ; now save its dimensions
+X	 (setslot 'wi (car ret))   ; width
+X	 (setslot 'he (cdr ret))) ; height down
+X      
+X      ; first display the button
+X      ; NB buttons are drawn down from the point, so height 'h is
+X      ; highest point.
+X		(button #!h #!v #!label) ) ))
+X
+X; button mouse up functions
+X(defun hitp (mx my x1 y1 x2 y2)
+X   (and (> mx x1) 
+X      (< mx x2) 
+X      (> my y1) 
+X      (< my y2) ) )
+X
+X(defun draw-polyline (p)
+X	(do-while (cdr p)
+X		(line (caar p) (cdar p) (caadr p) (cdadr p))
+X		(setq p (cdr p)) ) )
+X
+X(defun invbutton (this)
+X      
+X	(draw-polyline (list
+X		(cons   #!h #!v)
+X		(cons   (+  #!h #!wi) #!v)
+X		(cons   (+  #!h #!wi) (-  #!v #!he))
+X		(cons   #!h (-  #!v #!he))
+X		(cons   #!h #!v ) )) )
+X
+X(put 'button '*up* '(lambda (this mh mv)
+X      (cond
+X	 ; check if the button has been hit
+X		 ((hitp mh mv  #!h  (-  #!v #!he)  (+  #!h #!wi) #!v)
+X			; Yes, so highlight button
+X			(invbutton this)
+X	    	; then execute the button function
+X	    	(selfx 'function)
+X			(invbutton this)
+X			t )
+X	 (t nil) ) ))
+X
+X;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+X
+X
+X;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+X(defclass 'quit 'button)
+X((slot 'quit 'new) 'quit "Quit" 
+X   '(lambda (this) (setq quitflag nil)) )
+X
+X;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+X(defclass 'clear 'button)
+X((slot 'clear 'new) 'clear "Clear"
+X   '(lambda (this)  (clear) (invbutton this) (drawl)) )
+X
+X(defclass 'edit 'button)
+X((slot 'edit 'new) 'edit "Edit" 
+X   '(lambda (this) (GraphClose)(system "viz.exe" "gob.lsp")
+X	   (load "gob.lsp")(drawl)) )
+X
+X;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+X(defun cadddr (x)
+X   (car (cdr (cdr (cdr x)))) )
+X
+X(defun evprint (this)
+X   (princ "Type any key to quit\n")
+X   (do-while (not (equal (car (setq ev (getevent))) *keys*))
+X      (princ ev) 
+X      (princ CR) )
+X    (clear)
+X	(invbutton this)
+X	(drawl) )
+X
+X(defclass 'evprint 'button)
+X((slot 'evprint 'new) 'evprint "Trace" evprint)
+X;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+X(defun evfollow (this)
+X   (setq c 0)
+X   (do-while (not (equal (car (setq ev (getevent))) *keys*))
+X      (cond 
+X		 ((equal (car ev) *move*)
+X	    (colour (setq c
+X	       (rem (+ c 1) 16)))
+X	    (button (caddr ev) (cadddr ev) "."))
+X	 (t nil) )  ) )
+X
+X(defclass 'evfollow 'button)
+X((slot 'evfollow 'new) 'evfollow "Move" evfollow)
+X;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+X(defun evrubber (this)
+X      (setq posx 0)(setq posy 0)
+X	    (setq lastx 0)
+X	    (setq lasty 0)
+X   (mode XOR)    ; XOR mode
+X    (line lastx lasty posx posy)   ; initialise 
+X   (do-while (not (equal (car (setq ev (getevent))) *keys*))
+X      (cond 
+X		 ((equal (car ev) *move*)
+X	    (line lastx lasty posx posy)    ; undraw the last existing line
+X			(setq posx (caddr ev))          ; get the new positi 
+X	    (setq posy (cadddr ev))
+X	    (line  lastx lasty posx posy))  ; draw the new line
+X		 ((equal (car ev) *up*)
+X			(setq polyline (cons (cons posx posy) polyline ))
+X	    (setq lastx posx )              ; save the new coodinates
+X	    (setq lasty posy ) )
+X	 (t nil) )  ) )
+X
+X; Rubber band line drawing
+X(defclass 'evrubber 'button)
+X((slot 'evrubber 'new) 'evrubber "Drawing" evrubber)
+X
+X;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+X; filling areas
+X(defun evfill (this)
+X	(fillstyle 5 3)
+X	(fillarea
+X		'(      (2000.4 . 1500.6)
+X			(2500 . 2000)
+X			(2000 . 2500)
+X			(1500 . 2000)
+X			(2000 . 1500) ) ) )
+X
+X(defclass 'evfill 'button)
+X((slot 'evfill 'new) 'evfill "Filling" evfill)
+X;;;;;;;;;;;;
+X(defun drawl ()
+X    (distribute 'draw (get 'button 'children)) )
+X
+X(defun distribute (method obs)
+X   (do-while obs
+X		 ((slot (car obs) method) (car obs))
+X		  (setq obs (cdr obs)) ) )
+X
+X(defun gob (tree)
+X   (setq quitflag t)
+X	 (do-while quitflag
+X      (setq ev (getevent))
+X      (cond 
+X		 ((equal (car ev) *up*)
+X	    (setq tmp tree)
+X			(do-while tmp
+X	    (cond 
+X			   ; call the *up* function for the object,
+X	       ; if it returns true, then stop the loop
+X	       ; by setting tmp to nil
+X				  (( (slot (car tmp) '*up*) ; function to call
+X		     (car tmp) (caddr ev) (cadddr ev)) ; args
+X		   
+X		  (setq tmp nil)) ; executed if above not nil
+X	       
+X	       (t (setq tmp (cdr tmp))) ))); otherwise try the next
+X	 (t nil) )  ) )
+X
+X(defun r ()
+X	(setq polyline '())
+X	(mode XOR)
+X	(gob (get 'button 'children))
+X	(GraphClose) )
+X(r)
+END_OF_FILE
+if test 5911 -ne `wc -c <'gob.lsp'`; then
+    echo shar: \"'gob.lsp'\" unpacked with wrong size!
+fi
+# end of 'gob.lsp'
+fi
+if test -f 'qtime.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'qtime.lsp'\"
+else
+echo shar: Extracting \"'qtime.lsp'\" \(2465 characters\)
+sed "s/^X//" >'qtime.lsp' <<'END_OF_FILE'
+X;;;/* qtime.lsp	Displays time in real English, also chimes
+X;;; ** This version current from 1/7/92
+X;;; **
+X;;; ** 1 July 92 Bill Birch		Converted to Lisp from qtime.c
+X;;; ** 09/89	Ade Lovett		Complete rewrite
+X;;; ** 04/86	Mark Dapoz		Converted to C for UNIX
+X;;;** 12/79-12/82	Mike Cowlishaw
+X;;;**
+X;;;*/
+X;;
+X;;
+X;; nth, which numbers from zero rather than one.
+X(setq Cnth nth)
+X;;
+X;; >= predicate
+X;;
+X(cond ((boundp '>=))(t (defun >= (_a _s) (or (> _a _s)(equal _a _s)))))
+X;;
+X;; Print a list without braces.
+X;;
+X(defun no-brace-print (the-list)
+X	(cond
+X		((null the-list) nil)
+X		(t 
+X			
+X			(cond ((null (car the-list)) nil) 
+X				(t (princ (car the-list))
+X					(princ " ")
+X				) 
+X			)
+X			(no-brace-print (cdr the-list))
+X		)
+X	)
+X)
+X;; 
+X;; Static data
+X;;
+X(setq minutesaying `(,nil "just after" "a little after" "nearly" "almost"))
+X(setq fiveminsaying `(
+X    ,nil "five past" "ten past" "a quarter past" "twenty past" 
+X    "twenty-five past" "half past" "twenty-five to" "twenty to" 
+X    "a quarter to" "ten to" "five to" ,nil
+X))
+X(setq hoursaying '(
+X    "one" "two" "three" "four" "five" "six" "seven" "eight" "nine" 
+X    "ten" "eleven" ""
+X))
+X
+X;;; Functions to emulate the relational C integer behaviour.
+X(defun Clog (x) (cond (x 1) (t 0) ) ) ; t ==> 1 , nil ==> 0
+X(defun C> (a b) (Clog (> a b)))
+X
+X; emulate strcat(qtime,..);
+X(defun append-qtime (u) (setq qtime (append qtime (list u))))
+X
+X;;
+X;;	Function tells the time in English.
+X;;	It takes the time output from (get-decoded-time)
+X;;	as its param eg:
+X;;
+X;; (cute-time (get-decoded-time))
+X;;
+X(defun english-time () (cute-time (get-decoded-time)))
+X(defun cute-time (tm)
+X	(setq mn (+ (car (cdr tm)) 
+X		(C> (car tm) 29)
+X	))
+X	(setq hr (+ (caddr tm)  (C> mn 32) ))
+X	(setq qtime nil)
+X	(append-qtime "It's")
+X	(append-qtime (Cnth (rem mn 5) minutesaying))
+X	(append-qtime (Cnth (+ (/ mn 5)   (C> (rem mn 5) 2) ) fiveminsaying ))
+X	(cond
+X		((not (zerop (rem hr 12)))
+X			(append-qtime
+X				(Cnth (setq hr (- hr (+ 1 (* 12 (C> hr 12))))) hoursaying)
+X			)
+X			
+X			(append-qtime
+X				(cond ((not (zerop (rem mn 60))) ".") (t "o'clock."))
+X			)
+X		)
+X		(t (append-qtime (cond 
+X			((equal hr 12 ) "Noon.") 
+X			(t "Midnight")))
+X			(setq hr 12)
+X		)
+X	)
+X	(cond
+X		((zerop (rem mn 15))
+X			(cond
+X				((not (zerop (rem mn 60))) (princ "Ding-Dong!\n\n"))
+X				(t 
+X					(princ "[")
+X					(setq i hr)
+X					(do-while (>= i 0)
+X						(princ "Bong,")
+X						(setq i (- i 1))
+X					)
+X					(princ "]\n\n")
+X				)
+X			)
+X		)
+X		(t t)
+X	)
+X	(no-brace-print qtime)
+X	(terpri)
+X	t
+X)
+X
+END_OF_FILE
+if test 2465 -ne `wc -c <'qtime.lsp'`; then
+    echo shar: \"'qtime.lsp'\" unpacked with wrong size!
+fi
+# end of 'qtime.lsp'
+fi
+if test -f 'search.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'search.lsp'\"
+else
+echo shar: Extracting \"'search.lsp'\" \(4586 characters\)
+sed "s/^X//" >'search.lsp' <<'END_OF_FILE'
+X;;;
+X;;; A route-finding program from the book 
+X;;; "LISP on the BBC Microcomputer" by
+X;;;
+X;;; Arthur Norman & and Gillian Cattel Section 23.7
+X;;;
+X;;; Adapted for RefLisp by Bill Birch 30 Sept 92
+X;;;
+X;;; My adaptions are in lower-case.
+X;;;
+X
+X;"The package described here allows the user to create a database
+X; showing the distances between pairs of towns. Once these data have been
+X; entered, the package can find the shortest route between any given
+X; places. The method used is an example of the 'ink-blot' or 'breadth
+X; first' search."
+X
+X
+X(DEFUN NEW-NODE (ITEM LEFT RIGHT)
+X	(CONS ITEM (CONS LEFT RIGHT)))
+X(DEFUN GET-ITEM (HEAP) (CAR HEAP))
+X(DEFUN LEFT-SUBHEAP (HEAP) (CADR HEAP))
+X(DEFUN RIGHT-SUBHEAP (HEAP) (CDDR HEAP))
+X
+X(DEFUN ADD-TO-HEAP (ITEM HEAP)
+X	(COND
+X		((NULL HEAP) (NEW-NODE ITEM NIL NIL))
+X		((IS-SMALLER ITEM (GET-ITEM HEAP))
+X			(ADD-TO-HEAP
+X				(GET-ITEM HEAP)
+X				(REPLACE-ITEM HEAP ITEM)))
+X		(T (NEW-NODE
+X			(GET-ITEM HEAP)
+X			(RIGHT-SUBHEAP HEAP)
+X			(ADD-TO-HEAP ITEM (LEFT-SUBHEAP HEAP)))) ))
+X
+X(DEFUN REMOVE-RIGHTMOST (HEAP)
+X	(COND
+X		((NULL (RIGHT-SUBHEAP HEAP))
+X			(SETQ RIGHTMOST (GET-ITEM HEAP))
+X			NIL)
+X		(T (NEW-NODE
+X			(GET-ITEM HEAP)
+X			(REMOVE-RIGHTMOST (RIGHT-SUBHEAP HEAP))
+X			(LEFT-SUBHEAP HEAP)))) )
+X
+X(DEFUN REMOVE-TOP-ITEM (HEAP &optional RIGHTMOST) 
+X	(COND
+X		((NULL (RIGHT-SUBHEAP HEAP)) NIL)
+X		(T (SETQ HEAP (REMOVE-RIGHTMOST HEAP))
+X			(RESTORE-HEAP
+X				(REPLACE-ITEM HEAP RIGHTMOST))))
+X)
+X
+X(DEFUN REPLACE-ITEM (HEAP ITEM)
+X	(CONS ITEM (CDR HEAP)))
+X
+X(DEFUN RESTORE-HEAP (HEAP)
+X	(COND
+X		((TOP-ITEM-IS-SMALLEST HEAP) HEAP)
+X		((LEFT-ITEM-IS-SMALLEST HEAP)
+X			(PERCOLATE-LEFT HEAP))
+X		(T (PERCOLATE-RIGHT HEAP))))
+X
+X(DEFUN TOP-ITEM-IS-SMALLEST (HEAP)
+X	(OR
+X		(NULL (RIGHT-SUBHEAP HEAP))
+X		(AND 
+X			(IS-SMALLER
+X				(GET-ITEM HEAP)
+X				(GET-ITEM (RIGHT-SUBHEAP HEAP)))
+X			(OR
+X				(NULL (LEFT-SUBHEAP HEAP))
+X				(IS-SMALLER
+X					(GET-ITEM HEAP)
+X					(GET-ITEM (LEFT-SUBHEAP HEAP)))) )))
+X
+X(DEFUN LEFT-ITEM-IS-SMALLEST (HEAP)
+X	(AND
+X		(LEFT-SUBHEAP HEAP)
+X		(IS-SMALLER
+X			(GET-ITEM (LEFT-SUBHEAP HEAP))
+X			(GET-ITEM HEAP))
+X		(IS-SMALLER
+X			(GET-ITEM (LEFT-SUBHEAP HEAP))
+X			(GET-ITEM (RIGHT-SUBHEAP HEAP)))) )
+X
+X(DEFUN PERCOLATE-RIGHT (HEAP)
+X	(NEW-NODE
+X		(GET-ITEM (RIGHT-SUBHEAP HEAP))
+X		(LEFT-SUBHEAP HEAP)
+X		(RESTORE-HEAP
+X			(REPLACE-ITEM
+X				(RIGHT-SUBHEAP HEAP)
+X				(GET-ITEM HEAP)))) )
+X
+X(DEFUN PERCOLATE-LEFT (HEAP)
+X	(NEW-NODE
+X		(GET-ITEM (LEFT-SUBHEAP HEAP))
+X		(RESTORE-HEAP
+X			(REPLACE-ITEM (LEFT-SUBHEAP HEAP) 
+X				(GET-ITEM HEAP)))
+X		(RIGHT-SUBHEAP HEAP)))
+X
+X;;;;;
+X;;
+X;;
+X(DEFUN FIND-ROUTE (SOURCE DESTINATION &optional PRIORITY-QUEUE  
+X				CITY DISTANCE VIA W)
+X	(SETQ PRIORITY-QUEUE (ADD-TO-QUEUE SOURCE 0 NIL))
+X	(do-until	
+X		((cond
+X			((GET DESTINATION SOURCE)
+X				(REPORT-ROUTE SOURCE DESTINATION) 
+X				(print priority-queue) 
+X				t)
+X			((NULL PRIORITY-QUEUE) (REPORT-FAILURE) t)
+X			(t nil)
+X		))
+X		
+X		(SETQ W (GET-ITEM PRIORITY-QUEUE))
+X		(SETQ CITY (CAR W))
+X		(SETQ DISTANCE (CADR W))
+X		(SETQ VIA (CADDR W))
+X		(SETQ PRIORITY-QUEUE
+X			(REMOVE-TOP-ITEM PRIORITY-QUEUE))
+X		(COND
+X			((NULL (GET CITY SOURCE))
+X				(PUT CITY SOURCE (CONS DISTANCE VIA))
+X				(SETQ PRIORITY-QUEUE
+X					(ADD-TO-QUEUE
+X						CITY
+X						DISTANCE
+X						PRIORITY-QUEUE)))) ) 
+X						
+X)
+X
+X(DEFUN NPUT (SOURCE NEIGHBOURS)
+X	(PUT SOURCE 'NEIGHBOURS NEIGHBOURS))
+X
+X(DEFUN ADD-TO-QUEUE (CITY BASE-DISTANCE QUEUE &optional NEIGHBOURS)
+X	(SETQ NEIGHBOURS (GET CITY 'NEIGHBOURS))
+X	(do-until ((null NEIGHBOURS) QUEUE) 
+X		(SETQ QUEUE
+X			(ADD-TO-HEAP
+X				(LIST
+X					(CAAR NEIGHBOURS)
+X				(+ BASE-DISTANCE (CDAR NEIGHBOURS))
+X					CITY)
+X				QUEUE))
+X		(SETQ NEIGHBOURS (CDR NEIGHBOURS)))
+X)
+X
+X(DEFUN IS-SMALLER (A B) (< (CADR A) (CADR B)))
+X
+X(DEFUN REPORT-ROUTE (SOURCE DESTINATION &optional VIA)
+X	(PRINT* 'DISTANCE= (CAR (GET DESTINATION SOURCE)))
+X	(SETQ VIA (CONS DESTINATION VIA))
+X	(do-until ((EQ SOURCE DESTINATION) (PRINT* 'VIA: VIA) (terpri) t)
+X		(SETQ DESTINATION (CDR (GET DESTINATION SOURCE)))
+X		(SETQ VIA (CONS DESTINATION VIA))
+X	)
+X)
+X
+X(DEFUN REPORT-FAILURE () '(NO ROUTE EXISTS))
+X
+X(NPUT 'CAMBRIDGE '((BEDFORD . 15) (ROYSTON . 20)))
+X(NPUT 'ROYSTON '((CAMBRIDGE . 20) (WATFORD . 30) (LONDON . 50)))
+X(NPUT 'LONDON '((ROYSTON . 20) (WATFORD  . 25) (OXFORD . 50)))
+X(NPUT 'BEDFORD '((CAMBRIDGE . 15) (WATFORD . 30)))
+X(NPUT 'WATFORD '((BEDFORD . 30) (ROYSTON . 30) 
+X	(LONDON . 25) (OXFORD . 40)))
+X(NPUT 'OXFORD '((ROYSTON . 50) (WATFORD . 25) (LONDON . 50) 
+X	(hemel-hempstead . 35) ))
+X(nput 'hemel-hempstead '((watford . 5)))
+X; Example
+X;
+X;
+X(princ "Searching for a route from Cambridge to Oxford ...")
+X(terpri)
+X (FIND-ROUTE 'CAMBRIDGE 'OXFORD)
+X; ==> DISTANCE=85
+X; ==> VIA:(CAMBRIDGE BEDFORD WATFORD OXFORD)
+X;
+X
+END_OF_FILE
+if test 4586 -ne `wc -c <'search.lsp'`; then
+    echo shar: \"'search.lsp'\" unpacked with wrong size!
+fi
+# end of 'search.lsp'
+fi
+if test -f 'calc.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'calc.lsp'\"
+else
+echo shar: Extracting \"'calc.lsp'\" \(2623 characters\)
+sed "s/^X//" >'calc.lsp' <<'END_OF_FILE'
+X;;;;
+X;;;; Reverse-Polish pocket Calculator
+X;;;
+X;;; 30 Sep 92
+X;;;
+X(setq history '())
+X(defun audit (item)
+X	(setq history (cons item history))
+X	item)
+X
+X(defun trail ()
+X	(print history))
+X;;;
+X;;;
+X(setq variables '())
+X
+X(defun set-var (varname val)
+X	(cond 
+X		((member varname variables) t)
+X		(t (setq variables (cons varname variables))))
+X	(if (symbolp varname) (set varname val) (print "Whoops!")))
+X
+X(defun print-vars (vlist)
+X	(dolist (bvar vlist)
+X		(princ* bvar " = " (eval bvar) CR)))
+X;;;
+X
+X(setq stack '())
+X(defun top () (car stack))
+X(defun push (item) (setq stack (cons item stack)))
+X(defun pop () 
+X	(cond
+X		((null stack) nil)
+X		((null (cdr stack)) (car stack))
+X		(t (setq ret (car stack)) 
+X			(setq stack (cdr stack)) 
+X			ret ) ) )
+X
+X(defun stack-nth (n)
+X	(nth n stack) )
+X
+X(defun exchange () 
+X	(setq tmp1 (pop)) 
+X	(setq tmp2 (pop))
+X	(push tmp1)
+X	(push tmp2) )
+X
+X(defun myprint (item)
+X	(print item)
+X	(terpri)
+X	item )
+X
+X(setq prompt "? ")
+X(setq commands '())
+X
+X(defmacro new-command (label help-text &rest body)
+X	(setq commands (cons label commands))
+X	(put label 'help help-text)
+X	`(put ',label 'body '(lambda () ,@body)))
+X
+X(new-command x 
+X	"eXchange the top two stack elements."
+X	(exchange))
+X
+X(new-command help
+X	"Prints this help text."
+X	(dolist (tmp commands)	
+X			(princ* "\t" tmp "\t" (get tmp 'help) "\n")))
+X
+X(new-command t "print audit Trail." (trail))
+X(new-command p "Pop the stack." (pop))
+X(new-command s "Store to variable." 
+X	(set-var (stack-nth 0) (stack-nth 1))
+X	(pop) (pop))
+X(new-command r "Recall variable value." (push (eval (pop))))
+X(new-command n "Push the nth stack item." (push (stack-nth (pop))))
+X(new-command e "Push the top stack item."  (push (top)))
+X(new-command q "Quit."  
+X	(princ "Really Quit (y/n) ? ") 
+X	(cond ((equal (read) 'y)
+X		(setq calc-finished t))))
+X(new-command c "clear stack" 	(setq stack nil))
+X(new-command clear "clear all" 	(setq stack nil)
+X		(setq variables nil))
+X
+X(new-command + "sum the two top stack items" (push (+ (pop) (pop))))
+X(new-command - 
+X	"difference the two top stack items" 
+X	(exchange)(push (- (pop) (pop))))
+X
+X(new-command * "multiply" (push (* (pop) (pop))))
+X(new-command / "divide" (exchange)(push (/ (pop) (pop))))
+X(new-command % "remainder" (push (rem (pop) (pop))))
+X
+X(defun calc ()
+X	(print "Type help for instructions")
+X	(terpri)
+X	(princ prompt)
+X	(setq input t)
+X	(setq calc-finished nil)
+X	(do-until (calc-finished)
+X		(setq input (audit (read)))
+X		(cond
+X			((numberp input) (push input))
+X			((member input commands)  (funcall (get input 'body)))
+X			((eq input 'cdr) (push (cdr (pop))))
+X			(t (push input)))
+X		(print-vars variables)
+X		(myprint stack)
+X		(princ prompt) ) )
+END_OF_FILE
+if test 2623 -ne `wc -c <'calc.lsp'`; then
+    echo shar: \"'calc.lsp'\" unpacked with wrong size!
+fi
+# end of 'calc.lsp'
+fi
+if test -f 'grep.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'grep.lsp'\"
+else
+echo shar: Extracting \"'grep.lsp'\" \(1836 characters\)
+sed "s/^X//" >'grep.lsp' <<'END_OF_FILE'
+X;;;
+X;;; 6 Oct 92
+X;;;
+X;;; This file contains a utility that searches all the .lsp files
+X;;; in the current directory for s-expressions matching the supplied critera.
+X;;;
+X;;;
+X;; INPUT:
+X;;
+X;; pattern, a pattern to be passed to "compare" (see below)
+X;; gaction, an action to be evaluated o the form (lambda (token) 
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/lang/lisp/impl/reflisp/shar/rflsp2_3.shr by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 06:05:16 GMT -->
+<body>)
+X;; file-spec, a string to be passed to (directory)
+X;;
+X;; OUTPUT:
+X;;
+X;; A print out of the number of cells in use, the file being searched.
+X;; and all the (gaction) results.
+X;;
+X;; EXAMPLE:
+X;;
+X;; Search for and print names of all function defs with null 
+X;; formal argument lists.
+X;; (grep 
+X;; 		'(defun * () *) ; pattern
+X;; 		
+X;; 		'(lambda (token) (print (cadr token)) (terpri)  )  ; action
+X;; )
+X
+X
+X(defun grep (pattern &optional gaction file-spec)
+X
+X	(setq find:files (directory 
+X			(cond ((null file-spec) "*.lsp") (t filespec))))
+X	(setq gaction (cond 
+X		((null gaction) ''(lambda (token) (print token)))
+X		(t gaction)
+X	))
+X	(do-while find:files
+X	
+X		(princ "\;\;\; ")(princ (eroom)) (princ " ")(princ (car find:files))
+X		(terpri)
+X		(find:lookat (car find:files) pattern  gaction )
+X		(setq find:files (cdr find:files))
+X	)
+X)
+X
+X(defun find:lookat (find:filename match-pattern action)
+X	(setq find:fd (open find:filename))
+X	(do-while (not (eq *eof* (setq token (read find:fd))))
+X		(cond
+X			((compare match-pattern token) (action token)   ) 
+X		)
+X	)
+X	(close find:fd)
+X)
+X
+X;;;;;;;;;;;;;;;;;;;;;;;;
+X;
+X; Function to compare two s-expressions
+X; returns NIL if there is no match.
+X; '* in the mask stands for any value
+X;
+X(defun compare (mask y)
+X	(match-aux mask y mask)
+X)
+X(defun match-aux (mask y original)
+X	(cond
+X	((equal mask '*) t)
+X		((equal mask y) t) 
+X		(t  (cond
+X				((and (consp mask) (consp y))
+X					(and (match-aux (car mask) (car y) original) 
+X						(match-aux (cdr mask) (cdr y) original))
+X				)
+X				(t  nil)
+X			)
+X		)
+X	)
+X)
+END_OF_FILE
+if test 1836 -ne `wc -c <'grep.lsp'`; then
+    echo shar: \"'grep.lsp'\" unpacked with wrong size!
+fi
+# end of 'grep.lsp'
+fi
+if test -f 'queen.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'queen.lsp'\"
+else
+echo shar: Extracting \"'queen.lsp'\" \(1132 characters\)
+sed "s/^X//" >'queen.lsp' <<'END_OF_FILE'
+X;;;;
+X;;;; Taken from "Lisp" by Winston & Horn 2nd edition
+X;;;; Problem 11-9
+X;;;;
+X;;;;
+X;;;;
+X(defun = (a b) (equal a b))
+X(DEFUN QUEEN (SIZE) (QUEEN-AUX NIL 0 SIZE))
+X
+X(DEFUN QUEEN-AUX (BOARD N SIZE)					; sTART ON NEXT rOW
+X	(COND ((= N SIZE) (BOARD-PRINT (REVERSE BOARD)))
+X		(T (QUEEN-SUB BOARD N 0 SIZE))))
+X
+X(DEFUN QUEEN-SUB (BOARD N M SIZE)
+X	(COND ((= M SIZE))
+X		(T (COND ((CONFLICT N M BOARD))
+X			(T (QUEEN-AUX (CONS (LIST N M) BOARD) (+ N 1) SIZE)))
+X		(QUEEN-SUB BOARD N (+ M 1) SIZE))))
+X
+X(DEFUN CONFLICT (cN cM cBOARD)
+X	(COND ((NULL cBOARD) NIL)
+X		((OR (THREAT cN cM (CAAR cBOARD) (CADAR cBOARD))
+X			(CONFLICT cN cM (CDR cBOARD))))))
+X
+X(DEFUN THREAT (I J A B)
+X	(OR (= I A)
+X		(= J B)
+X		(= (- I J) (- A B))
+X		(= (+ I J) (+ A B))))
+X
+X
+X(DEFUN BOARD-PRINT (BOARD) (BOARD-PRINT-AUX BOARD (LENGTH BOARD)))
+X
+X(DEFUN BOARD-PRINT-AUX (BOARD SIZE)
+X	(TERPRI)
+X	(COND ((NULL BOARD))
+X		(T (BOARD-PRINT-SUB (CADAR BOARD) 0 SIZE)
+X			(BOARD-PRINT-AUX (CDR BOARD) SIZE))))
+X
+X(DEFUN BOARD-PRINT-SUB (COLUMN N SIZE)
+X	(COND ((= N SIZE))
+X		(T (COND ((= COLUMN N) (PRINC "Q"))
+X				(T (PRINC ".")))
+X			(PRINC " ")
+X			(BOARD-PRINT-SUB COLUMN (+ N 1) SIZE))))
+X
+END_OF_FILE
+if test 1132 -ne `wc -c <'queen.lsp'`; then
+    echo shar: \"'queen.lsp'\" unpacked with wrong size!
+fi
+# end of 'queen.lsp'
+fi
+if test -f 'rules.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'rules.lsp'\"
+else
+echo shar: Extracting \"'rules.lsp'\" \(8168 characters\)
+sed "s/^X//" >'rules.lsp' <<'END_OF_FILE'
+X;;;;
+X;;;; Expert Problem Solving Using Rules and Streams.
+X;;;;
+X;;;; from: "Lisp" by Patrick Henry Winston & 
+X;;;;				 Berthold Klaus Paul Horn, 
+X;;;;		Addison-Wesley, 2nd Edition, Chapter 18.
+X;;;;
+X;;;;
+X
+X
+X(defun remember (new)
+X	(cond ((member new assertions) nil)
+X		(t (setq assertions (cons new assertions))
+X			new)))
+X
+X(defun combine-streams (s1 s2) (append s1 s2))
+X(defun add-to-stream (e s) (cons e s))
+X(defun first-of-stream (s) (car s))
+X(defun rest-of-stream (s) (cdr s))
+X(defun empty-stream-p (s) (null s))
+X(defun make-empty-stream () nil)
+X
+X(defun filter-assertions (pattern initial-a-list)
+X	(do ((assertions assertions (cdr assertions))
+X		(a-list-stream (make-empty-stream)))
+X		((null assertions) a-list-stream)
+X		(let ((new-a-list (match pattern (car assertions) initial-a-list)))
+X			(cond (new-a-list (setq a-list-stream
+X								(add-to-stream new-a-list a-list-stream)))))))
+X
+X(defun filter-a-list-stream (pattern a-list-stream)
+X	(cond ((empty-stream-p a-list-stream) (make-empty-stream))
+X		(t (combine-streams
+X			(filter-assertions pattern (first-of-stream a-list-stream))
+X			(filter-a-list-stream pattern (rest-of-stream a-list-stream))))))
+X
+X(defun cascade-through-patterns (patterns a-list-stream)
+X	(cond ((null patterns) a-list-stream)
+X		(t (filter-a-list-stream (car patterns)
+X								(cascade-through-patterns (cdr patterns)
+X									a-list-stream)))))
+X
+X(defun spread-through-actions (rule-name actions a-list)
+X	(do ((actions actions (cdr actions))
+X		 (action-stream (make-empty-stream)))
+X		((null actions) action-stream)
+X	  (let ((action (replace-variables (car actions) a-list)))
+X	    (cond ((remember action)
+X			   (print `(rule ,rule-name says ,@action))
+X			   (setq action-stream (add-to-stream action action-stream)))))))
+X
+X(defun replace-variables (s a-list)
+X	(cond ((atom s) s)
+X		  ((equal (car s) '<)
+X		  		(cadr (assoc (pattern-variable s) a-list)))
+X		  (t (cons (replace-variables (car s) a-list)
+X		  		   (replace-variables (cdr s) a-list)))))
+X
+X(defun feed-to-actions (rule-name actions a-list-stream)
+X	(cond ((empty-stream-p a-list-stream) (make-empty-stream))
+X		  (t (combine-streams
+X		  	 	(spread-through-actions rule-name
+X										actions
+X										(first-of-stream a-list-stream))
+X				(feed-to-actions rule-name
+X								 actions
+X								 (rest-of-stream a-list-stream))))))
+X
+X(defun use-rule (rule)
+X	(let* ((rule-name (cadr rule))
+X		  (ifs (reverse (cdr (caddr rule))))
+X		  (thens (cdr (cadddr rule)))
+X		  (a-list-stream (cascade-through-patterns
+X		  					ifs
+X							(add-to-stream nil (make-empty-stream))))
+X		  (action-stream (feed-to-actions rule-name thens a-list-stream)))
+X	  (not (empty-stream-p action-stream))))
+X
+X(defun forward-chain ()
+X	(do ((rules-to-try rules (cdr rules-to-try))
+X	     (progress-made nil))
+X		((null rules-to-try) progress-made)
+X	  (cond ((use-rule (car rules-to-try))
+X	  		 (setq rules-to-try rules)
+X			 (setq progress-made t)))))
+X
+X(load "patter.lsp")
+X;;;-------------------------------------------------------------
+X;;; Regression Test Suite
+X;;;
+X(setq *testing* t)
+X(cond ((boundp '*testing*) ; set *testing* to T  for regression tests.
+X
+X(setq test-total 0)
+X(setq test-passed 0)
+X(df test-case (number code result)
+X	(test-reset)
+X	(setq code (eval code))
+X	(setq result (eval result))
+X	(setq test-total (+ test-total 1))
+X	(princ "Test # ")(princ number)
+X	(cond ((equal code result) (princ " Passed") 
+X			(setq test-passed (+ test-passed 1)) )
+X		(t  (princ " FAILED! Expected result is: ")
+X		    (print result)
+X			(terpri)
+X			(princ "         actual result was: ")
+X		    (print code)
+X		   ))
+X	(terpri) )
+X
+X
+X(defun test-reset ()
+X	(setq assertions 
+X		'((bozo is a cheetah)
+X		(bozo is a parent of sugar)
+X		(bozo is a parent of billy)
+X		(sweekums is a penguin)
+X		(king is a parent of rex))))
+X
+X(setq t1 '((> animal) is a (> type))) 
+X
+X(test-case 1 
+X		(filter-assertions t1  nil ) 
+X		'(((animal sweekums) (type penguin))
+X	 ((animal bozo) (type cheetah)) ))
+X
+X(setq t2 '((< animal) is a parent of (> child))) 
+X(setq t3 '((animal sweekums) (type penguin))) 
+X(test-case 2 
+X	(filter-assertions t2 t3)  
+X	NIL)
+X
+X(setq t4 '((animal bozo) (type cheetah))) 
+X(setq r5 '(((animal bozo) (type cheetah) (child billy))
+X	((animal bozo) (type cheetah)(child sugar))))
+X
+X(test-case 3 (filter-assertions t2 t4)   r5)
+X
+X; 
+X(test-case 4 
+X	(filter-a-list-stream t1 (add-to-stream nil (make-empty-stream)))
+X	'(((animal sweekums) (type penguin)) ((animal bozo) (type cheetah))))
+X;
+X
+X(setq t5 '(((animal sweekums) (type penguin)) 
+X			((animal bozo) (type cheetah)))) 
+X
+X(test-case 5 (filter-a-list-stream t2 t5) r5)
+X
+X(test-case 6 
+X	(cascade-through-patterns 
+X		(list t2 t1)
+X		(add-to-stream nil (make-empty-stream)))
+X	r5)
+X
+X(test-case 7 
+X	(spread-through-actions 'identify16
+X				'(((< child) is a (< type)))
+X				'((animal bozo) (type cheetah) (child billy)))
+X	'((billy is a cheetah)))
+X
+X(test-case 8 
+X	(spread-through-actions 'identify16
+X				'(((< child) is a (< type)))
+X				'((animal bozo) (type cheetah) (child sugar)))
+X	'((sugar is a cheetah)))
+X
+X(test-case 9 
+X	(feed-to-actions 'identify16
+X				'(((< child) is a (< type)))
+X				'(((animal bozo) (type cheetah) (child billy))
+X				  ((animal bozo) (type cheetah) (child sugar)))
+X	)
+X	'((billy is a cheetah) (sugar is a cheetah)))
+X
+X(test-case 10 
+X	(use-rule '(rule identify16
+X				(if ((> animal) is a (> type))
+X					((< animal) is a parent of (> child)))
+X				(then ((< child) is a (< type)))))
+X	t)
+X
+X
+X;;;-----------------------------------------------------------------
+X(setq rules '(
+X	(rule identify16
+X		(if ((> animal) is a (> type))
+X			((< animal) is a parent of (> child)))
+X		(then ((< child) is a (< type))))
+X))
+X(test-case 11 (forward-chain) t) 
+X;;;-----------------------------------------------------------------
+X(progn
+X	(princ test-passed) 
+X	(princ " tests passed out of ")(princ test-total)(terpri))
+X
+X
+X))
+X;;;-----------------------------------------------------------------
+X;;;
+X;;;    Many rules ...
+X;;;
+X(setq rules '(
+X(rule identify1
+X	(if ((> animal) has hair))
+X	(then ((< animal) is mammal)))
+X(rule identify2
+X	(if ((> animal) gives milk))
+X	(then ((< animal) is mammal)))
+X(rule identify3
+X	(if ((> animal) has feathers))
+X	(then ((< animal) is bird)))
+X(rule identify4
+X	(if ((> animal) flies)
+X		((< animal) lays eggs))
+X	(then ((< animal) is bird)))
+X(rule identify5
+X	(if ((> animal) eats meat))
+X	(then ((< animal) is carnivore)))
+X(rule identify6
+X	(if ((> animal) has pointed teeth)
+X		((< animal) has claws)
+X		((< animal) has forward eyes))
+X	(then ((< animal) is carnivore)))
+X(rule identify7
+X	(if ((> animal) is mammal)
+X		((< animal) has hoofs))
+X	(then ((< animal) is ungulate)))
+X(rule identify8
+X	(if ((> animal) is mammal)
+X		((< animal) chews cud))
+X	(then ((< animal) is ungulate)
+X	 	  ((< animal) is even toed)))
+X(rule identify9
+X	(if ((> animal) is mammal)
+X		((< animal) is carnivore)
+X		((< animal) has tawny color)
+X		((< animal) has dark spots))
+X	(then ((< animal) is cheetah)))
+X(rule identify10
+X	(if ((> animal) is mammal)
+X		((< animal) is carnivore)
+X		((< animal) has tawny color)
+X		((< animal) has black stripes))
+X	(then ((< animal) is tiger)))
+X(rule identify11
+X	(if ((> animal) is ungulate)
+X		((< animal) has long neck)
+X		((< animal) has long legs)
+X		((< animal) has dark spots))
+X	(then ((< animal) is giraffe)))
+X(rule identify12
+X	(if ((> animal) is ungulate)
+X		((< animal) has black stripes))
+X	(then ((< animal) is zebra)))
+X(rule identify13
+X	(if ((> animal) is bird)
+X		((< animal) does not fly)
+X		((< animal) has long neck)
+X		((< animal) has long legs)
+X		((< animal) is black and white))
+X	(then ((< animal) is ostrich)))
+X(rule identify14
+X	(if ((> animal) is bird)
+X		((< animal) does not fly)
+X		((< animal) swims)
+X		((< animal) is black and white))
+X	(then ((< animal) is penguin)))
+X(rule identify15
+X	(if ((> animal) is bird)
+X		((< animal) flies well))
+X	(then ((< animal) is albatross)))
+X(rule identify16
+X	(if ((> animal) is a (> type))
+X		((< animal) is a parent of (> child)))
+X	(then ((< child) is a (< type))))
+X))
+X
+X(setq assertions 
+X	'((robbie has dark spots)
+X	  (robbie has tawny color)
+X	  (robbie eats meat)
+X	  (robbie has hair)
+X	  (suzie has feathers)
+X	  (suzie flies well)))
+X
+X(princ `("Given the following information: " 
+X			,assertions "we can deduce the following: "))
+X
+X(forward-chain)
+END_OF_FILE
+if test 8168 -ne `wc -c <'rules.lsp'`; then
+    echo shar: \"'rules.lsp'\" unpacked with wrong size!
+fi
+# end of 'rules.lsp'
+fi
+if test -f 'prolog.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'prolog.lsp'\"
+else
+echo shar: Extracting \"'prolog.lsp'\" \(4301 characters\)
+sed "s/^X//" >'prolog.lsp' <<'END_OF_FILE'
+X;; The following is a tiny Prolog interpreter in MacLisp
+X;; written by Ken Kahn and modified for XLISP by David Betz.
+X;; It was inspired by other tiny Lisp-based Prologs of
+X;; Par Emanuelson and Martin Nilsson.
+X;; There are no side-effects anywhere in the implementation.
+X;; Though it is VERY slow of course.
+X
+X;; Modified to run on RefLisp by Bill Birch 29 Oct 92
+X;;
+X(defun prolog (database &optional goal)
+X       (do () ((not (progn (princ "Query? ") (setq goal (read)))))
+X              (prove (list (rename-variables goal '(0)))
+X                     '((bottom-of-environment))
+X                     database
+X                     1)))
+X
+X;; prove - proves the conjunction of the list-of-goals
+X;;         in the current environment
+X(defun prove (list-of-goals environment database level)
+X	(cond ((null list-of-goals) ;; succeeded since there are no goals
+X             (print-bindings environment environment)
+X             (not (y-or-n-p "More? ")))
+X            (t (try-each database database
+X                         (cdr list-of-goals) (car list-of-goals)
+X                         environment level))))
+X
+X(defun try-each (database-left database goals-left goal environment level
+X                  &optional assertion new-enviroment)
+X       (cond ((null database-left) nil) ;; fail since nothing left in database
+X             (t (setq assertion
+X                      (rename-variables (car database-left)
+X                                        (list level)))
+X                (setq new-environment
+X                      (unify goal (car assertion) environment))
+X                (cond ((null new-environment) ;; failed to unify
+X                       (try-each (cdr database-left) database
+X                                 goals-left goal
+X                                 environment level))
+X                      ((prove (append (cdr assertion) goals-left)
+X                              new-environment
+X                              database
+X                              (+ 1 level)))
+X                      (t (try-each (cdr database-left) database
+X                                   goals-left goal
+X                                   environment level))))))
+X
+X(defun unify (x y environment &optional new-environment)
+X       (setq x (value x environment))
+X       (setq y (value y environment))
+X       (cond ((variable-p x) (cons (list x y) environment))
+X             ((variable-p y) (cons (list y x) environment))
+X             ((or (atom x) (atom y))
+X                  (cond ((equal x y) environment)
+X    	
+X                (t nil)))
+X             (t (setq new-environment (unify (car x) (car y) environment))
+X                (cond (new-environment (unify (cdr x) (cdr y) new-environment))
+X    		      (t nil)))))
+X
+X(defun value (x environment &optional binding)
+X       (cond ((variable-p x)
+X	(setq binding (assoc x environment )) ;;  :test #'equal))
+X	(cond ((null binding) x)
+X	(t (value (cadr binding) environment))))
+X		(t x)))
+X
+X(defun variable-p (x)
+X	(and x (consp x) (eq (car x) '*)))
+X
+X(defun rename-variables (term list-of-level)
+X	(cond ((variable-p term) (append term list-of-level))
+X		((atom term) term)
+X		(t (cons (rename-variables (car term) list-of-level)
+X				 (rename-variables (cdr term) list-of-level)))))
+X
+X(defun print-bindings (environment-left environment)
+X	(cond ((cdr environment-left)
+X		(cond ((equal 0 (nth 2 (caar environment-left)))
+X 				(prin1 (cadr (caar environment-left)))
+X 				(princ " = ")
+X				 (prin1 (value (caar environment-left) environment))
+X				 (terpri)))
+X	(print-bindings (cdr environment-left) environment))))
+X;; a sample database:
+X
+X(setq db '(((father madelyn ernest)) 
+X	((mother madelyn virginia))
+X	 ((father david arnold))
+X	 ((mother david pauline))
+X	 ((father rachel david))
+X	 ((mother rachel madelyn))
+X	((grandparent (* grandparent) (* grandchild))
+X		(parent (* grandparent) (* parent))
+X		(parent (* parent) (* grandchild)))
+X	((parent (* parent) (* child))
+X		(mother (* parent) (* child)))
+X	((parent (* parent) (* child))	
+X		(father (* parent) (* child)))))
+X;; the following are utilities
+X(defun y-or-n-p (prompt)
+X (princ prompt)
+X (eq (read) 'y))
+X
+X;; start things going
+X(princ ";\n")
+X(princ "; Welcome to MicroProlog by Ken Kahn\n")
+X(princ "; Try typing (grandparent (* A) (* B))\n")
+X(princ "; or   (mother (* C) (* D))\n")
+X(princ "; Type () to exit.\n")
+X(prolog db)
+END_OF_FILE
+if test 4301 -ne `wc -c <'prolog.lsp'`; then
+    echo shar: \"'prolog.lsp'\" unpacked with wrong size!
+fi
+# end of 'prolog.lsp'
+fi
+if test -f 'common.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'common.lsp'\"
+else
+echo shar: Extracting \"'common.lsp'\" \(6994 characters\)
+sed "s/^X//" >'common.lsp' <<'END_OF_FILE'
+X; COMMON.LSP		Compatibility Functions for Common LISP
+X;
+X;	This file contains definitions of Common LISP functions defined
+X;	in "Common LISP the Language", second edition, by Guy L. Steele
+X;	jnr. [CLtL2]
+X;
+X;	They will be the basis for 'C' versions in common.c one day. 
+X;
+X;	Version		Date		Comments
+X;	1.0		22 June 92	PSETQ, LET, MAPCAR
+X;	2.0		21 Oct 92	DO, DO*, LET*, IF, WHEN, UNLESS, DOTIMES, DOLIST
+X;
+X;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+X(defun cadddr (_l) (caddr (cdr _l)))
+X(defun = (a b) (equal a b))
+X
+X(setq first car)
+X(setq rest cdr)
+X(setq listp consp)
+X(setq function-value symbol-value)
+X;
+X; Parallel SETQ with a list of arguments..
+X;
+X(df psetq (&rest _args)
+X	(mapcar #'set (odd _args)
+X		(mapcar #'eval (even _args)) ) )
+X
+X(defun odd (list-x)
+X	(cond (list-x (cons (car list-x) (odd (cddr list-x))))))
+X(defun even (list-x)
+X	(cond (list-x (cons (cadr list-x) (even (cddr list-x))))))
+X
+X;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+X;
+X;	LET - Provide temporary bindings
+X;
+X;	(LET (	(<symbol 1> <initial value 1>)
+X;			(<symbol 2> <initial value 2)
+X;			...
+X;			(<symbol n> <initial value n>))
+X;		<let body>
+X;	)
+X;
+X; Example:
+X;	> (LET ((i 3) (j 7)) (+ i j)) 
+X;   10
+X(defmacro LET (_arglist &rest _body)
+X	`((lambda ,(MAPCAR 'car _arglist)
+X		,@_body )
+X	,@(MAPCAR 'cadr _arglist) ) )
+X
+X(defmacro LET* (_arglist &rest _body)
+X	`((lambda ,(cons '&optional (MAPCAR #'car _arglist))
+X		,@(mapcar #'(lambda  (let*-arg)
+X			(list 'setq (car let*-arg) (cadr let*-arg)) )
+X			_arglist)
+X		,@_body ) ) )
+X
+X;*******************************************************************
+X;;;
+X;;;  SETF - A macro to set values ? not - finished
+X;;;
+X;;	Accepted forms:
+X;;	(setf (get <symbol> <property>) <value)
+X;;
+X;;	Examples:
+X;;		(setf (get 'a 's) 23)
+X
+X(defmacro SETF (place value)
+X	(cond
+X		((atom place) (error "setf cannot handle " place))
+X		((equal (car place) 'get) 
+X			`(put ,(cadr place) ,(caddr place) ,value))
+X		(t nil) ) )
+X;*******************************************************************
+X;;;
+X;;;  RPLACD - destructive replacement of cdr of a cons cell.
+X;;;  RPLACA - destructive replacement of car of a cons cell.
+X;;;
+X(defun RPLACD (dest source)
+X	(_move dest (cons (car dest) source)))
+X(defun RPLACA (dest source)
+X	(_move dest (cons source (cdr dest))))
+X
+X;;; *******************************************************************
+X;;;
+X;;; Auxiliary function to check a keylist
+X;;;
+X;;; (_check-key '(:print t :foo bar) ':foo) ==> bar
+X;;; (_check-key '(:print t :foo bar) ':verbose) ==> nil
+X;;;
+X(defun _check-key (_keylist _key)
+X	(cond
+X		((null _keylist) nil)	;
+X		((equal (car _keylist) key) 
+X			(cond
+X				((null (cdr _keylist))
+X					(error "missing key value" key) )
+X				(t (cadr _keylist)) ) )
+X		(t (_check-key (cdr _keylist) key)) ) )
+X;;; *******************************************************************
+X;;;
+X;;;
+X;;;
+X(defun assoc (key lis)
+X	(cond
+X		((null lis) nil)
+X		((equal key (caar lis)) (car lis))
+X		(t (assoc key (cdr lis))) ) )
+X;;; *******************************************************************
+X;;;
+X;;;  basic mapping function
+X;;;
+X(defun mapcar (func &rest arglists)
+X	(mapcar-aux func arglists '()))
+X			
+X(defun mapcar-aux (func arglists m-result)
+X	(do-while  (and arglists (car arglists)) 
+X		(setq m-result (cons (apply func (m-car arglists)) m-result))
+X		(setq arglists (m-cdr arglists)))
+X	(reverse m-result))
+X
+X;;; 
+X;;; 
+X(defun m-car (lol)
+X	(cond ((and lol (car lol))
+X		(cons (caar lol) (m-car (cdr lol))))))
+X
+X;;;
+X;;;
+X(defun m-cdr (lol)
+X	(cond ((and lol (car lol))
+X		(cons (cdar lol) (m-cdr (cdr lol))))))
+X
+X
+X;;;
+X;;;
+X(defun type-of (_x) (slot _x 'class))
+X;;;
+X;;;
+X;;; Fake pretty printer - Winston & Horn
+X;;;
+X(defun pprint (l &optional (stream *standard-output*))
+X   (ppaux l 0 t stream)
+X   (terpri stream)
+X   l)
+X(defun ppaux (l column newline stream)
+X	(cond (newline (terpri stream)
+X		(let ((i 0))
+X			(do-until ((equal i column))
+X				(princ " " stream) (setq i (+ i 1))))))
+X
+X	(cond ((atom l)
+X		(princ l stream)
+X		(setq column (+ column (length 
+X			(cond ((symbolp l) (symbol-name l))
+X				((numberp l) (itoa l))
+X				(t l))))))
+X		(t (princ "(" stream)
+X			(setq column (+ column 1))
+X			(setq column (ppaux (car l) column nil stream))
+X			(cond ((cdr l)
+X				(princ " " stream)
+X				(setq column (+ column 1))
+X				(ppaux (cadr l) column nil stream)
+X				(mapcar #'(lambda (e) (ppaux e column t stream)) (cddr l))))
+X
+X			(princ ")" stream)
+X			(setq column (+ column 1))))
+X	column)
+X
+X;;;
+X;;;
+X;;;
+X(defun funcall (fn &rest args) (apply fn args))
+X;;;
+X;;;
+X;;
+X(defmacro do* (varlist ending &rest body)
+X	`((lambda ,(cons '&optional (mapcar #'car varlist))
+X		,@(mapcar #'(lambda (do*-arg) 
+X						(list 'setq (car do*-arg) (cadr do*-arg))) varlist)
+X		(do-until ,ending
+X			,@body
+X			,@(do-aux-stepvars varlist)))))
+X
+X(defun do-aux-inits (do-arg)
+X	(cond ((null do-arg) nil)
+X		(t (cons 
+X			(cond
+X				((null (cdar do-arg)) nil)
+X				(t (cadar do-arg)))
+X			(do-aux-inits (cdr do-arg))))))
+X
+X
+X
+X(defun do-aux-stepvars (do-arg-lst)
+X	(cond	((null do-arg-lst) nil)
+X		((and	(cdar do-arg-lst) (cddar do-arg-lst))
+X			(cons (list 'setq (caar do-arg-lst) (nth 2 (car do-arg-lst)))
+X				(do-aux-stepvars (cdr do-arg-lst))))
+X		(t (do-aux-stepvars (cdr do-arg-lst)))))
+X
+X(defmacro do (varlist ending &rest body)
+X	`((lambda ,(mapcar #'car varlist)
+X		(do-until ,ending
+X			,@body
+X			(mapcar #'set
+X				',(do-aux-sv 0 varlist) 
+X				(mapcar #'eval ',(do-aux-sv 2 varlist))  ) )) 
+X	,@(do-aux-inits varlist)))
+X
+X(defun do-aux-sv (index do-arg-lst)
+X	(cond	((null do-arg-lst) nil)
+X		((and	(cdar do-arg-lst) (cddar do-arg-lst))
+X			(cons (nth index (car do-arg-lst)) 
+X				(do-aux-sv index (cdr do-arg-lst))))
+X		(t (do-aux-sv index (cdr do-arg-lst)))))
+X
+X
+X;;;------------------------------------------------------
+X;;;
+X;;; W&H page 356
+X;;;
+X(defmacro dolist (varlist &rest rest)
+X	`(do* ((lst ,(cadr varlist) (cdr lst))
+X		(,(car varlist) (car lst) (car lst)))
+X	   ((null lst) ,(caddr varlist))
+X	   ,@rest))
+X
+X(defmacro dotimes (varcount &rest rest)
+X	`(do* ((limit ,(cadr varcount))
+X		(,(car varcount) 0 (+ ,(car varcount) 1)))
+X	   ((= ,(car varcount) limit) ,(caddr varcount))
+X	   ,@rest))
+X
+X;;;------------------------------------------------------
+X;
+X(defmacro if (test success-result &optional failure-result)
+X	`(cond (,test ,success-result)(T ,failure-result)))
+X;
+X(defmacro when (test &rest rest)
+X	`(cond (,test ,@rest)))
+X;
+X(defmacro unless (test &rest rest)
+X	`(cond ((not ,test) ,@rest)))
+X;;;------------------------------------------------------
+X;;;
+X;;; W&H page 379
+X
+X(defmacro break (&optional message)
+X	`(progn
+X		(print (cons 'Break:  ,message))	; Print message
+X		(print '>)							; Prompt user
+X		(do ((query (read) (read)))			; Read user's expression
+X			((equal query 'continue) nil)	; Stop if indicated
+X		  (print (eval query))				; Print appropriate value
+X		  (print '>))))						; Prompt user again
+X
+X;;;------------------------------------------------------
+X(defmacro remove-if (&rest args) (error "remove-if not implemented"))
+X(defmacro remove-if-not (&rest args) (error "remove-if-not not implemented"))
+X
+END_OF_FILE
+if test 6994 -ne `wc -c <'common.lsp'`; then
+    echo shar: \"'common.lsp'\" unpacked with wrong size!
+fi
+# end of 'common.lsp'
+fi
+if test -f 'gui.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'gui.lsp'\"
+else
+echo shar: Extracting \"'gui.lsp'\" \(12055 characters\)
+sed "s/^X//" >'gui.lsp' <<'END_OF_FILE'
+X;;;
+X(setq char-d 100)
+X(setq char-r 114)
+X(setq char-c 99)
+X(setq char-j 106)
+X(setq char-v 118)
+X(setq char-x 22) ; ^X
+X;;;
+X(setq BLACK 0)
+X(setq WHITE 15)
+X
+X
+X	(setq all '())
+X
+X;
+X; Elementary O O functions.
+X;
+X; Utility function to call a method without arguments. 
+X(defun selfx (method)
+X   ((slot this method) this) )
+X
+X(defun distribute (method obs)
+X   (do-while obs
+X		 ((slot (car obs) method) (car obs))
+X		  (setq obs (cdr obs)) ) )
+X
+X; definition of the class of graphics objects
+X; Abstract Data Type
+X(put 'object '*down* '(lambda () ))
+X(put 'object '*save* '(lambda (&rest args) ))
+X
+X; Define the dollar #? quote syntax to get slots from 'this
+X; #?r => (slot this 'r)
+X(df quser2 (slotname) (get this slotname))
+X
+X; Handy function to set the value of a slot.
+X(defun setslot (slotname value)
+X	(put this slotname value))
+X
+X(defun defclass (_child _parent) (put _child 'class _parent))
+X
+X(defun gen-obj ()
+X	(setq last-id (+ last-id 1))
+X	(gensym last-id))
+X;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+X; definition of the class - text-objects
+X(setq menuheight (-  4800 17))
+X(defclass 'text-object 'object)    ; text-objects are objects
+X
+X; simplification of initialization
+X(put 'text-object 'new '(lambda (this label &optional (h 1000) (v 1000)) 
+X
+X	(setslot 'state NIL) ; T if displayed.
+X	(setslot 'h h)
+X	(setslot 'v v)
+X
+X   (setslot 'label label)
+X   (setslot 'function function)
+X	; add it to the list of the objects
+X	(setq all (cons this all) )
+X	))
+X(defun remove (item lis)
+X	(cond 
+X			((null lis) '())
+X			((equal item (car lis)) (remove item (cdr lis)))
+X			(else
+X				(cons (car lis) (remove item (cdr lis))))))
+X
+X(put 'text-object '*cut* '(lambda (this )
+X
+X	(selfx '*unselect*)
+X	(selfx 'undraw)
+X	(setq buffer this)
+X
+X	; remove it from the list of the objects
+X	(setq all (remove this all) )
+X	))
+X
+X(defun text-object-refresh (this &optional ret) 
+X; text-object draw method
+X      ; first display the text-object
+X      ; NB text-objects are drawn down from the point, so height 'h is
+X      ; highest point.
+X      (setq ret  (textxy #?h #?v #?label))
+X	 ; now save its dimensions
+X	 (setslot 'wi (car ret))   ; width
+X	 (setslot 'he (cdr ret)) ; height down
+X)      
+X(put 'text-object '*refresh* text-object-refresh)
+X
+X(put 'text-object 'draw '(lambda (this &optional ret) 
+X; text-object draw method
+X	(cond (#?state )
+X	  (else
+X		(text-object-refresh this)
+X		(setslot 'state T)
+X	))
+X))      
+X
+X(put 'text-object 'undraw '(lambda (this &optional joins) 
+X	(cond (#?state 
+X		(colour BLACK)
+X		(text-object-refresh this)
+X		(setslot 'state NIL)
+X		(colour WHITE)
+X	))
+X	))
+X; text-object mouse up functions
+X(defun hitp (mx my x1 y1 x2 y2)
+X   (and (> mx x1) 
+X      (< mx x2) 
+X      (> my y1) 
+X      (< my y2) ) )
+X
+X(defun draw-polyline (p)
+X	(do-while (cdr p)
+X		(line (caar p) (cdar p) (caadr p) (cdadr p))
+X		(setq p (cdr p)) ) )
+X
+X(defun text-object-hilite (this)
+X	(draw-polyline (list
+X		(cons   #?h #?v)
+X		(cons   (+  #?h #?wi) #?v)
+X		(cons   (+  #?h #?wi) (-  #?v #?he))
+X		(cons   #?h (-  #?v #?he))
+X		(cons   #?h #?v ) )) )
+X
+X(defun between-h (s d)
+X	(/ (+ (get s 'h) (get d 'h)) 2) )
+X
+X(defun between-v (s d)
+X	(/ (+ (get s 'v) (get d 'v)) 2) )
+X
+X(put 'text-object '*poll* '(lambda (this mh mv)
+X	 ; check if the text-object has been hit
+X		 (hitp mh mv  #?h  (-  #?v #?he)  (+  #?h #?wi) #?v)))
+X
+X(put 'text-object '*select* '(lambda (this)
+X			; highlight text-object
+X			(text-object-hilite this)))
+X
+X(put 'text-object '*unselect* '(lambda (this)
+X			; un-highlight text-object
+X			(text-object-hilite this)))
+X
+X(put 'text-object '*move-relative* '(lambda (this h v)
+X			(text-object-hilite this)
+X			(selfx 'undraw)   ; un-draw old image
+X			(setslot 'h (- #?h h))
+X			(setslot 'v (- #?v v))
+X			(text-object-hilite this)
+X			(selfx 'draw)  ))
+X
+X(put 'text-object '*duplicate* '(lambda (old &optional tmp)
+X	(setq this (gen-obj))
+X	(defclass this (slot old 'class))
+X	((slot this 'new) this (symbol-name this) 
+X		(+ (get old 'h) 400)
+X		(get old 'v))
+X	(selfx 'draw)
+X
+X	))
+X
+X(put 'text-object '*rename* '(lambda (this)
+X	(princ "Old label: ")
+X	(prin1 #?label)
+X	(terpri)
+X	(princ "New label? ")
+X	(put this 'label (read))
+X	(clear) 
+X	(text-object-hilite this) 
+X    (distribute '*refresh* all) 
+X	))
+X
+X;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+X(put 'next-h 'h 100)
+X(defun next-h ()
+X	(get 'next-h 'h))
+X(put 'next-v 'v 2000)
+X(defun next-v ()
+X	(put 'next-v 'v (+ (get 'next-v 'v) 200)) )
+X;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+X;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+X(defclass 'button 'text-object)
+X(put 'button '*select* 
+X   '(lambda (this) 
+X    (#?function this) 
+X	) )
+X;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+X(defclass 'load-file 'button)
+X((slot 'load-file 'new) 'load-file "load-file" (next-h) (next-v))
+X(put 'load-file 'function
+X   '(lambda (this) 
+X   		(clear)
+X		(load "pic.lsp")
+X	(text-object-hilite this) 
+X    (distribute '*refresh* all) 
+X	(select-only '())) )
+X
+X(defclass 'save-file 'button)
+X((slot 'save-file 'new) 'save-file "save-file" (next-h) (next-v))
+X(put 'save-file 'function 
+X   '(lambda (this) 
+X   (setq fd (open "pic.lsp" :direction :output))
+X   (distribute '*save* all) 
+X   (print `(setq last-id ,last-id) fd)
+X	(close fd)
+X   ) )
+X
+X;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+X(defclass 'quit 'button)
+X((slot 'quit 'new) 'quit "Quit" (next-h) (next-v))
+X(put 'quit 'function 
+X   '(lambda (this) (setq quitflag nil)) )
+X
+X;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+X(defclass 'clear 'button)
+X((slot 'clear 'new) 'clear "Refresh" (next-h) (next-v))
+X(put 'clear 'function 
+X   '(lambda (this)  
+X	(clear) 
+X	(text-object-hilite this) 
+X    (distribute '*refresh* all) 
+X	(select-only '())) )
+X
+X;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+X(defun cadddr (x)
+X   (car (cdr (cdr (cdr x)))) )
+X
+X
+X(defun ps-princ (x)
+X	(cond 
+X		((numberp x) (princ (/ x 10) ps-fd))
+X		(else  (princ x ps-fd))))
+X
+X(defun ps-line (p1 p2 p3 p4)
+X	(ps-princ p1)
+X	(ps-princ " ") 
+X	(ps-princ p2)
+X	(ps-princ " moveto\n") 
+X	(ps-princ p2)
+X	(ps-princ " ") 
+X	(ps-princ p3)
+X	(ps-princ " lineto\n")  )
+X
+X(defun ps-textxy (p1 p2 p3)
+X	(ps-princ p1)
+X	(ps-princ " ") 
+X	(ps-princ p2)
+X	(ps-princ " moveto\n") 
+X	(ps-princ "(") 
+X	(ps-princ p3)
+X	(ps-princ ")\n" )
+X	'(2000 . 200)) 
+X
+X(defun print-context (line textxy ps-fd &rest body)
+X    (distribute '*refresh* all) )
+X
+X(defclass 'evprint 'button)
+X((slot 'evprint 'new) 'evprint "Print"  (next-h) (next-v))
+X(put 'evprint 'function '(lambda (this)
+X    (setq ps-fd (open "gui.ps" :direction :output))
+X	(print-context ps-line ps-textxy ps-fd )
+X	(close ps-fd)
+X))
+X;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+X(defclass 'node 'text-object)
+X(put 'node '*join* '(lambda (dest source &optional tmp)
+X	(cond (source
+X	(setq tmp (link-new dest source))
+X	(put source 'to (cons tmp (get source 'to) ))
+X	(put dest 'from (cons tmp (get dest 'from) ))
+X	((slot tmp 'draw) tmp)
+X	))))
+X
+X(put 'node 'undraw '(lambda (this)
+X 	((slot 'text-object 'undraw) this) ; invoke parent class draw method
+X	(distribute 'undraw (append #?to #?from))
+X	))
+X(put 'node 'draw '(lambda (this &optional joins) 
+X 	((slot 'text-object 'draw) this) ; invoke parent class draw method
+X	(distribute 'draw (append #?to #?from))
+X))
+X(put 'node '*save* '(lambda (this)
+X	(print `(progn 
+X		(setq tmp (gen-obj ,#?id))
+X		(defclass tmp 'node)
+X		((slot tmp 'new) tmp ,#?label ,#?h ,#?v) 
+X		(put tmp 'he ',#?he)
+X		(put tmp 'wi ',#?wi)
+X		(put tmp 'to ',#?to)
+X		(put tmp 'from ',#?from))
+X		fd)
+X	))
+X;;;---------------------------------------------------------
+X(defclass 'nodes 'text-object)
+X((slot 'nodes 'new) 'nodes "Make Node"  (next-h) (next-v))
+X(put 'nodes '*select* '(lambda (this)
+X	(setq this (gen-obj))
+X	(defclass this 'node)
+X	((slot this 'new) this (symbol-name this) (next-h) (next-v) )
+X	(selfx 'draw)
+X
+X	))
+X;;;---------------------------------------------------------
+X(defclass 'link 'text-object)
+X(defun link-new (dest source &optional tmp)
+X	(cond ((and source dest)
+X	(setq tmp (gen-obj))
+X	(defclass tmp 'link)
+X	((slot 'text-object 'new) tmp "o" 
+X		(between-h source dest)
+X		(between-v source dest) )
+X	(put tmp 'from (list source))
+X	(put tmp 'to (list dest))
+X	tmp
+X	)))
+X
+X(put 'link '*join* '(lambda (dest source &optional tmp) ))
+X
+X(defun redraw-joins (this &optional joins) 
+X	; re-draw all joins
+X	(setq joins (append #?to #?from ))
+X	(do-while joins
+X		(line (get (car joins) 'h) (get (car joins) 'v)
+X			  #?h  #?v)
+X		(setq joins (cdr joins)))
+X)
+X(put 'link '*refresh* '(lambda (this) 
+X 	((slot 'text-object '*refresh*) this) ; invoke parent class method
+X	(redraw-joins this)
+X))
+X(put 'link 'undraw '(lambda (this)
+X 	((slot 'text-object 'undraw) this) ; invoke parent class draw method
+X	(redraw-joins this)
+X	))
+X(put 'link 'draw '(lambda (this)
+X	(put this 'h (between-h (car #?to) (car #?from)))
+X	(put this 'v (between-v (car #?to) (car #?from)))
+X 	((slot 'text-object 'draw) this) ; invoke parent class draw method
+X	(redraw-joins this)
+X))
+X(put 'link '*save* '(lambda (this)
+X	(princ `(progn 
+X		(defclass ,#?label 'link)
+X		((slot ,#?label 'new) ,#?label ,#?label ,#?h ,#?v) 
+X		(put ,#?label 'to ',#?to)
+X		(put ,#?label 'from ',#?from))
+X		fd)
+X	))
+X;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+X
+X(defun drawl ()
+X    (distribute 'draw all) )
+X
+X
+X(defun do-to-one (method this)
+X		((slot this method) this))
+X
+X(defun pass-to-list (method l &rest args)
+X	(do-while l
+X		(apply (slot (car l) method) (cons (car l) args))
+X		(setq l (cdr l))))
+X
+X(defun do-to-list (method l)
+X	(do-while l
+X		((slot (car l) method) (car l))
+X		(setq l (cdr l))))
+X
+X(defun select-only (obj)
+X	(do-to-list '*unselect* selected)
+X	(cond 
+X		(obj
+X			(setq selected (list obj))
+X			(do-to-list '*select* selected))
+X		(t  (setq selected '()))))
+X
+X(defun select-add (obj)
+X	(cond ((member obj selected))
+X		; already selected -so ignore
+X		(else 
+X			(setq selected (cons obj selected))
+X			(do-to-one '*select* obj))))
+X
+X(defun drag (this curr-h curr-v &optional drag-ev )
+X	(do-while (not (equal (car (setq drag-ev (getevent))) *up*)))
+X				(setq rh (- curr-h (caddr drag-ev)))
+X				(setq rv (- curr-v (cadddr drag-ev)))
+X				(setq curr-h (caddr drag-ev))
+X				(setq curr-v (cadddr drag-ev))
+X				(pass-to-list '*move-relative* selected rh rv))
+X				
+X
+X(defun pass-to-one (event this)
+X	((slot this (car event)) this event))
+X
+X(defun gui ()
+X	(setq quitflag t)
+X	(do-while quitflag
+X		(setq ev (getevent))
+X		(cond   ((or (equal (car ev) *down*) (equal (car ev) *sdown*))
+X	     	(setq tmp all) ; get a copy of the objects existing
+X			(setq one-found NIL)
+X			(do-while tmp
+X	    		(cond 
+X				; call the poll function for the object,
+X	       		; if it returns true, then stop the loop
+X	       		; by setting tmp to nil
+X		 		(( (slot (car tmp) '*poll*) ; function to call
+X		    		(car tmp) (caddr ev) (cadddr ev)) ; args
+X		   
+X				(setq one-found T)
+X				(cond ((member (car tmp) selected)
+X						(drag (car tmp) (caddr ev) (cadddr ev)))
+X					((equal (car ev) *down*)
+X						(select-only (car tmp)) )	
+X					(t (select-add (car tmp))))
+X		  		(setq tmp nil)) ; executed if polled ok not nil
+X	       
+X		       		(t (setq tmp (cdr tmp))) )); otherwise try the next
+X		   (cond ((not one-found) (select-only '())))
+X		   )
+X	 ((equal (car ev) *keys*)
+X	 	(cond ((equal (cadr ev) char-x) (do-to-list '*cut* selected))
+X			((equal (cadr ev) char-d) (do-to-list '*duplicate* selected)) 
+X
+X	 		 ((equal (cadr ev) char-j) 
+X			 	(cond ((and (nth 1 selected) ; must be two to join!
+X					(null (equal (get (nth 0 selected) 'class) 'link))
+X					(null (equal (get (nth 1 selected) 'class) 'link))
+X					)
+X			 		((slot (nth 0 selected) '*join*) 
+X						(nth 0 selected)
+X						(nth 1 selected) ))) )
+X
+X	 		 ((equal (cadr ev) char-r) 
+X	 			(do-to-list '*rename* selected)) 
+X		)
+X	 )
+X	 (else nil) )  ) )
+X
+X(defun r ()
+X	(setq selected '())
+X	(setq polyline '())
+X	(setq last-id 1)
+X	(GraphOpen VGA 2) ; Has to be here because 'new calls button.
+X	(progn
+X		; Draw a border around the screen
+X		(line 10 10 6390 10)
+X		(line 10 10 10 4800)
+X		(line 10 4800 6390 4800)
+X		(line 6390 10 6390 4800))
+X	(mode XOR)
+X	(drawl)
+X	(gui)
+X	(setq all '())
+X	(GraphClose) )
+X
+X(r)
+END_OF_FILE
+if test 12055 -ne `wc -c <'gui.lsp'`; then
+    echo shar: \"'gui.lsp'\" unpacked with wrong size!
+fi
+# end of 'gui.lsp'
+fi
+if test -f 'fib.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'fib.lsp'\"
+else
+echo shar: Extracting \"'fib.lsp'\" \(1048 characters\)
+sed "s/^X//" >'fib.lsp' <<'END_OF_FILE'
+X
+X	(extensions t)			; activate extensions
+X
+X	; handy function to create symbols which look like 
+X	; function applications
+X	(defun assert (form result)		
+X		(set (addsym form) result))
+X
+X	; Fibonnacci Series
+X	(defun fib (n)
+X		; Note total lack of COND statements !!
+X		(+ (fib (- n 1)) (fib (- n 2))) )
+X	
+X	; Declare the terminating conditions of fibonacci series.
+X	; These are found by APPLY in preference to an application.
+X	(assert `(,fib 1) 1)	
+X	(assert `(,fib 0) 1)
+X	
+X	;; Here is a memoised version of the fibonnacci series 
+X	;; which is very much faster than (fib)
+X	(defun fib-fast (n)
+X		; The assert statement saves the result for
+X		; future executions of APPLY
+X		(assert (list fib-fast n) 
+X			(+ (fib-fast (- n 1)) (fib-fast (- n 2))) ))
+X
+X	(assert `(,fib-fast 1) 1)
+X	(assert `(,fib-fast 0) 1)
+X
+X(load "times.lsp")
+X(let ((num 15))
+X	(princ* "\nTime to execute ordinary Fibonnacci(" num ") : "
+X		(time:perf (fib num)) " Seconds")
+X	(princ* "\nTime to execute memoized Fibonnacci(" num ") : "
+X		(time:perf (fib-fast num)) " Seconds"))
+X
+X(extensions nil)
+END_OF_FILE
+if test 1048 -ne `wc -c <'fib.lsp'`; then
+    echo shar: \"'fib.lsp'\" unpacked with wrong size!
+fi
+# end of 'fib.lsp'
+fi
+if test -f 'shake.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'shake.lsp'\"
+else
+echo shar: Extracting \"'shake.lsp'\" \(682 characters\)
+sed "s/^X//" >'shake.lsp' <<'END_OF_FILE'
+X;;;
+X;;; shake.lsp		Tree-shaker functions
+X;;;
+X;;; 12 Feb 93
+X;;;
+X
+X;;
+X;;	Function to create a list of symbols used by a function. 
+X;;  This is a useful source of lists for profiling with
+X;;	(profile) in the file "profile.lsp"
+X
+X;; For example:
+X;;
+X;;	(defun f (a b) (cons a (+ a b)))
+X;;
+X;;	(shake-tree 'f) ==> (f cons +)
+X;;
+X(defun shake-tree (item &optional syms)
+X	(shake-tree-aux item)
+X	syms)
+X
+X(defun shake-tree-aux (item)
+X	(cond 
+X		((member item syms)) 
+X		((consp item) 
+X			(shake-tree-aux (car item) )
+X			(shake-tree-aux (cdr item) ))
+X		((and (symbolp item) (boundp item) 
+X			(not (member item syms))) 
+X				(setq syms (cons item syms))
+X				(shake-tree-aux (symbol-value item )))  ) )
+END_OF_FILE
+if test 682 -ne `wc -c <'shake.lsp'`; then
+    echo shar: \"'shake.lsp'\" unpacked with wrong size!
+fi
+# end of 'shake.lsp'
+fi
+if test -f 'profile.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'profile.lsp'\"
+else
+echo shar: Extracting \"'profile.lsp'\" \(1717 characters\)
+sed "s/^X//" >'profile.lsp' <<'END_OF_FILE'
+X; 
+X; 
+X;
+X(load "shake.lsp")
+X
+X(defun type-of (x) 
+X	(if (symbolp x) 'symbol (slot x 'class)))
+X
+X(defun profile-report (functions)
+X	(cond ((atom functions) (setq functions (list functions))))
+X	(dolist (fun functions)
+X		(unless (equal 0 (get fun 'count))
+X			(princ* CR (get fun 'count) "\t" fun ))))
+X
+X(defun profile (functions)
+X	(cond ((atom functions) (setq functions (list functions))))
+X	(dolist (f functions)
+X		(profile-aux f))
+X		t)
+X
+X;;
+X;;	Filter out symbols which are not functions defined by 
+X;;	the user in Lisp.
+X;;
+X
+X(defun filter (symlist &optional val)
+X	(cond
+X		((null symlist) '())
+X		((and (boundp (car symlist))
+X				(or (and (member (type-of (symbol-value (car symlist))) 
+X						'(subr fsubr)) 
+X						(not (member (car symlist) except )) )
+X					(and (consp (symbol-value (car symlist)))	
+X						(member (car (symbol-value (car symlist)))
+X							'(macro lambdaq lambda)))))
+X			(cons (car symlist) (filter (cdr symlist))))
+X							
+X		(else
+X			(filter (cdr symlist)))))
+X
+X(defun profile-clear (functions)
+X	(cond ((atom functions) (setq functions (list functions))))
+X	(dolist (g functions)
+X		(unprofile g)))
+X
+X(defun profile-aux (fn)
+X   (put fn 'olddef (function-value fn))   ; save old definition
+X   (put fn 'count 0)   			; initialise counter
+X   (set fn 
+X      `(,(cond
+X	  		((equal (type-of (function-value fn)) 'subr)
+X				'lambda)
+X	  		((equal (type-of (function-value fn)) 'fsubr)
+X				'lambdaq)
+X	  		((consp (function-value fn))
+X				(car (function-value fn))))
+X			(&rest *x)
+X	  	 (put ',fn 'count (+ 1 (get ',fn 'count)))
+X		 (apply (get ',fn 'olddef) *x)
+X          ))
+X   fn )
+X
+X(setq except (shake-tree 'profile))
+X(defun unprofile (fn)
+X   (set fn (get fn 'olddef))
+X;   (remprop fn 'olddef)
+X   (list fn 'unprofiled) )
+END_OF_FILE
+if test 1717 -ne `wc -c <'profile.lsp'`; then
+    echo shar: \"'profile.lsp'\" unpacked with wrong size!
+fi
+# end of 'profile.lsp'
+fi
+if test -f 'scheme.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'scheme.lsp'\"
+else
+echo shar: Extracting \"'scheme.lsp'\" \(5211 characters\)
+sed "s/^X//" >'scheme.lsp' <<'END_OF_FILE'
+X; Newsgroups: comp.lang.scheme
+X; Distribution: world
+X; Subject: SICP: Evaluation by re-writing? (beginner)
+X; Summary: Another dumb question about SICP Section 3.1.2
+X; Keywords: scope, extent, environments
+X; 
+X; 
+X; Problem with SICP: What's wrong with substitution?
+X; 
+X; In SICP Section 3.1.2, the authors say that the substitution model
+X; is no longer valid as soon as you introduce SET!. There is
+X; a worked example to show what they mean on page 176. This issue is 
+X; used as the rationale for the environment model used later in The 
+X; Book.
+X; 
+X; I think there is another way to explain the indefinite extent
+X; of scheme objects, by using substitution, not of variable values
+X; as in The Book, but of variable _names_ (re-writing). My assertion 
+X; is that Scheme can be implemented by re-writing. Can anyone
+X; confirm or dis-prove this please? 
+X; 
+X; I'll explain what I mean. Consider the example:
+X; 
+X; (define (make-simplified-withdraw balance)
+X; 	(lambda (amount)
+X; 		(set! balance (- balance amount))
+X; 		balance)
+X; 
+X; this is the same as :
+X; 
+X; (set! make-simplified-withdraw 
+X; (lambda (balance)
+X; 	(lambda (amount)
+X; 		(set! balance (- balance amount))
+X; 		balance)
+X; 
+X; 
+X; so make-simplified-withdraw is equal to
+X; 
+X; (procedure (balance)
+X; 	(lambda (amount)
+X; 		(set! balance (- balance amount))
+X; 		balance)
+X; 
+X; Consider evaluating 
+X; 
+X; 	((make-simplified-withdraw 25) 20)
+X; 
+X; First  we evaluate the inner-most expression.
+X; 
+X; 	(make-simplified-withdraw 25)
+X; 
+X; or:
+X; 
+X; ((procedure (balance)
+X; 	(lambda (amount)
+X; 		(set! balance (- balance amount))
+X; 		balance)
+X;  25)
+X; 
+X; Taking the inner-most expression again (procedure ....)
+X; 
+X; To evaluate a procedure we re-write all the non-quoted 
+X; parts of the body replacing all the formals with unique symbols 
+X; generated with GENSYM. We also replace the formals to get a procedure
+X; that is ready for apply:
+X; 
+X; (applicable-procedure (g1)
+X; 	(lambda (amount)
+X; 		(set! g1 (- g1 amount))
+X; 		g1)
+X; 
+X; Next we apply the applicable-procedure by setting the formals
+X; so that 
+X; 	g1 = 25
+X; and we then evaluate the body of the applicable procedure:
+X; 
+X; 	(lambda (amount)
+X; 		(set! g1 (- g1 amount))
+X; 		g1)
+X; 
+X; Resulting in
+X; 
+X; 	(procedure (amount)
+X; 		(set! g1 (- g1 amount))
+X; 		g1)
+X; 
+X; Notice the reference to the GENSYM "g1" in this code fragment.
+X; In general as long as there are pieces of source code refering to
+X; "g1" still existing, then "g1" will still exist.
+X; 
+X; going back to: ((make-simplified-withdraw 25) 20)
+X; 
+X; this is  now
+X; 
+X; ((procedure (amount) 
+X; 	(set! g1 (- g1 amount)) 
+X; 		g1)
+X;  20)
+X; 
+X; You can see that when evaluated using the steps explained above 
+X; we should have evaluation of the sequence:
+X; 
+X; 	(set! g1 (- g1 g2))
+X; 	g1
+X; 
+X; Which is a lot different from the sequence:
+X; 
+X; 	(set! 25 (- 25 amount)) 
+X; 	20 
+X; 
+X; which is what happens when you substitute variable values rather
+X; that variable names, as described in The Book.
+X; 
+X; Can anyone  tell me whether evaluation-by-rewriting is a 
+X; correct interpretation of Scheme? 
+X; If so, was it left out of SICP because it cannot be compiled?
+X; Does this method have a correct name?
+X; 
+X; Your comments gratefully received by email,  I will summarise.
+X; 
+X; Bill
+X; 
+X; PS. Here is a Lisp version of the above method of evaluation.
+X; 
+X;;;;
+X;;;; Scheme in RefLisp -  Version 2.0 - 1 March 1993
+X;;;;
+X;;;;	by Bill Birch
+X;;;;
+X;;;;	The functions allow scheme programs to be run.
+X;;;;	Albeit very slowly.
+X;;;;	Environments are created by substitution of variables.
+X;;;;
+X;;
+X;;	Substitute  - replace all occurences of b with a,
+X;;				  skipping quoted expressions.
+X;;
+X(defun substitute (a b s)
+X   (cond
+X      ((eq s b) a)   
+X      ((atom s) s)   
+X      (else (cond
+X	  		((equal (car s) 'quote) s)
+X			(else  
+X			  (cons (substitute a b (car s))
+X   	          (substitute a b (cdr s))))))))
+X;;
+X;;
+X;; Macro to define variables and procedures.
+X;;
+X(df define (args &rest body)
+X	(cond ((atom args) (set args (eval (car body))))
+X		(else 
+X			(set (car args) (eval `(my-lambda ,(cdr args) ,@body))))))
+X;;
+X;;
+X;; Macro to generate procedures
+X;;
+X(df my-lambda (formals &rest body)
+X	`(lambda (&rest actuals)
+X		(eval (cons 'progn (subst-list (gensyms ',(defs body))
+X				',(defs body)
+X				(subst-list
+X					(setlis (gensyms ',formals) actuals)
+X					',formals
+X					',body))))))
+X
+X;;
+X;; Substitute a list of items 
+X;;
+X(defun subst-list (to from on)
+X	(cond ((null to) on)
+X		(else (subst-list 
+X			(cdr to) 
+X			(cdr from) 
+X			(substitute (car to) (car from) on)))))
+X
+X;;
+X;; Reurn a list of gensyms as long as the list passed in.
+X;;
+X(defun gensyms (l)
+X	(unless (null l)
+X		(cons (gensym) (gensyms (cdr l)))))
+X;;
+X;; Set a list of variables with the values given, 
+X;; each in turn.
+X;;
+X(defun setlis (vars vals)
+X	(cond ((null vars) '())
+X		(else
+X			(set (car vars) (car vals))
+X			(cons (car vars) 
+X				(setlis (cdr vars) (cdr vals))))))
+X
+X;;
+X;; Find all first-level (define) statements in a form body
+X;; return a list of the names to be defined.
+X;;
+X(defun defs (form)
+X	(cond
+X		((null form) '())
+X		((and
+X			(consp (car form))
+X			(eq (caar form) 'define))
+X
+X				(cons (cond
+X					((consp (cadar form))
+X						(caar(cdr(car form))))
+X					(else (cadar form)))
+X					(defs (cdr form))))))
+X
+X
+X;; END-OF-FILE
+END_OF_FILE
+if test 5211 -ne `wc -c <'scheme.lsp'`; then
+    echo shar: \"'scheme.lsp'\" unpacked with wrong size!
+fi
+# end of 'scheme.lsp'
+fi
+if test -f 'church.scm' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'church.scm'\"
+else
+echo shar: Extracting \"'church.scm'\" \(658 characters\)
+sed "s/^X//" >'church.scm' <<'END_OF_FILE'
+X;;; Exercise 2.5 -- Church numerals
+X
+X(define zero (my-lambda (f) (my-lambda (x) x)))
+X
+X(define (incr n)
+X  (my-lambda (f) (my-lambda (x) (f ((n f) x)))))
+X
+X(define one (incr zero))
+X(define two (incr (incr zero)))
+X(define three (incr two))
+X
+X;; The currification function, which transforms a binary 
+X;; function into a unary operator:
+X(define (curry f x) (my-lambda (z) (f x z)))
+X
+X;; The composition function:
+X(define (comp f g) (my-lambda (z) (f (g z))))
+X
+X(define (add n1 n2)
+X	(my-lambda (f x) ((comp (curry n1 f) (curry n2 f)) x)))
+X
+X(define (mul n1 n2)
+X	(my-lambda (f x) ((curry n1 (curry n2 f)) x)))
+X
+X(define (mysucc x) (cons 's x))
+X(print (three mysucc 0))
+X
+X
+END_OF_FILE
+if test 658 -ne `wc -c <'church.scm'`; then
+    echo shar: \"'church.scm'\" unpacked with wrong size!
+fi
+# end of 'church.scm'
+fi
+if test -f 'lexical.lsp' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'lexical.lsp'\"
+else
+echo shar: Extracting \"'lexical.lsp'\" \(2227 characters\)
+sed "s/^X//" >'lexical.lsp' <<'END_OF_FILE'
+X;;;;
+X;;;; Lexical Scope by term re-writing Version 0.1
+X;;;;
+X;;;;	by Bill Birch	3 March 93
+X;;;;
+X;;;;	
+X;;;;	
+X;;;;	Lexical environments are created by substitution of variables.
+X;;;;
+X;;
+X;;	Substitute  - replace all occurences of b with a,
+X;;				  skipping quoted expressions.
+X;;
+X(defun substitute (a b s)
+X   (cond
+X      ((eq s b) a)   
+X      ((atom s) s)   
+X      (else (cond
+X	  		((equal (car s) 'quote) s)
+X			(else  
+X			  (cons (substitute a b (car s))
+X   	          (substitute a b (cdr s))))))))
+X;;
+X(defun rewrite (formals defs form &optional new-formals new-defs)
+X	(setq new-formals (gensyms formals))
+X	(setq new-defs (gensyms defs))
+X		(subst-list new-defs defs
+X				(subst-list
+X					new-formals
+X					formals
+X					form)))
+X
+X;;
+X;; Substitute a list of items 
+X;;
+X(defun subst-list (to from on)
+X	(cond ((null to) on)
+X		(else (subst-list 
+X			(cdr to) 
+X			(cdr from) 
+X			(substitute (car to) (car from) on)))))
+X
+X;;
+X;; Reurn a list of gensyms as long as the list passed in.
+X;;
+X(defun gensyms (l)
+X	(unless (null l)
+X		(cons (gensym) (gensyms (cdr l)))))
+X;;
+X;; Set a list of variables with the values given, 
+X;; each in turn.
+X;;
+X(defun setlis (vars vals)
+X	(cond ((null vars) '())
+X		(else
+X			(set (car vars) (car vals))
+X			(cons (car vars) 
+X				(setlis (cdr vars) (cdr vals))))))
+X
+X;;
+X;; Find all first-level (define) statements in a form body
+X;; return a list of the names to be defined.
+X;;
+X(defun find-defs (form)
+X	(cond
+X		((null form) '())
+X		((and
+X			(consp (car form))
+X			(eq (caar form) 'defun))
+X				(cons (cadar form)
+X					(find-defs (cdr form))))))
+X
+X(defun remove-switches (arglst)
+X	(cond
+X		((null arglst) '())
+X		((member (car arglst) '(&rest &optional &aux))
+X			(remove-switches (cdr arglst)))
+X		(else (cons (car arglst) (remove-switches (cdr arglst)))))) 
+X
+X(df function (form)
+X	(cond ((atom form) form)
+X		(else
+X			(rewrite (remove-switches (cadr form))
+X					 (find-defs (cddr form)) 
+X					 form))))
+X;;
+X;; Macro to define variables and procedures.
+X;;
+X(df define (args &rest body)
+X	(cond ((atom args) (set args (eval (car body))))
+X		(else 
+X			(set (car args)  (function 
+X				  	(eval `(lambda ,(cdr args) ,@body)))))))
+X
+X(df defun (name args &rest body)
+X	(eval `(setq ,name (function (lambda ,args ,@body))))
+X	name)
+X
+X;; END-OF-FILE
+END_OF_FILE
+if test 2227 -ne `wc -c <'lexical.lsp'`; then
+    echo shar: \"'lexical.lsp'\" unpacked with wrong size!
+fi
+# end of 'lexical.lsp'
+fi
+if test -f 'account.scm' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'account.scm'\"
+else
+echo shar: Extracting \"'account.scm'\" \(572 characters\)
+sed "s/^X//" >'account.scm' <<'END_OF_FILE'
+X(define (make-withdraw balance)
+X	(my-lambda (amount)
+X				(setq balance (- balance amount))))
+X
+X(define W1 (make-withdraw 100))
+X
+X(define (make-account balance)
+X	(define (snoop m)
+X		(cond ((eq m 'withdraw) `withdraw)
+X			((eq m 'deposit) `deposit)
+X			(else (print "error"))))
+X	(define (withdraw amount)
+X		(setq balance (- balance amount))
+X		balance)
+X	(define (deposit amount)
+X		(setq balance (+ balance amount))
+X		balance)
+X	(define (dispatch m)
+X		(cond ((eq m 'withdraw) withdraw)
+X			((eq m 'deposit) deposit)
+X			((eq m 'snoop) snoop)
+X			(else (print "error"))))
+X	dispatch)
+X
+X
+END_OF_FILE
+if test 572 -ne `wc -c <'account.scm'`; then
+    echo shar: \"'account.scm'\" unpacked with wrong size!
+fi
+# end of 'account.scm'
+fi
+echo shar: End of shell archive.
+exit 0
+

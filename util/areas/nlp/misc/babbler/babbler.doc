@@ -1,0 +1,160 @@
+                          BABBLER INFO
+ 
+BABBLER is a computer program, which uses a keystroke stream "sliding
+window" as an echoic (short term) memory and stores overlapping replicas
+of the successive windows in an associative memory which is driven by a
+Markov chain to create a language acquisition-and-use system.
+ 
+The program, as currently configured, learns up to about a thousand words
+of conversational material (in any keyboard-compatible written language)
+from keyboard inputs and can carry on an interactive dialog, in its acquired
+language, with the computer operator via keyboard and screen.  BABBLER's
+half of the dialog tends to be schizophrenic but creative.  When left to
+itself, (after having acquired a bit of experience) it rambles along in a
+free association mode.  BABBLER's associative memory is stored in RAM,
+in the string stack, and is limited to 32K.  A disk memory version is
+available, but should be used only with a RAM disk or equivalent.
+ 
+'                      (SCHEMA FOR BABBLER)
+'
+'                     ----------------------
+'                 720 |     670  (1)       |
+------>-------------->|  KEYBOARD INPUT    |----------<-----------
+|           ^         |                    |                     |
+|           |         ----------------------                     |
+|   -----------------           |                                ^
+|   | 2800 MEM DUMP |           |                                |
+|   -----------------           v                                |
+|           ^                   |                                |
+|           | Y                 |                       -------------------
+|      -----------         -----------                  | 1880 (12) SHIFT |
+|     / 800  MEM  \       /    790    \                 |   TO KEYBOARD   |
+|     \   DUMP?   /---<--| Y INPUT?  N |--->---         |       SEARCH    |
+|      -----------        \           /       |         -------------------
+|           | N            -----------        |                  |
+|           v                                 v                  ^
+|   --------------------           -----------------------       |----<-----
+|   | 840  (2)         |           | 1590 (8) SHIFT TO   |       ^         |
+|-<-|     FILTER       |           |     FORWARD SEARCH  |       | Y       |
+|   |   KEYSTROKES     |           -----------------------  ------------   |
+|   --------------------                      |            /    2060    \  |
+|           |                                 |------<----| N  END OF    | |
+|           |                                 v            \  SENTENCE? /  |
+^           |------<-------        ----------------------   ------------   |
+|           |             |        | 1630  (9) FORWARD  |        |         |
+|           v             |        |     "BRANCHING"    |        |         |
+|           |             ^        |       SEARCH       |        ^         ^
+|   ----------------      |        ----------------------        |         |
+|   | 1060 (3)     |      |                   |                  |         |
+|   |    PRINT     |  -----------     ----------------       -----------   |
+|   |     AND      |  |2740 (19)|    /      1840      \      |1930 (13)|   |
+|   |  STORE NEW   |  | SYNAPSE |   | PATTERN MATCH? Y |---->| SELECT  |   |
+^   |   MATERIAL   |  |  LOOP   |    \        N       /      | & PRINT |   ^
+|   |     IN       |  | CONTROL |     ----------------       | OUTPUT  |   |
+|   |   MEMORY     |  -----------             |              -----------   |
+|   ----------------      |             ---------------                    |
+|           |             |            /    1870       \                   |
+|           |             |           | END SENTENCE  N | ------>-----------
+|           v             ^            \      Y        /
+|           |             |             ---------------
+|           |             |                   |
+|      -----------        |                   v
+|     / 1540 (7)   \      |         -----------------------
+--<--| Y SYNAPSE  N |-->--|         | 2140 (15) SHIFT TO  |
+'     \ FINISHED?  /      |         |    REVERSE SEARCH   |
+'      -----------        |         -----------------------
+'                         ^                   |
+'                         |                   |---------<----------
+'                         |                   v                   |
+'                  --------------    ------------------------     |
+'                  |   2690     |    |      2340  (16)      |     |
+'                  |  SYNAPSE   |    |   REVERSE CHAINING   |     |
+'                  |   PREP     |    |     MEMORY SEARCH    |     ^
+'                  --------------    ------------------------     |
+'                        |                    |                   |
+'                  --------------     -------------------         |
+'                  | 2670 SHIFT |    /       2630        \        |
+'                  |   TO FWD   |<--| Y  BEGINNING OF   N |---->---
+'                  |   SEARCH   |    \     SENTENCE?     /
+'                  --------------     -------------------
+'
+'
+'
+' For Attention Span  N=8, characters 4 and 5 in the sliding window "E"
+' are the address pointers.  Alphabetical characters are converted to
+' upper case.  Spaces after periods, commas, question marks, and exclamation
+' marks are deleted for memory storage.  A space is inserted, during output,
+' after each of these supressed characters.
+'
+'  Keyboard input        How_are_you?_I_AM_FINE.
+'
+'  Successive contents of sliding window E and derived addresses
+'      Address        Address   Address Char  ASCII - 32
+'     positions      Characters    ASCII's     addresses
+'        v v                                    X  Y
+'  . H O W _ A R E     W  _        87 32        55 00
+'  H O W _ A R E _     _  A        32 65        00 33
+'  O W _ A R E _ Y     A  R        65 82        33 50
+'  W _ A R E _ Y O     R  E        82 69        50 37
+'  _ A R E _ Y O U     E  @        69 64        37 32
+'  A R E _ Y O U ?     @  Y        64 89        32 57
+'  R E _ Y O U ? I     Y  O        89 79        57 47
+'  E _ Y O U ? I _     O  U        79 85        47 53
+'  _ Y O U ? I _ A     U  ?        85 63        53 31
+'  Y O U ? I _ A M     ?  I        63 73        31 41
+'  O U ? I _ A M _     I  @        73 64        41 32
+'  U ? I _ A M _ F     @  A        64 65        32 33
+'  ? I _ A M _ F I     A  M        65 77        33 45
+'  I _ A M _ F I N     M  _        77 32        45 00
+'  _ A M _ F I N E     _  F        32 70        00 38
+'  A M _ F I N E .     F  I        70 73        38 41
+'
+'  During keyboard input all N letters of E are compared to all N letters
+'  of storage units.
+'
+'  In forward search the last N-1 letters of sliding window E are compared
+'  to the first N-1 letters of storage units.  N-1 = Pattern Matching Length
+'  (Example below)
+'
+'                     X Y
+'                 - - - - - - -     PML=7 Pattern Matching Length
+'E--->          B A R B E R _ S     N=8   Attention Span
+'                     ^ ^           NR=4, NS=5   X=ASC(B)-32  Y=ASC(E)-32
+'Storage Unit   3 A R B E R _ S H   SUL=9 Storage Unit Length - on shelf X,Y
+'                 - - - - - - -
+'               ^
+'               |
+'              BWF  The "3" is the value of the Branching Weighting Factor
+'                   for the storage element with pattern "ARBER_SH".
+'
+'  In reverse search the first N-1 letters of E are compared to the
+'  last N-1 letters of storage units.
+'
+' The Branching Weighting Factor BWF is used by the Markov chain to cause
+' more "familiar" output stream generation branching options to be favored
+' over less familiar options.  Each BWF can have values from 1 to 255 and
+' is represented by a single ASCII character.  Each time a previusly entered
+' pattern (of length N) is encountered in the keyboard input stream, the BWF
+' for that pattern (in memory) is increased by 1.  This models reinforcement.
+' As the program runs individual BWF values througout the whole of memory
+' are randomly selected and decreased by 1 to simulate forgetting.  There is
+' no "negative reinforcement" per se, but input patterns that are not
+' reinforced by subsequent keyboard inputs will gradually become less and
+' less likely to be branched to as compared to those which do receive
+' positive reinforcement.
+'
+-------
+BABBLER's source code is written in QuickBASIC.  An .EXE version for
+IBM-PC's and clones (MSDOS) machines (256K minimum) is available for $34.00
+from:
+ 
+    Low-Tec
+    P.O. Box 1327
+    Starkville, MS 39759
+ 
+Source code is included with orders for the .EXE version.
+ 
+For further info, via e-mail, contact:
+ 
+Robert S. (Bob) Fritzius  rsf1@ra.msstate.edu
+ 

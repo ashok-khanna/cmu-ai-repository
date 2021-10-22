@@ -1,0 +1,293 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node88.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:32:06 GMT -->
+<HEAD>
+<TITLE>7.8.2. General Iteration</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" General Iteration">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2625 HREF="node89.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2623 HREF="node86.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2617 HREF="node87.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2627 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2628 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2626 HREF="node89.html"> Simple Iteration Constructs</A>
+<B>Up:</B> <A NAME=tex2html2624 HREF="node86.html"> Iteration</A>
+<B> Previous:</B> <A NAME=tex2html2618 HREF="node87.html"> Indefinite Iteration</A>
+<HR> <P>
+<H2><A NAME=SECTION001182000000000000000>7.8.2. General Iteration</A></H2>
+<P>
+In contrast to <tt>loop</tt>, <tt>do</tt> and <tt>do*</tt> provide a powerful
+and general mechanism for repetitively recalculating many variables.
+<P>
+<BR><b>[Macro]</b><BR>
+<pre>
+do ({(<i>var</i> [<i>init</i> [<i>step</i>]])}*)
+   (<i>end-test</i> {<i>result</i>}*)
+   {<i>declaration</i>}* {<i>tag</i> | <i>statement</i>}* 
+do* ({(<i>var</i> [<i>init</i> [<i>step</i>]])}*)
+   (<i>end-test</i> {<i>result</i>}*)
+   {<i>declaration</i>}* {<i>tag</i> | <i>statement</i>}* 
+</pre>
+<P>The <tt>do</tt> special form provides a generalized iteration facility,
+with an arbitrary number of ``index variables.''
+These variables are bound within the iteration and stepped in parallel
+in specified ways.  They may be used both to generate successive
+values of interest (such as successive integers) or to accumulate results.
+When an end condition is met, the iteration terminates with a specified value.
+<P>
+In general, a <tt>do</tt> loop looks like this:
+<P><pre>
+(do ((<i>var1</i> <i>init1</i> <i>step1</i>) 
+     (<i>var2</i> <i>init2</i> <i>step2</i>) 
+     ... 
+     (<i>varn</i> <i>initn</i> <i>stepn</i>)) 
+    (<i>end-test</i> . <i>result</i>) 
+  {<i>declaration</i>}*
+  . <i>tagbody</i>)
+</pre><P>
+A <tt>do*</tt> loop looks exactly the same except that the name <tt>do</tt> is
+replaced by <tt>do*</tt>.
+<P>
+The first item in the form is a list of zero or more index-variable
+specifiers.  Each index-variable specifier is a list of the name of a
+variable <i>var</i>, an initial value <i>init</i>,
+and a stepping form <i>step</i>.
+If <i>init</i> is omitted, it defaults to <tt>nil</tt>.
+If <i>step</i> is omitted, the <i>var</i> is not changed by the <tt>do</tt> construct
+between repetitions (though code within the <tt>do</tt> is free to alter
+the value of the variable by using <tt>setq</tt>).
+<P>
+An index-variable specifier can also be just the name of a variable.
+In this case, the variable has an initial value of <tt>nil</tt> and is
+not changed between repetitions.
+As a matter
+of style, it is recommended that an unadorned variable name
+be written only when that
+variable will be stored into (such as by <tt>setq</tt>) before its first
+use.  If it is important that the initial value be <tt>nil</tt> rather than
+some undefined value, then it is clearer to write out
+<tt>(<i>varj</i> <tt>nil</tt>)</tt> if the initial value is intended to mean ``false,'' or
+<tt>(<i>varj</i> '<tt>()</tt>)</tt> if the initial value is intended to be an empty
+list.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(VARIABLE-LIST-ASYMMETRY) <A NAME=7097>&#160;</A> 
+to regularize the binding formats for <tt>do</tt>, <tt>do*</tt>, <tt>let</tt>,
+<tt>let*</tt>, <tt>prog</tt>, <tt>prog*</tt>, and <tt>compiler-let</tt>.
+In the case of <tt>do</tt> and <tt>do*</tt> the first edition was inconsistent;
+the formal syntax fails to reflect the fact that a simple variable
+name may appear, as described in the preceding paragraph.  The
+definitions should read
+<P>
+<BR><b>[Macro]</b><BR>
+<pre>
+do ({<i>var</i> | (<i>var</i> [<i>init</i> [<i>step</i>]])}*)
+   (<i>end-test</i> {<i>result</i>}*)
+   {<i>declaration</i>}* {<i>tag</i> | <i>statement</i>}* 
+do* ({<i>var</i> | (<i>var</i> [<i>init</i> [<i>step</i>]])}*)
+   (<i>end-test</i> {<i>result</i>}*)
+   {<i>declaration</i>}* {<i>tag</i> | <i>statement</i>}* 
+</pre>
+<P>for consistency with the reading of the first edition and the X3J13 vote.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+Before the first iteration, all the <i>init</i> forms are evaluated, and
+each <i>var</i> is bound to the value of its respective <i>init</i>.
+This is a binding, not an assignment; when the loop terminates,
+the old values of those variables will be restored.
+For <tt>do</tt>, <i>all</i> of the <i>init</i> forms are evaluated <i>before</i> any <i>var</i>
+is bound; hence all the
+<i>init</i> forms may refer to the old bindings of all the variables
+(that is, to the values visible before beginning execution of
+the <tt>do</tt> construct).
+For <tt>do*</tt>, the first <i>init</i> form is evaluated, then the first
+<i>var</i> is bound to that value, then the second <i>init</i> form
+is evaluated, then the second <i>var</i> is bound, and so on;
+in general, the <i>initj</i> form can refer to the <i>new</i> binding <i>vark</i>
+if <i>k < j</i>, and otherwise to the <i>old</i> binding of <i>vark</i>.
+<P>
+The second element of the loop is a list of an end-testing
+predicate form <i>end-test</i> and zero or more <i>result</i> forms.
+This resembles a <tt>cond</tt> clause.
+At the beginning of each iteration, after processing the variables,
+the <i>end-test</i> is evaluated.  If the result is
+<tt>nil</tt>, execution proceeds with the body of the <tt>do</tt> (or <tt>do*</tt>) form.
+If the
+result is not <tt>nil</tt>, the <i>result</i> forms are evaluated in order
+as an implicit <tt>progn</tt>,
+<A NAME=8193>&#160;</A>
+and then <tt>do</tt> returns.  <tt>do</tt> returns the results of evaluating
+the last <i>result</i> form.
+If there are no <i>result</i> forms, the value of <tt>do</tt> is <tt>nil</tt>.
+Note that this is not quite analogous to the treatment of
+clauses in a <tt>cond</tt> form, because a <tt>cond</tt> clause
+with no <i>result</i> forms returns the (non-<tt>nil</tt>) result of the test.
+<P>
+At the beginning of each iteration other than the first, the
+index variables are updated as follows.  All the <i>step</i> forms
+are evaluated, from left to right, and the resulting values are
+assigned to the respective index variables.
+Any variable that has no associated <i>step</i> form is not assigned to.
+For <tt>do</tt>, all the <i>step</i> forms are evaluated before any variable
+is updated; the assignment of values to variables is done in parallel,
+as if by <tt>psetq</tt>.
+Because <i>all</i> of the <i>step</i> forms are evaluated before <i>any</i>
+of the variables are altered, a <i>step</i> form when evaluated always has
+access to the <i>old</i> values of <i>all</i> the index variables,
+even if other <i>step</i> forms precede it.
+For <tt>do*</tt>, the first <i>step</i> form is evaluated, then the
+value is assigned to the first <i>var</i>, then the second <i>step</i> form
+is evaluated, then the value is assigned to the second <i>var</i>, and so on;
+the assignment of values to variables is done sequentially,
+as if by <tt>setq</tt>.
+For either <tt>do</tt> or <tt>do*</tt>,
+after the variables have been updated,
+the <i>end-test</i> is evaluated as described above, and the iteration continues.
+<P>
+If the <i>end-test</i> of a <tt>do</tt> form is <tt><tt>nil</tt></tt>,
+the test will never succeed.
+Therefore this provides an idiom for ``do forever'':
+the <i>body</i> of the <tt>do</tt> is executed repeatedly, stepping variables
+as usual.  (The <tt>loop</tt> construct performs
+a ``do forever'' that steps no variables.)
+The infinite loop can be terminated by the use of <tt>return</tt>,
+<tt>return-from</tt>, <tt>go</tt> to an outer level, or <tt>throw</tt>.
+For example:
+<P><pre>
+(do ((j 0 (+ j 1))) 
+    (<tt>nil</tt>)                        ;Do forever 
+  (format t &quot;~%Input ~D:&quot; j) 
+  (let ((item (read))) 
+    (if (null item) (return)     ;Process items until <tt>nil</tt> seen 
+        (format t &quot;~&amp;Output ~D: ~S&quot; j (process item)))))
+</pre><P>
+<P>
+The remainder of the <tt>do</tt> form constitutes an implicit <tt>tagbody</tt>.
+Tags may appear within the body of a <tt>do</tt> loop
+for use by <tt>go</tt> statements appearing in the body (but such <tt>go</tt>
+statements may not appear in the variable specifiers, the <i>end-test</i>,
+or the <i>result</i> forms).
+When the end of a <tt>do</tt> body is reached, the next iteration cycle
+(beginning with the evaluation of <i>step</i> forms) occurs.
+<P>
+An implicit <tt>block</tt> named <tt>nil</tt> surrounds the entire <tt>do</tt> form.
+A <tt>return</tt> statement may be used at any point to exit the loop
+immediately.
+<P>
+<tt>declare</tt> forms may appear at the beginning of a <tt>do</tt> body.
+They apply to code in the <tt>do</tt> body, to the bindings of the <tt>do</tt>
+variables, to the <i>init</i> forms, to the <i>step</i> forms,
+to the <i>end-test</i>, and to the <i>result</i> forms.
+<P>
+<hr>
+<b>Compatibility note:</b> ``Old-style'' MacLisp <tt>do</tt> loops, that is, those
+of the form <tt>(do <i>var</i> <i>init</i> <i>step</i> <i>end-test</i> . <i>body</i>)</tt>,
+are not supported in Common Lisp.
+Such old-style loops are considered obsolete
+and in any case are easily converted to a new-style
+<tt>do</tt> with the insertion of three pairs of parentheses.
+In practice the compiler can catch nearly all instances of old-style
+<tt>do</tt> loops because they will not have a legal format anyway.
+<hr>
+<P>
+Here are some examples of the use of <tt>do</tt>:
+<P><pre>
+(do ((i 0 (+ i 1))     ;Sets every null element of <tt>a-vector</tt> to zero 
+     (n (length a-vector))) 
+    ((= i n)) 
+  (when (null (aref a-vector i)) 
+    (setf (aref a-vector i) 0)))
+</pre><P>
+The construction
+<P><pre>
+(do ((x e (cdr x)) 
+     (oldx x x)) 
+    ((null x)) 
+  <i>body</i>)
+</pre><P>
+exploits parallel assignment to index variables.  On the first
+iteration, the value of <tt>oldx</tt> is whatever value <tt>x</tt> had before
+the <tt>do</tt> was entered.  On succeeding iterations, <tt>oldx</tt> contains
+the value that <tt>x</tt> had on the previous iteration.
+<P>
+Very often an iterative algorithm can be most clearly expressed entirely
+in the <i>step</i> forms of a <tt>do</tt>, and the <i>body</i> is empty.
+For example,
+<P><pre>
+(do ((x foo (cdr x)) 
+     (y bar (cdr y)) 
+     (z '<tt>()</tt> (cons (f (car x) (car y)) z))) 
+    ((or (null x) (null y)) 
+     (nreverse z)))
+</pre><P>
+does the same thing as <tt>(mapcar #'f foo bar)</tt>.  Note that the <i>step</i>
+computation for <tt>z</tt> exploits the fact that variables are stepped in parallel.
+Also, the body of the loop is empty.  Finally, the use of <tt>nreverse</tt>
+to put an accumulated <tt>do</tt> loop result into the correct order
+is a standard idiom.  Another example:
+<P><pre>
+(defun list-reverse (list) 
+       (do ((x list (cdr x)) 
+            (y '<tt>()</tt> (cons (car x) y))) 
+           ((endp x) y)))
+</pre><P>
+Note the use of <tt>endp</tt> rather than <tt>null</tt> or <tt>atom</tt>
+to test for the end of a list; this may result in more robust code.
+<P>
+As an example of nested loops, suppose that <tt>env</tt> holds a list
+of conses.  The <i>car</i> of each cons is a list of symbols,
+and the <i>cdr</i> of each cons is a list of equal length containing
+corresponding values.  Such a data structure is similar to an association
+list
+but is divided into ``frames''; the overall structure resembles a rib cage.
+A lookup function on such a data structure might be
+<P><pre>
+(defun ribcage-lookup (sym ribcage) 
+       (do ((r ribcage (cdr r))) 
+           ((null r) <tt>nil</tt>) 
+         (do ((s (caar r) (cdr s)) 
+              (v (cdar r) (cdr v))) 
+             ((null s)) 
+           (when (eq (car s) sym) 
+             (return-from ribcage-lookup (car v))))))
+</pre><P>
+(Notice the use of indentation in the above example
+to set off the bodies of the <tt>do</tt> loops.)
+<P>
+A <tt>do</tt> loop may be explained in terms of the more primitive constructs
+<tt>block</tt>, <tt>return</tt>, <tt>let</tt>, <tt>loop</tt>, <tt>tagbody</tt>,
+and <tt>psetq</tt> as follows:
+<P><pre>
+(block nil 
+  (let ((<i>var1</i> <i>init1</i>) 
+        (<i>var2</i> <i>init2</i>) 
+        ... 
+        (<i>varn</i> <i>initn</i>)) 
+    {<i>declaration</i>}*
+    (loop (when <i>end-test</i> (return (progn . <i>result</i>))) 
+          (tagbody . <i>tagbody</i>) 
+          (psetq <i>var1</i> <i>step1</i> 
+                 <i>var2</i> <i>step2</i> 
+                 ... 
+                 <i>varn</i> <i>stepn</i>))))
+</pre><P>
+<tt>do*</tt> is exactly like <tt>do</tt> except that the bindings and steppings
+of the variables are performed sequentially rather than in parallel.
+It is as if, in the above explanation,
+<tt>let</tt> were replaced by <tt>let*</tt> and <tt>psetq</tt> were replaced
+by <tt>setq</tt>.
+<P>
+<BR> <HR><A NAME=tex2html2625 HREF="node89.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2623 HREF="node86.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2617 HREF="node87.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2627 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2628 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2626 HREF="node89.html"> Simple Iteration Constructs</A>
+<B>Up:</B> <A NAME=tex2html2624 HREF="node86.html"> Iteration</A>
+<B> Previous:</B> <A NAME=tex2html2618 HREF="node87.html"> Indefinite Iteration</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

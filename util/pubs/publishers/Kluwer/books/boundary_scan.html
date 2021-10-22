@@ -1,0 +1,909 @@
+                          BOUNDARY-SCAN TEST
+                         A Practical Approach
+
+
+Harry Bleeker
+Peter van den Eijnden
+FLUKE / Philips Test & Measurements
+Eindhoven, The Netherlands
+
+Frans de Jong
+Philips Research Laboratories
+Eindhoven, The Netherlands
+
+
+
+
+
+KLUWER Academic Publishers
+101 Philip Drive, Assinippi Park
+Norwell, Maine, USA                                 ISBN 0-7923-9296-5
+                              CONTENTS
+
+   
+LIST OF FIGURES . . . . . . . . . . . . . . . . . . . . . . . . .   ix
+   
+PREFACE . . . . . . . . . . . . . . . . . . . . . . . . . . . . .   xi
+
+
+                               Chapter 1
+   
+PCB TESTING . . . . . . . . . . . . . . . . . . . . . . . . . . . .  1
+   MINIATURIZATION IN ELECTRONICS . . . . . . . . . . . . . . . . .  1
+   ROAD BLOCKS FOR CONVENTIONAL PCB TEST METHODS. . . . . . . . . .  4
+   THE SOLUTION FOR PCB TESTING . . . . . . . . . . . . . . . . . .  5
+      Test Control Logic. . . . . . . . . . . . . . . . . . . . .   10
+      Example Boundary-Scan Circuits. . . . . . . . . . . . . . .   13
+      Constituent Elements of the BST Path. . . . . . . . . . . .   16
+   
+
+                               Chapter 2
+   
+THE BOUNDARY-SCAN TEST STANDARD . . . . . . . . . . . . . . . . .   19
+   THE BST ARCHITECTURE . . . . . . . . . . . . . . . . . . . . .   19
+   TEST ACCESS PORT . . . . . . . . . . . . . . . . . . . . . . .   20
+   TAP CONTROLLER . . . . . . . . . . . . . . . . . . . . . . . .   22
+      State Descriptions. . . . . . . . . . . . . . . . . . . . .   26
+   THE INSTRUCTION REGISTER . . . . . . . . . . . . . . . . . . .   30
+   TEST DATA REGISTERS. . . . . . . . . . . . . . . . . . . . . .   32
+      The Bypass Register . . . . . . . . . . . . . . . . . . . .   34
+      The Boundary-Scan Register. . . . . . . . . . . . . . . . .   35
+      A Boundary-Scan Cell. . . . . . . . . . . . . . . . . . . .   36
+      System Pin Related Cells. . . . . . . . . . . . . . . . . .   37
+      The Device ID Register. . . . . . . . . . . . . . . . . . .   41
+      Design-Specific Registers . . . . . . . . . . . . . . . . .   43
+   INSTRUCTIONS . . . . . . . . . . . . . . . . . . . . . . . . .   43
+      Public and Private Instructions . . . . . . . . . . . . . .   43
+      The BYPASS Instruction. . . . . . . . . . . . . . . . . . .   44
+      The SAMPLE/PRELOAD Instruction. . . . . . . . . . . . . . .   44
+      The EXTEST Instruction. . . . . . . . . . . . . . . . . . .   45
+      The INTEST Instruction. . . . . . . . . . . . . . . . . . .   47
+      The RUNBIST Instruction . . . . . . . . . . . . . . . . . .   48
+      The CLAMP Instruction . . . . . . . . . . . . . . . . . . .   48
+      The IDCODE Instruction. . . . . . . . . . . . . . . . . . .   49
+      The USERCODE Instruction. . . . . . . . . . . . . . . . . .   49
+      The HIGHZ Instruction . . . . . . . . . . . . . . . . . . .   49
+   DOCUMENTATION REQUIREMENTS . . . . . . . . . . . . . . . . . .   49
+   
+
+                               Chapter 3
+   
+HARDWARE TEST INNOVATIONS . . . . . . . . . . . . . . . . . . . .   51
+   PROVISIONS AT BOARD LEVEL. . . . . . . . . . . . . . . . . . .   51
+      Concurrent Sampling . . . . . . . . . . . . . . . . . . . .   51
+      The Boundary-Scan Master. . . . . . . . . . . . . . . . . .   54
+      Memory Board Testing. . . . . . . . . . . . . . . . . . . .   57
+   SYSTEM-LEVEL TEST SUPPORT. . . . . . . . . . . . . . . . . . .   60
+      Embedded Go/No-Go Test With BST . . . . . . . . . . . . . .   60
+      System Backplane Test Bus . . . . . . . . . . . . . . . . .   61
+   ON CHIP PROVISIONS . . . . . . . . . . . . . . . . . . . . . .   67
+      BST on WSI designs. . . . . . . . . . . . . . . . . . . . .   68
+      BST on Multichip Modules. . . . . . . . . . . . . . . . . .   69
+      BST on MOS Designs. . . . . . . . . . . . . . . . . . . . .   71
+      Digital Bus Monitor . . . . . . . . . . . . . . . . . . . .   74
+      Adjustable Scan Path Lengths. . . . . . . . . . . . . . . .   78
+      Path-Delay Measurements . . . . . . . . . . . . . . . . . .   80
+
+
+                               Chapter 4
+   
+BST DESIGN LANGUAGES. . . . . . . . . . . . . . . . . . . . . . .   85
+   BSDL DESCRIPTION . . . . . . . . . . . . . . . . . . . . . . .   85
+      The Entity Section. . . . . . . . . . . . . . . . . . . . .   86
+      The Package Description . . . . . . . . . . . . . . . . . .   94
+      The Package Body. . . . . . . . . . . . . . . . . . . . . .   95
+      Remnant BSDL Functions. . . . . . . . . . . . . . . . . . .   96
+   BSDL DESIGN EXAMPLE. . . . . . . . . . . . . . . . . . . . . .   98
+      Design Methodology. . . . . . . . . . . . . . . . . . . . .   98
+      The Circuitry . . . . . . . . . . . . . . . . . . . . . . .   99
+   A BOUNDARY-SCAN REGISTER COMPILER. . . . . . . . . . . . . . .  103
+      The Technology Library. . . . . . . . . . . . . . . . . . .  104
+      Compiler Input and Output Files . . . . . . . . . . . . . .  106
+      Results . . . . . . . . . . . . . . . . . . . . . . . . . .  108
+   TEST SPECIFICATION LANGUAGES . . . . . . . . . . . . . . . . .  109
+      Test Interface Layer. . . . . . . . . . . . . . . . . . . .  109
+      General Format Test Vectors . . . . . . . . . . . . . . . .  114
+      The Serial Vector Format. . . . . . . . . . . . . . . . . .  120
+
+
+                               Chapter 5
+   
+PCB TEST STRATEGY BACKGROUNDS . . . . . . . . . . . . . . . . . .  123
+   TESTING THE INTEGRITY OF THE BST CHAIN . . . . . . . . . . . .  123
+      The Tested Functions. . . . . . . . . . . . . . . . . . . .  123
+      The Test Steps. . . . . . . . . . . . . . . . . . . . . . .  127
+   PCB PRODUCTION FAULTS. . . . . . . . . . . . . . . . . . . . .  132
+      Interconnect Structures . . . . . . . . . . . . . . . . . .  132
+      Considering Opens . . . . . . . . . . . . . . . . . . . . .  134
+      Considering Shorts. . . . . . . . . . . . . . . . . . . . .  136
+      Considering Multiple Faults . . . . . . . . . . . . . . . .  139
+      Coming to a Model . . . . . . . . . . . . . . . . . . . . .  140
+   TEST ALGORITHMS. . . . . . . . . . . . . . . . . . . . . . . .  140
+      The Binary Counting Test Sequence . . . . . . . . . . . . .  141
+      The Minimal-Weight Sequence . . . . . . . . . . . . . . . .  144
+      The Walking One Sequence. . . . . . . . . . . . . . . . . .  144
+      The Diagonally Independent Sequence . . . . . . . . . . . .  145
+      The Maximal Independent Set . . . . . . . . . . . . . . . .  146
+      The Order Independent Test Sequence . . . . . . . . . . . .  147
+   DIAGNOSTICS. . . . . . . . . . . . . . . . . . . . . . . . . .  148
+      2-Net Shorts. . . . . . . . . . . . . . . . . . . . . . . .  148
+      Multiple-Net Shorts . . . . . . . . . . . . . . . . . . . .  149
+      Aliasing Test Results . . . . . . . . . . . . . . . . . . .  151
+      Confounding Test Results. . . . . . . . . . . . . . . . . .  151
+      Single and Multiple Step Tests. . . . . . . . . . . . . . .  152
+      Adaptive Test Algorithm . . . . . . . . . . . . . . . . . .  152
+      Applying the Max-Independence Algorithm . . . . . . . . . .  153
+      Combined Faults in One Net. . . . . . . . . . . . . . . . .  155
+   CLUSTER TESTING. . . . . . . . . . . . . . . . . . . . . . . .  157
+      Impact on Fault Detection . . . . . . . . . . . . . . . . .  159
+      Interconnect Test of Memory Clusters. . . . . . . . . . . .  161
+   ARCHITECTURE OF A BOUNDARY-SCAN TEST FLOW. . . . . . . . . . .  166
+      Serializer Considerations . . . . . . . . . . . . . . . . .  169
+
+
+                               Chapter 6
+   
+MANAGEMENT ASPECTS. . . . . . . . . . . . . . . . . . . . . . . .  173
+   COMING TO THE STANDARD . . . . . . . . . . . . . . . . . . . .  173
+      Effects of Boundary-Scan Testing. . . . . . . . . . . . . .  176
+   MANAGEMENT ROLE. . . . . . . . . . . . . . . . . . . . . . . .  177
+      Introduce Concurrent Engineering. . . . . . . . . . . . . .  178
+      Prescribe Design For Testability. . . . . . . . . . . . . .  182
+      Check Impact on Reliability . . . . . . . . . . . . . . . .  183
+      Care for Quality. . . . . . . . . . . . . . . . . . . . . .  185
+   BENEFITS OF BOUNDARY-SCAN TEST . . . . . . . . . . . . . . . .  188
+      Shorter Times To Market . . . . . . . . . . . . . . . . . .  188
+      Lower Capital Investments . . . . . . . . . . . . . . . . .  191
+      Cost Considerations for ICs . . . . . . . . . . . . . . . .  191
+      PCB Cost Considerations . . . . . . . . . . . . . . . . . .  192
+   SUMMARY. . . . . . . . . . . . . . . . . . . . . . . . . . . .  194
+   
+APPENDIX. . . . . . . . . . . . . . . . . . . . . . . . . . . . .  197
+   
+GLOSSARY. . . . . . . . . . . . . . . . . . . . . . . . . . . . .  215
+   
+REFERENCES. . . . . . . . . . . . . . . . . . . . . . . . . . . .  219
+   
+INDEX . . . . . . . . . . . . . . . . . . . . . . . . . . . . . .  223
+
+ 
+LIST OF FIGURES
+
+Fig. 1-1  A printed circuit board containing ASICs                   1
+Fig. 1-2  Reduction of trace distances on PCBs and in ICs            2
+Fig. 1-3  Electron microscope picture of part of a PCB               3
+Fig. 1-4  Electron microscope picture of a soldered IC on a PCB      3
+Fig. 1-5  Conventional test pins for a bed-of-nails fixture          4
+Fig. 1-6  Many interconnections between three ICs                    6
+Fig. 1-7  Added shift registers provide scan path                    6
+Fig. 1-8  Action 1: shift test data to output cell                   7
+Fig. 1-9  Actions 2+3: apply test data and capture result            7
+Fig. 1-10 Action 4: shift captured results out                       7
+Fig. 1-11 Components of a Boundary-Scan Cell in an IC                8
+Fig. 1-12 ShiftDR state                                              8
+Fig. 1-13 Update-DR state for EXTEST                                 9
+Fig. 1-14 Capture-DR state for EXTEST                                9
+Fig. 1-15 Update-DR state for INTEST                                11
+Fig. 1-16 Capture-DR state for INTEST                               11
+Fig. 1-17 BST infrastructure on PCB                                 13
+Fig. 1-18 Test control logic for BST                                12
+Fig. 1-19 IC including Boundary-Scan Register and Test Control      13
+Fig. 1-20 PCB configuration with all IC BSRs connected in series    14
+Fig. 1-21 Example of a commonly used Boundary-Scan cell             15
+Fig. 1-22 An example of an Instruction Register cell                16
+Fig. 1-23 BST path between two ICs                                  17
+
+Fig. 2-1  The standard Boundary-Scan architecture                   20
+Fig. 2-2  BST configuration with two parallel paths                 22
+Fig. 2-3  State diagram of the TAP Controller                       24
+Fig. 2-4  Example timing diagram of TAP Controller                  26
+Fig. 2-5  Signal flow (bold lines) during Test-Logic-Reset          27
+Fig. 2-6  Signal flow (bold lines) in BS cell during Capture-DR     28
+Fig. 2-7  Signal flow (bold lines) in BS cell during Shift-DR       28
+Fig. 2-8  Signal flow (bold lines) in BS cell during Update-DR      29
+Fig. 2-9  Signal flow (bold lines) in IR cell during Capture-IR     29
+Fig. 2-10 Signal flow (bold lines) in IR cell during Shift-IR       30
+Fig. 2-11 Signal flow (bold lines) in IR cell during Update-IR      30
+Fig. 2-12 ICs set for various tests                                 31
+Fig. 2-13 Set-up of an Instruction Register                         31
+Fig. 2-14 Overview of the Test Data Registers                       33
+Fig. 2-15 Example of a combined test data register                  34
+Fig. 2-16 Implementation of a Bypass Register                       35
+Fig. 2-17 An implementation of a Boundary-Scan Cell                 37
+Fig. 2-18 Minimum BSC configuration for input pins                  37
+Fig. 2-19 Boundary-Scan cells with various output buffers           38
+Fig. 2-20 Cell configuration at a 3-state output pin                39
+Fig. 2-21 One BS cell controls several 3-state outputs              40
+Fig. 2-22 Cell configuration at a bidirectional system pin          40
+Fig. 2-23 Structure of a Device Identification Register             42
+Fig. 2-24 An example of a Device ID design.                         42
+Fig. 2-25 Data flow during SAMPLE instruction                       45
+Fig. 2-26 Data flow during PRELOAD instruction                      46
+Fig. 2-27 Data flow during EXTEST instruction                       46
+Fig. 2-28 Data flow during INTEST instruction                       47
+
+Fig. 3-1  Board structure for test with concurrent sampling         53
+Fig. 3-2  Block diagram of the Boundary-Scan Master                 55
+Fig. 3-3  Boundary-Scan interface of the MCERT chip                 59
+Fig. 3-4  Power-On-Self-Test for a BST board                        61
+Fig. 3-5  Architecture for system testing                           63
+Fig. 3-6  Blockdiagram of the BT-Link unit                          64
+Fig. 3-7  Timing of BT-Link control logic                           65
+Fig. 3-8  Chip arrangement for full wafer probe testing             68
+Fig. 3-9  Chip arrangement for Boundary-Scan testing                69
+Fig. 3-10 Integrated BS cell for Motorola 68040 address pins        73
+Fig. 3-11 TI's DBM architecture                                     75
+Fig. 3-12 Partitioning a scan test data register                    80
+Fig. 3-13 Scannable Double-Strobe flip-flop                         83
+
+Fig. 4-1  An implementation of a Boundary-Scan Cell                 92
+Fig. 4-2  Symbolic model of a boundary cell                         95
+Fig. 4-3  Core of octal D-latch                                    101
+Fig. 4-4  Octal D-latch with Boundary-Scan chain added             102
+Fig. 4-5  Structure of BSR compiler                                106
+Fig. 4-6  Example circuit                                          117
+
+Fig. 5-1  Some PCB net structures                                  134
+Fig. 5-2  Sample net with four nodes                               135
+Fig. 5-3  Some single and multiple stuck-open faults               136
+Fig. 5-4  All possible shorts between four simple nets             138
+Fig. 5-5  A set of simple nets                                     143
+Fig. 5-6  Multiple faults in one net                               155
+Fig. 5-7  Circuit containing BST and Non-BST logic                 157
+Fig. 5-8  Timing of RAM accesses                                   162
+Fig. 5-9  Block diagram of a Boundary-Scan tester                  167
+Fig. 5-10 Screen display showing identification faults             169
+Fig. 5-11 Screen display showing net bridging faults               170
+
+Fig. 6-1  Relation between complexity and speed of electronic systems173
+Fig. 6-2  Relation between commitment and expenditure              178
+Fig. 6-3  Costs bars for (A) sequential and (B) concurrent engineering180
+Fig. 6-4  PCB design cycle with and without BST                    181
+Fig. 6-5  Difference in profit due to design delay                 190
+
+Fig. A-1  Measuring Set-up and Hold times                          206
+Fig. A-2  Measuring propagation delays                             206
+
+ 
+PREFACE
+
+The ever-increasing miniaturization of digital electronic components is
+hampering the conventional testing of Printed Circuit Boards (PCBs)
+by means of bed-of-nails fixtures. Basically this is caused by the very
+high scale of integration of ICs, through which packages with
+hundreds of pins at very small pitches of down to a fraction of a
+millimetre, have become available. As a consequence the trace
+distances between the copper tracks on a printed circuit board came
+down to the same value. Not only the required small physical
+dimensions of the test nails have made conventional testing
+unfeasible, but also the complexity to provide test signals for the many
+hundreds of test nails has grown out of limits.
+
+Therefore a new board test methodology had to be invented.
+Following the evolution in the IC test technology, Boundary-Scan
+testing has become the new approach to PCB testing. By taking
+precautions in the design of the IC (design for testability), testing on
+PCB level can be simplified to a great extent. This condition has been
+essential for the success of the introduction of Boundary-Scan Test
+(BST) at board level.
+
+Nowadays Boundary-Scan testing is embraced worldwide by almost
+all PCB manufacturers. The main reason is, of course, cost saving,
+emerging in various phases of the PCB life cycle. In the design phase,
+testing time is saved during prototyping. In the factory, lower test
+preparation time, time savings in fault diagnosis and much cheaper
+test equipment has led to a reduction in test costs of over 50%.
+Moreover, the factory throughput has increased. In the field service
+phase, tremendous savings are made: in the prices of test equipment,
+in test preparation times and reduced spare board inventories. In this
+way BST has led to a cost reduction in PCB production of as much as
+70%, after including the extra development costs for the IC
+precautions.
+
+The simplicity of BST also makes such cost reductions profitable for
+small volume PCB production. And since Boundary-Scan Testing
+involves the whole PCB life cycle, it is more than just the introduction
+of a new design technology, it is an integral production approach.
+Therefore BST concerns the global strategy of a company to which
+also top management should pay attention.
+
+Due to its importance, the architecture of the BST technology has lead
+to a world standard: IEEE Std 1149.1 . Applying this standard in
+the IC designs allows PCB designers to use ICs of various
+manufacturers and yet prepare standard test methods and test
+equipment for the whole life cycle of the product.
+
+This book is an aid to introducing BST into a company. Chapter 1
+states the PCB test problem and its solution. Chapter 2 provides a
+tutorial on the standard for the Boundary-Scan Architecture. The next
+chapters 3 and 4 describe the innovations for the hardware and the
+software BST support respectively. Developments in BST are explored
+with the aid of various examples and results as they have been
+obtained and published by world leading electronics companies.
+Chapter 5 describes various basics supporting the actual test
+technology; which PCB production faults are met, how are they
+detected and to what degree can they be diagnosed. Chapter 6 gives
+a management overview of the aspects to be considered in
+introducing BST in a production organisation, including organizational
+and cost saving aspects. The book ends with a glossary of terms and
+an alphabetical index, for quick reference.
+
+The readers of this book are expected to have a basic understanding
+of ICs and digital circuitry.
+
+
+Acknowledgements
+
+Many contributions are necessary to complete a book at such a
+technological level as this. The authors wish to thank their colleagues
+for their discussions and positive comments in preparing the text. In
+particular Harm Tiersma should be mentioned here for his remarks
+concerning the principles of testing and his conscientious reading and
+correcting of the draft. Special credit must be given to Rien van Erk
+for his editing and writing efforts, without which this book would
+probably not have come to fruition.
+
+ 
+                               Chapter 1
+
+PCB TESTING
+
+MINIATURIZATION IN ELECTRONICS
+
+Printed Circuit Boards (PCBs) add the most value to electronics
+hardware. Over the years, PCBs have become loaded with more 
+components and hence have become increasingly complex and
+expensive. This is mainly caused by the ongoing miniaturization in
+electronics.
+
+
+           FIGURE 1-1 COMES HERE (title <-- List of Figures)
+
+
+
+To start with, the miniaturization within integrated circuits (ICs)
+themselves has progressed into the sub-micron technology. This has
+led to an increased number of gates and a very large number of
+functions per chip. Consequently, many more pins per IC are needed
+and hence ICs come in bigger packages with more leads (>500 pins)
+at smaller pitches (0.3 mm). Therefore, the distance between the foot
+prints of the ICs on the PCB is becoming equally small.
+
+Direct mounting of chips on both sides of the PCB, using Tape
+Automated Bonding (TAB), Chip On Board (COB) etc. have caused
+further miniaturization of the hardware implementation.
+
+To even further increase the number of electronic functions per unit
+of surface, other technologies are becoming available: Multi Chip
+Modules (MCMs). These are functional modules built up of dies
+directly mounted on top of several dielectric and metallization layers
+supported by a ceramic multi-layer substrate. The component density
+is very high and accessibility other than via the input and output pins
+of the MCM is non-existent.
+Figure 1-2 shows the reduction of trace distances on PCBs and in
+ICs.
+
+
+           FIGURE 1-2 COMES HERE (title <-- List of Figures)
+
+
+Figures 1-3 and 1-4 show, respectively, a part of a PCB and a part of
+an IC which is soldered onto that PCB. These pictures are taken with
+a Scanning Electron Microscope and the pitch of the IC's contact pins
+is 25 mil (= 1/40 inch ÷ 0.63 mm).
+
+The ongoing miniaturization has made it more and more difficult to
+access these "highly loaded" PCBs mechanically, with fixtures, for in-
+circuit testing. Moreover, the test equipment became so expensive in
+the 1980s that it severely affects the profitability of producing PCBs.
+Electronic companies were, therefore, looking for low-cost test
+methods based on the sofar hardly explored design for testability.
+
+
+
+
+           FIGURE 1-3 COMES HERE (title <-- List of Figures)
+
+
+
+
+           FIGURE 1-4 COMES HERE (title <-- List of Figures)
+
+
+
+Figure 1-5 shows a drawing of some different test pins used in a bed-
+of-nails fixture. The pitch of the test pins is 1/4" and they have a
+diameter of about 0.8 mm.
+
+
+
+           FIGURE 1-5 COMES HERE (title <-- List of Figures)
+
+
+It is clear that these pins can not be used for testing purposes at the
+IC connections in figure 1-4, where the pitch was 0.63 mm.
+
+ROAD BLOCKS FOR CONVENTIONAL PCB TEST METHODS
+
+With in-circuit testing, physical contact is made to the components (for
+example ICs) and the copper tracks on the PCB (test pads) by means
+of probes or bed-of-nails technology. Input signals are applied to the
+component's input pins via probes or needles, and the response at
+the output pins is examined through the probes or needles. For the
+plated through hole (PTH) technology this method was easy to
+perform. But the continual miniaturization created the first obstacle to
+in-circuit testing.
+
+The PCB technology with surface mounted devices (SMDs) on both
+sides of the PCB is another reason why mechanical probing becomes
+practically impossible.
+
+Next, the advantages of in-circuit testing (ICT), the use of standard
+test pattern sets for ICs, from which a test program could easily be
+assembled, have evaporated due to the increasing use of Application
+Specific ICs (ASICs). Each ASIC requires a separate test set which
+is not contained in the library of standard test sets. The vendor of the
+in-circuit test library is unable to supply these tests. Test sets for
+complex standard VLSI devices (e.g. microprocessors) are not
+available or very expensive.
+
+Finally, VLSIs require long test sequences, for instance, for
+initialization. If outputs of ICs are forced (back-driven) during such a
+sequence, there may be an impact on the overall reliability of the
+PCBs.
+
+Summarizing, the programming of automatic test equipment (ATE),
+the mechanical test access and the quality of testing in the
+conventional way are reaching their limits of feasibility.
+
+The solution to these problems arises from the IC test technology. To
+overcome the test preparation and fault coverage problems faced in
+the IC-test technology in the 70's, the scan test technology evolved
+and became a good solution for digital electronics. The enormous
+increase in observability and controllability achieved by scan
+technology forms the base for Boundary-Scan Test technology for
+PCBs.
+
+THE SOLUTION FOR PCB TESTING
+
+The main point to ensure while manufacturing a PCB is to make sure
+that all components are mounted properly at the right place on the
+board and that the interconnections between the components are as
+prescribed in the design. So, after production, one of the main items
+to be tested is whether or not the connections between the
+components (for example ICs) are 100% correct.
+
+The basic idea to circumvent the above mentioned access problem for
+test purposes was to add a shift register cell next to each input/output
+(I/O) pin of the component. During test mode these cells are used to
+control the status of an output pin (high or low) and read the states of
+an input pin (high or low). This allows for testing the the board
+interconnections. During normal mode the cells are 'transparent'.
+
+Figures 1-6 and 1-7 show the idea of adding the shift register cells.
+Figure 1-6 depicts three ICs with 'many' interconnections. The input
+signals (I) and the output signals (O) are the I/O signals present at the
+board edge connector.
+
+
+
+           FIGURE 1-6 COMES HERE (title <-- List of Figures)
+
+
+In figure 1-7 shift register cells have been added between the IC's
+'core logic' and the I/O pins to provide a serial test data path through
+all ICs. 
+
+
+           FIGURE 1-7 COMES HERE (title <-- List of Figures)
+
+
+Since the shift register cells are located at the IC's boundary (I/O pins)
+these cells are referred to as Boundary-Scan Cells (BSCs) and the
+composed shift register is called the Boundary-Scan Register (BSR).
+According to the IEEE Std 1149.1 [1], the input to the serial test data
+path is called Test Data Input (TDI) and the output is called Test Data
+Output (TDO).
+
+To permit testing of the PCB's connecting copper tracks, the
+interconnections, the cells must support the following test actions.
+
+Action 1. Shift-DR: shift stimulus data in from TDI through the
+          registers to the cells related with the output pins of the
+          IC(s).
+
+Action 2. Update-DR: update these output cells and apply the stimuli
+          to the board interconnections.
+
+Action 3. Capture-DR: capture the status of the board's
+          interconnections at the input pins of the receiving IC(s).
+
+Action 4. Shift-DR: shift out the results through the BSR towards
+          TDO for examination.
+
+
+           FIGURE 1-8 COMES HERE (title <-- List of Figures)
+
+
+
+
+           FIGURE 1-9 COMES HERE (title <-- List of Figures)
+
+
+
+
+          FIGURE 1-10 COMES HERE (title <-- List of Figures)
+
+
+
+
+Figures 1-8, 1-9 and 1-10 depict the respective test actions. The test
+stimulus is indicated here as a bit of value '0' in the Boundary-Scan
+path.
+
+Note that the actions 2 and 3 perform the actual test: apply test data
+to the PCB tracks between the ICs and capture the status of these
+tracks. The two shift actions (1 and 4) do not in fact contribute to the
+test results.
+
+Testing of the interconnection between the ICs is referred to as
+external test or EXTEST. The circuit diagram in figure 1-11 supports
+these functions.
+
+
+
+          FIGURE 1-11 COMES HERE (title <-- List of Figures)
+
+
+
+Figure 1-12 shows the data flow during the first test action, shift the
+stimuli (data) through the registers, from input TDI to the output TDO.
+This action is called Shift-DR. The emboldened lines between TDI and
+TDO plus the shaded Boundary-Scan (BS) registers depict the signal
+path.
+
+
+
+          FIGURE 1-12 COMES HERE (title <-- List of Figures)
+
+
+Notice that in figure 1-12 the Boundary-Scan design comprises, a
+parallel latch (flip-flop) and a multiplexer (MUX) in addition to the shift-
+register stages. The latches have been included to assure a stable
+signal at the parallel outputs while data (test stimuli and test results)
+are shifted through the scan path (BSR). The purpose of the
+multiplexer is discussed later.
+
+The figures 1-13 and 1-14 show the signal flows for Update-DR
+(above Action 2) and Capture-DR (above Action 3) respectively.
+
+
+          FIGURE 1-13 COMES HERE (title <-- List of Figures)
+
+
+
+
+          FIGURE 1-14 COMES HERE (title <-- List of Figures)
+
+
+Remember that these test steps still concern the EXTEST. The shift
+state for Action 4 is the same as for Step 1 of course.
+The actions indicated in these figures are triggered by the indicated
+Clock signals. The clock signal triggers the actions in the Boundary-
+Scan cells. In the Update-DR stage of the EXTEST an electrical signal
+is then applied to a copper track on the PCB, which arrives virtually
+at the same time at the receiving input of the appropriate IC(s), see
+figure 1-9. Here the Capture-DR action is also triggered by the clock
+pulse. It is prescribed that the Update-DR action must be triggered at
+the falling edge (negative slope) of the clock pulse whilst the Capture-
+DR action is triggered at the rising edge (positive slope) of the clock
+pulse. Note in the last three figures (1-12 through 1-14) that the
+EXTEST does not in any way interfere with the functioning of the core
+logic.
+
+In conclusion it can be stated that a board interconnect test can be
+performed with the aid of Boundary-Scan Registers using the
+described procedure. It has also been shown that this can be done
+without interfering with the core logic's operation. Given the registers
+at the I/O pins of the ICs, it can be seen that an internal test of the IC
+logic (core logic) can also easily be realized. The testing of the
+internal logic of an IC is referred to as internal test or INTEST. For the
+INTEST the same test actions as described for the EXTEST are
+applicable, only the Update-DR and Capture-DR actions concern now
+the Boundary-Scan cells at the input and output pins of the IC
+respectively. The following test sequence describes the actions.
+
+Action 1. Shift-DR: shift the data (test stimuli) through the registers to
+          the cells associated with the input pins of the IC(s).
+
+Action 2. Update-DR: update these input cells and apply the stimuli
+          to the core logic.
+
+Action 3. Capture-DR: capture the status of the core logic outputs in
+          the output cells of the IC(s).
+
+Action 4. Shift-DR: shift out the results through the BSR of the IC(s)
+          for examination.
+
+The signal flow during the shift actions is the same as in figure 1-12.
+The signal flows for the test actions 2 and 3 are shown in figures 1-15
+and 1-16 (shaded).
+
+
+          FIGURE 1-15 COMES HERE (title <-- List of Figures)
+
+
+
+
+          FIGURE 1-16 COMES HERE (title <-- List of Figures)
+
+
+Test Control Logic
+
+As discussed above, several test control signals are used to control
+the Boundary-Scan shift-registers, the parallel latches and the
+multiplexers. It would be unacceptable to define an IC package pin for
+each control signal. Therefore, a control logic has been designed
+consisting of a sequencer that can be controlled by a serial protocol.
+In addition to this sequencer an Instruction Register (IR) is required
+to select the different tests to be performed, for example INTEST and
+EXTEST. The combinations of the sequencer states and the IR
+instructions are used to generate the internal control signals for the
+various test operations.
+
+The sequencer is controlled by two signal lines: Test Mode Select
+(TMS) and Test Clock (TCK). The whole Boundary-Scan test logic
+requires at least four dedicated test pins at the IC package, thus
+additional to its other functional pins. The four pins (TMS, TCK, TDI
+and TDO) are referred to as the Test Access Port or TAP. The entire
+test control logic is consequently called the TAP Controller.
+
+Remark.   Since all these test provisions have been standardized in
+          the IEEE Std 1149.1 [1], the 'standard' names for the
+          signals and the IC pins are used further in this book. An
+          overview of the birth of the Boundary-Scan standard is
+          given in chapter 6.
+
+At board level, refer back to figure 1-7, the test control lines TMS and
+TCK have to be applied to all components on the board that are
+suited for BST. Figure 1-17 includes the infrastructure for the TMS
+and TCK signals.
+
+
+
+          FIGURE 1-17 COMES HERE (title <-- List of Figures)
+
+Figure 1-17 shows that the TMS and TCK signals are applied to all
+relevant components in parallel (thus all TAP Controllers are always
+in the same state), whereas the test path, TDI to TDO, is a serial path
+all over the printed circuit board.
+
+
+
+          FIGURE 1-18 COMES HERE (title <-- List of Figures)
+
+
+The way that these signals control the Boundary-Scan Test logic is
+depicted in figure 1-18. Here it can be seen that, under control of the
+State Decoder, either the Instruction Register's serial path or the
+Boundary-Scan shift register stages can be connected between the
+IC's TDI and TDO pins. Figure 1-19 shows at IC level the test control
+logic and the serially connected Boundary-Scan cells. In practice also
+the IC input and output buffers are present, as drawn in figure 1-19.
+
+
+
+          FIGURE 1-19 COMES HERE (title <-- List of Figures)
+
+
+Figure 1-20 shows an example of a board level Boundary-Scan test
+configuration consisting of one serial test path.
+
+
+
+          FIGURE 1-20 COMES HERE (title <-- List of Figures)
+
+
+Remember that the actual testing of the printed circuit board concerns
+the connections between the ICs, denoted as net1, net2 ... netn
+(EXTEST), but the test architecture can also be used for checking the
+internal operation of the chip's core logic (INTEST).
+
+
+Example Boundary-Scan Circuits
+
+For a board level test procedure the Boundary-Scan registers should
+have three important properties:
+1. they must be 'invisible' during normal operation of the IC's core
+   logic,
+
+2. they must be able to isolate the IC interconnections on the board
+   from the IC cores to allow testing the external IC connections, and
+
+3. they should be able to isolate the IC from its surroundings on the
+   PCB to also allow testing of the internal core logic.
+
+An example of a commonly used cell design is given in figure 1-21.
+
+
+
+          FIGURE 1-21 COMES HERE (title <-- List of Figures)
+
+
+The test properties are obtained as follows. To support normal
+operation (Test/Normal) the multiplexer 2 (MUX2) is kept at logical '0'.
+The control signal (Shift/Load) of MUX1 can be kept at '1' or '0'.
+
+The BS cell depicted in figure 1-21 can be used both at the input and
+at the output related IC pins. For example, for an INTEST of the core
+logic (see figure 1-19) the BS cells at the IC input receive data
+shifted-in via TDI with MUX1 set to '1' (Shift) and clocked to the core
+logic with MUX2 set to '1' (Test). At the core output the BS cells must
+capture the resulting output signal for which MUX1 is set to '0' (Data
+from system). These signals are clocked towards TDO for
+examination, for which MUX2 is kept at '1.
+
+Note that the above depicted Boundary-Scan cell is just one sample
+representation. Other circuits and test features are discussed in
+chapter 2.
+
+During testing, an IC's Boundary-Scan Register can also stay idle,
+thus without interfering with the in-core logic. For example, when the
+IC is not used in a board test it is senseless to include the IC's BS
+Register (BSR) in the PCB Boundary-Scan path. In such cases the
+BSR is short cut by the so called Bypass register, a one-bit register
+between the TDI and TDO pins to make the board test faster, thus
+more efficient.
+
+The Bypass Register may be selected by loading the appropriate
+instruction into the Instruction Register. The presence of instructions
+opens a wide variety of test possibilities. For instance it is possible to
+have a Device Identification Register implemented in the component
+(IC), by means of which it can be tested whether the right component
+is mounted on the right place on the PCB. Or, it is possible to have
+manufacturer specific instructions for several purposes, e.g. emulation,
+self-test, test access to internal scan registers, etc. Figure 1-22 shows
+an example of an Instruction Register cell.
+
+The IR operation and applications are detailed in chapter 2.
+
+The TAP Controller (see figure 1-18) is a 16-state sequential machine
+operating synchronously with the TCK and responding to the TMS
+signal. Under control of the TAP Controller the instruction and test
+data are shifted from the TDI, through the registers and out again
+towards the TDO pin.
+
+A Boundary-Scan test consists of four steps: 
+
+1. shift in and decode instructions, i.e. select a particular data
+   register,
+
+2. shift in test data,
+
+3. execute the test and
+
+4. shift out the test results.
+
+
+
+          FIGURE 1-22 COMES HERE (title <-- List of Figures)
+
+
+All the actions can be controlled by the TAP Controller and are
+described in chapter 2.
+
+
+Constituent Elements of the BST Path
+
+As mentioned above, applying Boundary-Scan Test (BST) on a PCB
+implies that Boundary-Scan (BS) cells are placed along the IC's
+input/output pins. For test purposes, these BS cells replace the
+conventional physical test pins (which can be placed on the IC contact
+pins during testing) by 'virtual' test pins inside the IC.
+
+In the conventional way an interconnecting copper track (or 'net')
+between the output of IC1 and the input of IC2 is tested by placing
+two test pins on the net nodes and applying test signals to one node
+while measuring the responses at the other node. These nodes
+(measuring points) could be physically located at the PCB soldering
+joints of the IC pins.
+
+In the case of BST, the conventional nodes become 'virtual' nodes
+located inside the BS cells. Including part of the IC itself in the test
+path means that the test path becomes longer, so more possible
+connection points are to be considered when a fault is detected.
+Figure 1-23 (introduced in ) gives an idea of the whole BST test
+path between two ICs.
+
+
+
+          FIGURE 1-23 COMES HERE (title <-- List of Figures)
+
+
+The signal test path between two 'virtual' test pins now includes:
+
+   -  the Output and Input Boundary-Scan cells,
+   -  the Output and Input buffers,
+   -  the Bonding pads, four in total,
+   -  the Bonding wires, two in total,
+   -  the IC pin soldering joints, two in total,
+   -  the PCB copper track.
+
+Obviously all these points can give rise to faults. Although the ICs are
+tested usually before leaving the supplier's factory, the ICs can, once
+mounted on the PCB, show faults. This can be caused by component
+handling during loading the PCB, for example due to mechanical or
+thermal shocks.
+
+It should be noted that a deduced 'open' fault (path interrupted) from
+a BS test does not indicate on which of the above mentioned points
+the interruption occurs. For example the connections of the two
+soldering points and the PCB copper track in between can be faultless
+while the input buffer of IC2 is blown up due to electro static
+discharge, which then may cause the 'open' error. If one output is
+connected to several input pins, then further location of such a fault
+can be deduced with proper test patterns for all input pins involved
+(for details see chapter 5).
+
+
+
+
+-------------------------------------ORDER FORM------------------------------
+
+Ref:  ftpser
+
+Please send me: 
+Boundary-Scan Test: A Practical Approach, Bleeker/van den Eijnden/de Jong
+_____copy(ies) HB, ISBN 0-7923-9296-5,  $ 70.00  Dfl 137.50.
+
+  Payment enclosed to the amount of ___________________________
+
+* Please invoice me 
+
+* Please charge my credit card 
+
+  Name of Card Holder: ______________________________________  
+
+  Card. no.: ________________________________________________
+
+  Expiry Date:______________________________________________
+
+     Am. Ex.*          Visa*           Diners Club*           Mastercard*
+
+Delivery address: 
+
+Name: ___________________________________________________________________
+
+Address: ________________________________________________________________
+
+         ________________________________________________________________
+
+         ________________________________________________________________
+
+         ________________________________________________________________
+
+
+Date:________________     Signature:_______________________________
+
+To be sent to:
+
+
+Outside North America                         In USA and Canada
+
+KLUWER ACADEMIC PUBLISHERS GROUP              KLUWER ACADEMIC PUBLISHERS 
+Order Dept.                                   Order Dept
+P.O. Box 322                                  101 Philip Drive
+3300 AH Dordrecht, The Netherlands            Norwell, 02016 MA
+Tel: +31-78-524400                            Tel: 617-871-6600
+Fax +31-78-524474.                            Fax: 617-871-6528
+email:  vanderlinden@wkap.nl                  email: kluwer@world.std.com
+
+Orders from individuals accompanied by payment or authorization to
+charge a credit card account will ensure prompt delivery. Postage and
+handling charges will be absorbed by the Publisher on all such orders.
+Payment will be accepted in any convertible currency. Please check the
+rate of exchange at your bank. For sales within the Netherlands please
+add 6% VAT (BTW). Prices are subject to change without notice.
+
+* Delete those that do not apply.
+

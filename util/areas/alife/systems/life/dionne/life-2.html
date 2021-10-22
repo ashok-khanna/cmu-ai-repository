@@ -1,0 +1,125 @@
+C+
+C	DIONNE:[FOR]LIFE.FOR
+C	Greg Dionne, May '91
+C	Written to familiarize author with VMS FORTRAN
+C-
+	parameter 
+	1 w=80,
+	1 h=24
+
+	integer*2
+	1 grid_1((w+2)*(h+2)),
+	1 grid_2((w+2)*(h+2))
+
+	integer seed,i
+	
+* Start life
+	print *,char(27),'[2J'
+
+	do i=1,(w+2)*(h+2)
+	 grid_1(i)=0
+	 grid_2(i)=0
+	end do
+	call get_grid(grid_1)
+
+	do i=1,w+2
+	 grid_1(i)=0
+	 grid_1(i+(w+2)*(h+1))=0
+	end do
+
+	do i=1,h+1
+	 grid_1(1+(w+2)*i)=0
+	end do
+
+	do while (.true.)
+	 call plot(grid_1,grid_2)
+	 call next(grid_1,grid_2)
+	 call plot(grid_2,grid_1)
+	 call next(grid_2,grid_1)
+	end do
+	end
+* End life
+
+      subroutine next(grid_1,grid_2)
+	parameter 
+	1 w=80,
+	1 h=24
+
+	integer*2 
+	1 grid_1((w+2)*(h+2)),
+	1 grid_2((w+2)*(h+2))
+
+	integer*2 i,j,pos,sum
+
+	do j=1,h
+	 do i=2,w
+	  pos=i+(w+2)*j
+	  sum=grid_1(pos-(w+2)-1)+grid_1(pos-(w+2))+grid_1(pos-(w+2)+1)
+	1    +grid_1(pos      -1)       +           grid_1(pos      +1)
+	1    +grid_1(pos+(w+2)-1)+grid_1(pos+(w+2))+grid_1(pos+(w+2)+1)
+	  if      (sum.lt.2.or.sum.gt.3) then
+	   grid_2(pos)=0
+	  else if (sum.eq.3            ) then 
+	   grid_2(pos)=1
+	  else
+	   grid_2(pos)=grid_1(pos)
+	  end if
+	 end do
+	end do
+      end
+
+      subroutine plot(grid_1,grid_2)
+	parameter 
+	1 w=80,
+	1 h=24
+
+	integer*2 
+	1 grid_1((w+2)*(h+2)),
+	1 grid_2((w+2)*(h+2))
+
+	integer*2 i,j,pos
+
+	do i=2,w
+	 do j=1,h
+	  pos=i+(w+2)*j
+	  if (grid_1(pos).ne.grid_2(pos)) then
+	   print '(A,$)','+'//char(27)//'['
+	   if (j.lt.10) then
+	    print '(A,I1,A,$)', '+',j,';'
+	   else
+	    print '(A,I2,A,$)', '+',j,';'
+	   end if
+	   if ((i-1).lt.10) then
+	    print '(A,I1,A,$)', '+',i-1,'H'
+	   else
+	    print '(A,I2,A,$)', '+',i-1,'H'
+	   end if
+	   if (grid_1(pos)) then
+	    print '(A,$)','+*'
+	   else
+	    print '(A,$)','+ '
+	   end if
+	  end if
+	 end do
+	end do
+      end
+
+      subroutine get_grid(grid)
+	parameter 
+	1 w=80,
+	1 h=24
+
+	integer*2 grid((w+2)*(h+2)),i,j
+	character line*80
+
+1	format(A)
+	open(1,file='life',carriagecontrol='list',status='old',readonly)
+	do j=1,h
+	 read(1,1),line
+	 do i=1,80
+	  if (line(i:i).eq.'*') grid(i+(w+2)*j)=1
+	 end do
+	end do
+	close(1)
+      end
+

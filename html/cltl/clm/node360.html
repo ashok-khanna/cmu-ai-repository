@@ -1,0 +1,106 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node360.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:47:31 GMT -->
+<HEAD>
+<TITLE>A.3.4. Declarations</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Declarations">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html6200 HREF="node361.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html6198 HREF="node356.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html6194 HREF="node359.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html6202 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html6203 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html6201 HREF="node361.html"> Primitives</A>
+<B>Up:</B> <A NAME=tex2html6199 HREF="node356.html"> Optimization</A>
+<B> Previous:</B> <A NAME=tex2html6195 HREF="node359.html"> Defining New Series </A>
+<HR> <P>
+<H2><A NAME=SECTION003434000000000000000>A.3.4. Declarations</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+A key feature of Lisp is that variable declarations are strictly optional.
+Nevertheless, it is often the case that they are necessary in situations
+where efficiency matters.  Therefore, it is important that it be <i>possible</i> for programmers to provide declarations for every variable in a
+program.  The transformation of series expressions into loops presents
+certain problems in this regard, because the loops created contain
+variables not evident in the original code.  However, if the information
+described below is supplied by the user, appropriate declarations can be
+generated for all of the loop variables created.
+<P>
+All the explicit variables that are bound in a series expression (for example, by a 
+<tt>let</tt> that is part of the expression) should be given informative
+declarations making use of the type specifier <tt>(series <i>element-type</i>)</tt>
+where appropriate.
+<P>
+Informative types should be supplied to series functions (such as 
+<tt>scan</tt> and <tt>map-fn</tt>) that have type arguments.  When using 
+<tt>scan</tt> it is important to specify the type of element in the sequence as
+well as the sequence itself (for example, by using <tt>(vector * integer)</tt> as
+opposed to merely <tt>vector</tt>).  The form <tt>(list <i>element-type</i>)</tt>
+can be used to specify the type of elements in a list.
+<P>
+If it is appropriate to have a type more specific than <tt>(series t)</tt>
+associated with the output of <tt>#M</tt>, <tt>#Z</tt>, <tt>scan-alist</tt>, 
+<tt>scan-file</tt>, <tt>scan-hash</tt>, <tt>scan-lists-of-lists-fringe</tt>, 
+<tt>scan-lists-of-lists</tt>, <tt>scan-plist</tt>,
+<tt>series</tt>, <tt>latch</tt>, or <tt>catenate</tt>, then the form
+<tt>the</tt> must be used to specify this type.
+<P>
+Finally, if the expression computing a non-series argument to a series
+variable is neither a variable nor a constant, <tt>the</tt> must be used to
+specify the type of its result.
+<P>
+For example, the declarations in the series expressions below are
+sufficient to ensure that every loop variable will have an accurate
+declaration.
+<P><pre>
+(collect-last (choose-if #'plusp (scan '(list integer) data))) 
+
+(collect '(vector * float) 
+         (map-fn 'float #'/ 
+                 (series (the integer (car data))) 
+                 (the (series integer) (scan-file f))))
+</pre><P>
+<P>
+The amount of information the user has to provide is reduced by the fact
+that this information can be propagated from place to place.  For instance,
+the variable holding the output of <tt>choose-if</tt> holds a subset of the
+elements held by the input variable.  As a result, it is appropriate for it
+to have the same type.  When defining a new series function, the type
+specifier <tt>series-element-type</tt> can be used to indicate where type
+propagation should occur.
+<P>
+<BR><b>[Type specifier]</b><BR>
+<tt>series-element-type</tt><P>The type specifier <tt>(series-element-type <i>variable</i>)</tt> denotes the
+type of elements in the series held in <i>variable</i>.  <i>Variable</i> must
+be a variable carrying a series value (for example, a series argument of a series
+function).  <tt>series-element-type</tt> can be used only in three places: in
+a declaration in a <tt>let</tt>, <tt>mapping</tt>, <tt>producing</tt>, or other
+binding form in a series expression; in a declaration in a <tt>defun</tt>
+being used to define a series function; or in a type argument to a series
+function.  As an example, consider that <tt>collect-last</tt> could have been
+defined as follows.  The use of <tt>series-element-type</tt> ensures that the
+internal variable keeping track of the most recent item has the correct
+type.
+<P><pre>
+(defun collect-last (items &amp;optional (default nil)) 
+  (declare (optimizable-series-function)) 
+  (collect-fn '(series-element-type items) 
+              #'(lambda () default) 
+              #'(lambda (old new) new) 
+              items))
+</pre><P>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html6200 HREF="node361.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html6198 HREF="node356.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html6194 HREF="node359.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html6202 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html6203 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html6201 HREF="node361.html"> Primitives</A>
+<B>Up:</B> <A NAME=tex2html6199 HREF="node356.html"> Optimization</A>
+<B> Previous:</B> <A NAME=tex2html6195 HREF="node359.html"> Defining New Series </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

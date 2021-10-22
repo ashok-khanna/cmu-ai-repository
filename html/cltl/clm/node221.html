@@ -1,0 +1,193 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node221.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:46:43 GMT -->
+<HEAD>
+<TITLE>24.2. Specialized Error-Signaling Forms and Macros</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Specialized Error-Signaling Forms and Macros">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4313 HREF="node222.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4311 HREF="node219.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4305 HREF="node220.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4315 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4316 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4314 HREF="node222.html"> Special Forms for </A>
+<B>Up:</B> <A NAME=tex2html4312 HREF="node219.html"> Errors</A>
+<B> Previous:</B> <A NAME=tex2html4306 HREF="node220.html"> General Error-Signaling Functions</A>
+<HR> <P>
+<H1><A NAME=SECTION002820000000000000000>24.2. Specialized Error-Signaling Forms and Macros</A></H1>
+<P>
+<A NAME=SPECIALIZEDERRORSIGNALLING>These</A>
+facilities are designed to make it convenient for the user
+to insert error checks into code.
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>check-type <i>place</i> <i>typespec</i> [<i>string</i>]</tt>
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<tt>check-type</tt> signals an error if the contents of <i>place</i> are not
+of the desired type.
+Upon continuing from this error, the user will be asked for a new value;
+<tt>check-type</tt> will store the new value in <i>place</i> and start over, 
+checking the type of the new value and signaling
+another error if it is still not of the desired type.  Subforms of
+<i>place</i> may be evaluated multiple times because of the implicit
+loop generated.  <tt>check-type</tt> returns <tt>nil</tt>.
+<P>
+The <i>place</i> must be a generalized variable reference acceptable to
+<tt>setf</tt>.
+The <i>typespec</i> must be a type specifier; it is not evaluated.
+The <i>string</i> should be an English description of the type, starting with
+an indefinite article (``a'' or ``an''); it is evaluated.
+If <i>string</i> is
+not supplied, it is computed automatically from <i>typespec</i>.
+(The optional <i>string</i> argument is allowed because some applications
+of <tt>check-type</tt> may require a more specific description of what is
+wanted than can be generated automatically from the type specifier.)
+<P>
+The error message will mention <tt>place</tt>, its contents, and the desired type.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+The precise format and content of the error message
+is implementation-dependent.  The example shown below
+is representative of current practice.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<hr>
+<b>Implementation note:</b> An implementation may choose to
+generate a somewhat differently worded
+error message if it recognizes that <i>place</i> is of a particular
+form, such as one of the arguments to
+the function that called <tt>check-type</tt>.
+<hr>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1988
+(CONDITION-SYSTEM) <A NAME=28065>&#160;</A> 
+to adopt a proposal for a Common Lisp Condition System. 
+This proposal modifies the definition of <tt>check-type</tt> to specify its
+interaction with the condition system.  See section <A HREF="node336.html#CONDITIONASSERTIONS">29.4.2</A>.
+<P>
+X3J13 voted in March 1988 (PUSH-EVALUATION-ORDER) <A NAME=28070>&#160;</A> 
+to clarify order of evaluation (see section <A HREF="node80.html#SETFSECTION">7.2</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+Examples:
+<P><pre>
+(setq aardvarks '(sam harry fred)) 
+(check-type aardvarks (vector integer)) 
+Error: The value of AARDVARKS, (SAM HARRY FRED), 
+       is not a vector of integers. 
+
+(setq naards 'foo) 
+(check-type naards (integer 0 *) &quot;a positive integer&quot;) 
+Error: The value of NAARDS, FOO, is not a positive integer.
+</pre><P>
+<P>
+<hr>
+<b>Compatibility note:</b> In Lisp Machine Lisp the equivalent facility
+is called <tt>check-arg-type</tt>.
+<hr>
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>assert <i>test-form</i> [({<i>place</i>}*) [<i>string</i> {<i>arg</i>}*]]</tt><P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<tt>assert</tt> signals an error if the value of <i>test-form</i> is <tt>nil</tt>.
+Continuing 
+from this error will allow the user to alter the values of some
+variables, and <tt>assert</tt> will then start over, evaluating 
+<i>test-form</i> again.  <tt>assert</tt> returns <tt>nil</tt>.
+<P>
+<i>test-form</i> is any form.  Each <i>place</i> (there may be any number of
+them, or none) must be a generalized-variable reference acceptable to
+<tt>setf</tt>.  These should be variables on which <i>test-form</i> depends,
+whose values may sensibly be changed by the user in attempting to correct
+the error.  Subforms of each <i>place</i> are only evaluated if an error is
+signaled, and may be re-evaluated if the error is re-signaled (after
+continuing without actually fixing the problem).
+<P>
+The <i>string</i> is an
+error message string, and the <i>args</i> are additional arguments; they are
+evaluated only if an error is signaled, and re-evaluated if the error is
+signaled again.
+The function <tt>format</tt> is applied in the usual way to
+<i>string</i> and <i>args</i> to produce
+the actual error message.  If <i>string</i> is omitted (and therefore also
+the <i>args</i>), a default error message is used.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<hr>
+<b>Implementation note:</b> The debugger need not include
+the <i>test-form</i> in the error message,
+and the <i>places</i> should not be included in the message, but they
+should be made available for the user's perusal.
+If the user gives the ``continue'' command, he should be
+presented with the opportunity to alter the values of any or all of the
+references.  The details of this depend on the
+implementation's style of user interface, of course.
+<hr>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1988
+(CONDITION-SYSTEM) <A NAME=28108>&#160;</A> 
+to adopt a proposal for a Common Lisp Condition System. 
+This proposal modifies the definition of <tt>assert</tt> to specify its
+interaction with the condition system.  See section <A HREF="node336.html#CONDITIONASSERTIONS">29.4.2</A>.
+<P>
+X3J13 voted in March 1988 (PUSH-EVALUATION-ORDER) <A NAME=28113>&#160;</A> 
+to clarify order of evaluation (see section <A HREF="node80.html#SETFSECTION">7.2</A>).
+<P>
+X3J13 voted in June 1989 (SETF-MULTIPLE-STORE-VARIABLES) <A NAME=28117>&#160;</A> 
+to extend the specification of <tt>assert</tt> to allow a <i>place</i>
+whose <tt>setf</tt> method has more than one store variable (see <tt>define-setf-method</tt>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+Examples:
+<P><pre>
+(assert (valve-closed-p v1)) 
+
+(assert (valve-closed-p v1) () 
+        &quot;Live steam is escaping!&quot;) 
+
+(assert (valve-closed-p v1) 
+        ((valve-manual-control v1)) 
+        &quot;Live steam is escaping!&quot;) 
+
+;; Note here that the user is invited to change BASE,  
+;; but not the bounds MINBASE and MAXBASE. 
+
+
+(assert (&lt;= minbase base maxbase) 
+        (base) 
+        &quot;Base ~D is not in the range ~D, ~D&quot; 
+        base minbase maxbase) 
+
+;; Note here that it is probably not desirable to include the 
+;; entire contents of the two matrices in the error message. 
+;; It is reasonable to assume that the debugger will give 
+;; the user access to the values of the places A and B. 
+
+(assert (= (array-dimension a 1)  
+           (array-dimension b 0)) 
+        (a b) 
+        &quot;Cannot multiply a ~D-by-~D matrix ~ 
+         and a ~D-by-~D matrix.&quot; 
+        (array-dimension a 0) 
+        (array-dimension a 1) 
+        (array-dimension b 0) 
+        (array-dimension b 1))
+</pre><P>
+<P>
+<BR> <HR><A NAME=tex2html4313 HREF="node222.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4311 HREF="node219.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4305 HREF="node220.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4315 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4316 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4314 HREF="node222.html"> Special Forms for </A>
+<B>Up:</B> <A NAME=tex2html4312 HREF="node219.html"> Errors</A>
+<B> Previous:</B> <A NAME=tex2html4306 HREF="node220.html"> General Error-Signaling Functions</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

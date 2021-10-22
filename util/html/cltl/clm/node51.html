@@ -1,0 +1,108 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node51.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:32:06 GMT -->
+<HEAD>
+<TITLE>4.7. Defining New Type Specifiers</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Defining New Type Specifiers">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2139 HREF="node52.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2137 HREF="node44.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2131 HREF="node50.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2141 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2142 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2140 HREF="node52.html"> Type Conversion Function</A>
+<B>Up:</B> <A NAME=tex2html2138 HREF="node44.html"> Type Specifiers</A>
+<B> Previous:</B> <A NAME=tex2html2132 HREF="node50.html"> Type Specifiers That </A>
+<HR> <P>
+<H1><A NAME=SECTION00870000000000000000>4.7. Defining New Type Specifiers</A></H1>
+<P>
+New type specifiers can come into existence in two ways.
+First, defining a new structure type with <tt>defstruct</tt> automatically
+causes the name of the structure to be a new type specifier symbol.
+Second, the <tt>deftype</tt> special form can be used to define new type-specifier
+abbreviations.
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>deftype</tt> <tt><I>name</I></tt> <tt><I>lambda-list</I></tt> <b>[[</b><tt>{<I>declaration</I>}*</tt> <tt>|</tt> <tt><I>doc-string</I></tt><b>]]</b> <tt>{<I>form</I>}*</tt><P>
+This is very similar to a <tt>defmacro</tt> form: <i>name</i> is the
+symbol that identifies the type specifier being defined, <i>lambda-list</i> is
+a lambda-list (and may contain <tt>&amp;optional</tt> and <tt>&amp;rest</tt>
+markers), and
+the <i>forms</i> constitute the body of the expander function.  If we view a
+type specifier list as a list containing the type specifier name and some argument forms,
+the argument forms (unevaluated) are bound to the corresponding
+parameters in <i>lambda-list</i>.  Then the body forms are evaluated
+as an implicit <tt>progn</tt>, and the value of the last form
+is interpreted as a new type specifier for which the original specifier
+was an abbreviation.  The <i>name</i> is returned as the value of the
+<tt>deftype</tt> form.
+<P>
+<tt>deftype</tt> differs from <tt>defmacro</tt> in that if no <i>initform</i>
+is specified for an <tt>&amp;optional</tt> parameter, the default value
+is <tt>*</tt>, not <tt>nil</tt>.
+<P>
+If the optional documentation string <i>doc-string</i> is present,
+then it is attached to the <i>name</i>
+as a documentation string of type <tt>type</tt>; see <tt>documentation</tt>.
+<P>
+Here are some examples of the use of <tt>deftype</tt>:
+<P><pre>
+(deftype mod (n) `(integer 0 (,n))) <BR><BR>(deftype list () '(or null cons))
+</pre><P>
+<P>
+
+<P>
+<P><pre>
+(deftype square-matrix (<tt>&amp;optional</tt> type size) 
+  &quot;SQUARE-MATRIX includes all square two-dimensional arrays.&quot; 
+  `(array ,type (,size ,size))) 
+
+(square-matrix short-float 7)  means  (array short-float (7 7)) 
+
+(square-matrix bit)  means  (array bit (* *))
+</pre><P>
+If the type name defined by <tt>deftype</tt> is used simply as a type
+specifier symbol, it is interpreted as a type specifier list with
+no argument forms.  Thus, in the example above, <tt>square-matrix</tt>
+would mean <tt>(array * (* *))</tt>, the set of two-dimensional arrays.
+This would unfortunately fail to convey the constraint that the two
+dimensions be the same; <tt>(square-matrix bit)</tt> has the same problem.
+A better definition is
+<P><pre>
+(defun equidimensional (a) 
+  (or (&lt; (array-rank a) 2) 
+      (apply #'= (array-dimensions a)))) 
+
+(deftype square-matrix (<tt>&amp;optional</tt> type size) 
+  `(and (array ,type (,size ,size)) 
+        (satisfies equidimensional)))
+</pre><P>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988 (FLET-IMPLICIT-BLOCK) <A NAME=2641>&#160;</A> 
+to specify that the body of the expander function defined
+by <tt>deftype</tt> is implicitly enclosed in a <tt>block</tt> construct
+whose name is the same as the <i>name</i> of the defined type.
+Therefore <tt>return-from</tt> may be used to exit from the function.
+<P>
+X3J13 voted in March 1989 (DEFINING-MACROS-NON-TOP-LEVEL) <A NAME=2648>&#160;</A> 
+to clarify that, while defining forms normally appear at top level,
+it is meaningful to place them in non-top-level contexts;
+<tt>deftype</tt> must define the expander function
+within the enclosing lexical environment, not within the global
+environment.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html2139 HREF="node52.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2137 HREF="node44.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2131 HREF="node50.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2141 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2142 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2140 HREF="node52.html"> Type Conversion Function</A>
+<B>Up:</B> <A NAME=tex2html2138 HREF="node44.html"> Type Specifiers</A>
+<B> Previous:</B> <A NAME=tex2html2132 HREF="node50.html"> Type Specifiers That </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

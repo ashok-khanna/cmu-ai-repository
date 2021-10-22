@@ -1,0 +1,841 @@
+-*- Text -*-
+
+$Header$
+
+		MIT Scheme/DOS Alpha Release Note
+		---------------------------------
+
+Copyright (c) 1992 Massachusetts Institute of Technology
+
+This material was developed by the Scheme project at the
+Massachusetts Institute of Technology, Department of Electrical
+Engineering and Computer Science.  Permission to copy this document,
+to redistribute it, and to use it for any purpose is granted, subject
+to certain restrictions and understandings.  Please read the standard
+Scheme copyright notice at the beginning of every Scheme source file.
+
+			Introduction
+			------------
+
+This release note describes the DOS version of MIT Scheme for Intel
+i386+ processors.  MIT Scheme is an interactive programming
+environment developed at the Artificial Intelligence Laboratory at
+MIT.  The system implements most of the Scheme programming language as
+specified by the IEEE and ANSI Scheme standards and the Revised^N
+Reports on Scheme.  The only incompatibility with the IEEE standard
+is that in this implementation #f (the false object) and '() (the
+empty list) are currently the same object, while the standard requires
+them to be distinct.  Future releases may be compatible with the
+standard.
+
+Versions of this system run on Unix, VMS, DOS, HP9000s200 p-systems,
+and processors such as the MC680x0, i386+, HP-PA, Mips, Sparc, etc.,
+and some of these versions have been widely distributed.  It is used
+by many in the research and academic communities.
+
+This is the first alpha release of the DOS version.  In fact, this
+release is preliminary in two ways: 1) the DOS port originated from a
+yet unreleased version of the system; 2) the port was freshly completed
+and have been used neither intensively nor extensively.  Also, similar
+to all releases of MIT Scheme software, we assume no warranties or
+commitment to support the code.  What this means is that although your
+comments and bug reports are certainly solicited and most welcome
+(more on how to do that later), we make no guarantees that they will
+be acted on quickly, if at all.  Use this software at your own risk.
+
+The DOS version requires at least a 386sx.  It should run under all
+versions of DOS by Microsoft and others since 3.30, although it has
+only been tested under MS-DOS 5.0 .  It will run as a DOS application
+under Microsoft Windows 3.0 and 3.1 .   Parts of the system were
+compiled using the Zortech C++ compiler Version 3.0r4 using their DOSX
+32-bit extender, and accordingly their bugs and quirks are inherited.
+
+We include in this release executables for almost all parts of the
+system, in addition to all of the source code.  Using these, you can
+regenerate all of the auxiliary files as you need them.  More on how
+to do this and the disk requirements later.  The distribution is done
+via ZIP format files.  We provide a public-domain unzip program for
+your convenience.
+
+Since the DOS version inherits heavily from its Unix counterpart,
+most of the documentation that applies to the Unix version is also
+usable for the DOS version.  In fact, most software developed for use
+on the Unix version will run on DOS as is.
+
+			Description
+			-----------
+
+The MIT Scheme system is divided into subsystems described below.
+They are listed along with the ZIP files they are distributed in, what
+they expand to, and the usual directory structure they fall under.
+Assume in the following that $SCHEME is the root directory (on our
+system it is usually c:\scheme).
+
+This brief description covers all of the directory hierarchy; only
+part of the hierarchy may be present, depending on what part of the
+distribution you install.
+
+	Under $SCHEME/bin:
+  SCHEME.ZIP	->	SCHEME.EXE	(executable)
+  BCHSCHEME.ZIP	->	BCHSCHEME.EXE	(executable)
+
+$SCHEME/bin contains the C executables for the microcode.  SCHEME.EXE
+emulates a microcode interpreter for the SCode, the intermediate
+opcodes used by MIT Scheme.  A lot of the primitives and all of the
+operating system interface is provided here.  BCHSCHEME.EXE is a
+version of SCHEME.EXE that uses a disk file as it's second heap in
+it's copying garbage collector, and is useful on systems without a lot
+of RAM.  One of the two executables is necessary to run any version of
+the system.
+
+	Under $SCHEME/lib:
+  387RUN.ZIP	->	RUNTIME.COM	(runtime band)
+  NO387RUN.ZIP	->	RUNTIME.COM	(runtime band)
+
+RUNTIME.COM is a binary dump (a "band", or a saved world image) of the
+runtime system.  This is the runtime environment, written in Scheme
+(and compiled to native 386 code), providing the read-eval-print loop
+and a rich set of runtime utilities.  The version in 387RUN.ZIP
+contains floating point instructions, so you need to have a 387, 487,
+or a 486 (not an SX!)  to use it.  Use the one in NO387RUN.ZIP if you
+don't have a floating point coprocessor.  You need at least one of the
+two runtime system bands to use Scheme.
+
+	Under $SCHEME/scmdbg/runtime:
+  BCIRUN1.ZIP	->	Debugger info	(binaries)
+  BCIRUN2.ZIP	->	Debugger info	(binaries)
+
+The debugger info files augment the compiled runtime code with symbol
+and stack-use information so that the Scheme debugger can
+intelligently handle compiled procedures and stack frames.  The info
+files are required only if you plan to examine the runtime system code
+and data structures using the Scheme debugger and pretty-printer.
+You will need to set the MITSCHEME_INF_DIRECTORY environment variable
+correctly (to $SCHEME/scmdbg) for the system to find the info files.
+
+	Under $SCHEME/lib:
+  EDDEL.ZIP	->	EDDEL.COM	(runtime delta)
+
+	Under $SCHEME/edwin:
+  SRCEDWIN.ZIP	->	Edwin sources	(sources)
+
+Edwin is an Emacs-style editor written in Scheme.  EDDEL.COM is a
+collection of all the individual binaries necessarily to build Edwin
+starting from a bare runtime system.  The version we distribute does
+not have every Edwin feature loaded.  Edwin is optional.
+
+	Under $SCHEME/lib:
+  COMPDEL.ZIP	->	COMPDEL.COM	(runtime delta)
+
+	Under $SCHEME/compiler:
+  SRCCOMP.ZIP	->	Compiler sources(sources)
+
+This is Liar, the native-code Scheme compiler.  The delta file can be
+loaded into a bare runtime system to regenerate the full i386
+compiler.  The compiler is optional.
+
+	Under $SCHEME/microcode:
+  SRCUC.ZIP	->	C sources	(sources)
+
+$SCHEME/microcode contains the C sources for the microcode.  It also
+contains some utility programs.  This is where scheme.exe and
+bchscheme.exe are built.
+
+	Under $SCHEME/runtime:
+  SRCRUN.ZIP	->	Runtime system	(sources)
+
+$SCHEME/runtime contains the Scheme sources for the runtime system.
+This is where the runtime.com file is built, and where the runtime
+.bci files are usually kept.  In the release they are stored in a
+different directory to make selective installation simpler.
+
+	Under $SCHEME/sf:
+  SRCSF.ZIP	->	Scode optimizer	(sources)
+
+SF is the SCode optimizer, also known as the Cross Syntaxer.  SCode
+is the tree-structured intermediate opcodes the Scheme interpreter
+executes and the Scheme compiler translates.   SF is preloaded into
+the compiler delta described above, and you need the sources only if
+you don't want to keep the compiler or wish to regenerate the system.
+
+	Under $SCHEME/cref:
+  SRCCREF.ZIP	->	Cross referencer (sources)
+
+CREF is an experimental packaging system that is used in the
+construction of MIT Scheme.  You need this only if you plan to
+regenerate the system.  It is probably not advisable to use this in
+your projects, as we have plans to replace it with a very different
+system in the future.
+
+	Under $SCHEME:
+  unzip.exe
+  unzipall.bat
+  unzipflp.bat
+
+Utilities for unpacking the distribution.  UNZIP was written by
+Info-ZIP and distributed by us only for your convenience.
+UNZIPALL.BAT is a script that builds directory structure and invokes
+UNZIP repeatedly to restore the compressed files.  UNZIPFLP.BAT is the
+same installation script but with prompts and pauses for floppy
+insertions.
+
+	Under $SCHEME
+  readme.txt
+  alpha.txt
+
+Documentation for the alpha release.
+
+			Memory Requirements
+			-------------------
+
+The memory requirements vary depending on various factors:
+
+- How fast you want garbage collection to be.
+- How featureful you want your system to be.
+
+We provide two executables (scheme.exe and bchscheme.exe) that differ
+only in the garbage collector and related support.
+
+scheme.exe uses a pretty standard two-space garbage collector, with
+both spaces in simultaneous use only at garbage collection time.
+
+bchscheme.exe uses a two-space collector, but windows the second space
+into a disk file, so that only one of the spaces (and some space for
+the windows) needs to be in memory at any given time.  It is somewhat
+slower, but it is frequently perfectly adequate.  On the other hand,
+you will need enough disk space to hold the spare heap during GC.
+
+The amount of memory allocated can be controlled by using the -heap
+and other options.  The arguments to these options are in thousands of
+scheme objects (4 bytes each).  Thus ``-heap 500'' implies 4 MB for
+scheme.exe and 2 MB for bchscheme.exe.
+
+-constant controls the space allocated to constant space, a permanent
+region where system code resides and that does not need to be moved at
+GC time.  You should not need to change this, unless you move your own
+code or data into constant space.  -stack controls the space allocated
+to the Scheme stack (different from the C stack).  The default should
+be sufficient.
+
+The numbers below assume that appropriate -heap arguments are given.
+The defaults (particularly for edwin and the compiler) are much larger.
+
+The requirements for plain scheme are
+
+~4 MB if using scheme
+~3 MB if using bchscheme
+
+The requirements for running edwin are
+
+~6 MB if using scheme, 8 MB desirable
+~5 MB if using bchscheme, 6 MB desirable
+
+The requirements for running the compiler are
+
+~8 MB if using scheme, 12 MB desirable
+~6 MB if using bchscheme, 8 MB desirable
+
+The compiler needs lots of memory to compile large files, so you will
+only be able to compile small-ish files in a minimal configuration.
+
+You can have both edwin and the compiler loaded (that's the way we use
+it, but we have lots of memory), the memory requirements are greater.
+
+A machine with 16 MB of memory should be able to deal with both
+easily while running scheme, and a machine with 12M should be able to
+do the same when running bchscheme.
+
+Building edwin or the compiler is a different matter.  Due to a design
+shortcoming of the memory manager, they need significantly more memory
+to build than they do to run.  This may be fixed later this summer,
+but in the mean time, you need at least 8 MB to build either.
+
+			Disk Requirements
+			-----------------
+
+The disk requirements vary depending on how full you want your system
+to be.
+
+For the installation you will need about 500K more than the size
+required by the parts of the system you want to install.
+
+The minimal system (scheme.exe or bchscheme.exe and runtime.com) takes
+up about 2.2 MB.
+
+edwin.com is about 3.8 MB
+compiler.com is about 4.4 MB
+eddel.com is about 1.9 MB
+compdel.com is about 2.6 MB
+
+You don't need both the del (for delta) files and the images.  If you
+have enough memory, but not enough disk space, you can keep the del
+files and load them when necessary (assuming that you started scheme
+with sufficient memory, e.g. with the -large option).  The del files
+are just the collection into a single file of all the files that would
+be loaded to construct the appropriate system.
+
+If you have enough disk space you can keep the images around and use
+-edwin or -compiler to start scheme with those images instead of the
+default.
+
+If you want the ability to debug runtime system code, you will need
+the .bci files for the runtime system.  They take up about 3 MB on disk.
+
+If you want the ability to examine the sources or rebuild the system
+from scratch, the sources for the following subsystems take up the
+following space:
+
+microcode	3.1 MB
+runtime		1.3 MB
+edwin		1.7 MB
+compiler	1.3 MB + 200 KB + 80 KB
+  Note: the compiler is made up of three subsystems called compiler, sf,
+  and cref.  The three sizes correspond to the sources of the three
+  subsystems, respectively.
+
+You will need quite a bit of space (~60 MB) to rebuild the complete
+system from scratch and hold the resulting binaries and debugging
+files.
+
+			Running Scheme, etc.
+			--------------------
+
+Once you have scheme installed, you can run scheme as follows
+
+    scheme -band band-name
+
+where band-name is the complete pathname to the runtime.com image
+file.  To avoid typing -band ... on every invocation, you can set the
+MITSCHEME_LIBRARY_PATH environment variable.  For example, if you typed
+
+    set MITSCHEME_LIBRARY_PATH=d:\cscheme\lib;e:\tmp
+
+scheme would look at the current directory (always implicitly in the
+path), d:\cscheme\lib, and e:\tmp in that order for bands.
+
+The default image is called runtime.com, and the default value of
+MITSCHEME_LIBRARY_PATH is c:\scheme\lib
+
+If you have built the edwin.com file, then 
+    scheme -edwin
+will start scheme (with larger default memory options) and load
+edwin.com.  To start the editor, you can type either of
+    (edit)
+    (edwin)  
+
+Note that before you run edwin you will need to have the ansi.sys (or
+compatible) TSR loaded (in your CONFIG.SYS file), and you will have to
+define the environmnt variable TERM to be ansi.sys, i.e.
+    SET TERM=ansi.sys
+
+Before starting scheme, you can change the number of lines in your
+display (e.g. "mode con: lines=50") and notify Scheme/Edwin by
+appropriately setting the LINES and COLUMNS environment variables.
+
+If you have built the compiler.com file, then
+    scheme -compiler
+will start scheme (with larger default memory options) and load
+compiler.com.  The compiler can be invoked as follows
+    (cf "filename")
+
+Note that if you do not have a floating-point coprocessor (or a 486DX
+processor), and you compile code that explicitly uses the
+floating-point operations (flo:+, flo:-, etc.), you will need to
+evaluate the following expression before compiling any such sources.
+    (set! (access compiler:open-code-floating-point-arithmetic?
+	          (->environment '(compiler)))
+	  #f)    
+
+If you have not built edwin.com or compiler.com, but would like to run
+them, follow the procedure used in building the images (except that if
+you have enough memory, you should not limit the stack or the the
+gc-window-size).  Instead of DISK-SAVEing the images, you can proceed
+to use them as specified above.
+
+Note that Scheme and Edwin (under DOS) accept both forward slashes (/)
+and backward slashes (\) in filenames as directory separators.
+However, since backward slash is a quoting character for Scheme
+strings, you will have to type it twice within string quotes as in the
+following expressions:
+
+    (load "c:\\scheme\\project\\foo")
+    (open-input-file "c:\\scheme/project\\foo.scm")
+
+			Installation Instructions
+			-------------------------
+
+We are providing three files that have not been compressed into ZIP
+format.  They are
+
+    unzip.exe			# uncompressor
+    unzipall.bat		# script to install from hard disk
+    unzipflp.bat		# script to install from floppies
+
+UNZIP.EXE can be used to unzip the rest of the files (so can dezip and
+pkunzip, if you have them).
+    unzip foo.zip
+extracts all the compressed files in the foo.zip archive.
+
+UNZIPALL.BAT can be used to build the directory structure and unzip
+all the files if you have enough space to do so.  Otherwise you can
+edit it to disable those parts that you do not want to install.
+
+UNZIPALL.BAT assumes that all the files in the distribution have been
+unloaded into a hard disk (taking up about 8.5 MB) and that the
+current working directory is the location where you want the scheme
+directory structure to be built.  It takes as an argument the name of
+the directory where the distribution files reside.
+
+UNZIPFLP.BAT is the same installation script but with prompts and
+pauses for floppy changes if you are installing from floppies.  It
+takes as an argument a floppy drive name (e.g. B:).
+
+Thus
+
+    d:\scheme> c:\zipped\unzipall c:\zipped
+
+would unzip the files in c:\zipped into directories under d:\scheme
+
+UNZIPALL.BAT and UNZIPFLP.BAT assume that your computer can execute
+Intel 486 floating point instructions (i.e. it has a 486DX processor
+or 387/487 coprocessor).  If it does not, you can change 387run.zip
+into no387run.zip in the .BAT file before executing it.
+
+The installation scripts are divided into sections with comments
+describing what each part is unzipping.  If you do not want the whole
+thing, you should disable (comment out or remove) the appropriate
+sections.  You need not have on your hard disk the .ZIP files
+mentioned in the disabled sections.
+
+For a minimal installation, you only need to unzip either SCHEME.ZIP
+or BCHSCHEME.ZIP and 387RUN.ZIP or NO387RUN.ZIP.  The first two are
+unzipped into a directory called BIN, although anywhere in your PATH
+would be fine and the latter are usually unzipped into a directory
+called LIB.
+
+If you want to be able to debug (and pretty-print) the procedures in
+the runtime system, you will also need to unzip the runtime-system
+debugging information files.  The installation scripts place them in a
+directory called SCMDBG\RUNTIME.  If you are going to install the
+runtime system sources, you can change this to be the same runtime
+subdirectory where the sources will be installed.  If you install the
+debugging information files, you will need to use the
+MITSCHEME_INF_DIRECTORY environment variable so that the system can
+find the files when running.
+
+If you want to run Edwin or the compiler, you will need to unzip
+EDDEL.ZIP and COMPDEL.ZIP, respectively.  These files are independent
+and you do not need both for either subsystem.
+
+If you want to examine or modify the sources, you will need to unzip
+the SRC*.ZIP files.  Note that you will need the compiler binary, the
+cref sources and the runtime system sources to rebuild ANY part of the
+system.
+
+Once you've unzipped all the parts that you want, you can build the
+compiler and edwin images as follows:
+
+To re-build the edwin image, invoke bchscheme as follows (the
+parameters reduce the memory requirements.  If you have enough memory,
+you can ignore them and use scheme instead of bchscheme).
+
+    cd lib
+    ..\bin\bchscheme -constant 846 -heap 913 -stack 19 -gc-window-size 1
+
+At the prompt, type
+
+    (begin (load "eddel") (disk-save "TARGETDIR/edwin.com"))
+
+Where TARGETDIR is the directory where you want edwin.com to reside.
+It should probably be placed in the same directory as runtime.com, but
+by adjusting the MITSCHEME_LIBRARY_PATH environment variable, you can
+have them in different places.
+
+Once DISK-SAVE finishes, you can get out of scheme by typing
+
+    (exit)
+
+To re-build the compiler image, make sure that you do
+not have the environment variable MITSCHEME_LIBRARY_PATH set (there is
+a minor bug in the unpacker for the delta files), and invoke bchscheme 
+as follows.  Of course, if you have more than 8 MB of memory, you can
+increase the parameters.
+
+    cd lib
+    ..\bin\bchscheme -large -heap 769 -stack 23 -gc-window-size 1 -band fname
+
+Where fname is the full pathname (e.g c:\cscheme\lib\runtime.com) for
+the runtime image.
+
+At the prompt, type
+
+    (begin (load "compdel") (disk-save "TARGETDIR/compiler.com"))
+
+			Customization
+			-------------
+
+You can customize your setup by using a variety of tools:
+
+- bat files.  If you do not have enough memory to run edwin or the
+compiler with its default memory parameters (it will print something
+like "Not enough memory for this configuration" and halt when
+started), you can write a .bat file that will invoke scheme with the
+appropriate -heap parameters.
+
+- init files.  Scheme loads the file scheme.ini from your home
+directory every time it starts up.  In addition, when it starts up,
+edwin loads the file edwin.ini from your home directory into the edwin
+environment.  You can use both of these files to define new
+procedures, commands, or change defaults in the system.
+
+- environment variables.  Most microcode parameters, and some runtime
+system and edwin parameters, can be specified by means of DOS
+environment variables.  The following is a complete list of the
+environment variables that scheme (and edwin, etc.) look for.  Many
+must be defined in DOS before you start Scheme, and are tagged with an
+asterisk.  Others can be defined or overwritten within scheme by using
+the SET-ENVIRONMENT-VARIABLE! procedure, e.g.
+
+  (set-environment-variable! "EDWIN_FOREGROUND" "32")
+
+Environment variables that affect the microcode:
+
+
+* MITSCHEME_LIBRARY_PATH	Semi-colon separated list of directories
+				where scheme should look for image files.
+				E.g. c:\cscheme\images;d:\tmp
+				Default: c:\scheme\lib
+
+* MITSCHEME_BAND		File name of plain runtime image file.
+				Used when none of -band, -edwin, or -compiler
+				are specified.
+				E.g. myband.com, or d:\obscure\runtime.com
+				Default: runtime.com (in the library path)
+
+* MITSCHEME_COMPILER_BAND	File name of compiler image file.
+				Used when -compiler is specified.
+				E.g. ncomp.com
+				Default: compiler.com (in the library path)
+
+* MITSCHEME_EDWIN_BAND		File name of edwin image file.
+				Used when -edwin is specified.
+				E.g. editor.com
+				Default: edwin.com (in the library path)
+
+* MITSCHEME_UTABMD_FILE		File name of microcode description file.
+				It is only necessary when re-building 
+				runtime.com.
+				E.g. d:\cscheme\microcode\utabmd.bin
+				Default: utabmd.bin (in the library path)
+
+* MITSCHEME_LARGE_HEAP		Default -heap parameter when -large, -edwin,
+				or -compiler are specified.
+				E.g. 800
+				Default: 1000
+
+* MITSCHEME_LARGE_CONSTANT	Default -constant parameter when -large or 
+				-compiler are specified.
+				E.g. 845
+				Default: 1010
+
+* MITSCHEME_LARGE_STACK		Default -stack parameter when -large, -edwin, 
+				or -compiler are specified.
+				E.g. 500
+				Default: 100
+
+* MITSCHEME_SMALL_HEAP		Default -heap parameter.
+				E.g. 200
+				Default: 250
+
+* MITSCHEME_SMALL_CONSTANT	Default -constant parameter.
+				E.g. 550
+				Default: 430
+
+* MITSCHEME_SMALL_STACK		Default -stack parameter
+				E.g. 75
+				Default: 100
+
+* MITSCHEME_GC_FILE		Default GC file for bchscheme (-gc-file).
+				E.g. d:\tmp\gcfile
+				Default: GCXXXXXX
+
+* MITSCHEME_GC_DIRECTORY	Default directory where to write the GC file 
+				for bchscheme (-gc-directory).  The directory
+				should be in a partition or drive with a few
+				Megabytes free.
+				E.g. d:\temp
+				Default: \tmp
+
+* MITSCHEME_DPMI_EXT_KBD	Boolean option specifying whether Scheme should
+				insert its own keyboard handling routine 
+				when running under DPMI/Windows.
+				E.g. true
+				Default: false
+
+* MITSCHEME_DOSX_EXT_KBD	Boolean option specifying whether Scheme should
+				insert its own keyboard handling routine 
+				when _not_ running under DPMI/Windows.
+				E.g. true
+				Default: false
+
+	Environment variables that affect the runtime system
+
+* HOME				Directory where to look for init files.
+				E.g. c:\users\joe
+
+- TEMP/TMP			Directory for various temporary files.
+				TEMP is given preference to TMP.
+
+- MITSCHEME_INF_DIRECTORY	Directory containing the debugging information
+				files for the system.  It should contain
+				subdirectories corresponding to the 
+				subdirectories in the source tree.
+				For example, if its value is f:\random,
+				then runtime system debugging files will be 
+				expected in f:\random\runtime, while edwin
+				debugging files will be expected in 
+				f:\random\edwin.
+				Default: c:\scheme
+
+	Environment variables that affect edwin
+
+- EDWIN_BINARY_DIRECTORY	Directory where edwin expects to find 
+				files providing autoloaded facilities.
+				E.g. c:\scheme\edwin
+				Default: edwin\autoload in the library path.
+
+- EDWIN_INFO_DIRECTORY		Directory where edwin expects to find
+				files for the `info' documentation subsystem. 
+				E.g. c:\random\info
+				Default: edwin\info in the library path.
+
+- EDWIN_ETC_DIRECTORY		Directory where edwin expects to find
+				utility programs.  
+				Currently not supported under DOS.
+				E.g. c:\etc
+				Default: edwin\etc in the library path.
+
+- EDWIN_FOREGROUND		ANSI foreground color specifier.  Must be a
+				two-digit sequence in the range 30-37.
+				E.g. 32 (green)
+				Default: none (white)
+
+- EDWIN_BACKGROUND		ANSI background color specifier.  Must be a
+				two-digit sequence in the range 40-47.
+				E.g. 40 (black)
+				Default: none (black)
+
+* TERM				Terminal type, should be ansi.sys for DOS.
+
+* LINES				Number of text lines on the screen, depending
+				on the video adapter and support software.
+				E.g. 43
+				Default: 25
+
+* COLUMNS			Number of text columns on the screen, depending
+				on the video adapter and support software.
+				E.g. 132
+				Default: 80
+
+			Regenerating the Full Scheme Distribution
+			-----------------------------------------
+
+The entire Scheme system can be regenerated using the limited set of
+binaries and full sources shipped with this distribution.  Reasons
+for regenerating the system include: 
+
+  1) you want to make changes to the system;
+
+  2) you want some of the unsupplied debugging info files
+  for parts of the system; 
+
+  3) you want to fine tune the installation parameters; 
+
+  4) you have a 2Gbyte disk and have nothing to put on it - when
+  completely built, the Scheme directory hierachy uses almost 60M of
+  disk space.
+
+To regenerate the system you must have all the sources of the
+distribution and a working compiler image under the hierachy
+suggested.
+
+To regenerate the microcode you will need the Zortech C/C++ compiler,
+and the Microsoft Assembler (MASM).  There is a makefile included with
+the C sources that rebuilds scheme.exe and bchscheme.exe from the
+sources.
+
+Follow the installation instructions above to obtain a compiler band.
+Then, start Liar by typing something like (depending on your setup):
+
+    C>scheme -compiler -constant 1100
+
+After Scheme starts up, type the following:
+
+=> (cd "$SCHEME/cref") ; or whereever you have the CREF sources loaded
+=> (load "cref.sf")    ; Translate sources to SCode.  Takes a few
+		    ; minutes 
+=> (load "cref.cbf")   ; Compile CREF SCode
+
+At this point, the cross referencer is built.  We can generate the
+runtime system.
+
+=> (cd "../runtime")   ; go to runtime system directory
+=> (load "runtim.sf")  ; syntax runtime
+=> (load "runtim.cbf") ; compile runtime, takes up to 2 hours
+
+After the runtime system is complete, we need to generate the file
+describing the linkage between the Scheme runtime code and the C
+microcode.
+
+=> (sf "../microcode/utabmd.scm" "../lib/utabmd.bin")
+
+Now, we can either leave Liar and proceed to rebuild the runtime
+system band, or continue regenerating the remaining parts of the
+system.  To generate the runtime band, exiting Scheme into DOS.  Get
+in the runtime directory (with all the newly generated binaries):
+
+    C:/SCHEME/RUNTIME>scheme -fasl make.com
+
+This will "cold load" all the runtime binaries.  At completion, we
+are left at the Scheme prompt again:
+
+=> (disk-save "../lib/runtime.com")
+
+will save out the band.
+
+If you have modified the runtime system, you may wish to regenerate
+the compiler (and edwin) bands before proceeding to compile the rest
+of the system.  Follow the installation instructions to do that.
+You will need to be back in Liar to do further compilation:
+
+    C>scheme -compiler -constant 1100 -heap 2000
+
+The large heap is only needed when regenerating the compiler (one of
+the sources, namely compiler\machines\i386\instr1.scm is very big and
+should be split).
+
+First thing to do is complete the generation of a full CREF system:
+
+=> (cd "$SCHEME/cref") ; Go to cross referencer directory
+=> (load "cref.sf")    ; Generate full package constructors
+
+Next comes the Scode optimizer:
+
+=> (cd "../sf")        ; Go to SF sources
+=> (load "sf.sf")      ; syntax
+=> (load "sf.cbf")     ; compile
+
+Same for Edwin (2 hours+):
+
+=> (cd "../edwin")     ; Go to Edwin sources
+=> (load '("edwin.sf" "edwin.cbf"))
+		       ; Syntax and compile
+
+Also for the compiler (2 hours+):
+
+=> (cd "../compiler")  ; Go to Liar sources
+=> (load '("comp.sf" "comp.cbf"))
+
+At this point, all the binaries are recompiled.  You can load up these
+subsystems (and perhaps save out the image as bands) by connecting to
+the various directories and loading a file called make.  For example,
+to build Edwin from the binaries:
+
+    C:\SCHEME>scheme -large
+
+=> (cd "edwin")		; go to where edwin is
+=> (load "make")	; load the file that builds everything
+=> (disk-save "../lib/edwin.com") ; save out the band
+
+Before generating the compiler image, you will need to make an OPTIONS
+subdirectory under LIB, and copy RUNTIME/CPRESS.COM (plus FORMAT.COM,
+NUMINT.COM, HASHTB.COM, KRYPT.COM if you so desire) so that
+LOAD-OPTION can find it.
+
+Then start scheme as above (i.e. ``scheme -large'') and type
+
+=> (cd "../sf")		; go to where the scode optimizer lives
+=> (load "make")	; load the scode optimizer
+=> (cd "../compiler")	; go to the compiler
+=> (load "make")	; load the compiler
+=> (disk-save "../lib/compiler.com") ; save it out
+
+			Where to find more documentation
+			--------------------------------
+
+There are two pieces of documentation that you may find useful.  They
+are not complete and currently out of date (they apply to version
+7.1), but not terribly.
+
+They are
+
+- The MIT Scheme Reference Manual.
+- The MIT Scheme User's Manual.
+
+You can order a printed version of the reference manual from the MIT
+AI Lab publications office.  Alternatively you can get the tex/texinfo
+sources (as well as the DVI and PostScript versions) of these and
+other documents by Internet FTP from
+altdorf.ai.mit.edu:archive/scheme-7.1 (IP address 18.43.0.152).  The
+README file describes what's where.
+
+			Known Bugs
+			----------
+
+1) The Scheme microcode takes great pains to intercept the PC keyboard
+so that all the chorded keys are available.  Unfortunately, we have
+found that under some combination of memory managers and BIOS, the
+intercept mechanism does not work.  Since the intercept code can cause
+very strange problems, it is disabled by default.  You should install
+Scheme and run it for a while, and once you are confident that it is
+working properly, you can enable keyboard interception and see whether
+it continues to work.  On some machines it works reliably from within
+DPMI/Windows and causes problems outside.
+
+To enable it outside of DPMI/Windows, set the following environment
+variable before starting Scheme.
+
+    set MITSCHEME_DOSX_EXT_KBD=true
+
+To enable it within DPMI/Windows, set the following environment
+variable before starting Scheme.
+
+    set MITSCHEME_DPMI_EXT_KBD=true
+
+2) There is no support for graphics yet.  We tried Zortech's Flash
+Graphics library, which seems unreliable at best.  Send in a request
+if you really need to use our graphics code.  Send us yours if you
+get your own running reliably.
+
+3) Floating-point exceptions (e.g. underflow, divide-by-zero) are not
+currently trapped.  Not all PC hardware is capable of reliably
+trapping them, and we have not yet spent any energy in trying to trap
+them.
+
+4) Processor exceptions (general protection, invalid page fault, etc.)
+are only trapped under DPMI/Windows.  Outside DPMI/Windows, if you
+get one of them, Scheme will halt and often you will need to reboot
+your machine.
+
+			Reporting Bugs
+			--------------
+
+The best way to submit a bug report is to use Internet electronic
+mail.  Send bugs to:
+
+    bug-cscheme-dos@zurich.ai.mit.edu
+
+To send/request general information about the system, use:
+
+    info-cscheme-dos@zurich.ai.mit.edu
+
+As in all (properly maintained) Internet mailing lists, the way to
+get on is to send mail to:
+
+    info-cscheme-dos-request@zurich.ai.mit.edu
+
+As we have tried to emphasize, this distribution is an alpha release
+and we make no commitment to fix bugs reported.  However, we solicit
+and appreciate your reports, and will in fact from time to time fix
+some of the problems.
+

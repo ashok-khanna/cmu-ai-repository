@@ -1,0 +1,201 @@
+Notes on Audio File Headers                           P. Kabal  Feb. 13, 1994
+
+Information Records in AFsp Audio Files
+
+AFsp audio files use the Sun audio file header, but add compatible information
+in an extensible part of the header.  Sun audio file headers allow for an
+arbitrary length information field following a fixed format portion of the
+header.  The purpose of this note is to suggest a standard format for this
+information.  Files with this standard header information encoding will be
+referred to as AFsp audio files.  The goal is to provide a simple standard
+mechanism for adding information to the header, and more importantly provide
+for very easy extraction of relevant information.  Furthermore, AFsp audio
+files are upward compatible with Sun/NeXT audio files, which use the same
+encoding for the fixed part of the header.
+
+The information that will be emphasized here is that which can be used to track
+processing of speech and audio files.  The suggested format, though, has no
+inherent limitation on the information that can be used.  There have been other
+attempts to standardize file headers.  However in the speech coding community
+much of the processing done with headerless files, perhaps because of the lack
+of standardization, or perhaps because some of the header formats are
+considered to be too complicated to decode dynamically.  If they are not
+decoded dynamically, then there is little purpose in leaving the header in
+place.
+
+NIST SPHERE audio file headers:
+This is a general format - but does not require any particular records to be
+present.  For instance, the sampling rate is one record that is important for
+playback and processing, but that information is not required to be present.
+The format of the sample data is encoded is in three different records
+(sample_n_bytes, sample_byte_format and sample_sig_bits).  The format of the
+header makes for complicated decoding of record information.  There are three
+types of data supported: strings, integers and reals.  String values are
+allowed to consist of any characters, including the newline character that
+normally marks the end of a record.  This means that in scanning the header
+for a particular named record, all preceding records must be fully parsed to
+determine record boundaries.  The NIST SPHERE header is fixed length - easy to
+skip, but perhaps also wasteful.  Routines are available to manipulate the
+header, but because they verify correct syntax for the header records, these
+are a bit on the heavy-weight side.
+
+ESPS:
+This is again a general format.  However it is proprietary.  It does have fixed
+information at the beginning of the header, followed by record oriented data.
+The record oriented data uses a complicated record structure which requires
+full parsing of preceding records to retrieve a particular record.  One piece
+of information that is missing from the fixed format part of the header is the
+sampling rate.  This information is only available as one of the records in
+the variable part of the header.
+
+Sun audio files:
+Under this category, are Sun, NeXT and DEC audio files.  They share the same
+basic format for the file header.  The file header consists of 6 fixed
+locations followed by a variable length segment.  One of the fixed locations
+gives the total header length, making skipping over the header relatively easy.
+The remaining fixed information encodes the data format, the number of samples,
+number of channels, and the sampling rate (integer value).  With much of the
+essential information in the fixed part of the header, and guaranteed to be
+present, the remaining information is less critical.  This extra information
+can be very useful for identification purposes.
+
+Standardized Header Information Records for Sun Audio Files:
+
+The basic proposal is to adopt Sun audio files as a base.  Sun audio files,
+particularly for mu-law coded data, are widely used for playback in computer
+workstations.  The header provides for a variety of data formats, integer as
+well as floating point.  Furthermore the header has provision for both
+essential data in the fixed part of the header and additional data in the
+extensible part of the header.  To define the extensible part of the header, a
+prime concern is to provide for easy decoding, without limiting the scope of
+information that can be stored.
+
+AFsp Audio Files:
+
+Audio files which use the basic Sun header but add structured fields to the
+extensible part of the header will be referred to as AFsp audio files.
+It is proposed that records be separated by null characters, with the null
+character prohibited from appearing elsewhere in a record.  This provision
+makes for easy retrieval of a record with a particular name without decoding
+intervening records.  Also the banning of nulls in records, allows for header
+processing routine to return null-terminated string values, a format that is
+very convenient for C-language routines.
+
+Definition of AFsp Information records:
+
+<record><\0>,   where <record> is any sequence of characters except null
+
+Header information records are delimited by null characters.  For convenience,
+standard record contain a name part and a value part.  It is proposed that the
+standard retrieval method be simply to match a "name" string to the first part
+of a record.  If a match is found, any characters following the name represent
+the value field of that named record.
+
+Record names:
+To extract information from the header, named records can be used for
+identifying the records.  For instance, date record would give the file
+creation date and time.  Standard names shall have a trailing ':' character
+which can be thought of as a separator between the name and the value, but is
+really part of the name itself.  For example a standard date record would
+appear as
+
+"date:1993/01/20 18:12:20 UTC"
+
+The name of this record is "date:".  The value field, in this case a string,
+is "1993/01/20 18:12:20 UTC:".
+
+Values:
+The value part of the record can be interpreted as desired, but two clear
+alternatives arise: string values and numeric values.  A value can always be
+interpreted as a string (possibly empty).  A numeric value requires that
+the characters in the value in the value field represent a valid numeric value.
+The numeric value shall be a character representation of a decimal number
+expressed either as an integer, a simple floating point number, or a floating
+point number with a power of 10 exponent.  Thus a "sample_rate:" record could
+specify a sampling rate of 8000 Hz as
+
+"sample_rate:8e3"  or "sample_rate:8000.0" or "sample_rate:8000"
+
+Numeric values should be treated as floating point, and if appropriate
+converted by the user to integer.  For instance, information that is clearly
+integer in nature, should be just a special case of a floating point value
+with no fractional part.
+
+Identifier:
+For files using this type of encoding must have as the first 4 characters
+(bytes 24-27) following the fixed part of the header contain the characters
+"AFsp".  The standardized information records start immediately after this 4
+character sequence (at byte offset 28).
+
+Standardized Records:
+
+It is suggested that a number of information fields can be standardized.  The
+"date:" record should always be present.  The others are optional.  Standard
+programs should provide at least the following header information.
+  date:1994/01/25 19:19:39 UTC    date
+  sample_rate:8012.5              sampling frequency (only if non-integer)
+  user:kabal@k2.EE.McGill.CA      user
+  program:CopyAudio               program name
+
+Audio files, serving as part of a data base of recordings, should have
+information identifying the database, the recording conditions and a
+description of the material or spoken text.
+
+(1) "date:"; recording date or processing date.
+    This record remains invariant even when the file is copied and the
+    creation date of the file as kept by the file system gets mangled.
+    sample value format, "date:1993/01/16 18:13:56 UTC".  This suggested format
+    is compact, language independent, and easily generated on many systems.
+    The inclusion of a time-zone, here UTC, for the date is recommended.  If
+    such a format cannot be generated on a particular machine, the default
+    system time format can be used.
+(2) "user:"; user and hostname for the user that created the file
+    sample value format, "user:kabal@k2.EE.McGill.CA".
+(3) "program:"; program that created the file
+    sample value format, "CopyAudio".  As shown the program name is stripped
+    of the pathname of the program.
+(4) "text:"; transcription of the text for recorded spoken material
+    sample value format, "Cats and dogs each hate the other"
+(5) "speaker:"; speaker identification
+    sample value format, "speaker:AMK female"
+(6) "recording_conditions:"; information as to how the recording was made
+    sample value format, "recording_conditions:original recorded at 20 kHz,
+    15-bit D/A, digitally filtered and resampled to 8 kHz".
+(7) "database:"; database identification
+(8) ":"; comments
+(9) "sample_rate:"; sample rate for each channel
+    sample value format, "41.1e3".  This value complements information that is
+    in the fixed part of the header.  However, this version of the sample rate
+    is a floating point number and so can express fractional sampling rates.
+    The value in this record must be within 0.5 of the integer value in the
+    fixed part of the header.
+
+Notes:
+(1) Newline characters can be used in long text strings to help in formatting
+    the strings, if printed.
+(2) The last record in the header need not have a null termination.
+(3) Empty records are permitted.  They should be ignored.
+(4) There is a question of how much baggage an audio file header should carry.
+    One extreme is a headerless file.  Perhaps the other extreme is represented
+    by ESPS files.  ESPS utility programs seem to pass along a great deal of
+    information in the output file header, including imbedding the headers from
+    the input files.  I have seen one file header nearly 5 kb long  which
+    contained several generations of file headers representing the processing
+    history of that file.
+      The approach taken with the AFSP read/write routines is to automatically
+    insert information that the routines can glean without being privy to the
+    specifics of the processing of the data.  The user is of course free to add
+    information to the header.  A standalone program CopyAudio can also be used
+    to add information records.  This is an appropriate approach for creating
+    self-documenting database files.  Also, the AFsp file open routines were
+    designed to print information about the audio files as they are being
+    opened.  This information can be stored in a log file which can serve to
+    record the processing history.
+
+=============
+Peter Kabal
+Department of Electrical Engineering    McGill University
++1 514 398-7130   +1 514 398-4470 Fax
+kabal@@TSP.EE.McGill.CA
+
+$Id: AFHeaders.txt,v 1.1 1994/02/13 15:26:37 kabal Exp $

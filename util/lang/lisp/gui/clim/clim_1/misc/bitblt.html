@@ -1,0 +1,444 @@
+;;; -*- Syntax: Common-lisp; Mode: LISP; Package: clim; -*-
+
+(in-package :clim)
+
+#|
+ALLOCATE-PIXMAP width height &key (clear-p t)
+FREE-PIXMAP pixmap
+WITH-PIXMAP symbol width height &key (clear-p t)
+
+Allocates and frees a pixmap stream.  This type of stream supports all graphics 
+operations but is never displayed.  The purpose of a pixmap is typically to 
+perform offscreen drawing operations and then to use STREAM-BITBLT* to 
+copy it (or a portion of it) onto a displayed stream.  It may also be useful 
+to copy from a displayed stream to a pixmap stream.
+
+STREAM-BITBLT stream point-1 from-stream from-x from-y width height &key
+STREAM-BITBLT* stream x y from-stream from-x from-y width height &key
+
+Copies a rectangular portion of from-stream onto a rectangular portion of to-stream.
+
+DRAW-STRING-IMAGE stream string point-1 &key angle
+DRAW-STRING-IMAGE* stream string x y &key angle
+
+Draws a rotated character string.  The current implementation only supports
+angles in increments of pi/2.  Positive angle = counterclockwise rotation.
+|#
+
+;;;Written for CLIM 1.0 by ncramer@bbn.com
+
+;;;********************************************************************************
+;;; CLX specific classes and methods.
+;;;**********************************************************************NLC02DEC91
+
+#+(and :xlib (not :genera))
+(progn
+  
+(defclass clx-pixmap (clx-window)
+  ())
+
+(defmethod initialize-instance :after ((SELF clx-pixmap) &key &allow-other-keys)
+  ;; Turn on backing store, so the unexposed window remembers
+  ;; what gets drawn to it.
+  (setf (xlib:window-backing-store (slot-value SELF 'window)) :always))
+
+;;; Lie about these things, so the that we can draw to un-exposed windows.
+(defmethod window-drawing-possible ((SELF clx-pixmap)) t)
+(defmethod window-visibility ((SELF clx-pixmap)) t)
+
+;;; The path seems to change (from platform to platform, release to release, 
+;;; sub-release to sub-release, phase o' the moon, etc...) so this may need
+;;; massaging.
+(defvar *CLX-PIXMAP-ROOT* nil)
+(defun get-clx-pixmap-root ()
+  (or *CLX-PIXMAP-ROOT*
+      (setq *CLX-PIXMAP-ROOT*
+	    (apply #'open-root-window
+		   #+lucid `(:clx :host ,(lcl:environment-variable "DISPLAY"))
+		   #-lucid `(:clx)))))
+
+
+(defmethod stream-bitblt-support ((FROM-STREAM clx-window) FROM-LEFT FROM-TOP
+				  (TO-STREAM clx-window) TO-LEFT TO-TOP
+				  WIDTH HEIGHT &key FUNCTION)
+  (multiple-value-bind (FROM-XOFF FROM-YOFF)
+      (window-margins FROM-STREAM)
+    (multiple-value-bind (TO-XOFF TO-YOFF)
+	(window-margins TO-STREAM)
+      ;;; PROBABLY WANT TO CACHE COPIES OF THE GCONTEXTS
+      (with-slots (COPY-GC) TO-stream
+	(xlib:with-gcontext (COPY-GC :function (or FUNCTION boole-1))
+	  (xlib:copy-area (slot-value FROM-STREAM 'window)
+			  COPY-GC (+ FROM-LEFT FROM-XOFF) (+ FROM-TOP FROM-YOFF)
+			  WIDTH HEIGHT
+			  (slot-value TO-STREAM 'window)
+			  (+ TO-LEFT TO-XOFF) (+ TO-TOP TO-YOFF)))
+	))))
+
+(defmethod stream-bitblt-internal ((TO-STREAM clx-window) X-OFFSET Y-OFFSET
+					X Y
+					(FROM-STREAM clx-window) FROM-X FROM-Y
+					WIDTH HEIGHT INK)
+  (declare (ignore INK))
+  (when (window-drawing-possible TO-STREAM)
+    (setq X (round x) Y (round y))
+    (translate-positions x-offset y-offset X Y)
+    (stream-bitblt-support FROM-STREAM FROM-X FROM-Y TO-STREAM X Y WIDTH HEIGHT)))
+
+(defmethod draw-string-image-internal ((stream clx-window) x-offset y-offset
+					      string x y ANGLE text-style)
+  (when (window-drawing-possible stream)
+    (setq X (round x) Y (round y))
+    (translate-positions x-offset y-offset X Y)
+    (pixmap-rot-90-string stream 
+			   string x y
+			   :n-rot-90 (angle-to-rot-90 ANGLE)
+			   :text-style TEXT-STYLE)))
+
+(defun make-clx-pixmap (&key (RIGHT 100) (BOTTOM 100) (LEFT 0) (TOP 0))
+  (let* ((PIXMAP-ROOT (get-clx-pixmap-root))
+	 (PIXMAP (make-instance 'clx-pixmap
+				 :parent PIXMAP-ROOT
+				 :left LEFT
+				 :top TOP
+				 :right RIGHT
+				 :bottom BOTTOM
+				 :scroll-bars nil
+				 :borders nil
+				 )))
+    PIXMAP))
+
+)					; end of progn for (and :xlib (not :genera))
+
+;;;********************************************************************************
+;;; Genera specific classes and methods.
+;;;**********************************************************************NLC08NOV91
+#+genera
+(progn
+  
+(scl:defflavor genera-pixmap-window ()
+  (tv:dont-select-with-mouse-mixin
+    tv:window)
+  (:default-init-plist
+    :deexposed-typeout-action :permit
+    :borders		     nil			  
+    :save-bits		     t
+    :blinker-p		     nil
+    :label		     nil))
+
+;;; Make sure that it can't be exposed/selected/etc.
+(scl:defwhopper (:expose genera-pixmap-window) (&rest IGNORE))
+(scl:defwhopper (:deexpose genera-pixmap-window) (&rest IGNORE))
+(scl:defwhopper (:selected genera-pixmap-window) (&rest IGNORE))
+
+;;; 
+(scl:defflavor b&w-genera-pixmap-window () (genera-pixmap-window))
+
+(defun make-b&w-genera-pixmap-window ()
+  (tv:make-window 'b&w-genera-pixmap-window
+		  :borders nil))
+
+(defclass genera-pixmap (sheet-window-stream)
+    ())
+
+;;; For now (maybe forever) INK/ALU is ignored; i.e. this just draws it in.
+;;; I'm assuming that's not too awful.  After all that's what COPY-AREA-INTERNAL 
+;;; does.  In any case, it's the only way I can get it to work.
+(defmethod stream-bitblt-support ((FROM-STREAM sheet-window-stream) FROM-X FROM-Y
+				  (TO-STREAM sheet-window-stream) X Y
+				  WIDTH HEIGHT &key FUNCTION)
+  (let ((ALU (or FUNCTION  boole-1)))
+    (scl::send (slot-value TO-STREAM 'WINDOW) :bitblt-from-sheet-to-sheet
+	       ALU WIDTH HEIGHT
+	       (slot-value FROM-STREAM 'WINDOW) FROM-X FROM-Y
+	       X Y)))
+
+(defmethod stream-bitblt-support :around
+	   (FROM-STREAM FROM-X FROM-Y (TO-STREAM genera-pixmap)
+	    X Y WIDTH HEIGHT &key FUNCTION)
+  (with-output-recording-options (TO-STREAM :record-p nil :draw-p t) 
+    (call-next-method FROM-STREAM FROM-X FROM-Y
+		      TO-STREAM X Y
+		      WIDTH HEIGHT :function FUNCTION)))
+
+(defmethod stream-bitblt-internal ((TO-STREAM sheet-implementation-mixin)
+				   X-OFFSET Y-OFFSET
+				   X Y
+				   (FROM-STREAM sheet-implementation-mixin)
+				   FROM-X FROM-Y
+				   WIDTH HEIGHT INK)
+  (declare (ignore INK))
+  (when (window-drawing-possible TO-STREAM)
+    (setq X (round x) Y (round y))
+    (translate-positions x-offset y-offset X Y)
+    (stream-bitblt-support FROM-STREAM FROM-X FROM-Y TO-STREAM X Y WIDTH HEIGHT)))
+ 
+(defmethod draw-string-image-internal ((stream sheet-implementation-mixin)
+				       x-offset y-offset
+				       string x y ANGLE text-style)
+  (when (window-drawing-possible stream)
+    (setq X (round x) Y (round y))
+    (translate-positions x-offset y-offset X Y)
+    (pixmap-rot-90-string stream 
+			   string x y
+			   :n-rot-90 (angle-to-rot-90 ANGLE)
+			   :text-style TEXT-STYLE)))
+ 
+(defun make-genera-pixmap (&key (WIDTH 100) (HEIGHT 100) (screen tv:main-screen))
+  ;; LIFTED FROM create-sheet-root-window 
+  (let ((PIXMAP (make-instance
+		    'genera-pixmap 
+		  :window (make-b&w-genera-pixmap-window)
+		  :display-device-type
+		  (let (#+IMach (device (scl:send screen :display-device-type)))
+		    (cond
+		     #+IMach
+		     ((and (find-package 'mtb)
+			   (typep device
+				  (intern "SMALL-SCREEN-GENERA-FONTS-MAC-DISPLAY-DEVICE" 'mtb)))
+		      *small-sheet-device*)
+		     (t *sheet-device*))))))
+    (window-set-inside-size PIXMAP width height)
+    PIXMAP))
+
+
+
+) ; end of progn for genera
+
+;;;********************************************************************************
+;;; PIXMAPS and BITBLT
+;;;**********************************************************************NLC13NOV91
+
+(defun make-pixmap (&key width height)
+  #+Genera (make-genera-pixmap :width width :height height)
+  #+(and :xlib (not :genera)) (make-clx-pixmap :right width :bottom height))
+
+(defmethod pixmap-clear ((pixmap t))
+  (window-clear pixmap)
+  ;; For some reason doing a simple WINDOW-CLEAR doesn't seem to work by itself...
+  (multiple-value-bind (LEFT TOP RIGHT BOTTOM)
+      (rectangle-edges* (window-viewport pixmap))
+    (multiple-value-bind (xoff yoff)
+	(window-margins pixmap)
+      (with-output-recording-options (pixmap :record-p nil :draw-p t) 
+        (draw-rectangle* pixmap left top (- right xoff) (- bottom yoff)
+			 :ink +background+
+			 :filled t)))))
+
+(defvar *FREE-PIXMAPS-LIST* nil
+  "Simple Resource for recyclable PIXMAPS.")
+
+(defun free-pixmap (PIXMAP)
+  (pushnew PIXMAP *FREE-PIXMAPS-LIST*)
+  nil)
+
+(defun allocate-pixmap (width height &optional (clear-p t))
+  (let ((pm (pop *FREE-PIXMAPS-LIST*)))
+    (cond (pm
+	   (window-set-inside-size pm width height)
+	   (if clear-p (pixmap-clear pm))
+	   pm)
+	  (t (make-pixmap :width width :height height)))))
+
+(defmacro with-pixmap ((symbol WIDTH HEIGHT &key (CLEAR? t)) &body BODY)
+  `(let ((,symbol (allocate-pixmap ,WIDTH ,HEIGHT ,CLEAR?)))
+     (unwind-protect (progn ,@BODY)
+       (free-pixmap ,symbol))))
+
+(define-graphics-operation stream-bitblt (X Y FROM-STREAM FROM-X FROM-Y
+					    WIDTH HEIGHT)
+  :arguments ((point X Y))
+  :drawing-options (:ink)
+  :method-body
+  (with-transformed-arguments
+    (stream-bitblt-internal STREAM 0 0
+				 X Y
+				 FROM-STREAM FROM-X FROM-Y
+				 WIDTH HEIGHT (medium-ink STREAM))))
+
+(define-graphics-internal stream-bitblt-internal
+			  (X Y FROM-STREAM FROM-X FROM-Y WIDTH HEIGHT INK)
+  :points-to-convert (X Y)
+  ;; Don't want temporary strings to make it into the history
+  ;;  :output-recording-hook (setq string (evacuate-temporary-string string))
+  :bounding-rectangle
+  ;;--- How are we allowed to call STREAM-STRING-WIDTH if this isn't
+  ;;--- an extended output stream??
+  (let (vx vt vr vb)
+    (declare (fixnum width height))
+    (setq vx X
+	  vr (the fixnum (+ X WIDTH)))
+    (setq vt Y
+	  vb (the fixnum (+ Y HEIGHT)))
+    (fix-rectangle vx vt vr vb)))
+
+;;;********************************************************************************
+;;; DRAW-STRING-IMAGE
+;;;**********************************************************************NLC20MAR92
+
+;(defconstant *stor*	boole-1)	; tv::alu-seta
+;(defconstant *or*	boole-ior)
+;(defconstant *and*	boole-and)
+;(defconstant *xor*	boole-xor)
+;(defconstant *clr*	boole-clr)
+;(defconstant *set*	boole-set)
+;(defconstant *notand*	boole-andc1)
+
+;(defconstant *rotate-array-size* 256)
+
+(defun pixmap-rotate-90-worker (SOURCE-PIXMAP ARRAY-SIZE)
+  ;; Original code was in smalltalk from april 1981 Byte magazine.
+  ;; This code is mostly from a symbolics lispm hack:
+  ;;   Created 11/24/81 by CMB
+  ;;   Modified, 1/9/82 by DLW
+  ;;   Converted to CLIM, 19MAR92 by NLC.
+  ;; The bit array must be square and a power of two bits on a side.
+  (macrolet ((copy-all-to (from xoffset yoffset to alu)
+	       `(stream-bitblt-support ,from  0 0
+				       ,to ,xoffset ,yoffset
+				       (- array-size ,xoffset) (- array-size ,yoffset)
+				       :function ,alu))
+	     (copy-all-from (to xoffset yoffset from alu)
+	       `(stream-bitblt-support ,from ,xoffset ,yoffset
+				       ,to 0 0
+				       (- array-size ,xoffset) (- array-size ,yoffset)
+				       :function ,alu)))
+    (with-pixmap (MASK-PIXMAP array-size array-size)
+      (with-output-recording-options (MASK-PIXMAP :record-p nil :draw-p t)
+	(with-pixmap (TEMP-PIXMAP array-size array-size)
+	  (with-output-recording-options (TEMP-PIXMAP :record-p nil :draw-p t)
+	    (copy-all-to MASK-PIXMAP 0 0 MASK-PIXMAP boole-clr)
+	    (copy-all-from MASK-PIXMAP (/ array-size 2) (/ array-size 2)
+			   MASK-PIXMAP boole-set)
+	    (do ((quad (/ array-size 2) (/ quad 2)))
+		((< quad 1))
+	      (copy-all-to MASK-PIXMAP 0 0 TEMP-PIXMAP boole-1); 1        
+	      (copy-all-to MASK-PIXMAP 0 quad TEMP-PIXMAP boole-ior); 2
+	      (copy-all-to SOURCE-PIXMAP 0 0 TEMP-PIXMAP boole-and); 3
+	      (copy-all-to TEMP-PIXMAP 0 0 SOURCE-PIXMAP boole-xor); 4
+	      (copy-all-from TEMP-PIXMAP quad 0 SOURCE-PIXMAP boole-xor); 5
+	      (copy-all-from SOURCE-PIXMAP quad 0 SOURCE-PIXMAP boole-ior); 6
+	      (copy-all-to TEMP-PIXMAP quad 0 SOURCE-PIXMAP boole-xor); 7
+	      (copy-all-to SOURCE-PIXMAP 0 0 TEMP-PIXMAP boole-1); 8
+	      (copy-all-from TEMP-PIXMAP quad quad SOURCE-PIXMAP boole-xor); 9
+	      (copy-all-to MASK-PIXMAP 0 0 TEMP-PIXMAP boole-and); 10
+	      (copy-all-to TEMP-PIXMAP 0 0 SOURCE-PIXMAP boole-xor); 11
+	      (copy-all-to TEMP-PIXMAP quad quad SOURCE-PIXMAP boole-xor); 12
+	      (copy-all-from MASK-PIXMAP (floor quad 2) (floor quad 2)
+			     MASK-PIXMAP boole-and) ;13
+	      (copy-all-to MASK-PIXMAP quad 0 MASK-PIXMAP boole-ior); 14
+	      (copy-all-to MASK-PIXMAP 0 quad MASK-PIXMAP boole-ior); 15
+	      )))
+	))))
+
+(defun pixmap-rotate-90 (SOURCE-PIXMAP &key DEST-PIXMAP SOURCE-X SOURCE-Y
+					    WIDTH HEIGHT DEST-X DEST-Y)
+  (or DEST-PIXMAP
+      (setq DEST-PIXMAP source-pixmap))
+  (unless SOURCE-X (setq SOURCE-X 0))
+  (unless SOURCE-Y (setq SOURCE-Y 0))
+  (unless dest-x (setq dest-x 0))
+  (unless dest-y (setq dest-y 0))
+  (with-output-recording-options (source-pixmap :record-p nil :draw-p t)
+    (with-output-recording-options (dest-pixmap :record-p nil :draw-p t)
+      (unless (and width height)
+	(multiple-value-bind (w h)
+	    (multiple-value-bind (left top right bottom)
+		(rectangle-edges* (window-viewport source-pixmap))
+	      (multiple-value-bind (xoff yoff)
+		  (window-margins source-pixmap)
+		(values (- (- right xoff) left)
+			(- (- bottom yoff) top))))
+	  (unless width (setq width w))
+	  (unless height (setq height h))))
+      (let ((csz (expt 2 (ceiling (log
+				    (max width height)
+				    2)))))
+	(with-pixmap (HOLD-PIXMAP CSZ CSZ)
+	  (with-output-recording-options (HOLD-PIXMAP :record-p nil :draw-p t) 
+	    (stream-bitblt-support source-pixmap SOURCE-X SOURCE-Y
+				    HOLD-PIXMAP 0 0
+				    WIDTH HEIGHT)
+	    (pixmap-rotate-90-worker HOLD-PIXMAP csz)	    
+	    (stream-bitblt-support HOLD-PIXMAP (- CSZ HEIGHT) 0
+				    dest-pixmap DEST-X DEST-Y
+				    HEIGHT WIDTH))))))
+  dest-pixmap)
+
+(defun angle-to-rot-90 (ANGLE)
+  ;; Positive angle = counterclockwise.
+  (mod (round (- ANGLE) #.(/ PI 2.0)) 4))
+
+(defun rot-90-string-locations (STREAM STRING X Y N-ROT-90 TEXT-STYLE)
+  (declare (values IMAGE-LEFT IMAGE-TOP
+		   IMAGE-WIDTH IMAGE-HEIGHT
+		   REAL-WIDTH REAL-HEIGHT))
+  (let ((STR-WID (stream-string-width stream string :text-style text-style))
+	(STR-HEI (stream-line-height stream text-style)))
+    (case N-ROT-90
+      (3
+	(values X (- Y STR-WID) STR-HEI STR-WID STR-WID STR-HEI))
+      (2
+	(values (- X STR-WID) (- Y STR-HEI) STR-WID STR-HEI STR-WID STR-HEI))
+      (1
+	(values (- X STR-HEI) Y STR-HEI STR-WID STR-WID STR-HEI))
+      (otherwise
+	(values X Y STR-WID STR-HEI STR-WID STR-HEI)))))
+
+(defun pixmap-rot-90-string (STREAM STRING X Y &key N-ROT-90 TEXT-STYLE)
+  (and (numberp N-ROT-90) (setq N-ROT-90 (mod N-ROT-90 4)))
+  (cond ((and (numberp N-ROT-90)
+	      (not (= 0 N-ROT-90)))
+	 (multiple-value-bind (IMAGE-LEFT IMAGE-TOP IMAGE-WIDTH
+			       IMAGE-HEIGHT REAL-WIDTH REAL-HEIGHT)
+	     (rot-90-string-locations STREAM STRING X Y N-ROT-90 TEXT-STYLE)
+	   (with-pixmap (PM (max IMAGE-WIDTH IMAGE-HEIGHT)
+			    (max IMAGE-WIDTH IMAGE-HEIGHT))
+	     (setf (medium-foreground PM) (medium-foreground STREAM)
+		   (medium-background PM) (medium-background STREAM))
+	     (with-output-recording-options (PM :record-p nil :draw-p t)
+	       (draw-string* PM STRING 0 0
+			     :align-x :left :align-y :top
+			     :text-style TEXT-STYLE)
+	       (pixmap-rotate-90 PM :width REAL-WIDTH :height REAL-HEIGHT)
+	       (and (< 1 N-ROT-90)
+		    (pixmap-rotate-90 PM :width REAL-HEIGHT :height REAL-WIDTH))
+	       (and (< 2 N-ROT-90)
+		    (pixmap-rotate-90 PM :width REAL-WIDTH :height REAL-HEIGHT))
+	       (stream-bitblt-support PM 0 0
+				      STREAM IMAGE-LEFT IMAGE-TOP
+				      IMAGE-WIDTH IMAGE-HEIGHT)
+	       (force-output pm)	; needed for CLX, but why????
+	       ))))
+	(t
+	 (with-output-recording-options (STREAM :record-p nil :draw-p t)
+	   (draw-string-internal STREAM 0 0 STRING X Y 0 (length string)
+				 :left :top TEXT-STYLE (medium-ink stream))))))
+
+(define-graphics-operation draw-string-image (string x y &key (ANGLE 0.0))
+  :arguments ((point x y))
+  :drawing-options :text
+  :method-body
+  (with-transformed-arguments
+    (draw-string-image-internal stream 0 0
+				       string x y ANGLE 
+				       (stream-merged-text-style stream)
+				       #+Ignore (medium-ink stream))))
+
+(define-graphics-internal draw-string-image-internal (STRING X Y ANGLE TEXT-STYLE)
+  :points-to-convert (x y)
+  ;; Don't want temporary strings to make it into the history
+  :output-recording-hook (setq string (evacuate-temporary-string string))
+  :bounding-rectangle
+  (progn
+    (multiple-value-bind (LLL TTT WWW HHH real-width real-height)
+	(rot-90-string-locations stream string x y (angle-to-rot-90 ANGLE) TEXT-STYLE)
+      (declare (ignore real-width real-height) (fixnum WWW HHH))
+      (let ((vx LLL)
+	    (vt TTT)
+	    (vr (the fixnum (+ LLL WWW)))
+	    (vb (the fixnum (+ TTT HHH))))
+	#+ig (fix-rectangle vx vt vr vb)  ;; allegro gets an error with this
+	(values vx vt vr vb)
+	))))
+

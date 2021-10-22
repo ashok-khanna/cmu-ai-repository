@@ -1,0 +1,123 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node162.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:46:38 GMT -->
+<HEAD>
+<TITLE>17.5. Fill Pointers</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Fill Pointers">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3549 HREF="node163.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3547 HREF="node157.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3541 HREF="node161.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3551 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3552 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3550 HREF="node163.html"> Changing the Dimensions </A>
+<B>Up:</B> <A NAME=tex2html3548 HREF="node157.html"> Arrays</A>
+<B> Previous:</B> <A NAME=tex2html3542 HREF="node161.html"> Functions on Arrays </A>
+<HR> <P>
+<H1><A NAME=SECTION002150000000000000000>17.5. Fill Pointers</A></H1>
+<P>
+<A NAME=FILLPOINTER>Several</A>
+functions for manipulating a <i>fill pointer</i> are provided
+in Common Lisp
+to make it easy to incrementally fill in the contents of a vector
+and, more generally, to allow efficient varying of the length of a vector.
+For example, a string with a fill pointer has most of the characteristics
+of a PL/I varying string.
+<P>
+The fill pointer is a non-negative integer no larger than the total
+number of elements in the vector (as returned by <tt>array-dimension</tt>);
+it is the number of ``active'' or ``filled-in'' elements in the vector.
+The fill pointer constitutes the ``active length'' of the vector;
+all vector elements whose index is less than the fill pointer are
+active, and the others are inactive.
+Nearly all functions that operate on the contents of a vector
+will operate only on the active elements.  An important exception
+is <tt>aref</tt>, which can be used to access any vector element
+whether in the active region of the vector or not.  It is important
+to note that vector elements not in the active region are still considered
+part of the vector.
+<P>
+<hr>
+<b>Implementation note:</b> An implication of this rule is that
+vector elements outside the active region may not be garbage-collected.
+<hr>
+<P>
+Only vectors (one-dimensional arrays) may have fill pointers;
+multidimensional arrays may not.  (Note, however, that one can create
+a multidimensional array that is <i>displaced</i> to a vector that has
+a fill pointer.)
+<P>
+<BR><b>[Function]</b><BR>
+<tt>array-has-fill-pointer-p <i>array</i></tt><P>The argument must be an array.  <tt>array-has-fill-pointer-p</tt> returns
+<tt>t</tt> if the array has a fill pointer, and otherwise returns <tt>nil</tt>.
+Note that
+<tt>array-has-fill-pointer-p</tt>
+always returns <tt>nil</tt> if
+the <i>array</i> is not one-dimensional.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>fill-pointer <i>vector</i></tt><P>The fill pointer of <i>vector</i> is returned.  It is an error if
+the <i>vector</i> does not have a fill pointer.
+<P>
+<tt>setf</tt> may be used with <tt>fill-pointer</tt> to change the fill pointer
+of a vector.  The fill pointer of a vector must always be an integer
+between zero and the size of the vector (inclusive).
+<P>
+<BR><b>[Function]</b><BR>
+<tt>vector-push <i>new-element</i> <i>vector</i></tt><P><i>vector</i> must be a one-dimensional array that has a fill pointer,
+and <i>new-element</i> may be any object.  <tt>vector-push</tt> attempts to store
+<i>new-element</i> in the element of the vector designated by the fill
+pointer, and to increase the fill pointer by 1.  If the fill pointer does
+not designate an element of the vector (specifically, when it gets too
+big), it is unaffected and
+<tt>vector-push</tt> returns <tt>nil</tt>.  Otherwise, the store and increment take
+place and <tt>vector-push</tt> returns the <i>former</i> value of the fill pointer
+(1 less than the one it leaves in the vector); thus the value of
+<tt>vector-push</tt> is the index of the new element pushed.
+<p>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+It is instructive to compare <tt>vector-push</tt>, which is a function,
+with <tt>push</tt>, which is a macro that requires a <i>place</i> suitable
+for <tt>setf</tt>.  A vector with a fill pointer effectively contains
+the place to be modified in its <tt>fill-pointer</tt> slot.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>vector-push-extend <i>new-element</i> <i>vector</i> &amp;optional <i>extension</i></tt><P><tt>vector-push-extend</tt> is just like <tt>vector-push</tt> except
+that if the fill pointer gets too large, the vector is extended (using
+<tt>adjust-array</tt>) so that it can contain more elements.
+If, however, the vector is not adjustable, then <tt>vector-push-extend</tt>
+signals an error.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989
+(ADJUST-ARRAY-NOT-ADJUSTABLE) <A NAME=17950>&#160;</A> 
+to clarify that <tt>vector-push-extend</tt> regards an array as
+not adjustable if and only if <tt>adjustable-array-p</tt> is false
+of that array.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+The optional argument <i>extension</i>, which must be a positive
+integer, is the minimum number of elements to be added to the vector if it
+must be extended; it defaults to a ``reasonable'' implementation-dependent
+value.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>vector-pop <i>vector</i></tt><P><i>vector</i> must be a one-dimensional array that has a fill pointer.
+If the fill pointer is zero, <tt>vector-pop</tt> signals an error.
+Otherwise the fill pointer is decreased by 1, and the vector element
+designated by the new value of the fill pointer is returned.
+<P>
+<BR> <HR><A NAME=tex2html3549 HREF="node163.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3547 HREF="node157.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3541 HREF="node161.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3551 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3552 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3550 HREF="node163.html"> Changing the Dimensions </A>
+<B>Up:</B> <A NAME=tex2html3548 HREF="node157.html"> Arrays</A>
+<B> Previous:</B> <A NAME=tex2html3542 HREF="node161.html"> Functions on Arrays </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

@@ -1,0 +1,519 @@
+From npm@threejane.eit.com Fri Sep 23 17:40:02 EDT 1994
+Article: 14769 of comp.lang.lisp
+Path: cantaloupe.srv.cs.cmu.edu!das-news.harvard.edu!news2.near.net!MathWorks.Com!europa.eng.gtefsd.com!howland.reston.ans.net!agate!barrnet.net!eit.com!eitech!npm
+From: npm@threejane.eit.com (Niels P. Mayer)
+Newsgroups: comp.windows.x.motif,comp.lang.lisp.x,comp.lang.lisp
+Subject: FYI -- File Name Completion in XmFileSelectionBox Widget
+Date: 22 Sep 1994 02:25:08 GMT
+Organization: Enterprise Integration Technologies
+Lines: 503
+Distribution: inet
+Message-ID: <NPM.94Sep21192508@threejane.eit.com>
+NNTP-Posting-Host: threejane.eit.com
+Xref: glinda.oz.cs.cmu.edu comp.windows.x.motif:33233 comp.lang.lisp.x:1332 comp.lang.lisp:14769
+
+
+I wrote a hack add-on to all OSF/Motif XmFileSelectionBox widgets created
+in WINTERP 2.0 (http://www.eit.com/software/winterp/winterp.html). If the
+file included below is "loaded" into the WINTERP environment, all
+applications will inherit new behavior in their file selection box widgets
+-- you get automatic file name completion when you type <key>Space in
+either the "Filter" or "Selection" text widgets in the Motif file selection
+widget. If multiple completion choices are available, they're presented in
+the "Directories" or "Files" lists. Furthermore, you can use '?' or '*' to
+do wildcard searching/expansion in the "selection" text widget.
+
+The file below is quickie first attempt at doing this -- a hack. Basically,
+I was getting extremely annoyed at Motif's file selection box because it is
+so unwieldy for selecting files for which you "sort of" know the name and
+directory in which the files are located. All I can say is that adding this
+completion feature has made a number of my WINTERP-based applications much
+more easy and fun to use....
+
+This would be a nice feature to have in Motif. If anybody wants to
+implement this in C, as a wrapper to the existing XmFileSelectionBox
+widget, please please feel free (and give us back your results!).  (The
+implementation below is in WINTERP-Lisp, a variant of XLISP-PLUS).
+
+Note that SGI Irix 5.2 already has a file-completion version of the Motif
+file selection box widget (available if you turn on resources
+"*XmFileSelectionBox.useEnhancedFSB: true" and "*sgiMode: true").
+Unfortunately, the Irix "enhancedFSB" is broken in that it has bugs when
+used as a "drop in" replacement for apps expecting Motif's standard file
+selection box.
+
+Anyways, here's the source... have fun....
+
+--------------------
+
+; -*-Lisp-*-
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;
+; File:         filecomp.lsp
+; RCS:          $Header: /users/npm/src/widgit/examples/lib-widgets/RCS/filecomp.lsp,v 1.4 1994/09/21 19:51:34 npm Exp $
+; Description:  Load this prior to creating any XM_FILE_SELECTION_BOX_WIDGET_CLASS
+;		and all WINTERP XmFileSelectionBox instances will have
+;		a simple file completion capability within the "Filter" and
+;		"Select" text areas. Completion occurs on <space> key entry.
+;		User may also use the following "wildcard" characters
+;		during file-completion:
+;			* matches any substring (zero or more characters)
+;			? matches any character
+;			~c matches c
+; Author:       Niels P. Mayer
+; Created:      Mon Sep 19 19:32:28 1994
+; Modified:     Wed Sep 21 12:51:21 1994 (Niels Mayer) npm@indeed
+; Language:     Winterp-Lisp
+; Package:      N/A
+; Status:       X11r6 contrib release
+;
+; Copyright (C) 1994, Enterprise Integration Technologies Corp. and Niels Mayer.
+; WINTERP 1.15-1.99, Copyright (c) 1993, Niels P. Mayer.
+; WINTERP 1.0-1.14, Copyright (c) 1989-1992 Hewlett-Packard Co. and Niels Mayer.
+; 
+; Permission to use, copy, modify, distribute, and sell this software and its
+; documentation for any purpose is hereby granted without fee, provided that
+; the above copyright notice appear in all copies and that both that
+; copyright notice and this permission notice appear in supporting
+; documentation, and that the name of Enterprise Integration Technologies,
+; Hewlett-Packard Company, or Niels Mayer not be used in advertising or
+; publicity pertaining to distribution of the software without specific,
+; written prior permission. Enterprise Integration Technologies, Hewlett-Packard
+; Company, and Niels Mayer makes no representations about the suitability of
+; this software for any purpose.  It is provided "as is" without express or
+; implied warranty.
+; 
+; ENTERPRISE INTEGRATION TECHNOLOGIES, HEWLETT-PACKARD COMPANY AND NIELS MAYER
+; DISCLAIMS ALL WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED
+; WARRANTIES OF MERCHANTABILITY AND FITNESS, IN NO EVENT SHALL ENTERPRISE
+; INTEGRATION TECHNOLOGIES, HEWLETT-PACKARD COMPANY OR NIELS MAYER BE LIABLE
+; FOR ANY SPECIAL, INDIRECT OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER
+; RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF
+; CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN
+; CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; 
+;; Subclass XM_FILE_SELECTION_BOX_WIDGET_CLASS, but replace the
+;; XM_FILE_SELECTION_BOX_WIDGET_CLASS with the new subclass.
+;; Original is saved in *fsb-intrinsic-class*. Note that this
+;; is only done once, no matter how many times you load this file.
+;;
+(defvar *fsb-intrinsic-class* NIL)
+(if (null *fsb-intrinsic-class*)
+    (progn
+      (setq *fsb-intrinsic-class* XM_FILE_SELECTION_BOX_WIDGET_CLASS)
+      ;; NOTE: doing this issues a warning
+      ;; "WARNING-- redefinition of constant XM_FILE_SELECTION_BOX_WIDGET_CLASS"
+      ;; the alternative is to change WINTERP source so that instrinsic widget
+      ;; classes are not constants. I prefer the safer approach of the spurious
+      ;; warning for now...
+      (defconstant XM_FILE_SELECTION_BOX_WIDGET_CLASS
+	(send Class :new 
+	      '(;; new instance variables
+		ivar-orig-filt-label
+		ivar-orig-filt-to
+		ivar-orig-select-label
+		ivar-orig-select-to
+		)
+	      '(;; no class variables
+		)
+	      ;; superclass
+	      *fsb-intrinsic-class*
+	      ))
+      ))
+
+;; Override the widget's original :ISNEW method to install
+;; the filename completion hack...
+(send XM_FILE_SELECTION_BOX_WIDGET_CLASS :answer :ISNEW 
+      '(&rest args)
+      '(
+	(setq ivar-orig-filt-to   NIL
+	      ivar-orig-select-to NIL)
+
+	;; create self, an instance of XmFileSelectionBox()
+	(apply #'send-super :isnew args)
+
+	(send-super :get_values
+		    :XMN_FILTER_LABEL_STRING	'ivar-orig-filt-label
+		    :XMN_SELECTION_LABEL_STRING 'ivar-orig-select-label
+		    )
+
+	(setq ivar-orig-filt-label
+	      (xm_string_get_l_to_r ivar-orig-filt-label)
+	      ivar-orig-select-label
+	      (xm_string_get_l_to_r ivar-orig-select-label))
+
+	(send-super :set_values
+		    :XMN_FILTER_LABEL_STRING
+		    (format nil "~A [<space> for completion]" ivar-orig-filt-label)
+		    :XMN_SELECTION_LABEL_STRING
+		    (format nil "~A [<space> for completion]" ivar-orig-select-label)
+		    )
+
+	(send (send-super :get_child :dialog_filter_text) :OVERRIDE_TRANSLATIONS
+	      "<Key>space: Lisp(winterp:fsb-filter-text-callproc ACTION_WIDGET) "
+	      )
+	(send (send-super :get_child :dialog_text) :OVERRIDE_TRANSLATIONS
+	      "<Key>space: Lisp(winterp:fsb-selection-text-callproc ACTION_WIDGET) "
+	      )
+	))
+
+;; New method which temporarily displays some text in the "Filter" label
+(send XM_FILE_SELECTION_BOX_WIDGET_CLASS :answer :_WINTERP-TEMP-UPDATE-FILTER-LABEL
+      '(completion-str)
+      '(
+	;; Update the "Filter" label
+	(send-super :set_values :XMN_FILTER_LABEL_STRING
+		    (format nil "~A ~A"
+			    ivar-orig-filt-label
+			    completion-str
+			    ))
+
+	(send-super :update_display)
+
+	(if (and ivar-orig-filt-to (timeout_active_p ivar-orig-filt-to))
+	    (xt_remove_timeout ivar-orig-filt-to)
+	  )
+
+	;; replace the "Filter" label with original 
+	(setq ivar-orig-filt-to
+	      (xt_add_timeout
+	       5000
+	       '(
+		 (progv '(*breakenable*) '(nil)
+			(errset		;don't show errors incase widget gets destroyed while timeout active
+			 (send-super :set_values :XMN_FILTER_LABEL_STRING ivar-orig-filt-label)
+			 NIL)
+			)
+		 (setq ivar-orig-filt-to NIL)
+		 )))
+	))
+
+;; New method which temporarily displays some text in the "Selection" label
+(send XM_FILE_SELECTION_BOX_WIDGET_CLASS :answer :_WINTERP-TEMP-UPDATE-SELECTION-LABEL
+      '(completion-str)
+      '(
+	(send-super :set_values :XMN_SELECTION_LABEL_STRING 
+		    (format nil "~A ~A"
+			    ivar-orig-select-label
+			    completion-str))
+
+	(send-super :update_display)
+
+	(if (and ivar-orig-select-to (timeout_active_p ivar-orig-select-to))
+	    (xt_remove_timeout ivar-orig-select-to)
+	  )
+
+	;; replace the "Selection" label with original 
+	(setq ivar-orig-select-to
+	      (xt_add_timeout
+	       5000
+	       '(
+		 (progv '(*breakenable*) '(nil)
+			(errset		;don't show errors incase widget gets destroyed while timeout active
+			 (send-super :set_values :XMN_SELECTION_LABEL_STRING ivar-orig-select-label)
+			 NIL)
+			))))
+	))
+
+(defun winterp:fsb-filter-text-callproc (widget)
+  (let ((fsb_w (send widget :parent))
+        (str   (send widget :get_string))
+	(strsrch nil)
+	(res nil)
+	)
+
+    (if (null (search "*" str))		;if last char isn't *, add a *
+	(setq strsrch (concatenate 'string str "*"))
+      ;; else remove anything past first '*' and splice on a single '*'
+      ;; in order to make winterp:wildcard-match happy.
+      (setq strsrch
+	    (concatenate 'string (subseq str 0 (search "*" str)) "*")
+	    )
+      )
+
+    ;; rescan the current directory to set up "dir list items"
+    (send fsb_w :set_values :XMN_DIRECTORY
+	  (concatenate 'string (file:get-path str) "/"))
+    
+    ;; get a list of completions in the current directory.
+    (setq res
+	  (winterp:wildcard-match
+	   strsrch
+	   (map 'list 
+		#'xm_string_get_l_to_r
+		(send fsb_w :get_dir_list_items)
+		)))
+
+    (cond
+     ((null res)			;beep if no completions
+      (X_BELL)
+      (send widget :set_insertion_position
+	    (1+ (length (file:get-path str))))
+      )
+     ((= (length res) 1)
+      ;; Update the "Filter" label to indicate number of completions
+      (send fsb_w :_WINTERP-TEMP-UPDATE-FILTER-LABEL 
+	    "(unique)")
+      (send fsb_w :set_values :XMN_DIRECTORY
+	    (concatenate 'string (car res) "/"))
+      (send widget :set_insertion_position
+	    (1+ (length (file:get-path (send widget :get_string)))))
+      )
+     (T
+      ;; Update the "Filter" label to indicate number of completions
+      (send fsb_w :_WINTERP-TEMP-UPDATE-FILTER-LABEL 
+	    (format nil "(~A completions)"
+		    (length res)))
+
+      ;; set the directory list to the completion items
+      (send fsb_w :set_values
+	    :XMN_DIR_LIST_ITEMS res
+	    :XMN_DIR_LIST_ITEM_COUNT (length res))
+
+      ;; do completion in the "Filter" text widget -- the string up to
+      ;; the first differing character in the completions list...
+      (let ((outstr (winterp:find-leading-common-substring res)))
+	(if outstr
+	    (progn
+	      ;;	      (send fsb_w :set_values :xmn_directory (file:get-path outstr))
+	      (send widget :set_string outstr)
+	      (send widget :set_insertion_position (length outstr))
+	      ))
+	)
+      ))
+    ))
+
+(defun winterp:fsb-selection-text-callproc (widget)
+  (let ((fsb_w (send widget :parent))
+        (str   (send widget :get_string))
+	(strsrch nil)
+	(files-list nil)
+	(dirs-list nil)
+	)
+
+    (if (null (search "*" str))		;if last char isn't *, add a *
+	(setq strsrch (concatenate 'string str "*"))
+      ;; else remove anything past first '*' and splice on a single '*'
+      ;; in order to make winterp:wildcard-match happy.
+      (setq strsrch
+	    (concatenate 'string (subseq str 0 (search "*" str)) "*")
+	    )
+      )
+
+    ;; if the user deleted text w/r/t last "Filter" value, rescan the directory
+    (if (<= (length str)
+	    (- (length (send (send fsb_w :get_child :dialog_filter_text) :get_string))
+	       (length (xm_string_get_l_to_r (send fsb_w :get :XMN_PATTERN)))))
+	(send fsb_w :set_values :XMN_DIRECTORY
+	      (concatenate 'string (file:get-path str) "/")
+	      ))
+
+    ;; get a list of completions in the current directory.
+    (setq dirs-list
+	  (winterp:wildcard-match
+	   strsrch
+	   (map 'list 
+		#'xm_string_get_l_to_r
+		(send fsb_w :get_dir_list_items))
+	   ))
+    (setq files-list
+	  (winterp:wildcard-match
+	   strsrch
+	   (map 'list 
+		#'xm_string_get_l_to_r
+		(send fsb_w :get_file_list_items))
+	   ))
+
+    (if (and (null dirs-list) (null files-list))
+	(progn
+	  ;; if no matches in either list, rescan directory.
+	  (send fsb_w :set_values :XMN_DIRECTORY
+		(concatenate 'string (file:get-path str) "/"))
+	  (setq dirs-list
+		(winterp:wildcard-match
+		 strsrch
+		 (map 'list 
+		      #'xm_string_get_l_to_r
+		      (send fsb_w :get_dir_list_items))
+		 ))
+	  (setq files-list
+		(winterp:wildcard-match
+		 strsrch
+		 (map 'list 
+		      #'xm_string_get_l_to_r
+		      (send fsb_w :get_file_list_items))
+		 ))
+	  ))
+
+    (cond
+     ((and (null dirs-list) (null files-list))
+      (X_BELL)				;beep if no completions
+      )
+     ((and dirs-list files-list)	;some completions in both
+      ;; Update the "Selection" label to indicate number of completions
+      (send fsb_w :_WINTERP-TEMP-UPDATE-SELECTION-LABEL
+	    (format nil "(~A completions)" (+ (length dirs-list) (length files-list)))
+	    )
+
+      ;; set the dir list and file list to the completion items
+      (send fsb_w :set_values
+	    :XMN_FILE_LIST_ITEMS	files-list
+	    :XMN_FILE_LIST_ITEM_COUNT	(length files-list)
+	    :XMN_DIR_LIST_ITEMS		dirs-list
+	    :XMN_DIR_LIST_ITEM_COUNT	(length dirs-list))
+
+      ;; do completion in the "Selection" text widget -- the string up to
+      ;; the first differing character in the completions list...
+      (let ((outstr (winterp:find-leading-common-substring
+		     (concatenate 'list dirs-list files-list))))
+	(if outstr
+	    (progn
+	      (send widget :set_string outstr)
+	      (send widget :set_insertion_position (length outstr))
+	      ))
+	)
+      )
+     (dirs-list				;completions in directories
+      (if (= (length dirs-list) 1)
+	  (progn
+	    ;; Update the "Selection" label to indicate unique selection
+	    (send fsb_w :_WINTERP-TEMP-UPDATE-SELECTION-LABEL
+		  "(unique directory)")
+	    (let ((outstr (car dirs-list)))
+	      (send fsb_w :set_values :XMN_DIRECTORY
+		    (concatenate 'string outstr "/"))
+	      ))
+	(progn
+	  ;; Update the "Selection" label to indicate number of completions
+	  (send fsb_w :_WINTERP-TEMP-UPDATE-SELECTION-LABEL
+		(format nil "(~A directory completions)" (length dirs-list))
+		)
+	  ;; set the dir list to the completion items
+	  (send fsb_w :set_values
+		:XMN_DIR_LIST_ITEMS		dirs-list
+		:XMN_DIR_LIST_ITEM_COUNT	(length dirs-list))
+	  ;; clear out any remaining file selections, since we only
+	  ;; have directory items that are valid
+	  (send (send fsb_w :get_child :DIALOG_LIST) :delete_all_items)
+
+	  ;; do completion in the "Selection" text widget -- the string up to
+	  ;; the first differing character in the completions list...
+	  (let ((outstr (winterp:find-leading-common-substring dirs-list)))
+	    (if outstr
+		(progn
+		  (send widget :set_string outstr)
+		  (send widget :set_insertion_position (length outstr))
+		  ))
+	    )
+	  ))
+      )
+     (files-list			;completions in files
+      (if (= (length files-list) 1)
+	  (progn
+	    ;; Update the "Selection" label to indicate unique selection
+	    (send fsb_w :_WINTERP-TEMP-UPDATE-SELECTION-LABEL
+		  "(unique file)")
+	    (let ((outstr (car files-list)))
+	      (send widget :set_string outstr)
+	      (send widget :set_insertion_position (length outstr))
+	      ))
+	(progn
+	  ;; Update the "Selection" label to indicate number of completions
+	  (send fsb_w :_WINTERP-TEMP-UPDATE-SELECTION-LABEL
+		(format nil "(~A completions)" (length files-list))
+		)
+	  ;; set the files list to the completion items
+	  (send fsb_w :set_values
+		:XMN_FILE_LIST_ITEMS	  files-list
+		:XMN_FILE_LIST_ITEM_COUNT (length files-list))
+
+	  ;; do completion in the "Selection" text widget -- the string up to
+	  ;; the first differing character in the completions list...
+	  (let ((outstr (winterp:find-leading-common-substring files-list)))
+	    (if outstr
+		(progn
+		  (send widget :set_string outstr)
+		  (send widget :set_insertion_position (length outstr))
+		  ))
+	    )
+	  ))
+      ))
+    ))
+
+(defun winterp:find-leading-common-substring (list-of-strings)
+  (do ((i 0 (1+ i))
+       (end_p NIL)
+       )
+      (
+       ;; do test
+       (or 
+	end_p
+	(not (apply #'CHAR=		;note that (NOT (CHAR=...)) doesn't behave like (CHAR\= ...)
+		    (mapcar (lambda (s)
+			      (if (< i (length s))
+				  (char s i)
+				(progn 
+				  (setq end_p t) ;!!!
+				  (code-char 000)
+				  ))
+			      )
+			    list-of-strings)))
+	)
+       ;; do "return"
+       (if (/= i 0)
+	   (subseq (car list-of-strings) 0 i) ;RETURN on SUCCESS
+	 NIL)				;RETURN on FAILURE
+       ))
+  )
+
+;; Wildcard Pattern matching algorithm
+;; * matches any substring (zero or more characters)
+;; ? matches any character
+;; ~c matches c
+;; This fn stolen from xlisp-2.1d/wildcard.lsp...
+(defun winterp:wildcard-match (pattern list)
+  (labels ((match1 (pattern suspect)
+		   (cond ((null pattern) (null suspect))
+			 ((null suspect) (equal pattern '(:mult)))
+			 ((eq (first pattern) :single)
+			  (match1 (cdr pattern) (cdr suspect)))
+			 ((eq (first pattern) :mult)
+			  (if (null (rest pattern))
+			      t 
+			    (do ((p (rest pattern))
+				 (l suspect (cdr l)))
+				((or (null l) (match1 p l)) 
+				 (not (null l))))))
+			 ((eq (first pattern) (first suspect))
+			  (match1 (rest pattern) (rest suspect)))
+			 (t nil)))
+	   (explode (list) 
+		    (cond ((null list) nil)
+			  ((eq (first list) #\*) 
+			   (cons :mult (explode (rest list))))
+			  ((eq (first list) #\?) 
+			   (cons :single (explode (rest list))))
+			  ((eq (first list) #\~) 
+			   (cons (second list)
+				 (explode (rest (rest list)))))
+			  (t (cons (first list) (explode (rest list)))))))
+	  (let ((pat (explode (coerce pattern 'cons))))
+	    (mapcan #'(lambda (x) (when (match1 pat
+						(coerce x 'cons))
+					(list x)))
+		    list))))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+(provide "lib-widgets/filecomp")
+
+--------------------
+--
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+= Niels Mayer ..... mayer@eit.com .... http://www.eit.com/people/mayer.html =
+=  Multimedia Engineering Collaboration Environment (MM authoring for WWW)  =
+=  Enterprise Integration Technologies, 800 El Camino Real, Menlo Park, CA  =
+=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
+
+

@@ -1,0 +1,1347 @@
+%%%%  ICOT Technical Memorandum 
+%%%%  cu-PrologIII user's manual (in LaTex style)
+%%%%	(= cu-Prolog version 3.63?)
+%%%%	1992.4
+%%%%    1992.10	   delete lingmacros.sty
+\documentstyle{article}
+\setlength{\textwidth}{165mm}
+\setlength{\textheight}{250mm}
+\setlength{\topmargin}{-1.0in}
+\setlength{\evensidemargin}{0in}
+\setlength{\oddsidemargin}{0in}
+
+\newtheorem{defs}{[Def]}
+\newtheorem{thm}{Theorem}
+\newcommand{\cuprolog}{{\sf cu-Prolog }}
+\newcommand{\normalskip}{\baselineskip=1.2\normalbaselineskip}
+\newcommand{\programskip}{\baselineskip=0.8\normalbaselineskip}
+\newcommand{\bcapt}{\small \sf }
+\newcommand{\ecapt}{\rm  \normalsize }
+\newcommand{\bcat}{\left[ \begin{array}{l}}
+\newcommand{\ecat}{\end{array} \right]}
+\newcommand{\bscat}{\left \langle \begin{array}{l}}
+\newcommand{\escat}{\end{array} \right \rangle}
+\newcommand{\bdisj}{\left \{ \begin{array}{l}}
+\newcommand{\edisj}{\end{array} \right \}}
+
+\begin{document}
+\normalskip
+
+\title{A Guide to \cuprolog III}
+\author{
+Hiroshi TSUDA\\
+Third Research Laboratory\\
+Institute for New Generation Computer Technology (ICOT)\\
+Mita-Kokusai Bldg. 21F, 1--4--28 Mita, Minato-ku, Tokyo 108, Japan\\
+Tel : +81-3-3456-3069 \hspace{.5cm}
+E-mail : tsuda@icot.or.jp
+}
+\date{\today}
+\maketitle
+
+\tableofcontents
+\newpage
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Introduction}
+This is the user's manual of \cuprolog III\cite{tuda:acl,tuda:lpc}. 
+
+ \cuprolog is an experimental constraint logic programming language.
+Unlike most conventional CLP systems, \cuprolog allows user-defined 
+predicates as constraints and is suitable for implementing a natural 
+language processing system based on the unification-based 
+grammar\cite{shi:ub}. As an application of \cuprolog, we developed 
+a JPSG (Japanese Phrase Structure Grammar \cite{gun:jpsg}) parser 
+with the JPSG Working Group (the chairman is Prof. GUNJI, Takao of
+Osaka University) at ICOT. 
+
+\cuprolog is also the complete implementation of the constraint
+unification\cite{cs:cu}\ and its name (cu) comes from the technique.
+
+Originally, \cuprolog is implemented in the C language of UNIX
+4.2/3BSD. Later, prof.Sirai of Chukyo-University
+(sirai@sccs.chukyo-ac.jp) implemented cu-Prolog in Apple Macintosh and
+DJ's GPP (80386/486 MS-DOS machine with the DOS extender).
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{How to Compile \cuprolog}
+The source codes of \cuprolog consists of the following header files
+and program files in the C language.
+\begin{itemize}
+\item header files:
+\begin{quote}
+	{\tt include.h  funclist.h  varset.h globalv.h sysp.h}
+\end{quote}
+\item program files concerning Prolog interpreter:
+\begin{quote}
+	{\tt  	main.c  mainsub.c  new.c  read.c  print.c refute.c  unify.c}
+\end{quote}
+\item program files concerning built-in predicates:
+\begin{quote}
+	{\tt defsysp.c syspred1.c syspred2.c jpsgsub.c}
+\end{quote}
+\item program files concerning constraint transformation:
+\begin{quote}
+	{\tt modular.c trans.c tr\_sub.c tr\_split.c}
+\end{quote}
+\end{itemize}
+
+To get the execution code of \cuprolog, 
+you have only to compile and link 
+all the modules ({\tt *.c} files). In UNIX for example, 
+\begin{quote}
+ 	{\tt cc -o cuprolog *.c [CR]}
+\end{quote}
+or 
+\begin{quote}
+	{\tt make [CR]}
+\end{quote}
+
+\subsection{Customize}
+Before compiling, you may have to rewrite some statements in 
+{\tt include.h} in accordance with your system.
+
+\subsubsection{CPU time}
+\cuprolog uses system dependent functions to count process times.
+\begin{enumerate}
+\item If your system has {\tt times()} function, 
+\footnote{ {\tt times()} is the UNIX 4.2/3 BSD Library which returns 
+CPU time in 60th of a second. }
+\begin{quote}
+ 	{\tt \#define CPUTIME	60}
+\end{quote}
+If {\tt times()} in your system returns CPU time in N-th of a second,
+\begin{quote}
+	{\tt \#define CPUTIME	N}
+\end{quote}
+\item In Sun-4 system, {\tt clock()} is supported.
+Then, please define {\tt SUN4} as follows instead of {\tt CPUTIME}.
+\begin{quote}
+	{\tt \#define SUN4	1}
+\end{quote}
+\item Otherwise, the CPU time is not printed.
+\begin{quote}
+ 	{\tt \#define CPUTIME	0}
+\end{quote}
+\end{enumerate}
+
+\subsubsection{Heap size}
+\cuprolog has the following data areas.
+\begin{description}
+\item [{\bf system heap}:]	stores program clauses.
+	Its size is {\tt SHEAP\_SIZE} (the default value is 20000)
+\item [{\bf user heap}:]	stores temporal data in the Prolog interpreter.
+	Its size is {\tt HEAP\_SIZE}  (the default value is 600000)
+\item [{\bf constraint heap}:]	stores constraints and PSTs.
+	Its size is {\tt CHEAP\_SIZE}  (the default value is 25000)
+\item [{\bf environment stack}:]	stores temporal environments in the Prolog interpreter.
+	Its size is {\tt ESP\_SIZE}  (the default value is 500000)
+\item [{\bf user stack}:]	is a trail stack in the Prolog interpreter.
+	Its size is {\tt USTACK\_SIZE}  (the default value is 10000)
+\item [{\bf string heap}:]	stores strings.
+	Its size is {\tt NAME\_SIZE}   (the default value is 50000)
+\end{description}
+
+When there are frequent overflows of above areas, increase their area
+sizes and compile all the modules.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\subsection{How to start and quit \cuprolog}
+To start \cuprolog, type the following in OS. 
+\begin{quote}
+	{\tt cuprolog [CR]}
+\end{quote}
+To start \cuprolog with reading an initial program, type
+\begin{quote}
+	{\tt cuprolog {\em filename} [CR]}
+\end{quote}
+To quit \cuprolog, type followings at the top level of \cuprolog.
+\begin{quote}
+	{\tt \%Q [CR]} or {\tt :-halt. [CR]} 
+\end{quote}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Syntax of \cuprolog}
+\begin{description}
+\item [term :] atom, variable, complex term, or PST 
+\item [atom :] constant, string, or number
+\item [constant :] sequence of characters that begins with a small
+letter or sequence of any characters with single quotes.
+\item [string :] sequence of any characters with double quotes.
+\item [number :] integer, floating number.
+\item [variable :] sequence of characters that begins with a capital
+letter or {\tt \_}. 
+{\tt \_} is called an anonymous variable and any two anonymous
+variables are different.
+\item [complex term :] let {\tt p} be a string and 
+${\tt t_{1},t_{2},\cdots,t_{n}}$ be terms, then 
+${\tt p(t_{1},t_{2},\cdots,t_{n})}$ be a complex term. 
+{\tt p} is called a {\em functor} or a {\em predicate symbol}. 
+List is a special functor. 
+\item [PST (Partially Specified Term) :] sequence of feature/value
+quoted by '\{' and '\}'. A feature is a constant and a value is a
+term.
+\end{description}
+
+\subsection{Constrained Horn Clause (CHC)}
+The program clauses of \cuprolog is called Constrained Horn Clause(CHC) 
+and has the following forms:
+\begin{enumerate}
+\item {\tt $H; C_{1},\cdots, C_{n}.$} \hfill (Fact)
+\item {\tt $H:-B_{1},\cdots, B_{m}; C_{1},\cdots, C_{n}$.} \hfill (Rule)
+\item {\tt $:-B_{1},\cdots, B_{n}; C_{1},\cdots, C_{n}$.} \hfill (Question)
+\end{enumerate}
+
+{\tt $H,B_{1},\cdots, B_{n}$}, and {\tt $C_{1},\cdots, C_{n}$} are 
+called {\it Head}, {\it Body}, and {\it Constraint} respectively.
+Horn clause is a special case (null constraint) of CHC.
+
+ \cuprolog allows a variable as an atomic formula.
+By the following programs, {\tt call/1} and {\tt not/1} are defined.
+
+\begin{verbatim}
+        call(X) :- X.
+        not(X)  :- X, !, fail.
+        not(_).
+\end{verbatim}
+
+\subsection{PST (Partially Specified Term)}
+ \cuprolog III supports PST (Partially Specified Term) as a
+data structure) to implement feature structures of unification-based
+grammars.
+PST is a term of the following form:
+\begin{quote}
+ \{$l_{1}/t_{1},l_{2}/t_{2},\ldots, l_{n}/t_{n}$\} .
+\end{quote}
+$l_{i}$, called {\sf label}, is an atom and $l_{i} \neq l_{j} (i \neq
+j)$.
+$t_{i}$, called {\sf value}, is a term.  
+Recursive PST structures are not allowed.
+
+Unification between PSTs X and Y produces Z when:
+\begin{itemize}
+\item $\forall l, l/v \in X, l \not\in Y \rightarrow l/v \in Z$
+\item $\forall l, l/v \in Y, l \not\in X \rightarrow l/v \in Z$
+\item $\forall l, l/v \in X, l/u \in Y \rightarrow l/unify(u,v) \in Z$
+\end{itemize}
+
+For example, the unification between {\tt \{l/a,m/X\}} and 
+{\tt \{m/b,n/c\}} produces {\tt \{l/a,m/b,n/c\}}.
+
+When a PST occurs in plural places, it is printed with a new variable
+in the constraint part of CHC. For example, 
+\begin{verbatim}
+     f(X) :- g1(_p1,X),g2(_p2,X); _p1={f/a,g/c}.
+\end{verbatim}
+
+
+\subsection{Canonical form of Constraint}
+In CHC, Constraint must be a canonical form called {\bf modular}.
+
+\begin{defs}[modular]
+A sequence of atomic formulas $C_{1},C_{2},\ldots,C_{m}$ is {\em modular} 
+when
+\begin{enumerate}
+ \item every argument of $C_{i}$ is a variable ($1 \leq i \leq m$), and
+ \item no variable occurs in two distinct places, and 
+ \item the predicates occurring in $C_{i}$ are modularly defined 
+($1 \leq i \leq m$).	\hfill $\Box$
+\end{enumerate}
+\end{defs}
+
+The predicate occurring in the constraint of CHC is an ordinary Prolog
+predicate of the following form.
+
+\begin{defs}[modularly defined] 
+Predicate {\tt p} is \underline{modularly defined}, when every body of
+its definition clause is modular or empty. 	\hfill $\Box$
+\end{defs}
+
+With PST, modular is naturally extended as follows.
+
+\begin{defs}[component]
+The {\sf component} of an argument of a predicate is 
+a set of labels to which the argument may bind.
+Here, an atom or a complex term is regarded as a PST of the label
+\verb![]!.	\hfill $\Box$
+\end{defs}
+
+{\tt Cmp(p,n)} stands for the component of the {\tt n}th 
+argument of a predicate {\tt p}.
+{\tt Cmp(T)} represents a set of labels of a PST {\tt T}.
+In a constraint of the form {\tt X=t}, 
+variable {\tt X} is regarded as taking {\tt Cmp(t)}.
+
+Components can be computed by static analysis of the program
+\cite{tuda:sof91}.
+{\em Vacuous argument place}s\cite{tuda:sico} 
+are arguments whose components are $\phi$.
+
+Consider the following example.
+\begin{quote}
+\begin{verbatim}
+c0({f/b},X,Y):-c1(Y,X).
+c0(X,b,_):-X={g/c},c2(X).
+c1(X,X).
+c1(X,[X|_]).
+c2({h/a}).
+c2({f/c}).
+\end{verbatim}
+\end{quote}
+The components are computed as follows.
+\begin{verbatim}
+   Cmp(c0,1)={f,g,h} 
+   Cmp(c0,2)=Cmp(c1,2)={[]} 
+   Cmp(c0,3)=Cmp(c1,1)={}
+   Cmp(c2,1)={f,h}
+\end{verbatim}
+
+You can see each component with {\tt \%d} command of cu-Prolog.
+In the following example, 
+{\tt Cmp(p3,1)=\{f,h\}} and {\tt Cmp(p3,2)=\{g,h\}}.
+
+\begin{verbatim}
+_%d p3
+%d +--------( p3/2 )-----[f.h|g.h]--2/2--+
+p3({f/a},{g/b}).
+p3({h/c},{h/d}).
+\end{verbatim}
+
+\begin{defs}[dependency]
+A constraint has {\sf dependency} when
+\begin{enumerate}
+\item a variable occurs in two distinct places where their
+components have common labels, 
+\item a variable occurs in two distinct places where one component is
+\verb!{[]}! and another component does not contain \verb![]!, or
+\item the binding of an argument whose component is not $\phi$. 
+\hfill $\Box$
+\end{enumerate}
+\end{defs}
+
+For example, when {\tt Cmp(p,1) = \{f,g\}}, 
+{\tt Cmp(q,1) = \{h\}}, 
+constraint {\tt p(\{f/b\})} has a dependency, and 
+{\tt p(X),q(X)} and  
+{\tt p(\{l/a,m/b\})} do not have dependencies.
+
+\begin{defs}[modular (with PST)]
+A constraint is {\sf modular} when it
+contains no dependency.
+A Horn clause is {\sf modular} when its body has no dependency.
+\hfill $\Box$
+\end{defs}
+
+User-defined predicates in a constraint must be defined with modular
+Horn clauses
+
+\footnote{
+For example, {\tt member/2}, {\tt append/3}, and finite 
+predicates are defined with modular Horn clauses.}.
+
+
+\subsection{BNF description of \cuprolog}
+The following is a BNF description of the syntax of \cuprolog.
+
+\begin{eqnarray*}
+<char>& ::= & <capital> | <small> | <digit> \\
+<charwhite> & ::= & <char> | <space>\\
+<capital>& ::= & A|B|C| \ldots |X|Y|Z \\
+<small>& ::= & a|b|c| \ldots |x|y|z \\
+<digit>& ::= & 0|1|2|3|4|5|6|7|8|9 \\
+<series> & ::= & <digit> | <digit><series> \\
+<number>& ::= & <series> | <series>.<series> \\
+<charseq>& ::= & <char> | <char><charseq> \\
+<cwseq>& ::= & <charwhite> | <charwhite><cwseq> \\
+<string>& ::= & "<cwseq>"\\
+<smallseq>& ::= & <small> | <small><charseq> \\
+<capitalseq>& ::= & <capital> | <capital><charseq> \\
+<term>& ::= &<var> | <atom> | <smallseq>(<term\_list>) | <PST> \\
+<term\_list>& ::= &<term> | <term>,<term\_list>\\
+<var>& ::= &<capitalseq> | \_<charseq> | \_\\
+<atom>& ::= &<constant>|<string>|<number>\\
+<constant>& ::= &<smallseq> | '<cwseq>'\\
+<PST>& ::= &{<pair\_list>}\\
+<pair\_list>& ::= &<pair> | <pair>,<pair\_list>\\
+<pair>& ::= &<name>/<term>\\ 
+<af>& ::= &<smallseq>(<term\_list>) | <smallseq> | <op\_term> | <var> \\
+<af\_ist>& ::= &<af> | <af>,<af\_list>\\
+<HORN> & ::= & <af> | <af>:-<af\_list> | ?-<af\_list> \\
+<CHC> & ::= & <horn>. | <horn>;<af\_list>. \\
+<op\_term> &::= &<op1><term> | <term><op2><term>\\
+<op1> &::= & not\\
+<op2> &::= & <=> | = | =.. | > | >= | < | <= | == \\
+\end{eqnarray*}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Summary of system commands}
+This section lists all the system commands from the top level of
+\cuprolog. 
+{\em predicate} represents {\em predicate\_name} or {\em
+predicate\_name}{\tt /}{\em arity}. 
+
+\subsection{Prolog commands}
+\begin{tabular}{ll}
+{\tt \%h}&	help	\\
+{\tt \# {\em OS\_command}} & execute OS command.	\\
+{\tt \%d} {\em predicate}	& list definition clauses of a predicate \\
+{\tt \%d*} &	list all the program\\
+{\tt \%d/} &  list all predicate names include reduced predicates\\
+{\tt \%d?} &  list all predicate names without reduced predicates\\
+	   &  for system predicates, \verb-+-:recursive, \verb-^-:functor\\
+	   &  for user predicates, \verb-*-:spied, \verb+-+:reduced,\verb-+-:recursive, \\
+	& \hspace{2cm} \verb-#-: newly defined predicates during constraint transformation\\
+{\tt \%f}	& show free heap size \\
+{\tt \%Q}	& quit \cuprolog	\\
+{\tt \%R}	& reset \cuprolog\\
+{\tt \%G}	& static garbage collection\\
+{\tt \%c {\em number}}	& set maximum depth of resolution\\
+{\tt \%u}	& toggle switch to handle undefined predicates
+(ERROR/TRUE)\\
+\end{tabular}
+
+\subsection{File I/O commands}
+\begin{tabular}{ll}
+{\tt "{\em filename}"} & consult file without echo back\\
+{\tt "{\em filename}?}& consult file with echo back	\\
+{\tt \%l {\em filename}}	& set log file name	\\
+{\tt \%l no}		& reset log file	\\
+{\tt \%w {\em filename}}	& write the current program to file\\
+\end{tabular}
+
+\subsection{Debug commands}
+\begin{tabular}{ll}
+{\tt \%p {\em predicate}} & switch (on/off) spy points on the predicate\\
+{\tt \%p *} 		& set spy points on all the predicates	\\
+{\tt \%p .}	& remove spy points of all the predicates\\
+{\tt \%p >}	& switch (set/remove) spy points on constraint
+transformation\\
+{\tt \%p ?}	& list spied predicates\\
+{\tt \%t}	& normal trace mode on/off switch\\
+{\tt \%s}	& step trace mode on/off switch\\
+\end{tabular}
+
+\subsection{Constraint Transformation commands}
+\begin{tabular}{ll}
+{\tt \%L}	& list derivation clauses of new predicates (in CT)\\
+{\tt \%a}	& all modular mode (in CT) \\
+{\tt \%o}	& M-Solvable mode (in CT) \\
+{\tt \%n {\em predicate}} & 
+	set new predicates name (in CT) (c0,c1,\ldots) \\
+{\tt \%P {\em predicate}} & preprocess constraint parts\\
+{\tt \%P *} & preprocess constraint parts of all the CHCs\\
+{\tt \%P ?} & list predicates with non-canonical constraints\\
+\end{tabular}
+
+\subsection{Other commands}
+\begin{tabular}{ll}
+{\tt \%C}	& redefine {\tt cat} functor for JPSG parser
+\end{tabular}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Built-in predicates, functors}
+This section lists built-in predicates and functors of \cuprolog III.
+In the following table, {\tt +} represents the input argument, 
+{\tt -} the output argument, {\tt PST} the argument to take a PST. 
+
+\subsection{Functional built-in predicates}
+These predicates work as functions. 
+\begin{tabbing}
+PREDICATE1234567890\= FUNCTION \kill
+Predicate	\> Meaning \\
+{\tt !/0} \> cut \\
+{\tt abolish/2} \> {\tt abolish(P+,A+)}
+	 Delete definition clauses of predicate {\tt P/A}.\\
+{\tt arg/3} \> {\tt arg(Pos+,T+,Arg-)} Unify the {\tt Pos}th argument
+of {\tt T} with {\tt Arg}.\\
+	\> Eg: {\tt arg(2,test(a,b,c),X) --> X=b}.\\
+{\tt assert/1,2,3} \> 
+     {\tt assert(Head+),assert(Head+,Body+),assert(Head+,Body+,Cstr+)}\\
+	\> Add {\tt Head:-Body;Cstr.} in the end of the program.\\
+{\tt asserta/1,2,3} \> add the clause in the beginning of the program.\\
+{\tt assertz/1,2,3} \> add the clause in the beginning of the
+program.\\
+{\tt attach\_constraint/1} \> {\tt attach\_constraint(Cstr+)} 
+Add new constraint {\tt Cstr}.\\
+	\> {\tt Cstr} is a formula or list of formulas.\\
+{\tt close/1} \> {\tt close(F)} close file pointer {\tt F}\\
+{\tt compare/3} \> {\tt compare(X+,Y+,C-)} When {\tt X} and {\tt Y}
+are numbers or strings, {\tt C} unifies with their relation.\\
+	\> The relation is \verb->-,\verb-==-, or \verb-<-\\
+	\> Eg: {\tt compare("abc","xyz",'<')}\\
+	\> \hspace{19pt}{\tt compare(123,456,'<')}\\
+{\tt concat2/2} \> {\tt concat2(Str+,List-)} {\tt List} is a list of
+characters of the string {\tt Str}\\
+	\> Eg: {\tt concat2("ab",["a","b"])}\\
+{\tt default} \> {\tt default(X?,Y+,Z+)} When PST {\tt X} does not
+	have features of PST {\tt Y}, fails,\\
+	\>otherwise, PST {\tt Z} is added to {\tt X}.\\
+	\>Eg: {\tt :- X=\{pos/p,sem/Y\},default(X,\{pos/p\},\{ajn/[],refl/[]\}).} makes\\ 
+	\>{\tt X=\{pos/p,ajn/[],refl/[],sem/Y\}}. \\
+	\>\hspace{19pt} {\tt :- X=\{pos/n,sem/Y\},default(X,\{pos/p\},\{ajn/[],refl/[]\}).} 
+	fails.\\
+{\tt divstr/4} \> {\tt divstr(X+,N+,Y-,Z-)}
+{\tt Y} unifies with the first {\tt N} characters of string {\tt X} and 
+{\tt Z} the rest.\\
+	\>When {\tt N < 0}, {\tt Y} unifies with the last {\tt -N} 
+	characters. \\
+	\> Eg: {\tt divstr("abcdefg",3,"abc","defg").}\\
+	\> \hspace{19pt}{\tt divstr("abcdefg",-2,"abcde","fg").}\\
+{\tt equal/2} \> {\tt equal(X,Y)} unify {\tt X} and {\tt Y}\\
+{\tt eq/2} \> {\tt eq(X,Y)} check {\tt X} is equal to {\tt Y}\\
+{\tt fail/0}  \> always fails \\
+{\tt functor/3} \> {\tt functor(T+,F,A)} predicate name of term 
+	{\tt T} is {\tt F/A}.\\
+{\tt geq/2}	\> {\tt geq(X+,Y+)} check {\tt X>=Y}\\
+{\tt greater/2} \> {\tt greater(X+,Y+)} check {\tt X > Y}\\
+{\tt halt/0}	\> quit \cuprolog\\
+{\tt leq/2}	\> {\tt leq(X+,Y+)} check {\tt X=<Y}\\
+{\tt less/2} \> {\tt less(X+,Y+)} check {\tt X < Y}\\
+{\tt ml/2}	\> univ. {\tt ml(T,L)} is equivalent to {\tt T=..L}.\\
+	\> {\tt L} is a list of predicate name and arguments of term {\tt T}.\\
+	\>Eg: {\tt ml(f(a,b,c),X) --> X=[f,a,b,c]}\\
+{\tt multiply/3} \> {\tt multiply(X+,Y+,Z-)} is \verb$X * Y = Z$\\
+{\tt name/2(A,L)} \> {\tt name(A+,L-)} the name of the atom {\tt A} is
+the list {\tt L}\\
+	\> Eg: {\tt name(abc,[97,98,99])}.\\
+{\tt nl/0}	\> write `\verb+\n+' \\
+{\tt op/3}	\> {\tt op(P+,T+,Op+)} Define operator {\tt Op} as
+precedence {\tt P} and type {\tt T}.\\
+	\>{\tt P} is a integer from 0 to 1000 and  
+{\tt T} is {\tt xf,yf,fx,fy,xfx,xfy}, or{\tt yfx}.\\
+	\> Eg: {\tt :-op(700,xfx,'=').}\\
+{\tt open/3}	\> {\tt open(FileName+,Type+,FP-)} Open a stream.\\
+	\> {\tt FileName} is a file name. {\tt Type} is {\tt r} (read) 
+or {\tt w} (write). \\
+	\>{\tt FP} is a corresponding file pointer.\\
+{\tt pnames/2} \> {\tt pnames(PST+,FL)} Unify the list of features of
+{\tt PST} with {\tt FL}.\\
+	\> Eg: {\tt pnames(\{l/a,m/b\},[l,m])}.\\
+{\tt pvalue/3} \> {\tt pvalue(PST+,F+,V)} Unify the value of feature
+{\tt F} of {\tt PST} with {\tt V}.\\
+	\> When {\tt PST} does not have feature {\tt F}, it fails.\\
+{\tt read/1}	\> {\tt read(X-)}, read a term for the keyboard and unify it with {\tt X}.\\
+{\tt read/2}	\> {\tt read(X-,FP+)} read a term form the file
+pointer {\tt FP} and unify it with {\tt X}.\\
+	\> When {\tt FP} is the end of files, {\tt X} unifies with
+{\tt end\_of\_file}\\
+{\tt reset\_timer/0} \> reset CPU timer(cf. {\tt timer/2})\\
+{\tt see/1}	\> {\tt see(F-)} file {\tt F} becomes the current input
+stream\\
+{\tt seen/0}	\> close the current input stream\\
+{\tt strcmp/3} \> {\tt strcmp(X+,Y+,C-)} Unify {\tt C} with the
+relation between strings {\tt X} and {\tt Y}. (cf. compare/3)\\
+	\> {\tt C} is \verb->-,\verb-==-,or \verb-<-\\	
+	\> Eg: {\tt strcmp("abc","xyz",'<').}\\
+{\tt strlen/2}	\> {\tt strlen(S+,L)} {\tt L} is the length of string
+{\tt S}\\
+	\> Eg: {\tt strlen("abcdef",6).}\\
+{\tt substring/3}\> {\tt substring(X+,N+,Y-)} Unify {\tt Y} with 
+more than {\tt N}th characters of string {\tt X}\\
+	\>(When {\tt N < 0}, {\tt Y} unifies with the last {\tt -N}
+	characters of {\tt X}.)\\
+	\> Eg: {\tt substring("abcdefg",3,"defg")}\\
+	\> \hspace{19pt} {\tt substring("abcdefg",-3,"efg").}\\
+{\tt substring/4}\> {\tt substring(X+,N+,L+,Y-)} 
+	Unify {\tt Y} with {\tt L} characters from {\tt N}th element
+of string {\tt X}.\\
+	\> Eg: {\tt substring("abcdefg",3,2,"de")}\\
+	\> \hspace{19pt} {\tt substring("abcdefg",-3,2,"ef").}\\
+{\tt sum/3} \> {\tt sum(X,Y,Z)} compute \verb$X + Y = Z$\\
+	\> (More than one argument must be bound.) \\
+{\tt tab/0}	\> print tab\\
+{\tt tab/1}	\> {\tt tab(FP+)} print tab to file pointer {\tt FP}\\
+{\tt tell/1}	\> {\tt tell(T+)} file {\tt T} becomes the current output
+stream\\
+{\tt timer/2} \> {\tt timer(X-,Y-)} 
+	{\tt X} unifies with CPU time after the last {\tt reset\_timer}.\\
+	\>{\tt Y} unifies with CUP time used in the constraint
+	transformation in {\tt X}\\
+{\tt told/0}	\> close the current output stream made by {\tt tell/1}\\
+{\tt true/0}	\> always succeeds\\
+{\tt unbreak/0} \> return to the break point in the step trace.\\
+{\tt var/1}	\> {\tt var(T)} {\tt T} is a free variable\\
+{\tt write/1} \> {\tt write(T)} write term {\tt T}
+\end{tabbing}
+
+\subsection{Predicative built-in predicates}
+These predicates may have many solutions by backtracking.
+
+\begin{tabbing}
+PREDICATE1234567890\= FUNCTION \kill
+PREDICATE	\> MEANING \\
+{\tt clause/3} \> {\tt clause(T+,Body-,Cstr-)} There is a program clause
+	{\tt Head:-Body;Cstr.} \\
+	\> where {\tt Head} unifies with {\tt T}.\\
+{\tt concat/3} \> {\tt concat(S1+,S2+,S-)} or {\tt concat(S1-,S2-,S+)}\\
+	\> string {\tt S} is a concatenation of {\tt S1} and {\tt S2}.\\
+	\>Eg: {\tt concat("ab","cd",S) --> S="abcd"}\\
+	\>\hspace{19pt}{\tt concat(X,Y,"abc") -->}\\
+	\>\hspace{20pt}{\tt X="",Y="abc" or X="a",Y="bc" or X="ab",Y="c" or X="abc",Y=""}\\
+{\tt count/1} \> {\tt count(X-)} Every time, {\tt X} unifies with a
+	different number ({\tt X=0,1,2,$\cdots$}).\\
+{\tt execute/1} \> {\tt execute(L+)} Execute goals given in a 
+list {\tt L}\\
+	\> Eg: {\tt execute([memb(X,[a,b]),memb(X,[b,c])])}\\
+{\tt gensym/1} \> {\tt gensym(X-)} Every time, {\tt X} unifies with
+a different string.\\
+	\> \verb-%n- command can change the seed of the string(default value is {\tt c}).\\
+{\tt isop/3}	\> {\tt isop(Prec,Type,OP)} {\tt Prec} and {\tt Type}
+is a precedence and type of the operator {\tt OP}.\\
+	\> Eg: {\tt :-isop(X,Y,Z). --> X=900, Y=xfy, Z='/'} etc.\\
+{\tt memb/2}	\> {\tt member(Atom,List+)} built-in {\tt member}
+predicate\\
+{\tt or/2,3,4,5}	\> Execute plural goals.\\
+	\> Eg: {\tt :-or(memb(X,[a,b]),memb(X,[j,k])).}\\
+	\> \hspace{20pt} {\tt --> X=a,b,j,k}\\
+{\tt retract/1,2,3}	\> {\tt retract(Head+), retract(Head+,Body+),retract(Head+,Body+,Cstr+)}\\
+	\> Delete a program clause that unifies with {\tt Head:-Body;Cstr.}\\
+\end{tabbing}
+
+\subsection{Built-in predicates for constraint transformation}
+The following are special built-in predicates for constraint
+transformation.
+
+\begin{tabbing}
+PREDICATE1234567890\= FUNCTION \kill
+Predicate	\> Meaning\\
+{\tt condname/2}	\> {\tt condname(Cstr+,PL-)} Unify list of
+predicate names in {\tt Cstr} with {\tt PL}.\\
+	\> Eg: {\tt condname([f(a,b),g(c,d)],[g,f])}\\
+{\tt pcon/0}	\> Print current constraints.\\
+{\tt project\_cstr/1} \> {\tt project\_cstr(Term+)} Print current
+constriants\\
+	which corresponds to the variables in {\tt Term}.\\
+{\tt unify/2} \> {\tt unify(C+,NC-)} Transform constraint {\tt C} 
+into {\tt NC}.\\
+	\> Here, {\tt C} and {\tt NC} are list of atomic formulas. \\
+	\> Eg: {\tt unify([member(X,[a,b,c]),f(X,Y)],[c0(X,Y)])}\\
+\end{tabbing}
+
+\subsection{Built-in predicates for JPSG parser}
+The followings are special built-in predicates for JPSG parser.
+
+\begin{tabbing}
+PREDICATE1234567890\= FUNCTION \kill
+Predicate/Functor	\> Meaning\\
+{\tt cat/6} \> Functor for the feature structure of JPSG\\
+{\tt t(M,L,R)} \>  Functor for history\\
+{\tt tree(H)} \> Print history {\tt H} in tree format\\
+\end{tabbing}
+
+{\tt cat/6} functor is set by \verb+%C+ command from the top level of
+\cuprolog as follows.
+
+\begin{quote}
+	{\tt \%C [}$Feature_{1}$,$FType_{1}$,$Feature_{2}$,$FType_{2}$,$\ldots$ {\tt]}
+\end{quote}
+
+Here, {\tt $Feature_{i}$} is a feature name which begin with a capital
+letter and be shorter than five letters. 
+{\tt $FType_{i}$} is a feature type defined as follows.
+\begin{tabbing}
+numberofcattype \=fffffffff \kill
+FType \> Meaning\\
+2 \>takes one category (adjacent,slash, etc.)\\
+3 \>takes set of categories (subcat, etc.)\\
+1 \>otherwise
+\end{tabbing}
+
+Default value is {\tt [POS,1,FORM,1,AJA,2,AJN,2,SC,3,SEM,1]}, 
+that is, 
+\begin{tabbing}
+feature namejjjjj\=JPSG feature\kill
+Feature \> PSG features\\
+POS \>pos\\
+FORM \> gr,vform,pform, and so on\\
+AJA \>adjacent\\
+AJN \>adjunct\\
+SC \>subcat\\
+SEM \>sem
+\end{tabbing}
+
+By {\tt tree/3}, functor {\tt cat($Arg_{1}$,$\cdots$,$Arg_{n}$)} 
+is printed as 
+\begin{quote}
+{\tt $Arg_{1}$[$Arg_{2}$, $Feature_{3}$:$Arg_{3}$, $\cdots$, $Feature_{n-1}$:$Arg_{n-1}$]:$Arg_{n}$}
+\end{quote}
+Features of null values ({\tt []}) are not printed.
+
+\begin{defs}[History]
+History is defined as follows.
+\begin{itemize}
+\item A category is a history
+\item If {\tt C} and {\tt W} are categories, 
+then {\tt t(C,W,[ ])} is a history.
+\item If {\tt L} and {\tt R} are histories and {\tt M} is category, 
+then {\tt t(M,L,R)} is a history. 
+\item If {\tt L} and {\tt R} are histories, and {\tt C} and {\tt W} 
+are categories, 
+then {\tt t(t(C,W,[ ]),L,R)} is a history. 	\hfill $\Box$
+\end{itemize}
+\end{defs}
+
+{\tt tree(t(C,W,[ ]))} writes
+\begin{verbatim}
+     C--W
+\end{verbatim}
+and {\tt tree(t(M,L,R))} writes
+
+\begin{verbatim}
+     ---M
+      |
+      |-L
+      |
+      |-R
+\end{verbatim}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{File I/O}
+\subsection{Read a program}
+\begin{itemize}
+\item Start \cuprolog from OS with reading an initial file:
+\begin{quote}
+	{\tt cuprolog {\em filename} [CR]}
+\end{quote}
+\item Read a file in the top level of \cuprolog without echo back:
+\begin{quote}
+	{\tt "{\em filename}" [CR] }
+\end{quote}
+\item Read a file in the top level of \cuprolog with echo back:
+\begin{quote}
+	{\tt "{\em filename}? [CR] }
+\end{quote}
+\end{itemize}
+
+\subsection{Save a program}
+To save current program clauses to a file in the top level of \cuprolog,
+\begin{quote}
+	{\tt \%w {\em filename} [CR]}
+\end{quote}
+
+\subsection{Log file}
+\begin{itemize}
+\item Set log file : 
+\begin{quote}
+	{\tt \%l {\em filename} [CR]}
+\end{quote}
+\item End log file :
+\begin{quote}
+	{\tt \%l no [CR]}
+\end{quote}
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Constraint Transformation}
+
+\subsection{Use constraint transformer alone}
+You can use the constraint solver (transformer) of \cuprolog alone 
+in the following two ways.
+
+\subsubsection{`{\tt @}' command}
+First, from the top level of \cuprolog, type `{\tt @}' followed by a sequence 
+of atomic formulas and a period. 
+For example, by typing as follows,
+\begin{quote}
+	{\tt @ member(X,[a,b,c]),member(X,[b,c,d]). [CR]}
+\end{quote}
+Then, \cuprolog returns the equivalent modularly defined constraint 
+and its definitions.
+
+\subsubsection{{\tt unify/2} predicate}
+Second, you can use the constraint transformation routine as a Prolog
+procedure. 
+\cuprolog has the predicate {\tt unify(OldCond, NewCond)}. 
+{\tt unify/2} takes constraints as a list of literals as follows.
+\begin{quote}
+	{\tt [c0(X,Y), c1(P,Q,R), c2(Q,S)] }
+\end{quote}
+{\tt unify/2} succeeds iff {\tt OldCond} is instantiated 
+to a constraint and {\tt NewCond} is a free variable. 
+{\tt NewCond} is instantiated to the modularly defined constraint that 
+is equivalent to {\tt OldCond}.
+
+\subsection{Transformation operations}
+cu-Prolog uses three sets for the constraint transformation. 
+\begin{description}
+\item [{\tt DEFINITION}] set of derivation clauses of new predicates 
+\item [{\tt NON-MODULAR}] set of non-modular new clauses made by unfolding
+\item [{\tt MODULAR}] set of modular clauses made by unfolding.
+\end{description}
+
+Let C be a non-modular constraint, and 
+{\tt $X_{1},\cdots,X_{n}$} be different variables in C, 
+{\tt p} be a new {\tt n}-ary predicate.
+The constraint transformer of cu-Prolog adds
+\begin{quote}
+{\tt p($X_{1}$,$\cdots$,$X_{n}$)==C.}
+\end{quote}
+in {\tt DEFINITION}, and repeat following three basic transformation
+operation until 
+{\tt DEFINITION} and {\tt NON-MODULAR} become empties.
+After that, clauses in {\tt MODULAR} are newly defined program clauses
+and C is transformed  into {\tt p($X_{1},\cdots,X_{n}$)}.
+
+When transformations fail on the way, C is not transformed into
+the modular form.
+\begin{enumerate}
+\item {\em unfolding}\\
+Remove one clause $H:-L,R.$ from {\tt NON-MODULAR} or {\tt DEFINITION}
+where $L$ is a atomic formula and $R$ is a sequence of atomic
+formulas.  There are program clauses $P_{i}:-B_{i}$
+($P_{i}\theta_{i}=L\theta_{i}$, $i=1,\ldots,n$.)  Add
+$H\theta:-B_{i}\theta,R\theta$ ($i=1,\ldots,n$) to {\tt NON-MODULAR}
+or {\tt MODULAR} in accordance with the modularity of their bodies.
+
+\item {\em folding}\\
+Remove one clause $H:-B,D.$ from {\tt NON-MODULAR}, where 
+\begin{itemize}
+\item $B$ and $D$ have no variable dependency. 
+\item There is a clause $P==Q$ in {\tt DEFINITION} and $Q\theta=B$
+\end{itemize}
+Then, add $H:-P\theta,D.$ in {\tt NON-MODULAR}.
+
+\item {\em modularize}\\
+Remove one clause $H:-B_{1},\cdots,B_{n},R$ from {\tt NON-MODULAR}.
+Here, 
+\begin{itemize}
+\item $B_{i} (i=1,\cdots,n)$ and $R$ are sequences of atomic formulas.
+\item $B_{i}$ and $B_{j}$ $(i \neq j)$ have no variable dependency.
+\item $R$ is modular.
+\end{itemize}
+Let each $B_{i}$ contains variable $X_{i,1},\cdots,X_{i,m_{i}}$
+and $p_{i}$ be a new $m_{i}$-ary predicate and 
+{\tt $P_{i}=p_{i}(X_{i,1},\cdots,X_{i,m_{i}})$} ($i=1,\cdots,n$).
+Then, add 
+{\tt $P_{i}$ == $B_{i}$.} to {\tt DEFINITION} ($i=1,\cdots,n$) 
+and 
+$H:-P_{1},\cdots,P_{n},R$ to {\tt MODULAR}.
+\end{enumerate}
+
+\subsection{Heuristics}
+Constraint transformation of cu-Prolog is executed in the following
+way. 
+\begin{enumerate}
+\item If {\tt DEFINITION} is not empty, remove one clause {\bf C} from
+{\tt DEFINITION} and unfold it.
+
+\item If {\tt DEFINITION} is empty, remove one clause {\bf D} whose
+head has different variables as arguments, and unfold it.
+
+\item Otherwise, select one clause N in {\tt NON-MODULAR} and fold or
+modularize it.
+
+\item repeat above until {\tt NON-MODULAR} and {\tt DEFINITION} are
+both empty.
+
+\end{enumerate}
+
+Then, we have to consider
+\begin{itemize}
+\item how to select a clause from {\tt DEFINITION}, 
+\item how to select a clause from {\tt NON-MODULAR}, and 
+\item how to select a literal in unfolding.
+\end{itemize}
+
+As {\tt DEFINITION} and {\tt NON-MODULAR} 
+are implemented as stacks in the current cu-Prolog, 
+cu-Prolog selects the latest clause.
+
+In unfolding, cu-Prolog selects the literal of the highest activation
+value which is calculated as :
+\[ AV = 3*Const + 2*Funct + Vnum - Defs + Units - 2*Rec + 3*Facts\].
+Here,
+\begin{eqnarray*}
+Arity & = & \mbox{arity of the literal}\\
+Const & = & \mbox{the number of arguments which bind to atoms}\\
+Vnum  & = & \mbox{sum of the occurrence of variables which occurs in the literal}\\
+Funct & = & \mbox{the number of arguments which bind to complex terms}\\
+Rec   & = & \mbox{1 for recursive predicate, else 0} \\
+Defs  & = & \mbox{the number of definitions of its predicate}\\
+Units & = & \mbox{the number of unit definitions of its predicate}\\
+Facts & = & \mbox{1 if all definitions of its predicate are unit clauses, else 0}\\
+\end{eqnarray*}
+
+
+\subsection{Example}
+This subsection shows some example in the constraint transformer of
+\cuprolog III. 
+
+\subsubsection{Symbolic and combinatorial constraint}
+Predicates {\tt member/2} and {\tt append/3} are frequently used as a
+symbolic and combinatorial constraints. 
+The following example transforms non-modular constraints into modular
+ones.
+
+\begin{verbatim}
+tsuda@icot21[5] cup3              % start cu-Prolog from UNIX
+	*****  cu - Prolog   Ver. III  *****
+Copyright: Institute for New Generation Computer Technology,  Japan 1989-91
+in Cooperation with SIRAI@sccs.chukyo-u.ac.jp
+	All Modular mode	(help ->  %h)
+
+_member(X,[X|Y]).                 % definition of member/2
+_member(X,[Y|Z]):-member(X,Z).
+_append([],X,X).                  % definition of append/3
+_append([A|X],Y,[A|Z]):-append(X,Y,Z).
+
+_@ member(X,[a,b,c]),member(X,[b,c,d]).    % User's constraint input 1
+
+solution = c0(X_0)                % Equivalent and modular constraint
+c0(b).                            % New predicates made in the transformation
+c0(c).
+CPU time = 0.017 sec (Constraints Handling = 0.000 sec)
+
+_@ member(X,[a,b,c]),member(X,[j,k,l]).    % User's constraint input 2
+
+solution = fail.                  % Transformation fails.
+CPU time = 0.017 sec (Constraints Handling = 0.000 sec)
+
+_@ member(A,X),append(X,Y,Z).            % User's constraint input 3
+
+solution = c2(X_1, Y_2, Z_3, A_0)     % Equivalent and modular constraint
+c4(V0_0, V1_1, V2_2, [V0_0 | V3_3]) :- append(V1_1, V2_2, V3_3).  % New predicates
+c3(V0_0, V1_1, V2_2, [V0_0 | V3_3], V4_4) :- c2(V1_1, V2_2, V3_3, V4_4).
+c2([V0_0 | V1_1], V2_2, V3_3, V0_0) :- c4(V0_0, V1_1, V2_2, V3_3).
+c2([V0_0 | V1_1], V2_2, V3_3, V4_4) :- c3(V0_0, V1_1, V2_2, V3_3, V4_4).
+CPU time = 0.050 sec (Constraints Handling = 0.000 sec)
+\end{verbatim}
+
+\subsubsection{Disjunctive feature unification}
+By introducing PST, \cuprolog III can treat disjunctive feature
+structures which are frequently used in unification-based grammar
+formalisms.
+For example, the following disjunctive feature structures \cite{eis:uni}:
+\[
+\bcat
+	{\tt a} = \bdisj
+	\bcat 	{\tt b}={\tt +}\\ {\tt c}={\tt -} \ecat\\
+	\bcat 	{\tt b}={\tt -}\\ {\tt c}={\tt +} \ecat
+	\edisj
+\ecat
+\; {\rm and} \;
+\bcat
+	{\tt a}= \bcat {\tt b}={\tt <d>} \ecat\\
+	{\tt d}=\bcat \: \ecat
+\ecat
+\]
+
+These disjunctive feature structures are encoded in the 
+two constrained PSTs, {\tt X=\{a/U\},s(U)} and 
+{\tt Y=\{a/\{b/V\},d/V\}}, where
+\begin{verbatim}
+  s({b/+,c/-}).     % definition of s/1
+  s({b/-,c/+}).
+\end{verbatim}
+PST unification between {\tt X} and {\tt Y} is to transform the
+constraint  {\tt X=Y=\{a/U,d/V\},U=\{b/V\},s(U)} 
+into the modular form as follows.
+
+\begin{verbatim}
+	*****  cu - Prolog   Ver. III  *****
+Copyright: Institute for New Generation Computer Technology,  Japan 1989-91
+in Cooperation with SIRAI@sccs.chukyo-u.ac.jp
+	All Modular mode	(help ->  %h)
+
+_s({b/'+',c/'-'}).           % Define disjunction as predicate s/1
+_s({b/'-',c/'+'}).
+
+_@ X={a/U},s(U),X={a/{b/V},d/V}.     % Disjunctive unification (input)
+
+solution = c0(X_0, V_2, {a/{b/V_2}, d/V_2}, U_1, {a/U_1})  % Equivalent modular form
+c0(_p1, '+', _p1, {b/'+', c/'-'}, _p1);_p1={a/{b/'+', c/'-'}, d/'+'}. % new predicate
+c0(_p1, '-', _p1, {b/'-', c/'+'}, _p1);_p1={a/{b/'-', c/'+'}, d/'-'}.
+CPU time = 0.000 sec (Constraints Handling = 0.000 sec)
+
+_:-c0(X,_,_,_,_).              % Solve new constraint.
+  X = {a/{b/'+', c/'-'}, d/'+'};           % Solution 1
+  X = {a/{b/'-', c/'+'}, d/'-'};           % Solution 2
+no.
+CPU time = 0.000 sec (Constraints Handling = 0.000 sec)
+\end{verbatim}
+
+After the transformation, {\tt X} (result of the unification) is still
+constrained by {\tt c0(X,\_,\_,\_,\_)}.
+To see what value {\tt X} takes, you have to solve the constraint as above.
+In this example, {\tt X} still has a disjunction because it may bind
+to two PSTs 
+{\tt \{a/\{b/+, c/-\}, d/+\}} or {\tt \{a/\{b/-, c/+\}, d/-\}}.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Program trace}
+
+\subsection{Set spy points}
+\begin{tabular}{ll}
+{\tt \%p *} & set spy points on all the predicates. \\
+{\tt \%p .} & remove spy points on all the predicates. \\
+{\tt \%p {\em predicate}} & 
+	switch (set/remove) the spy point on the predicate\\
+{\tt \%p > } & switch (set/remove) the spy point on the unfold/fold transformation.\\
+{\tt \%p ?} & list spied predicates.
+\end{tabular}
+
+\subsection{Set trace flag}
+There are two trace modes of spied predicates.
+
+\begin{tabular}{ll}
+{\tt \%s} & switch step (interactive) trace (on/off). 
+In this mode, the prompt is `\verb+>+'.\\
+{\tt \%t} & switch normal trace (on/off). 
+In this mode, the prompt is  `\verb+$+'.
+\end{tabular}
+
+In the step trace mode, the user suggests the next action at spy points.
+\begin{tabbing}
+inputinputin\=function \kill
+INPUT \> ACTION\\
+{\tt [CR]} \> continue\\
+{\tt s} \> skip tracing\\
+{\tt a}	\> print ancestor goals.\\
+{\tt b} \> break. Go to \cuprolog temporally.\\
+	\> By {\tt :-unbreak}, user can return to this point.\\
+{\tt f} \> fail this goal.\\
+{\tt l} \> leap. skip until this goal ends.\\
+{\tt z} \> quit refutation
+\end{tabbing}
+
+\subsection{Trace of constraint transformation}
+To trace constraint transformation, first spy constraint
+transformation by \verb+%p >+, then type \verb+%t+ for the 
+normal trace and  \verb+%s+ for the step trace.
+
+\subsubsection{Print traces}
+Clauses in {\tt DEFINITION} (derivation clauses of new predicates) are
+printed as follows.
+\begin{quote}
+[Clause\_Number(Status,Number\_of\_Definitions)] Derivation\_Clause\\
+{\tt [1(d,0)] c0(X) <=> member(X,[a,b,c]).} (Example)
+\end{quote}
+Here, Status is:
+\begin{tabbing}
+charcharchar\=function \kill
+Status\> Function\\
+{\tt r} \> removed: clause (other than {\tt f} and {\tt g}) 
+	removed in unfolding\\
+{\tt d} \> derivation: derivation clauses not unfolded\\
+{\tt g} \> registered: unfolding of this clauses yields at least one
+unit clause.\\
+{\tt f} \> false\_registered: unfolding of this clause fails\\
+\end{tabbing}
+
+Clauses in {\tt NON-MODULAR} or {\tt MODULAR} are printed as follows.
+
+\begin{quote}
+\verb+<+Clause\_Number{\tt (}Status,Number\_of\_Definitions{\tt )}\verb+>+ Clause\\
+{\tt <2(u)> c0(X):-member(X,[b,c]).} (Example)
+\end{quote}
+Here, Status is defined as follows.
+\begin{tabbing}
+charcharchar\=function \kill
+Status \> Function\\
+{\tt r} \> removed: clause removed by reduction or unfolding\\
+{\tt u} \> untouched: clause in {\tt NON-MODULAR} that is not unfolded\\
+{\tt m} \> modular: clause whose body is modular\\
+{\tt i} \> unit: unit clause\\
+\end{tabbing}
+
+\subsubsection{User's input in the step trace}
+In the step trace, the user have to suggest the next action 
+after spy points.
+\begin{tabbing}
+operationoperation\=function \kill
+Input \> Function\\
+{\tt [CR]} \> continue: continue with default heuristics.\\
+{\tt u CN LN} \>manual unfolding: {\tt CN} is a clause number, \\
+	\> and {\tt LN} suggests which literal to unfold in the body.\\
+{\tt s} \> stop tracing: notrace after that\\
+{\tt n} \> stop step tracing: normal trace after that\\
+{\tt q} \> quit transformation: assert current clauses and stop
+transformation.\\
+{\tt z} \> abort transformation: delete all the new clauses and stop
+transformation\\
+\end{tabbing}
+
+\section{JPSG parser}
+In JPSG parser, CHC plays two effective roles.
+
+\subsection{Encoding Lexical Ambiguity}
+As an example of the disjunctive feature structures, this subsection 
+explains lexical
+ambiguities in this subsection.
+Consider the lexicons of homonyms or polysemic words.
+If the lexicon of an ambiguous word 
+is divided into plural entries in terms of its
+ambiguity, the parsing process may be inefficient in that it  
+sometimes backtracks to consult the lexicon.
+In constraint-based natural language processing, such ambiguity is
+packed as a constraint in a lexicon.
+
+Below is a sample lexicon of Japanese auxiliary verb ``reru.''
+``reru'' follows a verb whose inflection type is {\tt vs} or {\tt
+vs1}.
+If the adjacent verb is transitive, ``reru'' indicates plain passive.
+If the verb is intransitive, ``reru'' indicates affective passive
+\footnote{For example, ``Ken ga ame ni fu-ra-reru'' (Ken is affected
+by the rain.)
+}.
+These combinations are represented by adding constraints of  
+{\tt reru\_form/1} and {\tt reru\_sem/4} in one lexical entry.
+
+\begin{verbatim}
+%% lexical entry of ``reru''  (CHC of null body)
+lex(reru,{sc/SC, sem/Sem, adjacent/{pos/v,infl/I,sc/VSC,sem/Sem}});
+     reru_form(I),               % inflection (constraint)
+     reru_sem(VSC,Vsem,SC,Sem).  % combination of subcat and sem (constraint)
+
+%%%%%% definition of predicates of constraints  %%%%%%
+reru_form(vs).  % inflection type of the adjacent verb
+refu_form(vs1). 
+
+reru_sem([{form/ga,sem/Sbj}],Sem,   % for intransitive (affective) passive
+         [{form/ga,sem/A},{form/ni,sem/Sbj}],
+         affected(A,Sem)). 
+reru_sem([{form/ga,sem/Sbj},{form/wo,sem/Obj}], Sem,    % for transitive (normal) passive
+         [{form/ga,sem/Obj},{form/ni,sem/Sbj}], Sem). 
+\end{verbatim}
+
+This lexicon is a representation of the following disjunctive feature
+structure.
+\[
+\bcat
+	\bdisj
+	\bcat
+		adjc = \bcat
+			sc = \bscat 
+					\bcat pos=ga\\sem=S1 \ecat
+				     \escat\\
+				sem = Sem1\\
+			  \ecat\\
+		sc = \bscat \bcat form=ga\\sem=A \ecat, 
+			\bcat form=ni\\sem=S1 \ecat \escat\\
+		sem = affected(A,Sem1)\\
+	\ecat\\
+	\bcat
+		adjc = \bcat
+				sc = \bscat 
+					\bcat pos=ga\\sem=S2\ecat,
+					\bcat pos=wo\\sem=O2\ecat 
+					\escat\\
+				sem = Sem2\\
+			   \ecat\\
+		sc = \bscat 
+			\bcat pos=ga\\sem=O2\ecat,
+			\bcat pos=ni\\sem=S2\ecat 
+		     \escat\\
+		sem = Sem2\\
+	\ecat
+	\edisj \\
+	adjc = \bcat pos=v\\ infl=\{vs1,vs2\} \ecat
+\ecat
+\] 
+
+Although the lexicon is ambiguous, however,  
+many kinds of constraints are automatically accumulated for solving 
+during parsing.
+The disambiguation process in parsing 
+is naturally realized by the constraint
+transformation of cu-Prolog. 
+It has no need to write any special procedure for disambiguation.
+
+\subsection{Encoding Structural Principle}
+As mentioned in Section~2, the
+structural principles of JPSG are
+relations among features of three categories in a local tree.
+Intuitively, structure principles are encoded as constraints to a
+phrase structure rule: 
+\[
+psr(M,D,H); sp_1(M,D,H), \ldots, sp_n(M,D,H).
+\]
+Here, $psr/3$ is a phrase structure rule and each $sp_i/3$ is a
+structure principle.
+
+In cu-Prolog, these structural principles are evaluated flexibly with
+heuristics. In Prolog, however, above phrase structure rule is
+represented as 
+\[
+psr(M,D,H):-sp_1(M,D,H), \ldots, sp_n(M,D,H).
+\]
+Each principle is always evaluated sequentially. Prolog, therefore, is
+not well-suited for constraint based grammars because it is impossible
+to stipulate in advance which kind of linguistic constraints must be
+processed in what order.
+
+As the first example, the principle of the $sem$ feature in Section~2 is
+encoded as a constraint {\tt sfp(M,D,H)}, where
+\begin{verbatim}
+  sfp({sem/HS},{mod/+},{sem/HS}).
+  sfp({sem/HS},{mod/+},{sem/HS}).
+\end{verbatim}
+
+As the second example, the {\em Foot Feature Principle} is defined as
+follows\cite{gun:jpsg}.
+\begin{quote}
+	The value of FOOT feature of the mother unifies with the union
+of those of her daughters.
+\end{quote}
+It is represented as constraint {\tt ffp(M,D,H)}, where
+\begin{verbatim}
+  ffp({foot/MF},{foot/DF},{foot/HF}) :-
+      union(DF,HF,MF).
+\end{verbatim}
+
+\subsection{Example}
+Following example of JPSG parser in cu-Prolog treats two sentences.
+
+(\ref{kln}) is not ambiguous, so the top category does not have
+constraints on the {\tt sem} feature.
+As (\ref{kl}) is ambiguous, that is, ``Ken-ga (someone wo)
+ai-suru'' or ``Ken ga ai-suru (someone)'' (relative clause), 
+the top category has constraint ({\tt c31}).
+
+\begin{tabbing}
+xxxxxxxxxxxx\=xxxxxxxxxxxx\=xxxxxxxxx\kill
+{\bf Ken-ga} \> {\bf Naomi-wo} \> {\bf ai-suru.}\\
+{\sf Ken-NOM} \> {\sf Noami-DAT} \> {\sf love-PRES}\\
+`Ken loves Naomi.'
+\end{tabbing}
+
+\begin{tabbing}
+xxxxxxxxxxxx\=xxxxxxxxxx\kill
+{\bf Ken-ga} \> {\bf ai-suru.}\\
+{\sf Ken-NOM} \> {\sf love-PRES}\\
+`Ken loves (someone).' or `(Someone) whom Ken loves'
+\end{tabbing}
+
+\programskip
+{\footnotesize
+\begin{verbatim}
+tsuda#icot21[5]% cup3		%% Start cu-Prolog
+
+	*****  cu - Prolog III  *****
+Copyright: Institute for New Generation Computer Technology,  Japan 1989-91
+in Cooperation with SIRAI@sccs.chukyo-u.ac.jp
+	M-solvable mode	(help ->  %h)
+
+_"jpsg/j4.p"			%% read JPSG parser program
+=== open 'jpsg/j4.p'
+
+ ****** end of file ******* 
+CPU time = 2.050 sec
+
+%%%%% Example1. ``Ken-ga Naomi-wo ai-suru''(Ken loves Naomi.) %%%%%%
+_:-p([ken,ga,naomi,wo,ai,suru]). %% Input
+
+				%% The parser returns the parse tree.
+{sem/[love,ken,naomi], core/{form/Form_3670, pos/v}, sc/[], refl/[], slash/[], psl/[], ajn/[], ajc/[]}---[suff_p]
+ | 
+ |--{sem/[love,ken,naomi], core/{form/vs2, pos/v}, sc/[], refl/[], slash/[], psl/[], ajn/[], ajc/[]}---[subcat_p]
+ |   | 
+ |   |--{sem/ken, core/{form/ga, pos/p}, sc/[], refl/[], slash/[], psl/[], ajn/[], ajc/[]}---[adjacent_p]
+ |   |   | 
+ |   |   |--{sem/ken, core/{form/n, pos/n}, sc/[], refl/[], slash/[], psl/[], ajn/[], ajc/[]}---[ken]
+ |   |   | 
+ |   |   |__{sem/ken, core/{form/ga, pos/p}, sc/[], refl/[], slash/[],
+    psl/[], ajn/[], ajc/[{sem/ken, core/{pos/n}, sc/[], refl/ReflAC_140}]}---[ga]
+ |   | 
+ |   |__{sem/[love,ken,naomi], core/{form/vs2, pos/v}, sc/[{sem/ken, core/{form/ga, pos/p}}], 
+         refl/[], slash/[], psl/[], ajn/[], ajc/[]}---[subcat_p]
+ |       | 
+ |       |--{sem/naomi, core/{form/wo, pos/p}, sc/[], refl/[], slash/[], psl/[], ajn/[], ajc/[]}---[adjacent_p]
+ |       |   | 
+ |       |   |--{sem/naomi, core/{form/n, pos/n}, sc/[], refl/[], slash/[], psl/[], ajn/[], ajc/[]}---[naomi]
+ |       |   | 
+ |       |   |__{sem/naomi, core/{form/wo, pos/p}, sc/[], refl/[], slash/[], 
+   psl/[], ajn/[], ajc/[{sem/naomi, core/{pos/n}, sc/[], refl/ReflAC_960}]}---[wo]
+ |       | 
+ |       |__{sem/[love,ken,naomi], core/{form/vs2, pos/v}}---[ai]
+ | 
+ |__{sem/[love,ken,naomi], core/{form/Form_3670, pos/v}, sc/[],
+    refl/[], slash/[], psl/[], ajn/[], ajc/[{sem/[love,ken,naomi],
+    core/{form/vs2, pos/v}, sc/[], refl/ReflAC_3702}]}---[suru]
+
+category= {sem/[love,ken,naomi], core/{form/Form_3670, pos/v},
+sc/[], refl/[], slash/[], psl/[], ajn/[], ajc/[]} %% Top category
+
+constraint= syu_ren(Form_3670)	%% Constraints on the top category
+
+true.
+CPU time = 0.750 sec
+19%(program) 6%(pst/const) 12%(string)
+
+
+%%%%% Example2. ``Ken-ga ai-suru''(Ken loves).	%%%%%
+_:-p([ken,ga,ai,suru]).		%% Input
+
+{sem/[love,Sbj_394,Obj_396], core/{form/Form_1056, pos/v},sc/Msc_1128,
+     refl/Mref_1130, slash/Msl_1132, psl/[], ajn/[], ajc/[]}---[suff_p]
+ | 
+ |--{sem/[love,Sbj_394,Obj_396], core/{form/vs2, pos/v}, sc/Csc_1102,
+     refl/Cref_1104, slash/Csl_1106, psl/[], ajn/[], ajc/[]}---[subcat_p]
+ |   | 
+ |   |--{sem/ken, core/{form/ga, pos/p}, sc/[], refl/[], slash/[], psl/[], ajn/[], ajc/[]}---[adjacent_p]
+ |   |   | 
+ |   |   |--{sem/ken, core/{form/n, pos/n}, sc/[], refl/[], slash/[], psl/[], ajn/[], ajc/[]}---[ken]
+ |   |   | 
+ |   |   |__{sem/ken, core/{form/ga, pos/p}, sc/[], refl/[], slash/[],
+     psl/[], ajn/[], ajc/[{sem/ken, core/{pos/n}, sc/[], refl/ReflAC_140}]}---[ga]
+ |   | 
+ |   |__{sem/[love,Sbj_394,Obj_396], core/{form/vs2, pos/v}}---[ai]
+ | 
+ |__{sem/[love,Sbj_394,Obj_396], core/{form/Form_1056, pos/v}, sc/[],
+     refl/[], slash/[], psl/[], ajn/[], ajc/[{sem/[love,Sbj_394,Obj_396],
+     core/{form/vs2, pos/v}, sc/[], refl/ReflAC_1116}]}---[suru]
+
+category= {sem/[love,Sbj_394,Obj_396], core/{form/Form_1056, pos/v},
+          sc/Msc_1128, refl/Mref_1130, slash/Msl_1132, psl/[], ajn/[], ajc/[]}
+constraint= c31(Cref_1104, Mref_1130, Csl_1106, Msl_1132, Csc_1102,
+         Msc_1128, Obj_396, Sbj_394, HC_222, Hsl_226),syu_ren(Form_1056)
+true.
+CPU time = 0.367 sec
+20%(program) 2%(pst/const) 13%(string)
+	%% solve constraints of the top category (c31)
+_:-c31(_,Refl,_,Slash,_,SC,Obj,Sbj,_,_).
+  Refl = []  Slash = []  SC = [{sem/V0_36, core/{form/wo, pos /p}}]  
+Obj = V0_36  Sbj = ken;    %% First solution: subcat remains.
+  Refl = []  Slash = [{sem/V3_58}]  SC = []  Obj = V3_58  Sbj = ken;
+	%% Second solution: One element moves from subcat to slash.
+no.
+CPU time = 0.050 sec
+20%(program) 0%(pst/const) 13%(string)
+_\end{verbatim}
+}
+
+\normalskip
+
+\section{Concluding Remarks}
+UNIX version of cu-Prolog is implemented from 1989 by Hiroshi TSUDA and
+K\^{o}iti HASIDA with financially supported by ICOT.
+Apple Macintosh version (MacCUP) and MS-DOS version (DJCUP) are
+implemented by Prof. Hidetosi SIRAI of Chukyo University.
+The author thanks to the members of PSG working group of ICOT for
+their comments and cooperation to the JPSG parser.
+
+Lastly, we show references for cu-Prolog and JPSG parser.
+
+cu-Prolog originated from the technique {\em conditioned(constrained)
+unification}\cite{cs:cu,has:cu}. The name ``cu'' comes from this
+technique.
+\cite{tuda:lpc,tuda:sof89} discussed cu-Prolog from the viewpoint of
+the constraint logic programming,
+\cite{tuda:acl,tuda:sico} from parsing JPSG.
+
+Dr.Hasida proposes DP(Dependency Propagation) theory \cite{has:com} 
+for further research of cu. Related paper with cu are
+\cite{tuda:sico,has:iwpt}.
+
+\cite{tuda:sof91,tuda:fgcs} treat disjunctive feature structures by
+introducing PSG(Partially Specified Term) in cu-Prolog.
+
+We refer \cite{gun:jpsg} and \cite{shi:ub} for JPSG and
+general unification-based grammars respectively.
+
+\bibliographystyle{plain}	% {plain, unsrt, alpha, abbrv}
+\bibliography{/home/tsuda/bib/lang,/home/tsuda/bib/logic,/home/tsuda/bib/elang,/home/tsuda/bib/elogic}
+
+\end{document}

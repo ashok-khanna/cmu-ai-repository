@@ -1,0 +1,133 @@
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/faqs/lang/prolog/prg/part1/faq-doc-11.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 19:57:23 GMT -->
+<HEAD>
+<TITLE>FAQ: Prolog Resource Guide 1/2 [Monthly posting] - [1-10] Is there a straight-forward way of compiling Prolog to C?</TITLE>
+</HEAD>
+<BODY>
+<H1>[1-10] Is there a straight-forward way of compiling Prolog to C?</H1>
+<PRE>
+Two methods of compiling Prolog to C have been reported in the
+literature:
+   -  WAM-based approaches
+   -  Continuation-based approaches
+
+The WAM-based approach compiles Prolog programs into a sequence of C
+function or macro calls to WAM instructions. A brief description of
+this method and some results are given in the paper:
+
+   Michael R. Levy and R. Nigel Horspool, "Translating Prolog to C: a
+   WAM-based Approach", in Proceedings of the Second Compulog Network
+   Area Meeting on Programming Languages, and the Workshop on Logic
+   Languages in Pisa, May 1993. (Available by anonymous ftp from 
+   <A NAME=id74 HREF="ftp://csr.uvic.ca/pub/mlevy/">csr.uvic.ca:/pub/mlevy/</A>.)
+
+The best tutorial for writing a WAM-based compiler or WAM emulator is
+Hassan Ait-Kaci's book, "Warren's Abstract Machine: A Tutorial
+Reconstruction" (see [1-3] above). 
+
+A "quick-and-dirty" method is to implement the WAM functions as described
+in Ait-Kaci's tutorial, to label each call with a C case label, and then throw
+a giant switch(P) statement around the entire sequence of calls, where P
+is the WAM program counter.  On return from any instruction that modifies
+P, a "goto Start" must be inserted. (This method was posted by Rob
+Scott, &#60;rbs@aisb.ed.ac.uk&#62;, based on the JANUS papers by Saraswat.)
+
+This strategy will work, but does not allow you to modularize your
+prolog program. Predicates in prolog seem to generate 8 to 15 WAM
+instructions per clause, so (assuming very roughly a clause per
+line)you might expect your 1,000 line program to expand to a switch
+statement containing up to 15,000 lines. Some C compilers can't handle
+such a big switch statement.
+
+Levy and Horspool solve this problem by compiling each Prolog
+predicate to a seperate C function. A dispatch loop mechanism is used
+to call the C functions. C switch statements are used only inside the
+functions.  A predicate that calls another predicate sets P to contain
+the address of the C function that implements the called predicate,
+(and sets another register called W in their scheme) and then returns
+to the dispatcher instead of calling the predicate. This bypasses the
+C run-time stack.  This lets one exploit WAM optimizations (like LCO)
+and yet retain the ability to create many modules. Their system
+performs well when compared with byte-code compilers, but translated
+code runs slower than code produced by native code compilers.  On the
+other hand, it outputs portable ANSI C that can run on any machine
+with a C compiler.
+
+Henderson, Somogyi, and Conway's paper "Compiling Logic Programs to C
+using GNU C as a portable assembler" 
+   htpp://www.cs.mu.oz.au/mercury/papers.html
+mentions some optimizations to the above approach, and also describes
+another approach used in the Mercury compiler which achieves
+efficiency comparable to direct native-code generation by using GNU C
+extensions.  They use conditional compilation (#ifdef) to enable use
+of these extensions, so the generated C code will still run on other
+ANSI C compilers, although the GNU C extensions improve performance
+for Mercury by nearly a factor of three.
+
+Other approaches to translating to C use continuations. The idea here
+is to translate every Prolog predicate to a C function that has
+an additional argument, namely a continuation function. If the function
+fails, it simply returns, but if it succeeds, it executes the continuation.
+When the function regains control from the continuation, it can then try
+to generate a new solution. Here are two references
+that describe systems built using continuations:
+
+   J. L. Weiner and S. Ramakrishnan, "A Piggy-Back Compiler for Prolog",
+   in Proceedings of SIGPLAN T88 Conference on Programming Language
+   Design and Implementation, Atlanta, Georgia, 1988, pages 288-296.
+
+   J. L. Boyd and G. M. Karam, "Prolog in C", Carleton University,
+   Ottawa, 1988. 
+
+Oliver Ridoux &#60;Olivier.Ridoux@irisa.fr&#62; reports that a
+continuation-based approach works well when used to compile
+LambdaProlog. His scheme translates every predicate into a function
+that uses and modifies the success and failure continuations, with
+recursion in the predicate becoming iteration in the continuation
+passing mechanism. Inside the function one uses whichever intermediate
+machine one fancies. Clauses within the function can be either the
+branches of a switch statement or simply labelled when using a C
+system that can store labels. This approach can still generate
+monstrous C programs that blow up the C compiler, but the C programs
+aren't as large as those generated by a one module to a function
+scheme. Approaches that replace recursion in a predicate with
+recursion in a function tend to overload the C stack and lead to
+sloppy memory management.  Two technical reports describing Ridoux's
+approach are available by anonymous ftp from
+   <A NAME=id75 HREF="ftp://ftp.irisa.fr/local/">ftp.irisa.fr:/local/</A>
+as pm/*.ps.Z and mailv06/*.ps.Z.
+
+Michael Covington &#60;mcovingt@ai.uga.edu&#62; points out that a very simple
+approach is to write a Prolog interpreter in C, then store the Prolog
+program in that program's data! This will, of course, execute slowly.
+One might imagine all sorts of other schemes. For example, a query
+could be treated as a stack of "suspensions" (with the left-most goal
+on top).  The top suspension is executed by selecting the appropriate
+clause (possibly using indexing), and then, if necessary, pushing new
+suspensions on the stack (the body of the clause whose head unified
+with the current suspension).
+
+Another question to ask is this: Is there any reason why you should want to
+convert Prolog to C at all? George Saab of Quintus Corp. pointed out that,
+with Quintus Prolog, you can create a standard .o file from a Prolog file,
+which can then be linked with your other .o files to create an executable.
+What's more, your Prolog code can be called from C code and vice versa.
+
+On ther hand, the advantage of distributing "Prolog objects" as C rather than
+.o files is portability.
+
+M. Gaspari  and G. Attardi describe an approach to translating Prolog to C
+based on the provision of a common runtime architecture. This is
+described in 
+
+   G. Attardi and M. Gaspari, "Multilanguage Interoperability", in
+   Proceedings of The 3rd International Symposium, PLILP 91, 
+   Springer Verlag, LNCS #528, 1991.
+
+[Note: Thanks to Michael Levy, Department of Computer Science,
+University of Victoria, &#60;mlevy@csr.uvic.ca&#62;, for writing this section.]
+</PRE>
+<A NAME=up HREF="faq.html">Go Back Up</A><P>
+<A NAME=up HREF="faq-doc-10.html">Go To Previous</A><P>
+<A NAME=up HREF="faq-doc-12.html">Go To Next</A><P>
+</BODY>

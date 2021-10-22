@@ -1,0 +1,337 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node220.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:31:43 GMT -->
+<HEAD>
+<TITLE>24.1. General Error-Signaling Functions</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" General Error-Signaling Functions">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4301 HREF="node221.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4299 HREF="node219.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4293 HREF="node219.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4303 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4304 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4302 HREF="node221.html"> Specialized Error-Signaling Forms </A>
+<B>Up:</B> <A NAME=tex2html4300 HREF="node219.html"> Errors</A>
+<B> Previous:</B> <A NAME=tex2html4294 HREF="node219.html"> Errors</A>
+<HR> <P>
+<H1><A NAME=SECTION002810000000000000000>24.1. General Error-Signaling Functions</A></H1>
+<P>
+<A NAME=ERRORSIGNALLINGFUNCTIONS>The</A>
+functions in this section provide various mechanisms
+for signaling warnings, breaks, continuable errors, and fatal errors.
+<P>
+In each case, the caller specifies an error message (a string) that may be
+processed (and perhaps displayed to the user) by the error-handling
+mechanism.  All messages are
+constructed by applying the function
+<tt>format</tt> to the quantities <tt>nil</tt>, <i>format-string</i>,
+and all the <i>args</i> to produce a string.
+<P>
+An error message string should not contain a newline character
+at either the beginning or end, and should not contain any sort of
+herald indicating that it is an error.  The system will take care of
+these according to whatever its preferred style may be.
+<P>
+Conventionally,
+error messages are complete English sentences ending with a period.
+Newlines in the middle of long messages are acceptable.  There
+should be no indentation after a newline in the middle of an
+error message.  The error message need not mention the name of the function
+that signals the error; it is assumed that the debugger will make this
+information available.
+<P>
+<hr>
+<b>Implementation note:</b> If the debugger in a particular implementation
+displays error messages indented from the prevailing left margin
+(for example, indented by seven spaces because
+they are prefixed by the seven-character herald ``<tt>Error: </tt>''),
+then the debugger should take care of inserting
+the appropriate indentation into a multi-line error message.
+Similarly, a debugger that prefixes error messages with semicolons
+so that they appear to be comments
+should take care of inserting a semicolon at the beginning of each
+line in a multi-line error message.  These rules are suggested
+because, even within a single
+implementation, there may be more than one program that presents error
+messages to the user, and they may use different styles of
+presentation.  The caller
+of <tt>error</tt> cannot anticipate all such possible styles,
+and so it is incumbent upon the presenter of the message
+to make any necessary adjustments.
+<hr>
+<P>
+Common Lisp does not specify the manner in which error messages and
+other messages are displayed.  For the purposes of exposition,
+a fairly simple style of textual presentation will be used in the
+examples in this chapter.  The character <tt>&gt;</tt> is used
+to represent the command prompt symbol for a debugger.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>error <i>format-string</i> &amp;rest <i>args</i></tt>
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+This function signals a fatal error.  It is impossible to continue
+from this kind of 
+error; thus <tt>error</tt> will never return to its caller.
+<P>
+The debugger printout in the following example is typical of what
+an implementation might print when <tt>error</tt> is called.
+Suppose that the (misspelled) symbol <tt>emergnecy-shutdown</tt> has no property
+named <tt>command</tt> (all too likely, as it is probably a typographical
+error for <tt>emergency-shutdown</tt>).
+<P><pre>
+(defun command-dispatch (cmd) 
+  (let ((fn (get cmd 'command))) 
+    (if (not (null fn)) 
+        (funcall fn)) 
+        (error &quot;The command ~S is unrecognized.&quot; cmd)))) 
+
+(command-dispatch 'emergnecy-shutdown) 
+Error: The command EMERGNECY-SHUTDOWN is unrecognized. 
+Error signaled by function COMMAND-DISPATCH. 
+&gt;
+</pre><P>
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1988
+(CONDITION-SYSTEM) <A NAME=27888>&#160;</A> 
+to adopt a proposal for a Common Lisp Condition System. 
+This proposal modifies the definition of <tt>error</tt> to specify its interaction
+with the condition system.  See section <A HREF="node335.html#SIGNALLINGCONDITIONS">29.4.1</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<hr>
+<b>Compatibility note:</b> Lisp Machine Lisp calls this function <tt>ferror</tt>.
+MacLisp has a function named <tt>error</tt> that takes
+different arguments and can signal either a fatal or a continuable error.
+<hr>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>cerror <i>continue-format-string</i> <i>error-format-string</i> &amp;rest <i>args</i></tt>
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<tt>cerror</tt> is used to signal continuable errors.  Like <tt>error</tt>, it
+signals an error and enters the debugger.  However, <tt>cerror</tt> allows
+the program to be continued from the debugger after resolving the
+error.
+<P>
+If the program is continued after encountering the error, <tt>cerror</tt>
+returns <tt>nil</tt>.  The code that follows the call to <tt>cerror</tt> will
+then be executed.   This code should correct the problem, perhaps by
+accepting a new value from the user if a variable was invalid.
+<P>
+If the code that corrects the problem interacts with the program's 
+use and might possibly be misled,
+it should make sure the error has really been corrected before
+continuing.  One way to do this is to put the call to <tt>cerror</tt> and
+the correction code in a loop, checking each time to see if the error
+has been corrected before terminating the loop.
+<P>
+The <i>continue-format-string</i> argument, like the <i>error-format-string</i>
+argument, is given as a control string to <tt>format</tt> along with
+the <i>args</i> to construct a message string.
+The error message string is used in the same way that <tt>error</tt> uses it.
+The continue message string should
+describe the effect of continuing.  The intent is that this
+message can be displayed as an aid to the user in deciding whether and
+how to continue.  For example, it might
+be used by an interactive debugger as part of the documentation of its
+``continue'' command.
+<P>
+The content of the continue message should adhere to the rules
+of style for error messages.  It should not include
+any statement of how the ``continue'' command is given, since this may be
+different for each debugger.  (It is up to the debugger to supply this
+information according to its own particular style of presentation and user
+interaction.)
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1988
+(CONDITION-SYSTEM) <A NAME=27913>&#160;</A> 
+to adopt a proposal for a Common Lisp Condition System. 
+This proposal modifies the definition of <tt>cerror</tt> to specify its interaction
+with the condition system.  See section <A HREF="node335.html#SIGNALLINGCONDITIONS">29.4.1</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+Here is an example where the caller of <tt>cerror</tt>, if continued,
+fixes the problem without any further user interaction:
+<P><pre>
+(let ((nvals (list-length vals))) 
+  (unless (= nvals 3) 
+    (cond ((&lt; nvals 3) 
+           (cerror &quot;Assume missing values are zero.&quot; 
+                   &quot;Too few values in ~S;~%~ 
+                    three are required, ~ 
+                    but ~R ~:[were~;was~] supplied.&quot; 
+                   nvals (= nvals 1)) 
+           (setq vals (append vals (subseq '(0 0 0) nvals)))) 
+          (t (cerror &quot;Ignore all values after the first three.&quot; 
+                     &quot;Too many values in ~S;~%~ 
+                      three are required, ~ 
+                      but ~R were supplied.&quot; 
+                      nvals) 
+             (setq vals (subseq vals 0 3))))))
+</pre><P>
+If <tt>vals</tt> were the list <tt>(-47)</tt>, the interaction might look
+like this:
+<P><pre>
+Error: Too few values in (-47); 
+       three are required, but one was supplied. 
+Error signaled by function EXAMPLE. 
+If continued: Assume missing values are zero. 
+&gt;
+</pre><P>
+In this example, a loop is used to ensure that a test is satisfied.
+(This example could be written more succinctly using <tt>assert</tt>
+or <tt>check-type</tt>, which indeed supply such loops.)
+<P><pre>
+(do () 
+    ((known-wordp word) word) 
+  (cerror &quot;You will be prompted for a replacement word.&quot; 
+          &quot;~S is an unknown word (possibly misspelled).&quot; 
+          word) 
+  (format *query-io* &quot;~&amp;New word: &quot;) 
+  (setq word (read *query-io*)))
+</pre><P>
+<P>
+In complex cases where the <i>error-format-string</i>
+uses some of the <i>args</i> and the
+<i>continue-format-string</i> uses others, it may be necessary to use the
+<tt>format</tt> directives <tt>~*</tt> and <tt>~@*</tt>
+to skip over unwanted arguments in one or both of the
+format control strings.
+<P>
+<hr>
+<b>Compatibility note:</b> The Lisp Machine Lisp function <tt>fsignal</tt> is similar to this, but
+returns <tt>:no-action</tt>
+rather than <tt>nil</tt>, and fails to distinguish between the error message
+and the continue message.
+<hr>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>warn <i>format-string</i> &amp;rest <i>args</i></tt>
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<tt>warn</tt> prints an error message but normally
+doesn't go into the debugger.  (However, this may be controlled
+by the variable <tt>*break-on-warnings*</tt>.)
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989
+(BREAK-ON-WARNINGS-OBSOLETE) <A NAME=27964>&#160;</A> 
+to remove <tt>*break-on-warnings*</tt> from the language.
+See <tt>*break-on-signals*</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<tt>warn</tt> returns <tt>nil</tt>.
+<P>
+This function would be just the same as
+<tt>format</tt> with the output directed 
+to the stream in <tt>error-output</tt>, except that <tt>warn</tt>
+may perform various implementation-dependent formatting and
+other actions.  For example, an implementation of <tt>warn</tt> should take
+care of advancing to a fresh line before and after the error message
+and perhaps supplying the name of the function that called <tt>warn</tt>.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<hr>
+<b>Compatibility note:</b> The Lisp Machine Lisp function <tt>compiler:warn</tt> is an
+approximate equivalent to this.
+<hr>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1988
+(CONDITION-SYSTEM) <A NAME=27981>&#160;</A> 
+to adopt a proposal for a Common Lisp Condition System. 
+This proposal modifies the definition of <tt>warn</tt> to specify its interaction
+with the condition system.  See section <A HREF="node343.html#WARNINGCONDITIONS">29.4.9</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<BR><b>[Variable]</b><BR>
+<tt>*break-on-warnings*</tt><P>If <tt>*break-on-warnings*</tt> is not <tt>nil</tt>, then the function
+<tt>warn</tt> behaves like
+<tt>break</tt>.  It prints its message and then goes to the debugger or break
+loop.  Continuing causes <tt>warn</tt> to return <tt>nil</tt>.  This flag is intended
+primarily for use when the user is debugging programs that issue warnings;
+in ``production'' use, the value of <tt>*break-on-warnings*</tt> should be <tt>nil</tt>.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989
+(BREAK-ON-WARNINGS-OBSOLETE) <A NAME=27999>&#160;</A> 
+to remove <tt>*break-on-warnings*</tt> from the language.
+See <tt>*break-on-signals*</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>break &amp;optional <i>format-string</i> &amp;rest <i>args</i></tt>
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<tt>break</tt> prints the message and goes directly into the debugger,
+without allowing 
+any possibility of interception by programmed error-handling facilities.
+(Right now, there aren't any error-handling facilities defined in Common Lisp,
+but there might be in particular implementations, and there will be some
+defined by Common Lisp in the future.)
+When continued, <tt>break</tt> returns <tt>nil</tt>.  It is permissible to
+call <tt>break</tt> with no arguments; a suitable default message will be provided.
+<P>
+<tt>break</tt> is presumed to be used as a way of inserting temporary debugging
+``breakpoints'' in a program, not as a way of signaling errors;
+it is expected that
+continuing from a <tt>break</tt> will not trigger any unusual recovery action.
+For this reason, <tt>break</tt> does not
+take the additional <tt>format</tt> control string argument that <tt>cerror</tt>
+takes.  This and the lack of any possibility of interception by programmed
+error handling are the only program-visible differences between <tt>break</tt>
+and <tt>cerror</tt>.
+The interactive debugger may choose to display them
+differently; for instance, a <tt>cerror</tt> message might be prefixed with
+the herald
+``<tt>Error: </tt>'' and a <tt>break</tt> message with
+``<tt>Break: </tt>''.  This depends on
+the user-interface style of the particular implementation.  A particular
+implementation may choose, according to its own style and needs,
+when <tt>break</tt> is called to go
+into a debugger different from the one used for handling errors.
+For example, it might go into an ordinary read-eval-print loop identical to
+the top-level one except for the provision of a ``continue'' command that
+causes <tt>break</tt> to return <tt>nil</tt>.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<hr>
+<b>Compatibility note:</b> In MacLisp, <tt>break</tt> is a special form (FEXPR)
+that takes two optional arguments.  The first is a symbol (it would be a
+string if MacLisp had strings), which is not evaluated.  The second is
+evaluated to produce a truth value specifying whether <tt>break</tt> should
+break (true) or return immediately (false).  In Common Lisp one makes a call
+to <tt>break</tt> conditional by putting it inside a conditional form such as
+<tt>when</tt> or <tt>unless</tt>.
+<hr>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1988
+(CONDITION-SYSTEM) <A NAME=28032>&#160;</A> 
+to adopt a proposal for a Common Lisp Condition System. 
+This proposal modifies the definition of <tt>break</tt> to specify its interaction
+with the condition system.  See section <A HREF="node345.html#DEBUGGINGUTILITIES">29.4.11</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html4301 HREF="node221.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4299 HREF="node219.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4293 HREF="node219.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4303 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4304 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4302 HREF="node221.html"> Specialized Error-Signaling Forms </A>
+<B>Up:</B> <A NAME=tex2html4300 HREF="node219.html"> Errors</A>
+<B> Previous:</B> <A NAME=tex2html4294 HREF="node219.html"> Errors</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

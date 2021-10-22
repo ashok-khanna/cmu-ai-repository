@@ -1,0 +1,202 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node116.html by HTTrack Website Copier/3.x [XR&CO'2014], Thu, 21 Oct 2021 14:57:20 GMT -->
+<HEAD>
+<TITLE>11.5. Name Conflicts</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Name Conflicts">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2971 HREF="node117.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2969 HREF="node111.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2963 HREF="node115.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2973 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2974 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2972 HREF="node117.html"> Built-in Packages</A>
+<B>Up:</B> <A NAME=tex2html2970 HREF="node111.html"> Packages</A>
+<B> Previous:</B> <A NAME=tex2html2964 HREF="node115.html"> Exporting and Importing </A>
+<HR> <P>
+<H1><A NAME=SECTION001550000000000000000>11.5. Name Conflicts</A></H1>
+<P>
+<A NAME=NAMECONFLICTSSECTION>A</A>
+fundamental invariant of the package system is that within one package
+any particular name can refer to at most one symbol.  A <i>name conflict</i>
+is said to occur when there is more than one candidate symbol and it is
+not obvious which one to choose.  If the system does not always choose
+the same way, the read-read consistency rule would be violated.  For
+example, some programs or data might have been read in under a certain
+mapping of the name to a symbol.  If the mapping changes to a different
+symbol, and subsequently additional programs or data are read,
+then the two programs will
+not access the same symbol even though they use the same name.  Even if
+the system did always choose the same way, a name conflict is likely to
+result in a mapping from names to symbols different from what was expected by
+the user, causing programs to execute incorrectly.  Therefore, any time
+a name conflict is about to occur,
+an error is signaled.  The user may continue
+from the error and tell the package system how to resolve the conflict.
+<P>
+It may be that the same symbol is accessible to a package through more than
+one path.  For example, the symbol might be
+an external symbol of more than one used package, or the symbol
+might be directly present in a package and also inherited from
+another package.
+In such cases there is no name conflict.
+The same identical symbol cannot conflict with itself.
+Name conflicts occur only between distinct symbols with
+the same name.
+<P>
+The creator of a package can tell the system in advance how to resolve a
+name conflict through the use of <i>shadowing</i>.  Every package has a
+list of shadowing symbols.  A shadowing symbol takes precedence over any
+other symbol of the same name that would otherwise be accessible to the
+package.  A name conflict involving a shadowing symbol is always
+resolved in favor of the shadowing symbol, without signaling an error
+(except for one instance involving <tt>import</tt> described below).  The
+functions <tt>shadow</tt> and <tt>shadowing-import</tt> may be used to declare
+shadowing symbols.
+<P>
+Name conflicts are detected when they become possible, that is, when the
+package structure is altered.  There is no need to check for name
+conflicts during every name lookup.
+<P>
+The functions <tt>use-package</tt>, <tt>import</tt>, and <tt>export</tt> check for name
+conflicts.  <tt>use-package</tt> makes the external symbols of the package
+being used accessible to the using package; each of these symbols is
+checked for name conflicts with the symbols already accessible.
+<tt>import</tt> adds a single symbol to the internals of a package, checking
+for a name conflict with an existing symbol either present in the
+package or accessible to it.  <tt>import</tt> signals a name conflict error
+even if the conflict is with a shadowing symbol, the rationale being
+that the user has given two explicit and inconsistent directives.
+<tt>export</tt> makes a single
+symbol accessible to all the packages that use the package from which
+the symbol is exported.  All of these packages are checked for
+name conflicts:  <tt>(export <i>s</i> <i>p</i>)</tt> does
+<tt>(find-symbol (symbol-name <i>s</i>) <i>q</i>)</tt> for each package <i>q</i>
+in <tt>(package-used-by-list <i>p</i>)</tt>.  Note that in the usual case of
+an <tt>export</tt> during the initial definition of a package, the
+result of <tt>package-used-by-list</tt>
+will be <tt>nil</tt> and the name-conflict checking
+will take negligible time.
+<P>
+The function <tt>intern</tt>, which is the one used most
+frequently by the Lisp reader for looking up names of symbols,
+does not need to do any name-conflict checking, because it
+never creates a new symbol if there is already an accessible symbol with
+the name given.
+<P>
+<tt>shadow</tt> and <tt>shadowing-import</tt> never signal a name-conflict error
+because the user, by calling these functions, has specified how any
+possible conflict is to be resolved.  <tt>shadow</tt> does name-conflict
+checking to the extent that it checks whether a distinct existing symbol with
+the specified name is accessible and, if so, whether it is directly
+present in the package or inherited.  In the latter case, a new symbol
+is created to shadow it.  <tt>shadowing-import</tt> does name-conflict
+checking to the extent that it checks whether a distinct existing
+symbol with the same name is accessible; if so, it is shadowed by
+the new symbol, which implies that it must be uninterned
+if it was directly present in the package.
+<P>
+<tt>unuse-package</tt>, <tt>unexport</tt>, and <tt>unintern</tt> (when the symbol being
+uninterned is not a shadowing symbol) do not need to do any
+name-conflict checking because they only remove symbols from a package;
+they do not make any new symbols accessible.
+<P>
+Giving a shadowing symbol to <tt>unintern</tt> can uncover a name conflict that had
+previously been resolved by the shadowing.  If package A uses packages
+B and C, A contains a shadowing symbol <tt>x</tt>, and B and C each contain external
+symbols named <tt>x</tt>, then removing the shadowing symbol <tt>x</tt>
+from A will reveal a name
+conflict between <tt>b:x</tt> and <tt>c:x</tt> if those two symbols are distinct.
+In this case <tt>unintern</tt> will signal an error.
+<P>
+Aborting from a name-conflict error leaves the original symbol accessible.
+Package functions always signal name-conflict errors before making any
+change to the package structure.  When multiple changes are to be made,
+however, for example when <tt>export</tt> is given a list of symbols, it is
+permissible for the implementation to process each change separately,
+so that aborting from a name
+conflict caused by the second symbol in the list will not unexport the
+first symbol in the list.  However, aborting from a name-conflict error
+caused by <tt>export</tt> of a single symbol will not leave that symbol accessible
+to some packages and inaccessible to others; with respect to
+each symbol processed, <tt>export</tt>
+behaves as if it were an atomic operation.
+<P>
+Continuing from a name-conflict error should offer the user a chance to
+resolve the name conflict in favor of either of the candidates.  The
+package structure should be altered to reflect the resolution of the
+name conflict, via <tt>shadowing-import</tt>, <tt>unintern</tt>, or <tt>unexport</tt>.
+<P>
+A name conflict in <tt>use-package</tt> between a symbol directly present in the
+using package and an external symbol of the used package may be resolved
+in favor of the first symbol by making it a shadowing symbol, or in favor
+of the second symbol by uninterning the first symbol from the using
+package.  The latter resolution is dangerous if the symbol to be
+uninterned is an external symbol of the using package, since it
+will cease to be an external symbol.
+<P>
+A name conflict in <tt>use-package</tt> between two external symbols inherited
+by the using package from other packages may be resolved in favor of
+either symbol by importing it into the using package and making it a
+shadowing symbol.
+<P>
+A name conflict in <tt>export</tt> between the symbol being exported and a
+symbol already present in a package that would inherit the
+newly exported symbol may be resolved in favor of the exported symbol
+by uninterning the other one, or in favor of the already-present
+symbol by making it a shadowing symbol.
+<P>
+A name conflict in <tt>export</tt> or <tt>unintern</tt> due to a package
+inheriting two distinct symbols with the same name from two other
+packages may be resolved in favor of either symbol by importing it into
+the using package and making it a shadowing symbol, just as with
+<tt>use-package</tt>.
+<P>
+A name conflict in <tt>import</tt> between the symbol being imported and a
+symbol inherited from some other package may be resolved in favor of the
+symbol being imported by making it a shadowing symbol, or in favor
+of the symbol already accessible by not doing the <tt>import</tt>.  A
+name conflict in <tt>import</tt> with a symbol already present in the
+package may be resolved by uninterning that symbol, or by not
+doing the <tt>import</tt>.
+<P>
+Good user-interface style dictates that <tt>use-package</tt> and <tt>export</tt>,
+which can cause many name conflicts simultaneously, first check for
+all of the name conflicts before presenting any of them to the user.
+The user may then choose to resolve all of them wholesale or to resolve
+each of them individually, the latter requiring a lot of
+interaction but permitting
+different conflicts to be resolved different ways.
+<P>
+Implementations may offer other ways of resolving name conflicts.
+For instance, if the symbols that conflict are not being used as
+objects but only as names for functions, it may be possible to ``merge''
+the two symbols by putting the function definition onto both symbols.
+References to either symbol for purposes of calling a function would be
+equivalent.  A similar merging operation can be done for variable values
+and for things stored on the property list.  In Lisp Machine Lisp, for example, one can
+also <i>forward</i> the value, function, and property cells so that future
+changes to either symbol will propagate to the other one.  Some other
+implementations are able to do this with value cells but not with
+property lists.  Only the user can know whether this way of resolving
+a name conflict is adequate, because it will work only if
+the use of two non-<tt>eq</tt>
+symbols with the same name will not prevent the correct operation of
+the program.  The value of offering symbol merging as a way of resolving
+name conflicts is that it can avoid the need to throw away the whole
+Lisp world, correct the package-definition forms
+that caused the error, and start over from scratch.
+<P>
+<BR> <HR><A NAME=tex2html2971 HREF="node117.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2969 HREF="node111.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2963 HREF="node115.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2973 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2974 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2972 HREF="node117.html"> Built-in Packages</A>
+<B>Up:</B> <A NAME=tex2html2970 HREF="node111.html"> Packages</A>
+<B> Previous:</B> <A NAME=tex2html2964 HREF="node115.html"> Exporting and Importing </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

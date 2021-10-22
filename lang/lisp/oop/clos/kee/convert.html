@@ -1,0 +1,311 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; Copyright, 1992. The Regents of the University of California.
+;;; This software was produced under a U. S. Government contract
+;;; (W-7405-ENG-36) by Los Alamos National Laboratory, which is
+;;; operated by the University of California for the U. S. Department
+;;; of Energy.  The U. S. Government is licensed to use, reproduce,
+;;; and distribute this software. Permission is granted to the
+;;; public to copy and use this software without charge, provided
+;;; that this Notice and any statement of authorship are reproduced
+;;; on all copies.  Neither the Government nor the University makes
+;;; any warranty, express or implied, or assumes any liability or
+;;; responsibility for the use of this software.
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;;;
+;;; This package does a first cut at converting a KEE/TASP baseline
+;;; file into a PMS scenario file. No information from the original
+;;; is lost (it appears in comments interspaced with the converted
+;;; output).
+;;;
+;;; The important thing is that mass balances are converted.
+;;;
+;;; USE:
+;;;   > (load "convert.lisp")
+;;;   > (do-conversion '("file1" "file2")) ; writes on *standard-output*
+;;;
+;;; or
+;;;   > (with-open-file (output "file.out" :direction :output)
+;;;       (do-conversion '("file1" "file2") output))
+;;;
+
+(in-package "USER")
+
+(defclass tasp-objects ()
+  ((name
+    :accessor name
+    :initform ()
+    :initarg :name)
+   (other
+    :accessor other
+    :initform ()
+    :initarg :other)
+   ))
+
+(defgeneric convert (proc record))
+(defgeneric dump (proc stream))
+
+(defvar *nametable* ())
+
+(defvar *object-order*)
+
+(defmethod initialize-instance :after ((self tasp-objects) &rest initargs)
+  ""
+  (setf (gethash (name self) *nametable*) self)
+  (pushnew self *object-order*))
+
+(defmethod dump :after ((obj tasp-objects) stream)
+  (when (other obj)
+    (format stream "   ;;~%   ;; Unconverted slots for this process~%   ;;~%")
+    (dolist (rec (nreverse (other obj)))
+      (format stream "   ;; ~a~%" rec)))
+  )
+
+;;;
+;;; Specific classes
+;;;
+
+(defclass tasp-resources (tasp-objects)
+  ())
+
+(defmethod dump ((self tasp-resources) stream)
+  (format stream "~%:class resources~%:instance ~a~%" (name self))
+  )
+
+;;;
+;;;
+
+(defclass tasp-processes (tasp-objects)
+  ((tag-material
+    :accessor tag-material
+    :initform 'pu
+    :initarg :tag-material)
+   (batch-size
+    :accessor batch-size
+    :initform ()
+    :initarg :batch-size)
+   (batch-time
+    :accessor batch-time
+    :initform ()
+    :initarg :batch-time)
+   (materials-added
+    :accessor materials-added
+    :initform ()
+    :initarg :materials-added)
+   (product-split-data
+    :accessor product-split-data
+    :initform ()
+    :initarg :product-split-data)
+   (product-locations
+    :accessor product-locations
+    :initform ()
+    :initarg :product-locations)
+   (residue-locations
+    :accessor residue-locations
+    :initform ()
+    :initarg :residue-locations)
+   (product-mb
+    :accessor product-mb
+    :initform ()
+    :initarg :product-mb)
+   (residue-mb
+    :accessor residue-mb
+    :initform ()
+    :initarg :residue-mb)
+   (outputs
+    :accessor outputs
+    :initform ()
+    :initarg :outputs)
+   ))
+
+(defmethod convert ((proc tasp-processes) record)
+  (case (second record)
+    (a-tag-material
+     (setf (tag-material proc) (third record)))
+    (a-maximum-batch-size
+     (setf (batch-size proc) (third record)))
+    (a-materials-added-to-system
+     (Setf (materials-added proc) (cddr record))
+     (dolist (spec (cddr record))
+       (let ((resource (or (gethash (first spec) *nametable*)
+			   (make-instance 'tasp-resources
+					  :name (first spec)))))
+       )))
+    (a-product-discharge-location
+     (setf (product-locations proc) (cddr record)))
+    (a-residue-discharge-location
+     (setf (residue-locations proc) (cddr record)))
+    (a-product-mass-balance-data
+     (setf (product-mb proc) (cddr record)))
+    (a-residue-mass-balance-data
+     (setf (residue-mb proc) (cddr record)))
+    (a-product-split-data
+     (setf (product-split-data proc) (cddr record)))
+    (a-activity-duration
+     (setf (batch-time proc) (third record)))
+    (otherwise
+     (push (cdr record) (other proc)))
+    ))
+
+(defmethod dump ((proc tasp-processes) stream)
+  (format stream "~%:class processes~%:instance ~a~%" (name proc))
+  (format stream "   batch-size-basis ~a~%" (tag-material proc))
+  (format stream "   batch-size ~a~%" (batch-size proc))
+  (format stream "   batch-time <~a days>~%" (batch-time proc))
+  (if (materials-added proc)
+      (format stream "   materials-added-to-the-system ~(~a~)~%" (materials-added proc)))
+  (format stream "   ;;~%   ;; The following original slots were used to calculate outputs.~%   ;;~%")
+  (format stream "   ;; a-product-discharge-location~{ ~a~}~%" (product-locations proc))
+  (when (null (product-split-data proc))
+    (let ((len (length (product-locations proc))))
+      (format stream "   ;; ... a-product-split-data not specified.")
+      (if (> len 1)
+	  (format stream " Splitting between products."))
+      (format stream "~%")
+      (dotimes (i len (product-split-data proc))
+	(push (/ 1.0 (float len)) (product-split-data proc)))))
+  (format stream "   ;; a-product-split-data~{ ~a~}~%" (product-split-data proc))
+  (format stream "   ;; a-residue-discharge-location~{ ~a~}~%" (residue-locations proc))
+  (format stream "   ;; a-product-mass-balance-data~{ ~a~}~%" (product-mb proc))
+  (format stream "   ;; a-residue-mass-balance-data~{ ~a~}~%" (residue-mb proc))
+  (format stream "   ;;~%   batch-outputs (~%")
+  (let ((product-mb (product-mb proc))
+	(product-split (product-split-data proc)))
+    (if (or (eql 1 (length (product-locations proc)))
+	    (eql 1 (length product-split)))
+	(progn
+	  (format stream "      (~(~a ~a~)-product"
+		  (first (product-locations proc))
+		  (name proc))
+	  (dolist (prod product-mb)
+	    (unless (eql 0.0 (second prod))
+	      (format stream " (~(~a~) ~a)" (first prod) (second prod))))
+	  (format stream ")~%")
+	  )
+	(do ((prod-loc-remainder (product-locations proc)
+				 (cdr prod-loc-remainder))
+	     (frac-remainder product-split
+			     (cdr frac-remainder)))
+	    ((or (null prod-loc-remainder)
+		 (null frac-remainder)))
+	  (let ((loc (car prod-loc-remainder))
+		(frac (car frac-remainder)))
+	    (format stream "      (~(~a ~a~)-product"
+		    loc
+		    loc)
+	    (dolist (prod product-mb)
+	      (unless (eql 0.0 (second prod))
+		(format stream " (~(~a~) ~f)" (first prod) (* (second prod) frac))))
+	    (format stream ")~%"))))
+    (dolist (residue (residue-locations proc))
+      ;;
+      ;; residue is (stream location)
+      ;;
+      (let ((mb (cdr (assoc (car residue) (residue-mb proc)))))
+	(when mb
+	  (format stream "      (~(~a ~a~)"
+		  (second residue)
+		  (first residue))
+	  (dolist (prod product-mb)
+	    (unless (eql 1.0 (second prod))
+	      (let ((mtl (assoc (car prod) mb)))
+		(when (and mtl
+			   (not (eql 0.0 (second mtl))))
+		  (format stream " (~(~a~) ~f)" (first mtl) (* (second mtl) (- 1.0 (second prod))))
+		))))
+	  (format stream ")~%"))))
+    (format stream "      )~%"))
+  )
+
+;;;
+;;;
+;;;
+
+(defclass tasp-parts (tasp-objects)
+  ((materials
+    :accessor materials
+    :initform ()
+    :initarg :materials)
+   ))
+
+(defmethod convert ((part tasp-parts) record)
+  (case (second record)
+    (a-material-contents
+     (setf (materials part) (cddr record)))
+    (otherwise
+     (push (cdr record) (other part)))
+    ))
+
+(defmethod dump ((part tasp-parts) stream)
+  (format stream "~%:class parts~%:instance ~a~%" (name part))
+  (format stream "   part-materials ~a~%" (materials part)))
+
+;;;
+;;; Basic defuns that control the reading of the files and the convert/dump process.
+;;;
+
+(defun get-kee-type (name)
+  (case name
+    #+someday
+    (controller
+     (find-class 'kee-controllers))
+    ((type-1 type-2 type-3 type-4 type-5 type-6 type-7 type-8)
+     (find-class 'tasp-parts))
+    (otherwise
+     (find-class 'tasp-processes))))
+
+(defun convert-file (file input)
+  ""
+  (do ((record (read input nil :EOF) (read input nil :EOF)))
+      ((eql record :EOF))
+    (let ((proc (or (gethash (first record) *nametable*)
+		    (make-instance (get-kee-type (first record))
+				   :name (first record)))))
+      (convert proc record))))
+
+(defun convert-file-list (files)
+  "Convert KEE/TASP baseline files to PMS/TASP scenarios."
+  (dolist (file files)
+    (if (probe-file file)
+	(with-open-file (input file)
+	  (convert-file file input))
+	(warn "Cannot find baseline file ~a to convert.~%" file))))
+
+(defun dump-preamble (stream)
+  (format stream "~&;;;~%;;; Generated by the TASP KEE-Baseline -> PMS-Scenario convertor.~%")
+  (multiple-value-bind (sec min hr date mon yr dow dst tz) (get-decoded-time)
+    (format stream ";;; ~a, ~a ~a, ~a ~2d:~2d~%"
+	    (nth dow '("Monday" "Tuesday" "Wednesday" "Thursday" "Friday" "Saturday" "Sunday"))
+	    (nth mon '("" "January" "February" "March" "April" "May" "June" "July"
+		       "August" "September" "October" "November" "December"))
+	    date
+	    yr
+	    hr
+	    min))
+  (format stream ";;;~%~%")
+  )
+
+(defun dump-objects-by-class (class-list stream)
+  (dolist (class class-list)
+    (flet ((predicate (obj)
+	     (eql (class-of obj) class)))
+
+      (dolist (obj (remove-if-not #'predicate *object-order*))
+	(dump obj stream)
+	(setf *object-order* (delete obj *object-order*))))
+    (dump-objects-by-class (clos:class-direct-subclasses class) stream)))
+
+(defun dump-output (stream)
+  (dump-preamble stream)
+  (setf *object-order* (nreverse *object-order*))
+  (dump-objects-by-class (list (find-class 'tasp-objects)) stream)
+  )
+
+(defun do-conversion (filelist &optional (out t))
+  (setf *nametable* (make-hash-table))
+  (setf *object-order* nil)
+  (convert-file-list filelist)
+  (dump-output out))
+

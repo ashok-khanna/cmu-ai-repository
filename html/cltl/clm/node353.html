@@ -1,0 +1,175 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node353.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:46:45 GMT -->
+<HEAD>
+<TITLE>A.2.4. Conditional and Other Complex Transducers</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Conditional and Other Complex Transducers">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html6116 HREF="node354.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html6114 HREF="node349.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html6108 HREF="node352.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html6118 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html6119 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html6117 HREF="node354.html"> Collectors</A>
+<B>Up:</B> <A NAME=tex2html6115 HREF="node349.html"> Series Functions</A>
+<B> Previous:</B> <A NAME=tex2html6109 HREF="node352.html"> Truncation and Other </A>
+<HR> <P>
+<H2><A NAME=SECTION003424000000000000000>A.2.4. Conditional and Other Complex Transducers</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<A NAME=SERIESOLSECTION>This</A>
+section presents a number of complex transducers, including ones that
+support conditional computation.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>choose <i>bools</i> &amp;optional (<i>items</i> bools) <BR></tt><tt>choose-if <i>pred</i> <i>items</i></tt><P>Each of these functions takes in a series of elements (<i>items</i>) and
+returns a series containing the same elements in the same order, but with
+some elements removed.  <tt>choose</tt> removes <i>items</i>j if <i>bools</i>j is <tt>nil</tt> or <b><i>j</i></b> is beyond the end of <i>bools</i>.  If <i>items</i> is omitted, <tt>choose</tt> returns the non-null elements of <i>bools</i>.  <tt>choose-if</tt> removes <i>items</i>j if 
+<tt>(<i>pred</i> <i>items</i>j)</tt> is <tt>nil</tt>.
+<P><pre>
+(choose #Z(t nil t nil) #Z(a b c d)) => #Z(a c) 
+(collect-sum (choose-if #'plusp #Z(-1 2 -3 4))) => 6
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>expand <i>bools</i> <i>items</i> &amp;optional (<i>default</i> nil)</tt><P><tt>expand</tt> is a quasi-inverse of <tt>choose</tt>.  The output contains the
+elements of the input series <i>items</i> spread out into the positions
+specified by the non-null elements
+in <i>bools</i>-that is, <i>items</i>j
+is in the position occupied by the <i>j</i>th non-null element in <i>bools</i>.
+The other positions in the output are occupied by <i>default</i>.  The
+output stops as soon as <i>bools</i> runs out of elements or a non-null
+element in <i>bools</i> is encountered for which there is no corresponding
+element in <i>items</i>.
+<P><pre>
+(expand #Z(nil t nil t t) #Z(a b c)) => #Z(nil a nil b c) 
+(expand #Z(nil t nil t t) #Z(a)) => #Z(nil a nil)
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>split <i>items</i> &amp;rest <i>test-series-inputs</i> <BR></tt><tt>split-if <i>items</i> &amp;rest <i>test-predicates</i></tt><P>These functions are like <tt>choose</tt> and <tt>choose-if</tt> except that
+instead of producing one restricted output, they partition the input series
+<i>items</i> between several outputs.  If there are <b><i>n</i></b> test inputs
+following <i>items</i>, then there are <i>n</i>+1 outputs.  Each input element is
+placed in exactly one output series, depending on the outcome of a sequence
+of tests.  If the element <i>items</i>j fails the first <b><i>k</i>-1</b> tests and
+passes the <i>k</i>h test, it is put in the <i>k</i>th output.
+If <i>items</i>j
+fails every test, it is placed in the last output.  In addition, all output
+stops as soon as any series input runs out of elements.  The test inputs to
+<tt>split</tt> are series of values; <i>items</i>j passes the <i>k</i>th test
+if the <i>j</i>th element of the <i>k</i>th test series is not <tt>nil</tt>.  The test
+inputs to <tt>split-if</tt> are predicates; <i>items</i>j passes the <i>k</i>th
+test if the <i>k</i>th test predicate returns non-null when applied to <i>items</i>j.
+<P><pre>
+(split #Z(-1 2 3 -4) #Z(t nil nil t)) 
+  => #Z(-1 -4) and #Z(2 3) 
+(multiple-value-bind (+x -x) (split-if  #Z(-1 2 3 -4) #'plusp) 
+  (values (collect-sum +x) (collect-sum -x))) 
+  => 5 and -5
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>catenate &amp;rest <i>series-inputs</i></tt><P><tt>catenate</tt> combines two or more series into one long series by appending
+them end to end.  The length of the output is the sum of the lengths of the
+inputs.
+<P><pre>
+(catenate #Z(b c) #Z() #Z(d)) => #Z(b c d)
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>subseries <i>items</i> <i>start</i> &amp;optional <i>below</i></tt><P><tt>subseries</tt> returns a series containing the elements of the input
+series <i>items</i> indexed by the non-negative integers from <i>start</i> up
+to, but not including, <i>below</i>.  If <i>below</i> is omitted or greater
+than the length of <i>items</i>, the output goes all the way to the end
+of <i>items</i>.
+<P><pre>
+(subseries #Z(a b c d) 1) => #Z(b c d) 
+(subseries #Z(a b c d) 1 3) => #Z(b c)
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>positions <i>bools</i></tt><P><tt>positions</tt> returns a series of the indices of the non-null elements in
+the series input <i>bools</i>.
+<P><pre>
+(positions #Z(t nil t 44)) => #Z(0 2 3)
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>mask <i>monotonic-indices</i></tt><P><tt>mask</tt> is a quasi-inverse of <tt>positions</tt>.  The series input <i>monotonic-indices</i> must be a strictly increasing series of non-negative
+integers.  The output, which is always unbounded, contains <tt>t</tt> in the
+positions specified by <i>monotonic-indices</i> and <tt>nil</tt> everywhere else.
+<P><pre>
+(mask #Z(0 2 3)) => #Z(t nil t t nil nil ...) 
+(mask #Z()) => #Z(nil nil ...) 
+(mask (positions #Z(nil a nil b nil))) 
+  => #Z(nil t nil t nil ...)
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>mingle <i>items1</i> <i>items2</i> <i>comparator</i></tt><P>The series returned by <tt>mingle</tt> contains all and only the elements of
+the two input series.  The length of the output is the sum of the lengths
+of the inputs and is unbounded if either input is unbounded.  The order of
+the elements remains unchanged; however, the elements from the two inputs
+are stably intermixed under the control of the <i>comparator</i>.
+<P>
+The <i>comparator</i> must accept two arguments and return non-null if and only
+if its first argument is strictly less than its second argument (in some
+appropriate sense).  At each step, the <i>comparator</i> is used to compare
+the current elements in the two series.  If the current element from <i>items2</i> is strictly less than the current element from <i>items1</i>, the
+current element is removed from <i>items2</i> and transferred to the output.
+Otherwise, the next output element comes from <i>items1</i>.
+<P><pre>
+(mingle #Z(1 3 7 9) #Z(4 5 8) #'&lt;) => #Z(1 3 4 5 7 8 9) 
+(mingle #Z(1 7 3 9) #Z(4 5 8) #'&lt;) => #Z(1 4 5 7 3 8 9)
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>chunk <i>m</i> <i>n</i> <i>items</i></tt><P>This function has the effect of breaking up the input series <i>items</i> into
+(possibly overlapping) chunks of length <i>m</i>.  The starting positions of successive chunks differ
+by <i>n</i>.  The inputs <i>m</i> and <i>n</i> must both be positive integers.
+<P>
+<tt>chunk</tt> produces <i>m</i> output series.  The <i>i</i>th chunk provides
+the <i>i</i>th element for
+each of  the <i>m</i> outputs.  Suppose that the length of <i>items</i> is <i>l</i>.
+The length of
+each output is <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap44201.gif">.
+The <i>i</i>th element of the <i>k</i>th output is the
+(i*n+k)th element of <i>items</i> (<i>i</i> and <b><i>k</i></b> counting from zero).
+<P>
+Note that if <b><i>l</i>&lt;<i>m</i></b>, there will be no
+output elements, and if <b><i>l</i>-<i>m</i></b> is not a multiple of <i>n</i>,
+the last few input elements will
+not appear in the output.  If <b><i>m</i><i>n</i></b>,
+one can guarantee that the last chunk will contain the last
+element of <i>items</i> by catenating <br><i>n</i>-1
+copies of an appropriate padding value to the end of <i>items</i>.
+<P>
+The first example below shows <tt>chunk</tt>
+being used to compute a moving average.  The second example shows
+<tt>chunk</tt> being used to convert a property list into an association list.
+<P><pre>
+(mapping (((xi xi+1 xi+2) (chunk 3 1 #Z(1 5 3 4 5 6))))  
+  (/ (+ xi xi+1 xi+2) 3)) 
+  => #Z(3 4 4 5)
+
+(collect 
+  (mapping (((prop val) (chunk 2 2 (scan '(a 2 b 5 c 8))))) 
+    (cons prop val))) 
+  => ((a . 2) (b . 5) (c . 8))
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html6116 HREF="node354.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html6114 HREF="node349.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html6108 HREF="node352.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html6118 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html6119 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html6117 HREF="node354.html"> Collectors</A>
+<B>Up:</B> <A NAME=tex2html6115 HREF="node349.html"> Series Functions</A>
+<B> Previous:</B> <A NAME=tex2html6109 HREF="node352.html"> Truncation and Other </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

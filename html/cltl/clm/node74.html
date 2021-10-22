@@ -1,0 +1,395 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node74.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:47:08 GMT -->
+<HEAD>
+<TITLE>6.3. Equality Predicates</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Equality Predicates">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2434 HREF="node75.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2432 HREF="node69.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2426 HREF="node73.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2436 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2437 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2435 HREF="node75.html"> Logical Operators</A>
+<B>Up:</B> <A NAME=tex2html2433 HREF="node69.html"> Predicates</A>
+<B> Previous:</B> <A NAME=tex2html2427 HREF="node73.html"> Specific Data Type </A>
+<HR> <P>
+<H1><A NAME=SECTION001030000000000000000>6.3. Equality Predicates</A></H1>
+<P>
+Common Lisp provides a spectrum of predicates for testing for equality of
+two objects: <tt>eq</tt> (the most specific), <tt>eql</tt>, <tt>equal</tt>, and <tt>equalp</tt>
+(the most general).  <tt>eq</tt> and <tt>equal</tt> have the meanings traditional
+in Lisp.  <tt>eql</tt> was added because it is frequently needed, and
+<tt>equalp</tt> was added primarily in order to have a version of <tt>equal</tt>
+that would ignore type differences when comparing numbers
+and case differences when comparing characters.
+If two objects satisfy any one of these equality predicates,
+then they also satisfy all those that are more general.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>eq</tt> <tt><i>x</i></tt> <tt><i>y</i></tt><P><tt>(eq <i>x</i> <i>y</i>)</tt> is true
+if and only if <i>x</i> and <i>y</i> are the same identical object.
+(Implementationally, <i>x</i> and <i>y</i> are usually
+<tt>eq</tt> if and only if they address the same identical memory location.)
+<P>
+It should be noted that things that print the same are not necessarily <tt>eq</tt>
+to each other.  Symbols with the same print name usually are <tt>eq</tt> to
+each other because of the use of the <tt>intern</tt> function.
+However, numbers with the same value
+need not be <tt>eq</tt>, and two similar lists are usually not <tt>eq</tt>.
+For example:
+<P><pre>
+(eq 'a 'b) is false. 
+(eq 'a 'a) is true. 
+(eq 3 3) might be true or false, depending on the implementation. 
+(eq 3 3.0) is false. 
+(eq 3.0 3.0) might be true or false, depending on the implementation. 
+(eq #c(3 -4) #c(3 -4)) 
+  might be true or false, depending on the implementation. 
+(eq #c(3 -4.0) #c(3 -4)) is false. 
+(eq (cons 'a 'b) (cons 'a 'c)) is false. 
+(eq (cons 'a 'b) (cons 'a 'b)) is false. 
+(eq '(a . b) '(a . b)) might be true or false. 
+(progn (setq x (cons 'a 'b)) (eq x x)) is true. 
+(progn (setq x '(a . b)) (eq x x)) is true. 
+(eq #\A #\A) might be true or false, depending on the implementation. 
+(eq &quot;Foo&quot; &quot;Foo&quot;) might be true or false. 
+(eq &quot;Foo&quot; (copy-seq &quot;Foo&quot;)) is false. 
+(eq &quot;FOO&quot; &quot;foo&quot;) is false.
+</pre><P>
+In Common Lisp, unlike some other Lisp dialects, the implementation
+is permitted to make ``copies'' of
+characters and numbers at any time.  (This permission is granted
+because it allows tremendous performance improvements in many
+common situations.)  The net effect is that
+Common Lisp makes no guarantee that <tt>eq</tt> will be true even when both
+its arguments are ``the same thing'' if that thing is a character or number.
+For example:
+<P><pre>
+(let ((x 5)) (eq x x)) might be true or false.
+</pre><P>
+The predicate <tt>eql</tt> is the same as <tt>eq</tt>, except that if the
+arguments are characters or numbers of the same type then their
+values are compared.  Thus <tt>eql</tt> tells whether two objects
+are <i>conceptually</i> the same, whereas <tt>eq</tt> tells whether two
+objects are <i>implementationally</i> identical.  It is for this reason
+that <tt>eql</tt>, not <tt>eq</tt>, is the default comparison predicate
+for the sequence functions defined in chapter <A HREF="node141.html#KSEQUE">14</A>.
+<P>
+<hr>
+<b>Implementation note:</b> <tt>eq</tt> simply compares the two given pointers,
+so any kind of object that is represented in an ``immediate'' fashion
+will indeed have like-valued instances satisfy <tt>eq</tt>.
+In some implementations, for example,
+fixnums and characters happen to ``work.''
+However, no program should depend on this, as other implementations
+of Common Lisp might not use an immediate representation for these data types.
+<hr>
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+An additional problem with <tt>eq</tt> is that the implementation is permitted
+to ``collapse'' constants (or portions thereof)
+appearing in code to be compiled if they are
+<tt>equal</tt>.  An object is considered to be a constant in code to be compiled
+if it is a self-evaluating form or is contained in a <tt>quote</tt> form.
+This is why <tt>(eq &quot;Foo&quot; &quot;Foo&quot;)</tt> might be true or false; in interpreted
+code it would normally be false, because reading in the
+form <tt>(eq &quot;Foo&quot; &quot;Foo&quot;)</tt> would construct distinct strings for the two
+arguments to <tt>eq</tt>, but the compiler might choose to use the same
+identical string or two distinct copies as the two arguments in the
+call to <tt>eq</tt>.  Similarly, <tt>(eq '(a . b) '(a . b))</tt> might be true
+or false, depending on whether the constant conses appearing in the
+<tt>quote</tt> forms were collapsed by the compiler.  However,
+<tt>(eq (cons 'a 'b) (cons 'a 'b))</tt> is always false, because every distinct
+call to the <tt>cons</tt> function necessarily produces a new and distinct cons.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (QUOTE-SEMANTICS) <A NAME=4374>&#160;</A>  to clarify that
+<tt>eval</tt> and <tt>compile</tt> are not permitted either to copy or
+to coalesce (``collapse'') constants (see <tt>eq</tt>)
+appearing in the code they process; the resulting
+program behavior must refer to objects that are <tt>eql</tt> to the
+corresponding objects in the source code.
+Only the <tt>compile-file</tt>/<tt>load</tt> process is permitted
+to copy or coalesce constants (see section <A HREF="node224.html#COMPILERSECTION">25.1</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>eql</tt> <tt><i>x</i></tt> <tt><i>y</i></tt><P>The <tt>eql</tt> predicate is true if its arguments are <tt>eq</tt>,
+or if they are numbers of the same type with the same value,
+or if they are character objects
+that represent the same character.
+For example:
+<P><pre>
+(eql 'a 'b) is false. 
+(eql 'a 'a) is true. 
+(eql 3 3) is true. 
+(eql 3 3.0) is false. 
+(eql 3.0 3.0) is true. 
+(eql #c(3 -4) #c(3 -4)) is true. 
+(eql #c(3 -4.0) #c(3 -4)) is false. 
+(eql (cons 'a 'b) (cons 'a 'c)) is false. 
+(eql (cons 'a 'b) (cons 'a 'b)) is false. 
+(eql '(a . b) '(a . b)) might be true or false. 
+(progn (setq x (cons 'a 'b)) (eql x x)) is true. 
+(progn (setq x '(a . b)) (eql x x)) is true. 
+(eql #\A #\A) is true. 
+(eql &quot;Foo&quot; &quot;Foo&quot;) might be true or false. 
+(eql &quot;Foo&quot; (copy-seq &quot;Foo&quot;)) is false. 
+(eql &quot;FOO&quot; &quot;foo&quot;) is false.
+</pre><P>
+Normally <tt>(eql 1.0s0 1.0d0)</tt> would be false, under the assumption
+that <tt>1.0s0</tt> and <tt>1.0d0</tt> are of distinct data types.
+However, implementations that do not provide four distinct floating-point
+formats are permitted to ``collapse'' the four formats into some
+smaller number of them; in such an implementation <tt>(eql 1.0s0 1.0d0)</tt>
+might be true.  The predicate <tt>=</tt> will compare
+the values of two numbers even if the numbers are of different types.
+<P>
+If an implementation supports positive and negative zeros as distinct
+values (as in the IEEE proposed standard floating-point format),
+then <tt>(eql 0.0 -0.0)</tt> will be false.  Otherwise, when the syntax
+<tt>-0.0</tt> is read it will be interpreted as the value <tt>0.0</tt>,
+and so <tt>(eql 0.0 -0.0)</tt> will be true.  The predicate <tt>=</tt>
+differs from <tt>eql</tt> in that <tt>(= 0.0 -0.0)</tt> will always be true,
+because <tt>=</tt> compares the mathematical values of its operands,
+whereas <tt>eql</tt> compares the representational values, so to speak.
+<P>
+Two complex numbers are considered to be <tt>eql</tt>
+if their real parts are <tt>eql</tt> and their imaginary parts are <tt>eql</tt>.
+For example, <tt>(eql #C(4 5) #C(4 5))</tt> is true and
+<tt>(eql #C(4 5) #C(4.0 5.0))</tt> is false.
+Note that while <tt>(eql #C(5.0 0.0) 5.0)</tt> is false,
+<tt>(eql #C(5 0) 5)</tt> is true.
+In the case of <tt>(eql #C(5.0 0.0) 5.0)</tt> the
+two arguments are of different types
+and so cannot satisfy <tt>eql</tt>; that's all there is to it.
+In the case of <tt>(eql #C(5 0) 5)</tt>, however,
+<tt>#C(5 0)</tt> is not a complex number but
+is always automatically reduced by the rule of complex
+canonicalization to the integer <tt>5</tt>,
+just as the apparent ratio <tt>20/4</tt> is always simplified to <tt>5</tt>.
+<P>
+The case of <tt>(eql &quot;Foo&quot; &quot;Foo&quot;)</tt> is discussed above in the description
+of <tt>eq</tt>.  While <tt>eql</tt> compares the values of numbers and
+characters, it does not compare the contents of strings.  To compare
+the characters of two strings, one should use <tt>equal</tt>, <tt>equalp</tt>,
+<tt>string=</tt>, or <tt>string-equal</tt>.
+<P>
+<hr>
+<b>Compatibility note:</b> The Common Lisp function <tt>eql</tt> is similar to the
+Interlisp function <tt>eqp</tt>.  However, <tt>eql</tt> considers <tt>3</tt> and
+<tt>3.0</tt> to be different, whereas <tt>eqp</tt> considers them to be the same;
+<tt>eqp</tt> behaves like the Common Lisp <tt>=</tt> function, not like <tt>eql</tt>,
+when both arguments are numbers.
+<hr>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>equal</tt> <tt><i>x</i></tt> <tt><i>y</i></tt><P>The <tt>equal</tt> predicate is true if its arguments are structurally similar
+(isomorphic) objects.  A rough rule of thumb is that two objects
+are <tt>equal</tt> if and only if their printed representations are the same.
+<P>
+Numbers and characters are compared as for <tt>eql</tt>.
+Symbols are compared as for <tt>eq</tt>.  This method
+of comparing symbols can violate the rule
+of thumb for <tt>equal</tt> and printed representations,
+but only in the infrequently occurring case of two distinct
+symbols with the same print name.
+<P>
+Certain objects that have components are <tt>equal</tt> if they are of the same
+type and corresponding components are <tt>equal</tt>.
+This test is implemented in a recursive manner and may fail to
+terminate for circular structures.
+<P>
+For conses, <tt>equal</tt> is defined recursively as
+the two <i>car</i>'s being <tt>equal</tt> and the two <i>cdr</i>'s being <tt>equal</tt>.
+<P>
+Two arrays are <tt>equal</tt> only if they are <tt>eq</tt>,
+with one exception:
+strings and bit-vectors are compared element-by-element.
+If either argument has a fill pointer, the fill pointer limits
+the number of elements examined by <tt>equal</tt>.
+Uppercase and lowercase letters in strings are considered by
+<tt>equal</tt> to be distinct.  (In contrast, <tt>equalp</tt> ignores
+case distinctions in strings.)
+<P>
+<hr>
+<b>Compatibility note:</b> In Lisp Machine Lisp, <tt>equal</tt> ignores the difference between
+uppercase and lowercase letters in strings.
+This violates the rule of thumb about
+printed representations, however, which is very useful, especially
+to novices.  It is also inconsistent with the treatment of single characters,
+which in Lisp Machine Lisp are represented as fixnums.
+<hr>
+<P>
+Two pathname objects are <tt>equal</tt> if and only if
+all the corresponding components
+(host, device, and so on) are equivalent.  (Whether or not
+uppercase and lowercase letters are considered equivalent
+in strings appearing in components depends on the file
+name conventions of the file system.)  Pathnames
+that are <tt>equal</tt> should be functionally equivalent.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989
+(EQUAL-STRUCTURE) <A NAME=4478>&#160;</A> 
+to clarify that <tt>equal</tt> never recursively
+descends any structure or data type other than the ones explicitly
+described above: conses, bit-vectors, strings, and pathnames.
+Numbers and characters are compared as if by <tt>eql</tt>, and all other
+data objects are compared as if by <tt>eq</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<P><pre>
+(equal 'a 'b) is false. 
+(equal 'a 'a) is true. 
+(equal 3 3) is true. 
+(equal 3 3.0) is false. 
+(equal 3.0 3.0) is true. 
+(equal #c(3 -4) #c(3 -4)) is true. 
+(equal #c(3 -4.0) #c(3 -4)) is false. 
+(equal (cons 'a 'b) (cons 'a 'c)) is false. 
+(equal (cons 'a 'b) (cons 'a 'b)) is true. 
+(equal '(a . b) '(a . b)) is true. 
+(progn (setq x (cons 'a 'b)) (equal x x)) is true. 
+(progn (setq x '(a . b)) (equal x x)) is true. 
+(equal #\A #\A) is true. 
+(equal &quot;Foo&quot; &quot;Foo&quot;) is true. 
+(equal &quot;Foo&quot; (copy-seq &quot;Foo&quot;)) is true. 
+(equal &quot;FOO&quot; &quot;foo&quot;) is false.
+</pre><P>
+To compare a tree of conses using <tt>eql</tt>
+(or any other desired predicate) on the leaves, use <tt>tree-equal</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>equalp</tt> <tt><i>x</i></tt> <tt><i>y</i></tt><P>Two objects are <tt>equalp</tt> if they are <tt>equal</tt>;
+if they are characters and satisfy <tt>char-equal</tt>,
+which ignores alphabetic case and certain other attributes of characters;
+if they are numbers and have the same numerical value,
+even if they are of different types;
+or if they have components that are all <tt>equalp</tt>.
+<P>
+Objects that have components are <tt>equalp</tt> if they are of the same
+type and corresponding components are <tt>equalp</tt>.
+This test is implemented in a recursive manner and may fail to
+terminate for circular structures.
+For conses, <tt>equalp</tt> is defined recursively as
+the two <i>car</i>'s being <tt>equalp</tt> and the two <i>cdr</i>'s being <tt>equalp</tt>.
+<P>
+Two arrays are <tt>equalp</tt> if and only if they have the same
+number of dimensions, the dimensions match,
+and the corresponding components are <tt>equalp</tt>.
+The specializations need not match; for example,
+a string and a general array that happens to contain the same characters
+will be <tt>equalp</tt> (though definitely not <tt>equal</tt>).
+If either argument has a fill pointer, the fill pointer limits
+the number of elements examined by <tt>equalp</tt>.
+Because <tt>equalp</tt> performs element-by-element comparisons
+of strings and ignores the alphabetic case of characters,
+case distinctions are therefore also ignored when <tt>equalp</tt> compares
+strings.
+<P>
+Two symbols can be <tt>equalp</tt> only if they are <tt>eq</tt>, that is, the same
+identical object.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989
+(EQUAL-STRUCTURE) <A NAME=4528>&#160;</A> 
+to specify that <tt>equalp</tt> compares components
+of hash tables (see below), and to
+clarify that otherwise <tt>equalp</tt> never recursively
+descends any structure or data type other than the ones explicitly
+described above: conses, arrays (including bit-vectors and strings), and pathnames.
+Numbers are compared for numerical equality (see <tt>=</tt>),
+characters are compared as if by <tt>char-equal</tt>, and all other
+data objects are compared as if by <tt>eq</tt>.
+<P>
+Two hash tables are considered the same by <tt>equalp</tt> if and only if
+they satisfy a four-part test:
+<UL><LI> They must be
+of the same kind; that is, equivalent <tt>:test</tt> arguments were given to
+<tt>make-hash-table</tt> when the two hash tables were created.
+<P>
+<LI> They must have the same number of entries (see <tt>hash-table-count</tt>).
+<P>
+<LI> For every entry (<i>key1</i>, <i>value1</i>) in one hash table
+there must be a corresponding entry (<i>key2</i>, <i>value2</i>) in the
+other, such that <i>key1</i> and <i>key2</i> are considered to be the same
+by the <tt>:test</tt> function associated with the hash tables.
+<P>
+<LI> For every entry (<i>key1</i>, <i>value1</i>) in one hash table
+and its corresponding entry (<i>key2</i>, <i>value2</i>) in the
+other, such that <i>key1</i> and <i>key2</i> are the same,
+<tt>equalp</tt> must be true of <i>value1</i> and <i>value2</i>.
+</UL>
+The four parts of this test are carried out in the order shown, and
+if some part of the test fails, <tt>equalp</tt> returns <tt>nil</tt> and
+the other parts of the test are not attempted.
+<P>
+If <tt>equalp</tt> must compare two structures and the <tt>defstruct</tt>
+definition for one used the <tt>:type</tt> option and the other did not,
+then <tt>equalp</tt> returns <tt>nil</tt>.
+<P>
+If <tt>equalp</tt> must compare two structures and neither <tt>defstruct</tt>
+definition used the <tt>:type</tt> option,
+then <tt>equalp</tt> returns <tt>t</tt> if and only if the structures have the
+same type (that is, the same <tt>defstruct</tt> name) and the values
+of all corresponding slots (slots having the same name) are <tt>equalp</tt>.
+<P>
+As part of the X3J13 discussion of this issue
+the following observations were made.
+    Object equality is not a concept for which there is a uniquely
+    determined correct algorithm. The appropriateness of an equality
+    predicate can be judged only in the context of the needs of some
+    particular program. Although these functions take any type of
+    argument and their names sound very generic, <tt>equal</tt> and <tt>equalp</tt> are
+    not appropriate for every application. Any decision to use or not
+    use them should be determined by what they are documented to do
+    rather than by any abstract characterization of their function. If
+    neither <tt>equal</tt> nor <tt>equalp</tt> is found to be appropriate in a particular
+    situation, programmers are encouraged to create another operator
+    that is appropriate rather than blame <tt>equal</tt> or <tt>equalp</tt> for ``doing
+    the wrong thing.''
+<P>
+Note that one consequence
+of the vote to change the rules of
+floating-point contagion
+(CONTAGION-ON-NUMERICAL-COMPARISONS) <A NAME=4578>&#160;</A> 
+(described in section <A HREF="node122.html#PRECISIONCONTAGIONCOERCIONSECTION">12.1</A>)
+is to make <tt>equalp</tt>
+a true equivalence relation on numbers.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<P><pre>
+(equalp 'a 'b) is false. 
+(equalp 'a 'a) is true. 
+(equalp 3 3) is true. 
+(equalp 3 3.0) is true. 
+(equalp 3.0 3.0) is true. 
+(equalp #c(3 -4) #c(3 -4)) is true. 
+(equalp #c(3 -4.0) #c(3 -4)) is true. 
+(equalp (cons 'a 'b) (cons 'a 'c)) is false. 
+(equalp (cons 'a 'b) (cons 'a 'b)) is true. 
+(equalp '(a . b) '(a . b)) is true. 
+(progn (setq x (cons 'a 'b)) (equalp x x)) is true. 
+(progn (setq x '(a . b)) (equalp x x)) is true. 
+(equalp #\A #\A) is true. 
+(equalp &quot;Foo&quot; &quot;Foo&quot;) is true. 
+(equalp &quot;Foo&quot; (copy-seq &quot;Foo&quot;)) is true. 
+(equalp &quot;FOO&quot; &quot;foo&quot;) is true.
+</pre><P>
+<P>
+<BR> <HR><A NAME=tex2html2434 HREF="node75.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2432 HREF="node69.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2426 HREF="node73.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2436 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2437 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2435 HREF="node75.html"> Logical Operators</A>
+<B>Up:</B> <A NAME=tex2html2433 HREF="node69.html"> Predicates</A>
+<B> Previous:</B> <A NAME=tex2html2427 HREF="node73.html"> Specific Data Type </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

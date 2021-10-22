@@ -1,0 +1,139 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node111.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 10:08:54 GMT -->
+<HEAD>
+<TITLE>11. Packages</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Packages">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2902 HREF="node112.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2900 HREF="clm.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2894 HREF="node110.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2904 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2905 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2903 HREF="node112.html"> Consistency Rules</A>
+<B>Up:</B> <A NAME=tex2html2901 HREF="clm.html">Common Lisp the Language</A>
+<B> Previous:</B> <A NAME=tex2html2895 HREF="node110.html"> Creating Symbols</A>
+<HR> <P>
+<H1><A NAME=SECTION001500000000000000000>11. Packages</A></H1>
+<P>
+<A NAME=XPACK>One</A>
+problem with earlier Lisp systems is the use of a single name space
+for all symbols.  In large Lisp systems, with modules written by many
+different programmers, accidental name collisions become a serious
+problem.  Common Lisp addresses this problem through the <i>package system</i>,
+derived from an earlier package system developed for
+Lisp Machine Lisp [<A HREF="node368.html#BLUELISPM">55</A>].
+In addition to preventing name-space conflicts, the
+package system makes the modular structure of large Lisp systems more
+explicit.
+<P>
+A <i>package</i> is a data structure that establishes a mapping from print
+names (strings) to symbols.  The package thus replaces the ``oblist'' or
+``obarray'' machinery of earlier Lisp systems.  At any given time one
+package is current, and this package is used by the Lisp reader in
+translating strings into symbols.  The current package is, by definition,
+the one that is the
+value of the global variable <tt>*package*</tt>.  It is possible to refer to
+symbols in packages other than the current one through the use of
+<i>package qualifiers</i> in the printed representation of the symbol.
+For example, <tt>foo:bar</tt>, when seen by the reader,
+refers to the symbol whose name is
+<tt>bar</tt> in the package whose name is <tt>foo</tt>.
+(Actually, this is true only if <tt>bar</tt> is an external symbol of <tt>foo</tt>,
+that is, a symbol that is supposed to be visible outside of <tt>foo</tt>.
+A reference to an internal symbol requires the intentionally
+clumsier syntax <tt>foo::bar</tt>.)
+<P>
+The string-to-symbol mappings available in a given package are divided
+into two classes, <i>external</i> and <i>internal</i>.  We refer to the
+symbols accessible via these mappings as being <i>external</i> and
+<i>internal</i> symbols of the package in question, though really it is the
+mappings that are different and not the symbols themselves.  Within a
+given package, a name refers to one symbol or to none; if it does refer
+to a symbol, then it is either external or internal in that
+package, but not both.
+<P>
+External symbols are part of the package's public interface to other
+packages.  External symbols are supposed to be chosen with some care and are
+advertised to users of the package.  Internal symbols are for internal
+use only, and these symbols are normally hidden from other packages.
+Most symbols are created as internal symbols; they become external only
+if they appear explicitly in an <tt>export</tt> command for the package.
+<P>
+A symbol may appear in many packages.  It will always have the same
+name wherever it appears, but it may be external in some packages
+and internal in others.  On the other hand,
+the same name (string) may refer to different symbols in
+different packages.
+<P>
+Normally, a symbol that appears in one or more packages
+will be <i>owned</i> by one particular package, called the <i>home package</i>
+of the symbol; that package is said to <i>own</i> the symbol.
+Every symbol has a component called the <i>package cell</i>
+that contains a pointer to its home package.
+A symbol that is owned by some package is said to be <i>interned</i>.
+Some symbols are not owned by any package; such a symbol
+is said to be <i>uninterned</i>, and its package cell contains <tt>nil</tt>.
+<P>
+Packages may be built up in layers.  From the point of view of a
+package's user, the package is a single collection of mappings from
+strings into internal and external symbols.  However, some of these
+mappings may be established within the package itself, while other
+mappings are inherited from other packages via the <tt>use-package</tt>
+construct.  (The mechanisms responsible for this inheritance are
+described below.)  In what follows, we will refer to a symbol as being
+<i>accessible</i> in a package if it can be referred to
+without a package qualifier when that package is current,
+regardless of whether the mapping occurs within
+that package or via inheritance.   We will refer to a symbol as being
+<i>present</i> in a package if the mapping is in the package itself and is
+not inherited from somewhere else.  Thus a symbol present in a package is accessible,
+but an accessible symbol is not necessarily present.
+<P>
+A symbol is said to be <i>interned in a package</i> if it is
+accessible in that package and also is owned (by either that package
+or some other package).  Normally all the symbols accessible in
+a package will in fact be owned by some package,
+but the terminology is useful when
+discussing the pathological case of an accessible but unowned (uninterned)
+symbol.
+<P>
+As a verb, to <i>intern</i> a symbol in a package means to cause the
+symbol to be interned in the package if it was not already;
+this process is performed by the function <tt>intern</tt>.
+If the symbol was previously unowned, then the package it is being
+interned in becomes its owner (home package); but
+if the symbol was previously owned by another package, that other package
+continues to own the symbol.
+<P>
+To <i>unintern</i> a symbol from the package means to cause it to be not
+present in the package
+and, additionally, to cause the symbol to be uninterned if the
+package was the home package (owner) of the symbol.
+This process is performed by the function <tt>unintern</tt>.
+<P>
+<HR>
+<UL> 
+<LI> <A NAME=tex2html2906 HREF="node112.html#SECTION001510000000000000000"> Consistency Rules</A>
+<LI> <A NAME=tex2html2907 HREF="node113.html#SECTION001520000000000000000"> Package Names</A>
+<LI> <A NAME=tex2html2908 HREF="node114.html#SECTION001530000000000000000"> Translating Strings to Symbols</A>
+<LI> <A NAME=tex2html2909 HREF="node115.html#SECTION001540000000000000000"> Exporting and Importing Symbols</A>
+<LI> <A NAME=tex2html2910 HREF="node116.html#SECTION001550000000000000000"> Name Conflicts</A>
+<LI> <A NAME=tex2html2911 HREF="node117.html#SECTION001560000000000000000"> Built-in Packages</A>
+<LI> <A NAME=tex2html2912 HREF="node118.html#SECTION001570000000000000000"> Package System Functions and Variables</A>
+<LI> <A NAME=tex2html2913 HREF="node119.html#SECTION001580000000000000000"> Modules</A>
+<LI> <A NAME=tex2html2914 HREF="node120.html#SECTION001590000000000000000"> An Example</A>
+</UL>
+<BR> <HR><A NAME=tex2html2902 HREF="node112.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2900 HREF="clm.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2894 HREF="node110.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2904 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2905 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2903 HREF="node112.html"> Consistency Rules</A>
+<B>Up:</B> <A NAME=tex2html2901 HREF="clm.html">Common Lisp the Language</A>
+<B> Previous:</B> <A NAME=tex2html2895 HREF="node110.html"> Creating Symbols</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

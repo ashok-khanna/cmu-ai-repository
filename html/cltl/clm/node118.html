@@ -1,0 +1,996 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node118.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:47:06 GMT -->
+<HEAD>
+<TITLE>11.7. Package System Functions and Variables</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Package System Functions and Variables">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2995 HREF="node119.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2993 HREF="node111.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2987 HREF="node117.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2997 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2998 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2996 HREF="node119.html"> Modules</A>
+<B>Up:</B> <A NAME=tex2html2994 HREF="node111.html"> Packages</A>
+<B> Previous:</B> <A NAME=tex2html2988 HREF="node117.html"> Built-in Packages</A>
+<HR> <P>
+<H1><A NAME=SECTION001570000000000000000>11.7. Package System Functions and Variables</A></H1>
+<P>
+<A NAME=PACKAGEFUNCTIONSSECTION>Some</A>
+of the functions and variables in this section
+are described in previous sections but are included here
+for completeness.
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+It is up to each implementation's compiler to ensure that when a
+compiled file is loaded, all of the symbols in the file end up in the
+same packages that they would occupy if the Lisp source file were
+loaded.  In most compilers, this will be accomplished by treating
+certain package operations as though they are surrounded by
+<tt>(eval-when (compile load eval) ...)</tt>; see <tt>eval-when</tt>.
+These operations are
+<tt>make-package</tt>, <tt>in-package</tt>, <tt>shadow</tt>, <tt>shadowing-import</tt>,
+<tt>export</tt>, <tt>unexport</tt>, <tt>use-package</tt>, <tt>unuse-package</tt>, and <tt>import</tt>.
+To guarantee proper compilation in all Common Lisp
+implementations, these functions should appear only at top level within
+a file.  As a matter of style, it is suggested that each file contain
+only one package, and that all of the package setup forms appear near
+the start of the file.  This is discussed in more detail, with examples,
+in section <A HREF="node120.html#PACKAGEEXAMPLESECTION">11.9</A>.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (IN-PACKAGE-FUNCTIONALITY) <A NAME=10501>&#160;</A> 
+to cancel the specifications of the preceding paragraph
+in order to support a model of file compilation in which the
+compiler need never take special note of ordinary function calls;
+only special forms and macros are recognized as affecting the state
+of the compilation process.
+As part of this change <tt>in-package</tt> was changed to be a macro
+rather than a function and its functionality was restricted.
+The actions of
+<tt>shadow</tt>, <tt>shadowing-import</tt>, <tt>use-package</tt>,
+<tt>import</tt>, <tt>intern</tt>, and <tt>export</tt> for compilation
+purposes may be accomplished with the new macro <tt>defpackage</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<hr>
+<b>Implementation note:</b> In the past, some Lisp compilers have read
+the entire file into Lisp before processing any of the forms.  
+Other compilers have arranged for
+the loader to do all of its intern operations before evaluating any of the
+top-level forms.  Neither of these techniques will work in a
+straightforward way in Common Lisp because of the presence of multiple
+packages.
+<hr>
+<P>
+For the functions described here, all optional arguments named
+<i>package</i> default to the current value of <tt>*package*</tt>.  Where a
+function takes an argument that is either a symbol or a list of symbols,
+an argument of <tt>nil</tt> is treated as an empty list of symbols.  Any
+argument described as a package name may be either a string or a symbol.
+If a symbol is supplied, its print name will be used as the package
+name; if a string is supplied, the user must take care to specify the
+same capitalization used in the package name, normally all uppercase.
+<P>
+<BR><b>[Variable]</b><BR>
+<tt>*package*</tt><P>The value of this variable must be a package; this package is said to be
+the current package.  The initial value of <tt>*package*</tt> is the <tt>user</tt>
+package.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (LISP-PACKAGE-NAME) <A NAME=10520>&#160;</A>  to specify that
+the forthcoming ANSI Common Lisp will use the package name <tt>common-lisp-user</tt>
+instead of <tt>user</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+The function <tt>load</tt> rebinds <tt>*package*</tt> to its current value.  If
+some form in the file changes the value of <tt>*package*</tt> during loading,
+the old value will be restored when the loading is completed.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in October 1988 (COMPILE-FILE-PACKAGE) <A NAME=10528>&#160;</A> 
+to require <tt>compile-file</tt> to rebind <tt>*package*</tt> to its current value.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>make-package <i>package-name</i> &amp;key :nicknames :use</tt><P>This creates and returns a new package with the specified package name.  As
+described above, this argument may be either a string or a symbol.  The
+<tt>:nicknames</tt> argument must be a list of strings to be used as
+alternative names for the package.  Once again, the user may supply
+symbols in place of the strings, in which case the print names of the
+symbols are used.  These names and nicknames must not conflict with
+any existing package names; if they do, a correctable error is
+signaled.
+<P>
+The <tt>:use</tt> argument is a list of packages or the names (strings or
+symbols) of packages whose external symbols are to be inherited by the
+new package.  These packages must already exist.  If not supplied,
+<tt>:use</tt> defaults to a list of one package, the <tt>lisp</tt> package.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (LISP-PACKAGE-NAME) <A NAME=10539>&#160;</A>  to specify that
+the forthcoming ANSI Common Lisp will use the package name <tt>common-lisp</tt>
+instead of <tt>lisp</tt>.
+<P>
+X3J13 voted in January 1989
+(MAKE-PACKAGE-USE-DEFAULT) <A NAME=10544>&#160;</A> 
+to change the specification of <tt>make-package</tt> so that the default value
+for the <tt>:use</tt> argument is unspecified.  Portable code should
+specify <tt>:use '(&quot;COMMON-LISP&quot;)</tt> explicitly.
+<P>
+<hr>
+<b>Rationale:</b> Many existing implementations of Common Lisp happen to have violated
+the first edition specification, providing as the default not only
+the <tt>lisp</tt> package but also (or instead) a package containing
+implementation-dependent language extensions.
+This is for good reason: usually it is much
+more convenient to the user for the default <tt>:use</tt> list to be
+the entire, implementation-dependent, extended language rather
+than only the facilities specified in this book.  The X3J13 vote
+simply legitimizes existing practice.
+<hr>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<BR><b>[Function]</b><BR>
+<tt>in-package <i>package-name</i> &amp;key :nicknames :use</tt><P>The <tt>in-package</tt> function is intended to be placed at the start of a
+file containing a subsystem that is to be loaded into some package other
+than <tt>user</tt>.
+<P>
+If there is not already a package named <i>package-name</i>, this
+function is similar to <tt>make-package</tt>, except that after the
+new package is created, <tt>*package*</tt> is set to it.  This binding will
+remain in force until changed by the user (perhaps with another
+<tt>in-package</tt> call) or until the <tt>*package*</tt> variable reverts to its
+old value at the completion of a <tt>load</tt> operation.
+<P>
+If there is an existing package whose name is <i>package-name</i>, the
+assumption is that the user is re-loading a file after making some
+changes.  The existing package is augmented to reflect any new nicknames
+or new packages in the <tt>:use</tt> list (with the usual error checking), and
+<tt>*package*</tt> is then set to this package.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(RETURN-VALUES-UNSPECIFIED) <A NAME=10570>&#160;</A> 
+to specify that <tt>in-package</tt> returns the new package, that is, the
+value of <tt>*package*</tt> after the operation has been executed.
+<P>
+X3J13 voted in March 1989 (LISP-PACKAGE-NAME) <A NAME=10575>&#160;</A>  to specify that
+the forthcoming ANSI Common Lisp will use the package name <tt>common-lisp-user</tt>
+instead of <tt>user</tt>.
+<P>
+X3J13 voted in March 1989 (IN-PACKAGE-FUNCTIONALITY) <A NAME=10580>&#160;</A> 
+to restrict the functionality of <tt>in-package</tt> and to make it a macro.
+This is an incompatible change.
+<P>
+    Making <tt>in-package</tt> a macro rather than a function means that there
+    is no need to require <tt>compile-file</tt> to handle it specially.  Since
+    <tt>defpackage</tt> is also defined to have side
+    effects on the compilation environment,
+    there is no need to require any of the package functions to be treated
+    specially by the compiler.
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>in-package <i>name</i></tt><P>This macro causes <tt>*package*</tt> to be set to the package named <i>name</i>,
+    which must be a symbol or string.  The <i>name</i> is not evaluated.
+    An error is signaled if the
+    package does not already exist.  Everything this macro does is also
+    performed at compile time if the call appears at top level.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>find-package <i>name</i></tt><P>The <i>name</i> must be a string that is the name or nickname for a
+package.  This argument may also be a symbol, in which case the symbol's
+print name is used.  The package with that name or nickname
+is returned; if no such package exists, <tt>find-package</tt> returns <tt>nil</tt>.
+The matching of names observes case (as in <tt>string=</tt>).
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(PACKAGE-FUNCTION-CONSISTENCY) <A NAME=10597>&#160;</A> 
+to allow <tt>find-package</tt> to accept a package object, in which case
+the package is simply returned (see section <A HREF="node113.html#PACKAGENAMESSECTION">11.2</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>package-name <i>package</i></tt><P>The argument must be a package.  This function returns the string that
+names that package.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(PACKAGE-FUNCTION-CONSISTENCY) <A NAME=10604>&#160;</A> 
+to allow <tt>package-name</tt> to accept a package name or nickname, in which case
+the primary name of the package so specified is returned
+(see section <A HREF="node113.html#PACKAGENAMESSECTION">11.2</A>).
+<P>
+X3J13 voted in January 1989
+(PACKAGE-DELETION) <A NAME=10609>&#160;</A> 
+to add a function to delete packages.
+One consequence of this vote is that <tt>package-name</tt>
+will return <tt>nil</tt> instead of a package name if applied
+to a deleted package object.  See <tt>delete-package</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>package-nicknames <i>package</i></tt><P>The argument must be a package.  This function returns the list of
+nickname strings for that package, not including the primary name.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(PACKAGE-FUNCTION-CONSISTENCY) <A NAME=10617>&#160;</A> 
+to allow <tt>package-nicknames</tt> to accept a package name or nickname,
+in which case the nicknames of the package so specified are returned
+(see section <A HREF="node113.html#PACKAGENAMESSECTION">11.2</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>rename-package <i>package</i> <i>new-name</i> &amp;optional <i>new-nicknames</i></tt><P>The old name and all of the old nicknames of <i>package</i> are eliminated
+and are replaced by <i>new-name</i> and <i>new-nicknames</i>.  The
+<i>new-name</i> argument is a string or symbol; the <i>new-nicknames</i>
+argument, which defaults to <tt>nil</tt>, is a list of strings or symbols.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(PACKAGE-FUNCTION-CONSISTENCY) <A NAME=10630>&#160;</A> 
+to clarify that the <i>package</i> argument may be either a package object
+or a package name (see section <A HREF="node113.html#PACKAGENAMESSECTION">11.2</A>).
+<P>
+X3J13 voted in January 1989
+(RETURN-VALUES-UNSPECIFIED) <A NAME=10635>&#160;</A> 
+to specify that <tt>rename-package</tt> returns <i>package</i>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>package-use-list <i>package</i></tt><P>A list of other packages used by the argument package is returned.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(PACKAGE-FUNCTION-CONSISTENCY) <A NAME=10642>&#160;</A> 
+to clarify that the <i>package</i> argument may be either a package object
+or a package name (see section <A HREF="node113.html#PACKAGENAMESSECTION">11.2</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>package-used-by-list <i>package</i></tt><P>A list of other packages that use the argument package is returned.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(PACKAGE-FUNCTION-CONSISTENCY) <A NAME=10649>&#160;</A> 
+to clarify that the <i>package</i> argument may be either a package object
+or a package name (see section <A HREF="node113.html#PACKAGENAMESSECTION">11.2</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>package-shadowing-symbols <i>package</i></tt><P>A list is returned of symbols that have been declared as shadowing
+symbols in this package by <tt>shadow</tt> or <tt>shadowing-import</tt>.  All
+symbols on this list are present in the specified package.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(PACKAGE-FUNCTION-CONSISTENCY) <A NAME=10658>&#160;</A> 
+to clarify that the <i>package</i> argument may be either a package object
+or a package name (see section <A HREF="node113.html#PACKAGENAMESSECTION">11.2</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>list-all-packages</tt><P>This function returns a list of all packages that currently exist in the
+Lisp system.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<BR><b>[Function]</b><BR>
+<tt>delete-package <i>package</i></tt><P>X3J13 voted in January 1989
+(PACKAGE-DELETION) <A NAME=10667>&#160;</A> 
+to add the <tt>delete-package</tt> function, which
+deletes the specified <i>package</i> from all package system data structures.
+The <i>package</i> argument may be either a package or the name of a package.
+<P>
+If <i>package</i> is a name but there is currently no package of that name,
+a correctable error is signaled.  Continuing from the error makes
+no deletion attempt but merely returns <tt>nil</tt> from the call to
+<tt>delete-package</tt>.
+<P>
+If <i>package</i> is a package object that has already been deleted,
+no error is signaled and no deletion is attempted; instead,
+<tt>delete-package</tt> immediately returns <tt>nil</tt>.
+<P>
+If the package specified for deletion is currently used by other packages,
+a correctable error is signaled.  Continuing from this error,
+the effect of the function <tt>unuse-package</tt> is performed on all
+such other packages so as to remove their dependency on the
+specified package, after which <tt>delete-package</tt> proceeds to
+delete the specified package as if no other package had been using it.
+<P>
+If any symbol had the specified package as its home package before
+the call to <tt>delete-package</tt>, then its home package is unspecified
+(that is, the contents of its package cell are unspecified)
+after the <tt>delete-package</tt> operation has been completed.
+Symbols in the deleted package are not modified in any other way.
+<P>
+The name and nicknames of the <i>package</i> cease to be recognized package
+names.  The package object is still a package, but anonymous; <tt>packagep</tt> will
+be true of it, but <tt>package-name</tt> applied to it will return <tt>nil</tt>.
+<P>
+The effect of any other package operation on a deleted package object
+is undefined.  In particular, an attempt to locate a symbol within a
+deleted package (using <tt>intern</tt> or <tt>find-symbol</tt>, for example)
+will have unspecified results.
+<P>
+<tt>delete-package</tt> returns <tt>t</tt> if the deletion succeeds,
+and <tt>nil</tt> otherwise.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>intern <i>string</i> &amp;optional <i>package</i></tt><P>The <i>package</i>, which defaults to the current package, is
+searched for a symbol with the name specified by the <i>string</i>
+argument.  This search will include inherited symbols, as described
+in section <A HREF="node115.html#EXPORTIMPORTSECTION">11.4</A>.
+If a symbol with the specified name is found, it is returned.
+If no such symbol is found, one is created and is installed in the
+specified package as an internal symbol (as an external symbol
+if the package is the <tt>keyword</tt> package); the specified package becomes the
+home package of the created symbol.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (CHARACTER-PROPOSAL) <A NAME=10698>&#160;</A> 
+to specify that <tt>intern</tt> may in effect perform the
+search using a copy of the argument string in which
+some or all of the implementation-defined
+attributes have been removed from the characters of the string.
+It is implementation-dependent which attributes are removed.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+Two values are returned.  The first is the symbol that was found or
+created.  The second value is <tt>nil</tt> if no pre-existing symbol was found,
+and takes on one of three values if a symbol was found:
+<DL COMPACT>
+<DT><tt>:internal</tt>
+<DD>
+The symbol was directly present in the package as an internal symbol.
+<P>
+<DT><tt>:external</tt>
+<DD>
+The symbol was directly present as an external symbol.
+<P>
+<DT><tt>:inherited</tt>
+<DD>
+The symbol was inherited via <tt>use-package</tt> (which
+implies that the symbol is internal).
+<P>
+ </DL>
+<P>
+X3J13 voted in January 1989
+(PACKAGE-FUNCTION-CONSISTENCY) <A NAME=10710>&#160;</A> 
+to clarify that the <i>package</i> argument may be either a package object
+or a package name (see section <A HREF="node113.html#PACKAGENAMESSECTION">11.2</A>).
+<P>
+<hr>
+<b>Compatibility note:</b> Conceptually, <tt>intern</tt> translates a
+string to a symbol.  In MacLisp and several other dialects of Lisp,
+<tt>intern</tt> can take either a string or a symbol as its argument; in the 
+latter case, the symbol's print name is extracted and used as the string.  
+However, this leads to some confusing issues about what to do if
+<tt>intern</tt> finds a symbol that is not <tt>eq</tt> to the argument symbol.  To
+avoid such confusion, Common Lisp requires the argument to be a string.
+<hr>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>find-symbol <i>string</i> &amp;optional <i>package</i></tt><P>This is identical to <tt>intern</tt>, but it never creates a new symbol.  If
+a symbol with the specified name is found in the specified package,
+directly or by inheritance, the symbol found is returned as the first
+value and the second value is as specified for <tt>intern</tt>.  If the
+symbol is not accessible in the specified package, both values are
+<tt>nil</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(PACKAGE-FUNCTION-CONSISTENCY) <A NAME=10726>&#160;</A> 
+to clarify that the <i>package</i> argument may be either a package object
+or a package name (see section <A HREF="node113.html#PACKAGENAMESSECTION">11.2</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>unintern <i>symbol</i> &amp;optional <i>package</i></tt><P>If the specified symbol is present in the specified <i>package</i>, it is
+removed from that package and also from the package's shadowing-symbols
+list if it is present there.  Moreover, if the <i>package</i> is the home
+package for the symbol, the symbol is made to have no home package.
+Note that in some circumstances the symbol may continue to be accessible
+in the specified package by inheritance.
+<tt>unintern</tt> returns <tt>t</tt> if it actually removed a symbol,
+and <tt>nil</tt> otherwise.
+<P>
+<tt>unintern</tt> should be used with caution.  It changes the state of the
+package system in such a way that the consistency rules do not hold
+across the change.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(PACKAGE-FUNCTION-CONSISTENCY) <A NAME=10739>&#160;</A> 
+to clarify that the <i>package</i> argument may be either a package object
+or a package name (see section <A HREF="node113.html#PACKAGENAMESSECTION">11.2</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<hr>
+<b>Compatibility note:</b> The equivalent of this in MacLisp is <tt>remob</tt>.
+<hr>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>export <i>symbols</i> &amp;optional <i>package</i></tt><P>The <i>symbols</i> argument should be a list of symbols, or possibly a single
+symbol.  These symbols become accessible as external symbols in
+<i>package</i> (see section <A HREF="node115.html#EXPORTIMPORTSECTION">11.4</A>).
+<tt>export</tt> returns <tt>t</tt>.
+<P>
+By convention, a call to <tt>export</tt> listing all exported symbols is
+placed near the start of a file to advertise which of the symbols
+mentioned in the file are intended to be used by other programs.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(PACKAGE-FUNCTION-CONSISTENCY) <A NAME=10755>&#160;</A> 
+to clarify that the <i>package</i> argument may be either a package object
+or a package name (see section <A HREF="node113.html#PACKAGENAMESSECTION">11.2</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>unexport <i>symbols</i> &amp;optional <i>package</i></tt><P>The argument should be a list of symbols, or possibly a single symbol.
+These symbols become internal symbols in <i>package</i>.
+It is an error to unexport a symbol from the <tt>keyword</tt> package
+(see section <A HREF="node115.html#EXPORTIMPORTSECTION">11.4</A>).
+<tt>unexport</tt> returns <tt>t</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(PACKAGE-FUNCTION-CONSISTENCY) <A NAME=10767>&#160;</A> 
+to clarify that the <i>package</i> argument may be either a package object
+or a package name (see section <A HREF="node113.html#PACKAGENAMESSECTION">11.2</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>import <i>symbols</i> &amp;optional <i>package</i></tt><P>The argument should be a list of symbols, or possibly a single symbol.
+These symbols become internal symbols in <i>package</i> and can therefore
+be referred to without having to use qualified-name (colon) syntax.
+<tt>import</tt> signals a
+correctable error if any of the imported symbols has the same name as
+some distinct symbol already accessible in the package
+(see section <A HREF="node115.html#EXPORTIMPORTSECTION">11.4</A>).
+<tt>import</tt> returns <tt>t</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1987 (IMPORT-SETF-SYMBOL-PACKAGE) <A NAME=10779>&#160;</A> 
+to clarify that if any symbol to be imported has no home package
+then <tt>import</tt> sets the home package of the symbol to the
+<i>package</i> to which the symbol is being imported.
+<P>
+X3J13 voted in January 1989
+(PACKAGE-FUNCTION-CONSISTENCY) <A NAME=10784>&#160;</A> 
+to clarify that the <i>package</i> argument may be either a package object
+or a package name (see section <A HREF="node113.html#PACKAGENAMESSECTION">11.2</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>shadowing-import <i>symbols</i> &amp;optional <i>package</i></tt><P>This is like <tt>import</tt>, but it does not signal an error even if the
+importation of a symbol would shadow some symbol already accessible in
+the package.  In addition to being imported, the symbol is placed on the
+shadowing-symbols list of <i>package</i>
+(see section <A HREF="node116.html#NAMECONFLICTSSECTION">11.5</A>).
+<tt>shadowing-import</tt> returns <tt>t</tt>.
+<P>
+<tt>shadowing-import</tt> should be used with
+caution.  It changes the state of the package system in such a way that
+the consistency rules do not hold across the change.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(PACKAGE-FUNCTION-CONSISTENCY) <A NAME=10797>&#160;</A> 
+to clarify that the <i>package</i> argument may be either a package object
+or a package name (see section <A HREF="node113.html#PACKAGENAMESSECTION">11.2</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>shadow <i>symbols</i> &amp;optional <i>package</i></tt><P>The argument should be a list of symbols, or possibly a single symbol.
+The print name of each symbol is extracted, and the specified <i>package</i> is
+searched for a symbol of that name.  If such a symbol is present in this
+package (directly, not by inheritance), then nothing is done.  Otherwise,
+a new symbol is created with this print name, and it is inserted in the
+<i>package</i> as an internal symbol.  The symbol is also placed on the
+shadowing-symbols list of the <i>package</i>
+(see section <A HREF="node116.html#NAMECONFLICTSSECTION">11.5</A>).
+<tt>shadow</tt> returns <tt>t</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988 (SHADOW-ALREADY-PRESENT) <A NAME=10810>&#160;</A> 
+to change <tt>shadow</tt> to accept strings as well as well as symbols
+(a string in the <i>symbols</i> list being treated as a print name),
+and to clarify that if a symbol of specified name is already in
+the <i>package</i> but is not yet on the shadowing-symbols list
+for that <i>package</i>, then <tt>shadow</tt> does add it to the shadowing-symbols
+list rather than simply doing nothing.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<tt>shadow</tt> should be used with
+caution.  It changes the state of the package system in such a way that
+the consistency rules do not hold across the change.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(PACKAGE-FUNCTION-CONSISTENCY) <A NAME=10819>&#160;</A> 
+to clarify that the <i>package</i> argument may be either a package object
+or a package name (see section <A HREF="node113.html#PACKAGENAMESSECTION">11.2</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>use-package <i>packages-to-use</i> &amp;optional <i>package</i></tt><P>The <i>packages-to-use</i> argument should be a list of packages or package
+names, or possibly a single package or package name.  These packages are
+added to the use-list of <i>package</i> if they are not there already.  All
+external symbols in the packages to use become accessible in <i>package</i>
+as internal symbols
+(see section <A HREF="node115.html#EXPORTIMPORTSECTION">11.4</A>).
+It is an error to try to use the <tt>keyword</tt> package.
+<tt>use-package</tt> returns <tt>t</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(PACKAGE-FUNCTION-CONSISTENCY) <A NAME=10833>&#160;</A> 
+to clarify that the <i>package</i> argument may be either a package object
+or a package name (see section <A HREF="node113.html#PACKAGENAMESSECTION">11.2</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>unuse-package <i>packages-to-unuse</i> &amp;optional <i>package</i></tt><P>The <i>packages-to-unuse</i> argument should be a list of packages or
+package names, or possibly a single package or package name.  These
+packages are removed from the use-list of <i>package</i>.
+<tt>unuse-package</tt> returns <tt>t</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(PACKAGE-FUNCTION-CONSISTENCY) <A NAME=10844>&#160;</A> 
+to clarify that the <i>package</i> argument may be either a package object
+or a package name (see section <A HREF="node113.html#PACKAGENAMESSECTION">11.2</A>).
+<P>
+X3J13 voted in January 1989
+(DEFPACKAGE) <A NAME=10850>&#160;</A> 
+to add a macro <tt>defpackage</tt> to the
+language to make it easier to create new packages, alleviating the burden
+on the programmer to perform the various setup operations in exactly the
+correct sequence.
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>defpackage <i>defined-package-name</i> {<i>option</i>}*</tt><P>This creates a new package, or modifies an existing one, whose name
+is <i>defined-package-name</i>.  The <i>defined-package-name</i>
+may be a string or a symbol;
+if it is a symbol, only its print name matters, and not what package, if any,
+the symbol happens to be in.
+The newly created or modified package is returned as the value of
+the <tt>defpackage</tt> form.
+<P>
+Each standard <i>option</i> is a list of a keyword (the name of the option)
+and associated arguments.  No part of a <tt>defpackage</tt> form is evaluated.
+Except for the <tt>:size</tt> option, more than one option of the same
+kind may occur within the same <tt>defpackage</tt> form.
+<P>
+The standard options for <tt>defpackage</tt> are as follows.
+In every case, any option argument called <i>package-name</i>
+or <i>symbol-name</i>
+may be a string or a symbol;
+if it is a symbol, only its print name matters, and not what package, if any,
+the symbol happens to be in.
+<P>
+<DL COMPACT><DT><tt>(:size <i>integer</i>)</tt>
+<DD>
+This specifies approximately the number of symbols expected to be in the
+package.  This is purely an efficiency hint to the storage allocator,
+so that implementations using hash tables as part
+of the package data structure (the usual technique) will not
+have to incrementally expand the package as new symbols are added to it
+(for example, as a large file is read while ``in'' that package).
+<P>
+<DT><tt>(:nicknames {<i>package-name</i>}*)</tt>
+<DD>
+The specified names become nicknames of the package being defined.
+If any of the specified nicknames already refers to an existing
+package, a continuable error is signaled exactly as for the
+function <tt>make-package</tt>.
+<P>
+<DT><tt>(:shadow {<i>symbol-name</i>}*)</tt>
+<DD>
+Symbols with the specified names are created as shadows
+in the package being defined, just as with the function <tt>shadow</tt>.
+<P>
+<DT><tt>(:shadowing-import-from <i>package-name</i> {<i>symbol-name</i>}*)</tt>
+<DD>
+Symbols with the specified names are located in the specified package.
+These symbols are imported into the package being defined, shadowing
+other symbols if necessary, just as with the function <tt>shadowing-import</tt>.
+In no case will symbols be created in a package other than
+the one being defined;
+a continuable error is signaled if for any <i>symbol-name</i> there
+is no symbol of that name accessible in the package named <i>package-name</i>.
+<P>
+<DT><tt>(:use {<i>package-name</i>}*)</tt>
+<DD>
+The package being defined is made to ``use'' (inherit from)
+the packages specified by this option, just as with
+the function <tt>use-package</tt>.
+If no <tt>:use</tt> option is supplied, then a default list is assumed
+as for <tt>make-package</tt>.
+<P>
+X3J13 voted in January 1989
+(MAKE-PACKAGE-USE-DEFAULT) <A NAME=10879>&#160;</A> 
+to change the specification of <tt>make-package</tt> so that the default value
+for the <tt>:use</tt> argument is unspecified.  This change affects <tt>defpackage</tt>
+as well.  Portable code should specify <tt>(:use '(&quot;COMMON-LISP&quot;))</tt> explicitly.
+<P>
+<DT><tt>(:import-from <i>package-name</i> {<i>symbol-name</i>}*)</tt>
+<DD>
+Symbols with the specified names are located in the specified package.
+These symbols are imported into the package being defined,
+just as with the function <tt>import</tt>.
+In no case will symbols be created in a package other than
+the one being defined;
+a continuable error is signaled if for any <i>symbol-name</i> there
+is no symbol of that name accessible in the package named <i>package-name</i>.
+<P>
+<DT><tt>(:intern {<i>symbol-name</i>}*)</tt>
+<DD>
+Symbols with the specified names are located or created
+in the package being defined, just as with the function
+<tt>intern</tt>.  Note that the action of this option may be
+affected by a <tt>:use</tt>
+option, because an inherited symbol will be used in preference
+to creating a new one.
+<P>
+<DT><tt>(:export {<i>symbol-name</i>}*)</tt>
+<DD>
+Symbols with the specified names are located or created
+in the package being defined and then exported, just as with the function
+<tt>export</tt>.  Note that the action of this option may be
+affected by a <tt>:use</tt>, <tt>:import-from</tt>, or <tt>:shadowing-import-from</tt>
+option, because an inherited or imported symbol will be used in preference
+to creating a new one.
+<P>
+ </DL>
+<P>
+The order in which options appear in a <tt>defpackage</tt> form does not matter;
+part of the convenience of <tt>defpackage</tt> is that it sorts out the options
+into the correct order for processing.
+Options are processed in the following order:
+<ol>
+<li>  <tt>:shadow</tt> and <tt>:shadowing-import-from</tt>
+<li>  <tt>:use</tt>
+<li>  <tt>:import-from</tt> and <tt>:intern</tt>
+<li> <tt>:export</tt>
+</ol>
+Shadows are established first in order to avoid spurious name conflicts
+when use links are established.  Use links must occur before importing
+and interning so that those operations may refer to normally inherited
+symbols rather than creating new ones.  Exports are performed last so that
+symbols created by any of the other options, in particular,
+shadows and imported symbols, may be exported.  Note that exporting an
+inherited symbol implicitly imports it first
+(see section <A HREF="node115.html#EXPORTIMPORTSECTION">11.4</A>).
+<P>
+If no package named <i>defined-package-name</i> already exists,
+<tt>defpackage</tt> creates it.  If such a package does already exist,
+then no new package is created.  The existing package is
+modified, if possible, to reflect the new definition.  The results are
+undefined if the new definition is not consistent with the current
+state of the package.
+<P>
+An error is signaled if more than one <tt>:size</tt> option appears.
+<P>
+An error is signaled if the same <tt>symbol-name</tt> argument (in the sense
+of comparing names with <tt>string=</tt>) appears more than once among
+the arguments to all the <tt>:shadow</tt>, <tt>:shadowing-import-from</tt>,
+<tt>:import-from</tt>, and <tt>:intern</tt> options.
+<P>
+An error is signaled if the same <tt>symbol-name</tt> argument (in the sense
+of comparing names with <tt>string=</tt>) appears more than once among
+the arguments to all the <tt>:intern</tt> and <tt>:export</tt> options.
+<P>
+Other kinds of name conflicts are handled in the same manner that
+the underlying operations <tt>use-package</tt>, <tt>import</tt>, and <tt>export</tt>
+would handle them.
+<P>
+Implementations may support other <tt>defpackage</tt> options.
+Every implementation should signal an error on encountering
+a <tt>defpackage</tt> option it does not support.
+<P>
+The function <tt>compile-file</tt> should treat top-level <tt>defpackage</tt>
+forms in the same way it would treat top-level calls to package-affecting
+functions (as described at the beginning of
+section <A HREF="node118.html#PACKAGEFUNCTIONSSECTION">11.7</A>).
+<P>
+Here is an example of a call to <tt>defpackage</tt> that ``plays it safe''
+by using only strings as names.
+<P><pre>
+(cl:defpackage &quot;MY-VERY-OWN-PACKAGE&quot; 
+  (:size 496) 
+  (:nicknames &quot;MY-PKG&quot; &quot;MYPKG&quot; &quot;MVOP&quot;) 
+  (:use &quot;COMMON-LISP&quot;) <BR>  (:shadow &quot;CAR&quot; &quot;CDR&quot;) 
+  (:shadowing-import-from &quot;BRAND-X-LISP&quot; &quot;CONS&quot;) 
+  (:import-from &quot;BRAND-X-LISP&quot; &quot;GC&quot; &quot;BLINK-FRONT-PANEL-LIGHTS&quot;) 
+  (:export &quot;EQ&quot; &quot;CONS&quot; &quot;MY-VERY-OWN-FUNCTION&quot;))
+</pre><P>
+The preceding <tt>defpackage</tt> example is designed to operate correctly
+even if the package current when the form is read happens not to
+``use'' the <tt>common-lisp</tt> package.  (Note the use in this example
+of the nickname <tt>cl</tt> for the <tt>common-lisp</tt> package.)
+Moreover, neither reading in nor evaluating
+this <tt>defpackage</tt> form will ever create any symbols in the
+current package.  Note too the use of uppercase letters in the strings.
+<P>
+Here, for the sake of contrast, is a rather similar use of
+<tt>defpackage</tt> that ``plays the whale'' by using all sorts of
+permissible syntax.
+<P><pre>
+(defpackage my-very-own-package 
+  (:export :EQ common-lisp:cons my-very-own-function) 
+  (:nicknames &quot;MY-PKG&quot; #:MyPkg) 
+  (:use &quot;COMMON-LISP&quot;) 
+  (:shadow &quot;CAR&quot;) 
+  (:size 496) 
+  (:nicknames mvop) 
+  (:import-from &quot;BRAND-X-LISP&quot; &quot;GC&quot; Blink-Front-Panel-Lights) 
+  (:shadow common-lisp::cdr) 
+  (:shadowing-import-from &quot;BRAND-X-LISP&quot; CONS))
+</pre><P>
+This example has exactly the same effect on the newly created package
+but may create useless symbols in other packages.
+The use of explicit package tags is particularly confusing;
+for example, this <tt>defpackage</tt> form will cause the symbol
+<tt>cdr</tt> to be shadowed <i>in the new package</i>; it will not be
+shadowed in the package <tt>common-lisp</tt>.  The fact that the name ``<tt>CDR</tt>''
+was specified by a package-qualified reference to a symbol in the
+<tt>common-lisp</tt> package is a red herring.
+The moral is that the syntactic flexibility of <tt>defpackage</tt>,
+as in other parts of Common Lisp,
+yields considerable convenience when used with commonsense competence,
+but unutterable confusion when used with Malthusian profusion.
+<P>
+<hr>
+<b>Implementation note:</b> An implementation of <tt>defpackage</tt> might choose to transform
+all the <i>package-name</i> and <i>symbol-name</i> arguments
+into strings at macro expansion time, rather than at the time
+the resulting expansion is executed, so that even if source code
+is expressed in terms of strange symbols in the <tt>defpackage</tt> form,
+the binary file resulting from compiling the source code would
+contain only strings.  The purpose of this is simply to minimize
+the creation of useless symbols in production code.  This technique
+is permitted as an implementation strategy but is not a
+behavior required by the specification of <tt>defpackage</tt>.
+<hr>
+<P>
+Note that <tt>defpackage</tt> is not capable by itself of defining
+mutually recursive packages, for example two packages each of
+which uses the other.  However, nothing prevents one from using
+<tt>defpackage</tt> to perform much of the initial setup and then
+using functions such as <tt>use-package</tt>, <tt>import</tt>, and <tt>export</tt>
+to complete the links.
+<P>
+The purpose of <tt>defpackage</tt> is to encourage the user to
+put the entire definition of a package and its relationships to
+other packages in a single place.  It may also encourage the designer
+of a large system to place the definitions of all relevant packages
+into a single file (say) that can be loaded before loading or compiling
+any code that depends on those packages.  Such a file, if carefully
+constructed, can simply be loaded into the <tt>common-lisp-user</tt> package.
+<P>
+Implementations and programming environments may also be better able
+to support the programming process (if only by providing better
+error checking) through global knowledge of the intended package setup.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>find-all-symbols <i>string-or-symbol</i></tt><P><tt>find-all-symbols</tt>
+searches every package in the Lisp system to find
+every symbol whose print name is the
+specified string.  A list of all such symbols found is returned.
+This search is case-sensitive.
+If the argument is a symbol, its print name supplies
+the string to be searched for.
+<P>
+<BR><b>[Macro]</b><BR>
+<pre>
+<tt>do-symbols (<i>var</i> [<i>package</i> [<i>result-form</i>]])</tt>
+            <tt>{<i>declaration</i>}* {<i>tag</i> | <i>statement</i>}*</tt>
+</pre>
+<P><tt>do-symbols</tt> provides straightforward iteration over the symbols of a
+package.  The body is performed once for each symbol accessible in the
+<i>package</i>, in no particular order, with the variable <i>var</i> bound to
+the symbol.  Then <i>result-form</i> (a single form, <i>not</i> an implicit
+<tt>progn</tt>) is evaluated, and the result is the value of the
+<tt>do-symbols</tt> form.  (When the <i>result-form</i> is evaluated, the control
+variable <i>var</i> is still bound and has the value <tt>nil</tt>.)  If the
+<i>result-form</i> is omitted, the result is <tt>nil</tt>.  <tt>return</tt> may be used
+to terminate the iteration prematurely.  If execution of the body affects
+which symbols are contained in the <i>package</i>, other than possibly to
+remove the symbol currently the value of <i>var</i> by using <tt>unintern</tt>,
+the effects are unpredictable.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(PACKAGE-FUNCTION-CONSISTENCY) <A NAME=10987>&#160;</A> 
+to clarify that the <i>package</i> argument may be either a package object
+or a package name (see section <A HREF="node113.html#PACKAGENAMESSECTION">11.2</A>).
+<P>
+X3J13 voted in March 1988
+(DO-SYMBOLS-DUPLICATES) <A NAME=10992>&#160;</A> 
+to specify that the body of a <tt>do-symbols</tt>
+form may be executed more than once for the same accessible symbol, and users
+should take care to allow for this possibility.
+<P>
+The point is that the same symbol might be accessible via more than one
+chain of inheritance, and it is implementationally costly to eliminate
+such duplicates.  Here is an example:
+<P><pre>
+(setq *a* (make-package 'a))      ;Implicitly uses package <tt>common-lisp</tt> 
+(setq *b* (make-package 'b))      ;Implicitly uses package <tt>common-lisp</tt> 
+(setq *c* (make-package 'c :use '(a b))) 
+
+(do-symbols (x *c*) (print x))    ;Symbols in package <tt>common-lisp</tt> 
+                                  ; might be printed once or twice here
+</pre><P>
+<P>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=11000>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<P>
+Note that the <tt>loop</tt> construct provides a kind of <tt>for</tt> clause that
+can iterate over the symbols of a package (see chapter <A HREF="node235.html#LOOP">26</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Macro]</b><BR>
+<pre>
+<tt>do-external-symbols (<i>var</i> [<i>package</i> [<i>result</i>]])</tt>
+                      <tt>{<i>declaration</i>}* {<i>tag</i> | <i>statement</i>}*</tt>
+</pre>
+<P><tt>do-external-symbols</tt> is just like <tt>do-symbols</tt>, except that only
+the external symbols of the specified package are scanned.
+The clarification voted by X3J13
+in March 1988 for <tt>do-symbols</tt>
+(DO-SYMBOLS-DUPLICATES) <A NAME=11016>&#160;</A> ,
+regarding redundant executions of the body for the same symbol,
+applies also to <tt>do-external-symbols</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(PACKAGE-FUNCTION-CONSISTENCY) <A NAME=11020>&#160;</A> 
+to clarify that the <i>package</i> argument may be either a package object
+or a package name (see section <A HREF="node113.html#PACKAGENAMESSECTION">11.2</A>).
+<P>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=11025>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Macro]</b><BR>
+<pre>
+<tt>do-all-symbols (<i>var</i> [<i>result-form</i>])</tt>
+                 <tt>{<i>declaration</i>}* {<i>tag</i> | <i>statement</i>}*</tt>
+</pre>
+<P>This is similar to <tt>do-symbols</tt> but executes the body once for every
+symbol contained in every package.  (This will not process every symbol
+whatsoever, because a symbol not accessible in any package will not
+be processed.  Normally, uninterned symbols are not accessible in any package.)
+It is <i>not</i> in general
+the case that each symbol is processed only once, because a symbol may
+appear in many packages.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+The clarification voted by X3J13
+in March 1988 for <tt>do-symbols</tt>
+(DO-SYMBOLS-DUPLICATES) <A NAME=11036>&#160;</A> ,
+regarding redundant executions of the body for the same symbol,
+applies also to <tt>do-all-symbols</tt>.
+<P>
+X3J13 voted in January 1989
+(PACKAGE-FUNCTION-CONSISTENCY) <A NAME=11040>&#160;</A> 
+to clarify that the <i>package</i> argument may be either a package object
+or a package name (see section <A HREF="node113.html#PACKAGENAMESSECTION">11.2</A>).
+<P>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=11045>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<P>
+X3J13 voted in January 1989
+(HASH-TABLE-PACKAGE-GENERATORS) <A NAME=11050>&#160;</A> 
+to add a new macro <tt>with-package-iterator</tt> to the language.
+<P>
+<BR><b>[Macro]</b><BR>
+<pre>
+<tt>with-package-iterator (<i>mname</i> <i>package-list</i> {<i>symbol-type</i>}+)</tt>
+                        <tt>{<i>form</i>}*</tt>
+</pre>
+<P>The name <i>mname</i> is bound and defined as if by <tt>macrolet</tt>,
+with the body <i>form</i>s as its lexical scope, to be a ``generator macro''
+such that each invocation of <tt>(<i>mname</i>)</tt> will
+return a symbol and that successive invocations
+will eventually deliver, one by one, all the symbols
+from the packages that are elements of the list that is the value of the
+expression <i>package-list</i> (which is evaluated exactly once).
+<P>
+Each element of the <i>package-list</i> value
+may be either a package or the name of a package.
+As a further convenience, if the <i>package-list</i> value
+is itself a package or the name of a package, it is treated
+as if a singleton list containing that value had been provided.
+If the <i>package-list</i> value is <tt>nil</tt>, it is considered
+to be an empty list of packages.
+<P>
+At each invocation of the generator macro, there are two possibilities.
+If there is yet another unprocessed symbol, then
+four values are returned: <tt>t</tt>, the symbol,
+a keyword
+indicating the accessibility of the symbol within the package (see below), and
+the package from which the symbol was accessed.
+If there are no more unprocessed symbols in the
+list of packages, then one value is returned: <tt>nil</tt>.
+<P>
+When the generator macro returns a symbol as its second value, the
+fourth value is always one of the packages present or named in the
+<i>package-list</i> value, and the third value is a keyword indicating
+accessibility:
+<tt>:internal</tt> means present in the package and not exported;
+<tt>:external</tt> means present and exported;
+and <tt>:inherited</tt> means not present (thus not shadowed) but inherited
+from some package used by the package that is the fourth value.
+<P>
+Each <i>symbol-type</i> in an invocation of <tt>with-package-iterator</tt>
+is not evaluated.  More than one may be present; their order does not
+matter.  They indicate the accessibility types of interest.
+A symbol is not returned by the generator macro unless its actual
+accessibility matches one of the <i>symbol-type</i> indicators.
+The standard <i>symbol-type</i> indicators are <tt>:internal</tt>,
+<tt>:external</tt>, and <tt>:inherited</tt>, but implementations are permitted
+to extend the syntax of <tt>with-package-iterator</tt> by recognizing
+additional symbol accessibility types.  An error is signaled
+if no <i>symbol-type</i> is supplied, or if any supplied <i>symbol-type</i>
+is not recognized by the implementation.
+<P>
+The order in which symbols are produced by successive invocations
+of the generator macro is not necessarily correlated in any way
+with the order of the packages in the <i>package-list</i>.
+When more than one package is in the <i>package-list</i>,
+symbols accessible from more than one package may be produced
+once or more than once.  Even when only one package is specified,
+symbols inherited in multiple ways via used packages may be
+produced once or more than once.
+<P>
+The implicit interior state of the iteration over the list of packages
+and the symbols within them has dynamic extent.
+It is an error to invoke the generator macro
+once the <tt>with-package-iterator</tt> form has been exited.
+<P>
+Any number of invocations of <tt>with-package-iterator</tt>
+and related macros may be nested, and the generator macro of an
+outer invocation may be called from within an inner invocation
+(provided, of course, that its name is visible or otherwise made available).
+<P>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=11084>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<P>
+<hr>
+<b>Rationale:</b> This facility is a bit more flexible in some ways than <tt>do-symbols</tt>
+and friends.
+In particular, it makes it possible to implement <tt>loop</tt>
+clauses for iterating over packages in a way that is both portable
+and efficient (see chapter <A HREF="node235.html#LOOP">26</A>).
+<hr>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html2995 HREF="node119.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2993 HREF="node111.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2987 HREF="node117.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2997 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2998 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2996 HREF="node119.html"> Modules</A>
+<B>Up:</B> <A NAME=tex2html2994 HREF="node111.html"> Packages</A>
+<B> Previous:</B> <A NAME=tex2html2988 HREF="node117.html"> Built-in Packages</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

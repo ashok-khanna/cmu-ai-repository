@@ -1,0 +1,68 @@
+; The following implements some ideas about comprehesions found in Miranda.
+
+(defmacro comp ((e &rest qs) l2)
+  (if (null qs)
+    `(cons ,e ,l2)
+    (let ((q1 (car qs))
+          (q (cdr qs)))
+      (if (not (eq (cadr q1) '<-))
+        `(if ,q1
+           (comp (,e . ,q) ,l2) ,l2)
+        (let ((v (car q1))
+              (l1 (third q1))
+              (h (gensym "H-"))
+              (us (gensym "US-"))
+              (us1 (gensym "US1-")))
+          `(labels ((,h (,us)
+                      (if (null ,us)
+                        ,l2
+                        (let ((,v (car ,us))
+                              (,us1 (cdr ,us)))
+                          (comp (,e . ,q) (,h ,us1))))))
+             (,h ,l1)))))))
+
+(defun open-bracket (stream ch)
+  (do ((l nil)
+       (c (read stream t nil t) (read stream t nil t)))
+      ((eq c '|]|)
+       `(comp ,(reverse l) ()))
+    (push c l)))
+
+(defun closing-bracket (stream ch)
+  '|]|)
+
+(set-macro-character #\[ #'open-bracket)
+(set-macro-character #\] #'closing-bracket)
+
+#|
+(setf xs '(1 2 3 4 5 6 7 8))
+[x (x <- xs) (oddp x)]
+
+
+(defun qsort (ax)
+  (and ax
+       (let ((a (car ax))
+             (x (cdr ax)))
+         (append (qsort [y (y <- x) (< y a)])
+                 (list a)
+                 (qsort [y (y <- x) (>= y a)])))))
+
+(qsort '(6 2 7 3 5 1 98 44 22 31 555))
+
+(require :select)
+
+(defmacro miranda (function-name (arg) &body forms)
+  `(defun ,function-name (,arg)
+     (select-match ,arg . ,forms)))
+
+(miranda perms (x)
+  ()      => '(())
+  (_ . _) => [(cons a p) 
+                (a <- x)
+                (p <- (perms (remove a x :count 1)))])
+
+(perms '(2 3 4 5))
+
+|#
+
+

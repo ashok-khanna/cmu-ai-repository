@@ -1,0 +1,451 @@
+Hints for the usage of the Apply/E2C total compiler
+===================================================
+
+
+1. General remarks
+------------------
+
+The basis for the Apply/E2C is the "Programming Language
+Eulisp Version 0.99" (abbr. EL0.99). The implementation comprises 
+level-0 except concurrency. The restrictions are given below in more detail.
+
+The module syntax is defined as described in EL0.99 in which
+the single module directives (import, syntax, expose, export) 
+are used as keywords. 
+For reasons of compatibility the old style syntax (as defined in 
+Version 0.75) is supported too.  
+If a module uses this old style syntax, 
+the printout of the module file name is extended by '[old style]'. 
+For example:
+
+;.loading module /home/saturn/imohr/Lisp/ApplyModules/xxx.am[old style]
+
+A description of the names of the modules and the classes, functions,
+macros, special forms contained in the modules is not given here and 
+should be taken from the language description.
+
+The module name (i.e. the name following 'defmodule') and the 
+name of the file have to be identical. The extension of the file name
+has to be '.am'. 
+
+
+2. Requirements
+---------------
+
+Hardware platform:
+Sun SPARC-Architecture (Sun4m, Sun4c)
+
+Software:
+Franz Allegro Common Lisp 4.1 
+(CMU lisp will be available soon)
+GNU unzip
+GNU-C-Compiler gcc 2.2 or later 
+
+
+3. Restrictions 
+---------------
+
+3.1. The following items are not yet provided:
+
+-  generic lambda;
+-  unwind-protect;
+-  concurrency (the modules lock and thread).
+
+3.2 The following items are not yet complete:
+
+- deep-copy: method for class <vector> is not yet implemented;
+- converter: methods for the classes <table> and <number> are not 
+  yet implemented;
+- format: the directives ~e, ~f and ~g are not yet present;
+- Macros can be used only in a restricted way(see 3.4.);
+- scan: is not yet implemented; the function read can be used.
+  
+
+
+3.3. Known problems:
+
+1. During compilation  (the modules are read in) the symbol identifiers 
+are converted into upper case.
+However, at run time read distinguishes for symbols between upper and 
+lower cases.
+Also the colon ":" cannot not be used within symbols. 
+
+2.The usage of constants of type <double-float> may result in run time
+errors. To use double-floats as well they must be created dynamically
+as shown in the following code fragment: 
+
+(defmodule ...
+   (import (double-float ... 
+           (only (%double-float) tail) 
+           (only (make-dble) double-float-i))
+    syntax ...)
+   (deflocal double1 (make-dble #%d-2.3))
+   (deflocal double2 (make-dble #%d15.6))
+
+   ...
+)
+
+Notice that in that example one binding from tail
+and from double-float-i, respectively,  has to be imported and that
+the double values are noted as TAIL-literals of the form '#%value'.
+The forthcoming release will contain full support of float constants.
+3. See 9.4. in EL0.99:
+The module itself can not be referenced in an expose directive
+of a module.
+
+4. See 9.5 in EL0.99:
+The syntax imports of special forms and standard macros are not yet
+supported. At the time they are treated in a special way.
+
+5. Numeric errors can be captured using 'with-handler' but they 
+are not continuable.
+
+6. An endless recursion in which the recursive call is on the top
+of the function level works wrong:
+(defun loop () ... (loop))
+
+But in all other cases the right code is generated:
+(defun loop ()
+  (if ... (progn ... (loop))
+          (progn ... (loop))))
+
+7. 'round' works like 'ceiling' in case of negative arguments
+with fractional part greater than 0.5.
+
+8. A call of the function newline results in a compiler error.
+
+9. Tables can not be used at time.
+
+10. 'evenp' 'oddp' work wrong.
+
+
+3.4. Macros
+
+At time Macros can only be used in a restricted way. There is not yet 
+a portable way to define macros because the actual definition
+of EuLisp gives no explanation about the semantics and the scope
+of language.
+
+In 'defmacro' the following elements of EL0.99 (Level 0) can be used:
+
+Objects: Lists, symbols, numbers, characters
+
+Syntax: Quasiquote (` , ,@)
+        calls of simple functions (not of generic functions)
+        constant global lexical bindings
+        setq
+        progn
+        if
+        let and let*
+
+Functions: car, cdr, list, null, cons, append
+           eq
+           +
+
+           and all functions defined with 'defun' and based on 
+           these functions.
+
+
+4.Necessary module imports
+--------------------------
+
+The whole functionality of level 0 of EuLisp is contained in the
+module 'eulisp-level-0'. Therefore youthe module
+'eulisp-level-0' should be imported as in the following example.
+
+
+(defmodule test-module
+  (
+   import (eulisp-level-0
+           user-module)
+
+   syntax (eulisp-level-0
+           user-module-with-macro-definition)
+
+   export (fct1 fct2 ...)
+
+   expose (...)
+   )
+
+  ...) 
+
+
+
+5. Invocation of Apply/E2C
+--------------------------
+
+   
+The user has to define two environment variables:
+
+APPLYROOT     - points to the directory of the Apply-EuLisp-Compiler
+
+ACL           - contains the path to start Franz Allegro 4.1
+
+Apply/E2C is than called from UNIX as:
+
+compile.apply test-module
+
+
+Then the following output is displayed:
+(comments are enclosed in <<...>>):
+
+Apply: (compile-application ^test-module) on host  saturn
+
+<<call of the Apply-EuLisp-Compiler on the host saturn>>
+
+/export/home/saturn/xxx/Lisp
+
+<<the working directory>>
+
+Allegro CL 4.1 [SPARC; R1] (6/10/93 8:50)
+Copyright (C) 1985-1992, Franz Inc., Berkeley, CA, USA.  All Rights Reserved.
+;; Optimization settings: safety 1, space 1, speed 3, debug 2
+;; For a complete description of all compiler switches given the current
+;; optimization settings evaluate (EXPLAIN-COMPILER-SETTINGS).
+USER(1): 
+
+<<start of the Lisp system>>
+
+--- resetting the compiler ---
+
+<<initialisation of the compiler>>
+
+--- loading basic modules ---
+....
+
+<<all basic modules are loaded>>
+
+--- loading application modules ---
+
+;loading module xy
+
+<<all user modules are loaded>>
+
+--- marking all exported bindings ---
+
+<<the exported bindings of the modules are marked>>
+
+--- computing discriminating functions --
+
+<<the discriminating functions of the generic functions are computed>>
+
+--- converting to MZS ---
+
+<<conversion into a machine level intermediate language>>
+
+SsssssssSSS
+
+<<s shows that the side effect analysis of functions 
+is made,
+S shows the summary of the analysis results>>
+
+****iii*****ii***i**i***i**i*i**...b...........b..b
+
+<<each star or point shows the treatment of a function; 
+i means in-line was made;
+b means the types within the type inference of  
+the functions are balanced>>
+
+--- collecting static instances ---
+
+<<all static data are collected>>
+
+--- converting MZS to LZS ---
+
+<<conversion from the machine level intermediate language 
+into the Lisp-level intermediate language>>
+
+
+--- generating C-code ---
+
+************************
+
+<<a star is printed for each generated C-function>> 
+
+--- end of compilation ---
+
+Total number of analysed function calls: 3539
+Total number of joined function call descriptors: 14 (0.40 %)
+
+Total number of inferred function type schemes: 380
+Total number of joined type scheme descriptors: 82 (21.58 %)
+
+Total number of inferred classes: 8405
+Total number of inferred abstract classes: 2241 (26.66 %)
+
+<<analysis statistics which show the number of analyzed functions,
+the number of infered classes. It is also printed the percentage
+of abstract classes; the less the number of abstract classes 
+the more the number of instantiable classes.>>  
+
+"end of compilation"
+
+<<C-code is now generated>>
+
+USER (2): EOF ; Auto-exit
+
+<<Exit from the Lisp-System>>
+
+<<After the creation of the '.c' and '.inst' files 
+the compilation and linking of the C-sources with the help of the
+GNU-C-Compilers is made:>>
+
+Apply: successful compilation of test-module to C
+Apply: test-module.c was created
+gcc -o test-module -O2 -fwritable-strings -I 
+       /home/saturn/wheick/Lisp/ApplyC test-module.c 
+       $APPLYROOT/ApplyC/apply.a -lm
+
+<<In this phase warnings may appear both from the compiler and the 
+linker. In the most cases these warnings have no effects on the 
+run of the generated program.>>
+
+<<Now you can call the program with:>>
+
+test-module
+
+
+6. Examples
+-----------
+
+In module 'takl'(contained in the Examples directory) the functions 
+'takl' and 'gtakl' are defined and exported. 'takl' is a simple function 
+without generic functions,
+'gtakl' is written with the generic function 'gshorterp'.
+With the import of the module 'eulisp-level-0' the whole 
+functionality of Level 0 of EuLisp is given.
+
+The file associated with the module 'takl' has to have the name
+'takl.am'.
+
+(defmodule takl              ;definition of module takl
+
+  (
+   import (eulisp-level-0)                         
+
+   syntax (eulisp-level-0)     
+    
+   export (takl gtakl)       ;export of functions takl and gtakl 
+                             ;from module tm-tak
+   )
+
+
+  (defun shorterp (x y)      ;auxiliary function for takl
+    (if (null y )            ;without generic
+      ()
+      (if  (null x) t 
+           (shorterp (cdr x)
+                     (cdr y))) ))
+
+  (defun takl (x y z)
+    (if (null (shorterp y x))
+      z
+      (takl (takl (cdr x) y z)
+            (takl (cdr y) z x)
+            (takl (cdr z) x y))))
+
+
+;;; -----------------------------------------------------------------------------------
+;;; takl with generic shorterp
+;;; -----------------------------------------------------------------------------------
+
+  (defgeneric gshorterp ((x <list>) y)) ;auxiliary generic function 
+                                        ;for gtakl
+
+  (defmethod gshorterp ((x <null>) y)
+    y)
+
+  (defmethod gshorterp ((x <cons>) y)
+    (if (null y)
+      ()
+      (gshorterp (cdr x) (cdr y))))
+
+  (defun gtakl (x y z)
+    (if (null (gshorterp y x))
+      z
+      (gtakl (gtakl (cdr x) y z)
+             (gtakl (cdr y) z x)
+             (gtakl (cdr z) x y))))
+
+
+  )                     ; end of module
+
+
+The next example shows an interface to C to measure 
+run time of functions 'takl' and 'gtakl' imported from the module
+'takl'. You can see the special keyword 'c-import' which imports
+the C-file "timing.c" contained in the currend release. 
+The linking of the C-functions 'start_timer' and 'timer' was made
+with help of the form '%declare-external-function'. In this form
+the names of this function in EuLisp and in C and the types for 
+the arguments and result in C are declared.
+
+The file associated with the module 'test-takl' has to have the name
+'test-takl.am'. 
+
+
+(defmodule test-takl
+
+  (import (eulisp-level-0
+           (only (%void %string) tail)
+           takl)
+   syntax (eulisp-level-0)
+   c-import ("timing.h")      ;extension of module syntax
+   )
+
+  (defun listn (n)
+    (if (= n 0)
+      ()
+      (cons n (listn (- n 1)))))
+
+  (deflocal l24 (listn 24))
+  (deflocal l18 (listn 18))
+  (deflocal l12 (listn 12))
+  (deflocal l6 (listn 6))
+
+  ;;declaration of external functions called from EuLisp 
+  ;;to measure cpu consumption
+  ;;start_timer sets the first time stamp
+  ;;timer gets a char * string containing format directives
+  ;;to print the values of elapsed user time system time and their sum
+  ;;char* strings has to be  written as Tail-literals in the following 
+  ;;form: (%literal %string () "string")
+
+  (%declare-external-function 
+
+   (start-timer %void)          ; the name of the function is start-timer, 
+                                ; result of start-timer is void
+   ()                           ; no args
+   external-name |start_timer|  ; the name in C is start_timer
+   language C)                  ; the used foreign language is C
+
+  (%declare-external-function
+ 
+   (timer %void)                ; the name of the function is timer
+                                ; result of timer is void
+   ((string %string))           ; one arg string of type char *
+   external-name |timer|        ; the name in C is timer
+   language C)                  ; the used foreign language is C
+
+  (deflocal result ())
+
+  (start-timer)
+  (setq result (takl l24 l12 l6))
+  (timer (%literal %string () "\ntakl: %.2f sec (%.2f sec system)"))
+  (format t "~%(takl l24 l12 l6) -> ~a~%" result)
+
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+

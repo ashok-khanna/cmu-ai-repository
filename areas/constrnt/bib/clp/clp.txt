@@ -1,0 +1,287 @@
+From timm@cse.unsw.edu.au Tue Feb  1 21:24:15 EST 1994
+Article: 9513 of comp.lang.prolog
+Xref: glinda.oz.cs.cmu.edu comp.lang.prolog:9513
+Newsgroups: comp.lang.prolog
+Path: honeydew.srv.cs.cmu.edu!fs7.ece.cmu.edu!europa.eng.gtefsd.com!gatech!swrinde!sgiblab!munnari.oz.au!metro!usage!sienna.spectrum.cs.unsw.OZ.AU!timm
+From: timm@cse.unsw.edu.au (Tim Menzies)
+Subject: Re: Definition of constraint logic programming
+Message-ID: <1994Jan28.050904.758@usage.csd.unsw.OZ.AU>
+Sender: news@usage.csd.unsw.OZ.AU
+Nntp-Posting-Host: sienna.spectrum.cs.unsw.oz.au
+Reply-To: timm@cse.unsw.edu.au (Tim Menzies)
+Organization: none
+Date: Fri, 28 Jan 1994 05:09:04 GMT
+Lines: 270
+
+i asked my bibliography for all things "constraint"-ish. the first Cohen 
+reference gives a nice CLP definition. the rest are in no particular order
+but for my money, read anything written by Borning or Mackworth.
+----------------
+
+Cohen, J.  Constraint Logic Programming Languages Communciations of the
+ACM 1992 33 7 52-68
+
+Good intro to CSP (plus history). A standard Prolog interpreter assumes 
+that the rules are stored in the form:
+
+clause(Head,Body)
+
+which corresponds to the rule:
+
+head :- body
+
+where "Head" is a literal and "Body" is a list of literals. Unit clauses are stored as:
+
+clause(Head,[]).
+
+The interpreter is:
+
+prolog([]).
+prolog([Goal|Rest]) :- prolog(Goal), prolog(Rest).
+prolog(Goal) :- clause(Goal,Body), prolog(Body).
+
+In CLP, a rules is represented by:
+
+clause(Head,Body,Constraint).
+
+The CSP interpreter executes by solving the goals as before, then
+merging the associated constraints. If the merge fails (i.e.
+constraints are mutualy exclusive), then the solution fails. Otherwise,
+when a goal suceeds, t he succcessful goal and its associated
+constraints are returned.
+
+csp([],C,C).
+csp([Goal|Rest],C0,C) :- csp(Goal,C0,C1), csp(Rest,C1,C).
+csp(Goal,C0,C) :- clause(Goal,Body,C1), merge_constraints(C0,C1,C2), csp(Body,C2,C).
+
+Note that CSP is a superset of Prolog. Indeed, Prolog can be implemented in CSP:
+
+prolog(G) :- csp(G,_).
+
+Effeciency in CSP is a matter of optimising the 
+processing of clause and the merge_constraints/2 perdicates. 
+The time to process this clauses may vary significantly 
+depending on the constraints being applied.			
+constraint logic programming
+
+Bobrow, D.  Mackworth, A.			
+Special Issue on Constraint-Based Reasoning					
+
+Borning, A.  The Programming Language Aspects of ThingLab: a
+Constraint-Oriented Simulation Laboratory.  ACM Transactions on
+Programming Languages and Systems 1981 3 4 (October) 353-387
+
+Small nets. Impressive visual constraint programming environment.
+Apparently, worked in isolation to Steele's work (auther takes pains to
+stress that this was here first!!)
+
+Borning, A Maher, M.  Martindale, A.  Wilson, W.  Constraint Hierachies
+and Logic Programming Proceedings of Sixth International Logic
+Programming Conference Lisbon, Portugal 1989 149-164
+
+Formal description of Bornings "hierarchical constraints".  Implemented
+as a meta-interpreter in two pages in CLP(R)
+
+Dechter, R.  Learning while searching in
+Constraint-Satisfaction-Problems.  Proceedings of AAAI '86 1986 178-183
+
+Dramatic reduction in backtracking via the recognition and remembering
+of dead-ends.  Cautionary tale re the pre-processor of Mackworth.
+Compliexty of one small problem given in the appendix was 2,000,000
+while there technique seemed much faster.
+
+Falkenhainer, B.  Proportionality Graphs, Units Analysis, and Domain
+Constraints:  Improving the Power and Effeciency of the Scientific
+Discovery Process.  AAAI '85 1985 552-554
+
+Cute. Nice technique for qualitative scientific discovery (i.e.
+discovering relationships that cover a set of data).  Search for
+possible combinations of variables in a relationship constrained by 2
+heuristics: proportioanlity graphs and units analysis.  Proportionality
+graphs: graphs of variables that are monotonicaly/non-monotonically
+related. Units analysis: when creating new vaairaables to clump
+together prior results, only combine them if they are of the same
+units.  Once relationships are derived, the set of data that they
+explain are removed and the proces repeated. AQ then used to
+characterise the examples used in each set.
+
+Freeman-Benson, B.N .  Maloney, J.  Borning, A.  An Incremental
+Constraint Solver Communications of the ACM 1990 33 1 54-63
+
+Extends traditional idea of constraints to "hierarchical constraints"
+(i.e. order of preferred constraints). Defines the "walkabout"
+strength- a guide to constraint relaxation.  Many of Max's ideas are
+here; e.g. the constraint solution is a plan. The call it "code
+extraction". Max calls it "program synthesis. Delta Blue is a system
+for incrementally solving hierachical constraints. Hints as to runtime
+speed are vague and un-promising for my wrk "dozens of constraints in
+seconds".
+
+GOOD READING list on history of constraints and applications.  Five
+areas:
+
+(1) geometeric layout: Sutherland's SKETCHPAD (MIT, early 60s), ahead
+of its time. needed more computer resources than then avialable.
+Drawing either satisfied all constraints sequentially or via a selected
+relaxation of constraints. Bornings THINGLAB: extended SKETCHPAD in a
+Smalltalk environmnet. Later incorporated notions of degrees of
+constraints (formally: hierarchical constraints (see Borning '89).
+Nelson's JUNO and Gosling's Magritte, Van Wyk's IDEAL.
+
+(2) Simulations: Sketchpad, Thinglab, plus Animus's Thinglab extension
+to cover time-based constraint-based simulation (animations).  Vague
+reference to the use of constraints in qualitative physics.
+
+(3) Design and analysis problems: Stallman & Sussman's EL circuit
+analyser; the PRIDE expert system for designin paper handling systems;
+Sapossnek's DOC and WORM. TK!Solver commerically available constraint
+system. Jazz compositions (Levitt); CSP: solving constraints over a
+finite domain.
+
+(4) User-interface support: Thinglab and Animus have been to used for
+intereface design performing such tasks as maintaining consitentcy
+between underlyign data and graphical representation of that data,
+between multiple views, specifying formatting requirements and
+references, specifying animation events and atttributes.
+
+(5) General-purpose languages: Steele's PhD (language supported the
+dependandy mechanisms required for dependancy-directed backtracking and
+explanations).  Leler's Bertrand: a constraint-based language;
+Freeman-benson's combination of constraints with object-oriented
+imperative programming. CLP: CLP(D), Prolog III, CLP(R), CHIP
+(incremental constraint satisfaction). Saraswat's PhD: familt of
+concurrent constraint languages (roots in logic programming).
+
+Frueder, E.C.  Wallace, R.J.  Partial Constraint Satisfaction
+Artificial Intelligence Journal 1992 58 1992 21-70
+
+Lessons learnt from studying constraint satisfaction problems are
+applied to the problem of solving the maximal number of constraints.
+Stores yeat another long list of constraint-based applications p22
+(nearly as good as Freeman-Benson's list p 55-56) Looks very
+exciting.... but my probably is subtleyl different. I don't care how
+many internal constraints are missed. All i care about is the coverage
+of the output ltieral.  So, we are not a partial constraint
+satisfaction problem. Constraint satisfaction is seen as search: not
+merely the Mackworth-style global analysis.
+
+Mackworth, A.K.  Frueder, E.C.  The Complexity of Some Polynomial
+Network Consistency Algorithms for Constraint Satisfaction Problems
+Artificial Intelligence 1985 25 65-74
+
+Mackworth, A.  The logic of constraint satisfaction Artificial
+Intelligence 1992 58 3-20
+
+Recasts finite constraint satisfaction problems (FCSP) in terms of
+theorem proving in FOPC, propositional system, constraint networks, CLP
+and propositional model findings.  Interesting diagram on page 8: a
+hierachy of langauge types and their relative restrictions.
+
+Minton, S.  Johnston, M.D.  Phillips, A.B.  Laird, P.  Minimizing
+conflicts: a heuristic repair method for constraint satisfaction and
+scheduing problems Artificial Intelligence 1992 58 161-205
+
+Nasa working on the problem of scheduling the Space Shuttle stuff. Nice
+work.  Very number intensive.
+
+Minton, S.  Integrating Heuristics for Constraint Satisfaction
+Problems: A Case Study AAAI '93 Washington, USA 1993 120-126
+
+Cheeky little article. MULTI-TAC is a program that knows several
+heuristics re CSP solutions. Given a sample problem, it configures a
+CSP solver for that problem.  Perfoms very nicely (thank you) with
+human subjects. Demonstrates importance of heuristics in CSP and
+tailoring solution to problem.
+
+Steele, G.L.  The Definition and Implementation of A Computer
+Programming Language Based on Constraints MIT 1980
+
+My first intro to constraints. very nice stuff. set of lisp macros that
+support all the tedium of implementing depandancy-directed
+backtracking.  Mackworth A.K.  1977 Consistency in Networks of
+Relations 8 99-118
+
+Consider the problem of consistant assignment of state to nodes
+connected by constraints. This problem could be solved by
+"backtracking": assign any state to an y node choosen at random, then
+search out from this node to all other nodes assigning any state, then
+checking that the assigned state satisfies the node-level and
+inter-node level constraints. If state assignment fails, then backtrack
+to another state-assignment and/or another node not already tried.
+
+Mackworth studies a particualr version of this problem called the
+binary constraint satisfaction problem (2CSP). Each node (N) can be in
+one of S mutually exclu sive states. Unary predicates on each node
+dictate the legal states of each node and binary predicates dictate the
+legal states that can exist between nodes. It
+ is conveneit to visualise such a probem as a 2-D graph showing each
+ unary predicate are loops from each node and the binary predicates are
+ the ars between node s.  Many AI problems can be cast in terms of
+2CSP: theorem proving over unary and binary predicates where the range
+of each variable is known (e.g. the map-colo uring problem); inference
+throgh propositional systems (with no and or not); and vision
+research.
+
+In such a formalism, the state assignment problem becomes a proof of
+the following theorem:
+
+exists(N1(S1x))) exists(N2(S2x)), exists(N3(S3x)) such that 
+P1(S1x) and P2(S2x) ... and
+P12(S1x,S2x) and P13(S2x,S3x) and P23(S2x, S3x)....
+
+The complexity of a dumb depth-first-search through this space is
+horrendous: factorial on the product of the number of nodes and states.
+Mackworth offers a tec hnique for reducing this to polynomial time.
+This technique is based on a generalisation of two techniques evolved
+by Fikes and Waltz. Fikes notes that if there
+ exists a node state that does not satisfy the node's unary predicate,
+ then this state can be removed from the search space. Mackworth calls
+ this "node consiste ntcy". Waltz  developed an alogrithm for what
+Mackworth terms "arc consistenty": if the binary predicates forbid an
+association of states between two adjacent n odes, then remove that
+association of states from the search space. Waltz's algorithm kept
+dependancy information such that the processing after an arc removal
+(i.e. an illegal pair of states) is constrained only to the space of
+nodes affected by the removal. The nodes are numbered 1 to N and the
+Waltz fitler progresse s over the nodes maintaining the invariant that
+all the arcs in the space 1 to i (i being the current position) are
+valid. Consequently, all the work associated
+ with arc removal ins constrained to the space i+1 to N. Mackworth
+ simplifies and extends the Waltz filter for "path consistentcy"; i.e.
+ if the state of M nodes satifies their node and arc consistentcy
+ requirements, but fails some transistive relationship between more
+ than 2 nodes, then the path is inconsistent and sho uld be removed
+from the search space. As in the case of the Waltz fitler, the
+Mackworth algorithm constrains the processing relating to the removal
+of a path to
+ some space beyond the current position of the processing. Building on
+ the work of Montanari, Mackworth limits the search for consistent
+ paths to paths of lengt h 2 (since if all paths of length 2 are
+consistent then by induction all paths of length N in the network are
+consistent).
+
+In action, the Mackworth system is a pre-processor that enumerates all
+possible states and arcs, then applies (in-order) the node, arc, and
+path consitentcy alg orithms. Any traversal over the  remaining arcs or
+any remaining state assignments are now valid solutions to a 2CSP. In
+terms of effeicency, Mackworth 85 prove s that the time complexity of
+the pre-processor is a^5*N^3 where a is the number of states and N is
+the number of nodes. Further, the pre-processing nature of h is
+solution means that for static problems, it can be applied once to
+generate some look-up tables which are cached and used very quickly for
+subsequent analysi s.
+
+See also Pearl's and Dechter's stuff for other approaches. AIJ Dec '92
+is a special issue on constraint-based reasoning (Editted by
+Mackworth).
+
+--
+           Tim Menzies =timm@cse.unsw.edu.au| "I found myself\ designing
+ ,-_|\     AI Lab, Computer Science,        | rooms\ that wouldn't let
+/     \    Univeristy of NSW, P.O. Box 1,   | the light in\ with no way
+\_,-._* <- Kensington, Australia, 2033      | in\ and no way out\ and
+     v     ph:  +61-2-697-3940              | space to fly my kite in."
+	   fax: +61-2-663-4576              |     -- Godley & Creme,
+                                            |        Freeze Frame
+
+

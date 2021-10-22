@@ -1,0 +1,69 @@
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/faqs/lang/lisp/part2/faq-doc-14.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 05:31:20 GMT -->
+<HEAD>
+<TITLE>FAQ: Lisp Frequently Asked Questions 2/7 [Monthly posting] - [2-14] How do I find the argument list of a function? How do I get the function name from a function object?</TITLE>
+</HEAD>
+<BODY>
+<H1>[2-14] How do I find the argument list of a function? How do I get the function name from a function object?</H1>
+<PRE>
+There is no standard way to find the argument list of a function,
+since implementations are not required to save this information.
+However, many implementations do remember argument information, and
+usually have a function that returns the lambda list. Here are the
+commands from some Lisp implementations:
+
+   Lucid:                               arglist
+   Allegro:                             excl::arglist
+   Symbolics:                           arglist
+   LispWorks:                           lw:function-lambda-list
+
+CMU Common Lisp, new compiler:
+   #+(and :CMU :new-compiler)
+   (defun arglist (name)
+     (let* ((function (symbol-function name))
+            (stype (system:%primitive get-vector-subtype function)))
+       (when (eql stype system:%function-entry-subtype)
+         (cadr (system:%primitive header-ref function
+                                  system:%function-entry-type-slot)))))
+
+The draft ANSI standard does include FUNCTION-LAMBDA-EXPRESSION and
+FUNCTION-KEYWORDS, which can be used to create an ARGLIST function.
+
+If you're interested in the number of required arguments you could use
+
+   (defun required-arguments (name)
+     (or (position-if #'(lambda (x) (member x lambda-list-keywords))
+                      (arglist name))
+         (length (arglist name))))
+
+To extract the function name from the function object, as in
+        (function-name #'car) ==&#62; 'car
+use the following vendor-dependent functions:
+
+   Symbolics: (si::compiled-function-name &#60;fn&#62;)
+	(unless (si:lexical-closure-p &#60;fn&#62;) ...)
+   Lucid:     (sys::procedure-ref &#60;fn&#62; SYS:PROCEDURE-SYMBOL)
+	(when (sys:procedurep &#60;fn&#62;) ..)
+   Allegro:   (xref::object-to-function-name &#60;fn&#62;)
+   CMU CL:    (kernel:%function-header-name &#60;fn&#62;)
+   AKCL:      (system::compiled-function-name &#60;fn&#62;)
+   MCL:       (ccl::function-name &#60;fn&#62;)
+   LispWorks: (system::function-name &#60;fn&#62;)
+
+If a vendor-dependent function does not exist, the following
+(inefficient) code maps over all symbols looking for one whose
+function-cell matches the function object.
+
+(defun function-name (fobject)
+   (do-all-symbols (fsymbol)
+      (when (and (fboundp fsymbol)
+                 (eq (symbol-function fsymbol) fobject))
+        (return fsymbol))))
+
+If a vendor supports FUNCTION-LAMBDA-EXPRESSION, the third value is
+the name of the function, if available. 
+</PRE>
+<A NAME=up HREF="faq.html">Go Back Up</A><P>
+<A NAME=up HREF="faq-doc-13.html">Go To Previous</A><P>
+<A NAME=up HREF="faq-doc-15.html">Go To Next</A><P>
+</BODY>

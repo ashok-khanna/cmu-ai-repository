@@ -1,0 +1,163 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node337.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:31:46 GMT -->
+<HEAD>
+<TITLE>29.4.3. Exhaustive Case Analysis</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Exhaustive Case Analysis">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html5908 HREF="node338.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5906 HREF="node334.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5900 HREF="node336.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5910 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5911 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5909 HREF="node338.html"> Handling Conditions</A>
+<B>Up:</B> <A NAME=tex2html5907 HREF="node334.html"> Program Interface to </A>
+<B> Previous:</B> <A NAME=tex2html5901 HREF="node336.html"> Assertions</A>
+<HR> <P>
+<H2><A NAME=SECTION003343000000000000000>29.4.3. Exhaustive Case Analysis</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<A NAME=EXHAUSTIVECASEANALYSISCONDITIONS>The</A>
+syntax for <tt>etypecase</tt> and <tt>ctypecase</tt> is the same as for <tt>typecase</tt>, except
+that no <tt>otherwise</tt> clause is permitted. Similarly, the syntax for <tt>ecase</tt> and
+<tt>ccase</tt> is the same as for <tt>case</tt> except for the <tt>otherwise</tt> clause.
+<P>
+<tt>etypecase</tt> and <tt>ecase</tt> are similar to <tt>typecase</tt> and <tt>case</tt>, respectively, but signal
+a non-continuable error rather than returning <tt>nil</tt> if no clause is selected.
+<P>
+<tt>ctypecase</tt> and <tt>ccase</tt> are also similar to <tt>typecase</tt> and <tt>case</tt>, respectively,
+but signal a
+continuable error if no clause is selected.
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>etypecase <i>keyform</i> {(<i>type</i> {<i>form</i>}*)}*</tt><P>   [This supersedes the description of <tt>etypecase</tt>
+   given in section <A HREF="node222.html#EXHAUSTIVECASEANALYSIS">24.3</A>.-GLS]
+<P>
+  This control construct is similar to <tt>typecase</tt>, but no explicit <tt>otherwise</tt>
+  or <tt>t</tt> clause is permitted. If no clause is satisfied, <tt>etypecase</tt> signals 
+  an error (of type <tt>type-error</tt>) with a message constructed from the clauses.
+  It is not permissible to continue from this error. To supply an error
+  message, the user should use <tt>typecase</tt> with an <tt>otherwise</tt> clause containing 
+  a call to <tt>error</tt>. The name of this function stands for ``exhaustive type
+  case'' or ``error-checking type case.''
+<P>
+  Example:
+<P><pre>
+Lisp&gt; (setq x 1/3) 
+ => 1/3 
+Lisp&gt; (etypecase x 
+        (integer (* x 4)) 
+        (symbol (symbol-value x))) 
+Error: The value of X, 1/3, is neither an integer nor a symbol. 
+To continue, type :CONTINUE followed by an option number: 
+ 1: Return to Lisp Toplevel. 
+Debug&gt;
+</pre><P>
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>ctypecase <i>keyplace</i> {(<i>type</i> {<i>form</i>}*)}*</tt><P>   [This supersedes the description of <tt>ctypecase</tt>
+   given in section <A HREF="node222.html#EXHAUSTIVECASEANALYSIS">24.3</A>.-GLS]
+<P>
+  This control construct is similar to <tt>typecase</tt>, but no explicit 
+  <tt>otherwise</tt> or <tt>t</tt> clause is permitted.
+<P>
+  The <i>keyplace</i> must be a generalized variable reference acceptable to <tt>setf</tt>.
+  If no clause is satisfied, <tt>ctypecase</tt> signals an error (of type <tt>type-error</tt>)
+  with a message constructed from the clauses. This error may be continued
+  using the <tt>store-value</tt> restart. The argument to <tt>store-value</tt> is stored in
+  <i>keyplace</i> and then <tt>ctypecase</tt> starts over, making the type tests again. 
+  Subforms of <i>keyplace</i> may be evaluated multiple times. If the <tt>store-value</tt>
+  restart is invoked interactively, the user will be prompted for the value
+  to be used.
+<P>
+  The name of this function is mnemonic for ``continuable (exhaustive) 
+  type case.''
+<P>
+  Example:
+<P><pre>
+Lisp&gt; (setq x 1/3) 
+ => 1/3 
+Lisp&gt; (ctypecase x 
+        (integer (* x 4)) 
+        (symbol (symbol-value x))) 
+Error: The value of X, 1/3, is neither an integer nor a symbol. 
+To continue, type :CONTINUE followed by an option number: 
+ 1: Specify a value to use instead. 
+ 2: Return to Lisp Toplevel. 
+Debug&gt; :continue 1 
+Use value: 3.7 
+Error: The value of X, 3.7, is neither an integer nor a symbol. 
+To continue, type :CONTINUE followed by an option number: 
+ 1: Specify a value to use instead. 
+ 2: Return to Lisp Toplevel. 
+Debug&gt; :continue 1 
+Use value: 12 
+ => 48
+</pre><P>
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>ecase <i>keyform</i> {({({<i>key</i>}*) | <i>key</i>} {<i>form</i>}*)}*</tt><P>   [This supersedes the description of <tt>ecase</tt>
+   given in section <A HREF="node222.html#EXHAUSTIVECASEANALYSIS">24.3</A>.-GLS]
+<P>
+  This control construct is similar to <tt>case</tt>, but no explicit <tt>otherwise</tt> or <tt>t</tt>
+  clause is permitted. If no clause is satisfied, <tt>ecase</tt> signals an error
+  (of type <tt>type-error</tt>) with a message constructed from the clauses. It is not
+  permissible to continue from this error. To supply an error message, the
+  user should use <tt>case</tt> with an <tt>otherwise</tt> clause containing a call to <tt>error</tt>.
+  The name of this function stands for ``exhaustive case'' or ``error-checking
+  case.''
+<P>
+Example:
+<P><pre>
+Lisp&gt; (setq x 1/3) 
+ => 1/3 
+Lisp&gt; (ecase x 
+        (alpha (foo)) 
+        (omega (bar)) 
+        ((zeta phi) (baz))) 
+Error: The value of X, 1/3, is not ALPHA, OMEGA, ZETA, or PHI. 
+To continue, type :CONTINUE followed by an option number: 
+ 1: Return to Lisp Toplevel. 
+Debug&gt;
+</pre><P>
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>ccase <i>keyplace</i> {({({<i>key</i>}*) | <i>key</i>} {<i>form</i>}*)}*</tt><P>   [This supersedes the description of <tt>ccase</tt>
+   given in section <A HREF="node222.html#EXHAUSTIVECASEANALYSIS">24.3</A>.-GLS]
+<P>
+  This control construct is similar to <tt>case</tt>, but no explicit <tt>otherwise</tt> or
+  <tt>t</tt> clause is permitted.
+<P>
+  The <i>keyplace</i> must be a generalized variable reference acceptable to <tt>setf</tt>.
+  If no clause is satisfied, <tt>ccase</tt> signals an error (of type <tt>type-error</tt>)
+  with a message constructed from the clauses. This error may be continued
+  using the <tt>store-value</tt> restart. The argument to <tt>store-value</tt> is stored in
+  <i>keyplace</i> and then <tt>ccase</tt> starts over, making the type tests again. Subforms
+  of <i>keyplace</i> may be evaluated multiple times. If the <tt>store-value</tt> restart is
+  invoked interactively, the user will be prompted for the value to be used.
+<P>
+  The name of this function is mnemonic for ``continuable (exhaustive) case.''
+<P>
+<hr>
+<b>Implementation note:</b> The <tt>type-error</tt> signaled by <tt>ccase</tt> and <tt>ecase</tt> is free to
+  choose any representation of the acceptable argument type that it wishes
+  for placement in the expected-type slot. It will always work to use type
+  <tt>(member . <i>keys</i>)</tt>, but in some cases it may be more efficient, for example,
+  to use a type that represents an integer subrange or a type composed using the
+  <tt>or</tt> type specifier.
+<hr>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html5908 HREF="node338.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5906 HREF="node334.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5900 HREF="node336.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5910 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5911 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5909 HREF="node338.html"> Handling Conditions</A>
+<B>Up:</B> <A NAME=tex2html5907 HREF="node334.html"> Program Interface to </A>
+<B> Previous:</B> <A NAME=tex2html5901 HREF="node336.html"> Assertions</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

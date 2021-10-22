@@ -1,0 +1,1115 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node129.html by HTTrack Website Copier/3.x [XR&CO'2014], Thu, 21 Oct 2021 14:57:20 GMT -->
+<HEAD>
+<TITLE>12.5.3. Branch Cuts, Principal Values, and Boundary Conditions in the Complex Plane</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Branch Cuts, Principal Values, and Boundary Conditions in the Complex Plane">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3139 HREF="node130.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3137 HREF="node126.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3133 HREF="node128.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3141 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3142 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3140 HREF="node130.html"> Type Conversions and </A>
+<B>Up:</B> <A NAME=tex2html3138 HREF="node126.html"> Irrational and Transcendental </A>
+<B> Previous:</B> <A NAME=tex2html3134 HREF="node128.html"> Trigonometric and Related </A>
+<HR> <P>
+<H2><A NAME=SECTION001653000000000000000>12.5.3. Branch Cuts, Principal Values, and Boundary Conditions in the Complex Plane</A></H2>
+<P>
+<A NAME=BRANCHCUTSSECTION>Many</A>
+of the irrational and transcendental functions are multiply defined
+in the complex domain; for example, there are in general an infinite
+number of complex values for the logarithm function.  In each such
+case, a principal value must be chosen for the function to return.
+In general, such values cannot be chosen so as to make the range
+continuous; lines in the domain
+called <i>branch cuts</i> must be defined, which in turn
+define the discontinuities in the range.
+<P>
+Common Lisp defines the branch cuts, principal values, and boundary
+conditions for the complex functions following
+a proposal for complex functions in APL [<A HREF="node368.html#APLBRANCHCUTS">36</A>].
+The contents of this section are borrowed largely from that proposal.
+<P>
+<hr>
+<b>Compatibility note:</b> The branch cuts defined here differ in a few very minor
+respects from those advanced by W. Kahan, who considers not only the
+``usual'' definitions but also the special modifications necessary for
+IEEE proposed floating-point arithmetic, which has infinities and
+minus zero as explicit computational objects.  For example, he proposes
+that SQRT(-4+0<i>i</i>)=2<i>i</i>, but SQRT(-4-0<i>i</i>)=-2<i>i</i>.
+<P>
+It may be that the differences between the APL proposal and Kahan's
+proposal will be ironed out.  If so, Common Lisp may be
+changed as necessary to be compatible with these other groups.  Any changes
+from the specification below are likely to be quite minor,
+probably concerning primarily questions of which side of a branch cut
+is continuous with the cut itself.
+<hr>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+Indeed, X3J13 voted in January 1989
+(COMPLEX-ATAN-BRANCH-CUT) <A NAME=12232>&#160;</A> 
+to alter the direction of continuity for
+the branch cuts of <tt>atan</tt>, and also
+(IEEE-ATAN-BRANCH-CUT) <A NAME=12234>&#160;</A> 
+to address the treatment of branch cuts
+in implementations that have a distinct floating-point minus zero.
+<P>
+The treatment of minus zero centers in two-argument <tt>atan</tt>.
+If there is no minus zero, then the branch cut runs just below the negative real
+axis as before, and the range of two-argument <tt>atan</tt> is <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41127.gif">.
+If there is a minus zero, however, then the branch cut runs precisely on the negative real
+axis, skittering between pairs of numbers of the form <i>-x</i>+/-0<i>i</i>,
+and the range of two-argument <tt>atan</tt> is <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41131.gif">.
+<P>
+The treatment of minus zero by all other irrational and transcendental functions
+is then specified by defining those functions in terms of two-argument <tt>atan</tt>.
+First, <tt>phase</tt> is defined in terms of two-argument <tt>atan</tt>, and
+complex <tt>abs</tt> in terms of real <tt>sqrt</tt>;
+then complex <tt>log</tt> is defined in terms of <tt>phase</tt>, <tt>abs</tt>, and real <tt>log</tt>;
+then complex <tt>sqrt</tt> in terms of complex <tt>log</tt>;
+and finally all others are defined in terms of these.
+<P>
+Kahan [<A HREF="node368.html#KAHANCOMPLEXFNS">25</A>] treats these matters in some detail and also
+suggests specific algorithms for implementing irrational and transcendental functions
+in IEEE standard floating-point arithmetic [<A HREF="node368.html#IEEEPROPOSEDFLOATINGPOINTSTANDARD">23</A>].
+<P>
+Remarks in the first edition about the direction of the continuity of branch
+cuts continue to hold in the absence of minus zero and may be ignored if minus zero
+is supported; since all branch cuts happen to run along the principal axes, they
+run <i>between</i> plus zero and minus zero, and so each sort of zero is associated
+with the obvious quadrant.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<DL COMPACT><DT><tt>sqrt</tt>
+<DD>
+The branch cut for square root lies along the negative real axis,
+continuous with quadrant II.
+The range consists of the right half-plane, including the non-negative
+imaginary axis and excluding the negative imaginary axis.
+</DL>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<DL COMPACT><DD>
+X3J13 voted in January 1989
+(IEEE-ATAN-BRANCH-CUT) <A NAME=12258>&#160;</A> 
+to specify certain floating-point behavior when minus zero is supported.
+As a part of that vote it approved a mathematical definition of complex square root:
+<PRE><TT> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41083.gif">
+<P>
+</TT></PRE>
+This defines the branch cuts precisely, whether minus zero is supported or not.
+</DL>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<DL COMPACT><DD>
+<DT><tt>phase</tt>
+<DD>
+The branch cut for the phase function lies along the negative real
+axis, continuous with quadrant II.  The range consists of that portion of
+the real axis between <b>-pi</b> (exclusive) and <b>pi</b> (inclusive).
+</DL>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<DL COMPACT><DD>
+X3J13 voted in January 1989
+(IEEE-ATAN-BRANCH-CUT) <A NAME=12267>&#160;</A> 
+to specify certain floating-point behavior when minus zero is supported.
+As a part of that vote it approved a mathematical definition of phase:
+<PRE><TT> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41084.gif">
+</TT></PRE>
+where <b>F<i>z</i></b> is the imaginary part of <b><i>z</i></b> and <b>R<i>z</i></b> the real part of <b><i>z</i></b>.
+This defines the branch cuts precisely, whether minus zero is supported or not.
+</DL>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<DL COMPACT><DD>
+<DT><tt>log</tt>
+<DD>
+The branch cut for the logarithm function of one argument (natural
+logarithm) lies along the negative real axis, continuous with quadrant II.
+The domain excludes the origin.  For a complex number <b><i>z</i></b>,
+<b><i>z</i></b> is defined to be
+<PRE><TT> log <i>z</i> = (log|<i>z</i>|) + <i>i</i>(phase <i>z</i>)
+</TT></PRE>
+Therefore the range of the one-argument logarithm function is that strip
+of the complex plane containing numbers with imaginary parts between
+<b>-pi</b> (exclusive) and <b>pi</b> (inclusive).
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+The X3J13 vote on minus zero
+(IEEE-ATAN-BRANCH-CUT) <A NAME=12288>&#160;</A> 
+would alter that exclusive bound of <b>-pi</b>  to be inclusive if minus zero is supported.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+The two-argument logarithm function is defined as <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41086.gif">.
+This defines the principal values precisely.  The range of the two-argument
+logarithm function is the entire complex plane.
+It is an error if <b><i>z</i></b> is zero.  If <b><i>z</i></b> is non-zero and <b><i>b</i></b> is zero,
+the logarithm is taken to be zero.
+<P>
+<DT><tt>exp</tt>
+<DD>
+The simple exponential function has no branch cut.
+<P>
+<DT><tt>expt</tt>
+<DD>
+The two-argument exponential function is defined
+as <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41087.gif">.
+This defines the principal values precisely.  The range of the
+two-argument exponential function is the entire complex plane.  Regarded
+as a function of <b><i>x</i></b>, with <b><i>b</i></b> fixed, there is no branch cut.
+Regarded as a function of <i>b</i>, with <b><i>x</i></b> fixed, there is in general
+a branch cut along the negative real axis, continuous with quadrant II.
+The domain excludes the origin.
+By definition, <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41167.gif">.  If <b><i>b</i>=0</b> and the real part of <b><i>x</i></b> is strictly
+positive, then <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41173.gif">.
+For all other values of <b><i>x</i></b>, <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41177.gif">
+is an error.
+<P>
+<DT><tt>asin</tt>
+<DD>
+The following definition for arc sine determines the range and
+branch cuts:
+<PRE><TT> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41088.gif">
+</TT></PRE>
+This is equivalent to the formula
+<PRE><TT> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41089.gif">
+</TT></PRE>
+recommended by Kahan [<A HREF="node368.html#KAHANCOMPLEXFNS">25</A>].
+<P>
+The branch cut for the arc sine function is in two pieces:
+one along the negative real axis to the left of <b>-1</b>
+(inclusive), continuous with quadrant II, and one along the positive real
+axis to the right of 1 (inclusive), continuous with quadrant IV.  The
+range is that strip of the complex plane containing numbers whose real
+part is between <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41199.gif"> and <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41251.gif">.  A number with real
+part equal to <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41199.gif"> is in the range if and only if its imaginary
+part is non-negative; a number with real part equal to <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41251.gif"> is in
+the range if and only if its imaginary part is non-positive.
+<P>
+<DT><tt>acos</tt>
+<DD>
+The following definition for arc cosine determines the range and
+branch cuts:
+<PRE><TT> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41090.gif">
+</TT></PRE>
+or, which is equivalent,
+<PRE><TT> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41091.gif">
+</TT></PRE>
+The branch cut for the arc cosine function is in two pieces:
+one along the negative real axis to the left of <b>-1</b>
+(inclusive), continuous with quadrant II, and one along the positive real
+axis to the right of 1 (inclusive), continuous with quadrant IV.  
+This is the same branch cut as for arc sine.
+The range is that strip of the complex plane containing numbers whose real
+part is between zero and <b>pi</b>.  A number with real
+part equal to zero is in the range if and only if its imaginary
+part is non-negative; a number with real part equal to <b>pi</b> is in
+the range if and only if its imaginary part is non-positive.
+<P>
+<DT><tt>atan</tt>
+<DD>
+The following definition for (one-argument) arc tangent determines the
+range and branch cuts:
+
+<PRE><TT> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41092.gif">
+</TT></PRE>
+
+</DL>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<DL COMPACT><DD>
+Beware of simplifying this formula; ``obvious'' simplifications are likely
+to alter the branch cuts or the values on the branch cuts incorrectly.
+<P>
+The branch cut for the arc tangent function is in two pieces:
+one along the positive imaginary axis above <i>i</i>
+(exclusive), continuous with quadrant II, and one along the negative imaginary
+axis below <b>-<i>i</i></b> (exclusive), continuous with quadrant IV.  
+The points <i>i</i> and <b>-<i>i</i></b> are excluded from the domain.
+The range is that strip of the complex plane containing numbers whose real
+part is between <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41199.gif"> and <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41251.gif">.  A number with real
+part equal to <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41199.gif"> is in the range if and only if its imaginary
+part is strictly positive; a number with real part equal to <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41251.gif"> is in
+the range if and only if its imaginary part is strictly negative.  Thus the range of
+the arc tangent function is identical to that of the arc sine function with the points
+<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41199.gif"> and <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41251.gif"> excluded.
+</DL>
+<img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<p>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<DL COMPACT><DD>
+X3J13 voted in January 1989
+(COMPLEX-ATAN-BRANCH-CUT) <A NAME=12359>&#160;</A> 
+to replace the formula shown above with the formula
+<PRE><TT> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41093.gif">
+</TT></PRE>
+This is equivalent to the formula
+<PRE><TT> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41094.gif">
+</TT></PRE>
+recommended by Kahan [<A HREF="node368.html#KAHANCOMPLEXFNS">25</A>].
+It causes the upper branch cut to be continuous with
+quadrant I rather than quadrant II, and the lower branch cut to
+be continuous with quadrant III rather than quadrant IV; otherwise it agrees with the
+formula of the first edition.  Therefore this change alters the result returned by <tt>atan</tt>
+only for arguments on the positive imaginary axis that
+are of magnitude greater than 1.  The full description for this new formula is as follows.
+<P>
+The branch cut for the arc tangent function is in two pieces:
+one along the positive imaginary axis above <i>i</i>
+(exclusive), continuous with quadrant I, and one along the negative imaginary
+axis below <b>-<i>i</i></b> (exclusive), continuous with quadrant III.  
+The points <i>i</i> and <b>-<i>i</i></b> are excluded from the domain.
+The range is that strip of the complex plane containing numbers whose real
+part is between <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41199.gif"> and <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41251.gif">.  A number with real
+part equal to <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41199.gif"> is in the range if and only if its imaginary
+part is strictly negative; a number with real part equal to <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41251.gif"> is in
+the range if and only if its imaginary part is strictly positive.  Thus the range of
+the arc tangent function is <i>not</i> identical to that of the arc sine function.
+</DL>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<DL COMPACT>
+<DT><tt>asinh</tt>
+<DD>
+The following definition for the inverse hyperbolic sine determines
+the range and branch cuts:
+<PRE><TT> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41095.gif">
+</TT></PRE>
+The branch cut for the inverse hyperbolic sine function is in two pieces:
+one along the positive imaginary axis above <i>i</i>
+(inclusive), continuous with quadrant I, and one along the negative imaginary
+axis below <b>-<i>i</i></b> (inclusive), continuous with quadrant III.
+The range is that strip of the complex plane containing numbers whose imaginary
+part is between <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41199.gif"> and <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41251.gif">.  A number with imaginary
+part equal to <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41199.gif"> is in the range if and only if its real
+part is non-positive; a number with imaginary part equal to <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41251.gif"> is in
+the range if and only if its real part is non-negative.
+<P>
+<DT><tt>acosh</tt>
+<DD>
+The following definition for the inverse hyperbolic cosine
+determines the range and branch cuts:
+<PRE><TT> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41096.gif">
+</TT></PRE>
+</DL>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<DL COMPACT><DD>
+Kahan [<A HREF="node368.html#KAHANCOMPLEXFNS">25</A>] suggests the formula
+<PRE><TT> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41097.gif">
+</TT></PRE>
+pointing out that it yields the same principal value but eliminates
+a gratuitous removable singularity at <b><i>z</i>=-1</b>.
+A proposal was submitted to X3J13 in September 1989 to replace the
+formula <tt>acosh</tt> with that recommended by Kahan.
+There is a good possibility that it will be adopted.
+</DL>
+<img align=bottom alt="change_end" src="gif/change_end.gif"><br>
+<DL COMPACT><DD>
+The branch cut for the inverse hyperbolic cosine function
+lies along the real axis to the left of 1 (inclusive), extending
+indefinitely along the negative real axis, continuous with quadrant II
+and (between 0 and 1) with quadrant I.
+The range is that half-strip of the complex plane containing numbers whose
+real part is non-negative and whose imaginary
+part is between <b>-pi</b> (exclusive) and <b>pi</b> (inclusive).
+A number with real part zero is in the range 
+if its imaginary part is between zero (inclusive) and <b>pi</b> (inclusive).
+<P>
+<DT><tt>atanh</tt>
+<DD>
+The following definition for the inverse hyperbolic tangent
+determines the range and branch cuts:
+</DL>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif">
+<DL COMPACT><DD>
+<PRE><TT> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41098.gif">     <b>WRONG!</b>
+</TT></PRE>
+</DL>
+<img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<p>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif">
+<DL COMPACT><DD>
+WARNING!  <i>The formula shown above for hyperbolic arc tangent is incorrect.</i>
+It is not a matter of incorrect branch cuts; it simply does not compute anything
+like a hyperbolic arc tangent.  This unfortunate error in the first edition
+was the result of mistranscribing a (correct) APL formula from Penfield's paper
+[<A HREF="node368.html#APLBRANCHCUTS">36</A>].  The formula should have been transcribed as
+<PRE><TT> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41099.gif">
+</TT></PRE>
+</DL>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif">
+<DL COMPACT><DD>
+Beware of simplifying this formula; ``obvious'' simplifications are
+likely to alter the branch cuts or the values on the branch cuts
+incorrectly.
+<P>
+The branch cut for the inverse hyperbolic tangent function
+is in two pieces: one along the negative real axis to the left of
+<b>-1</b> (inclusive), continuous with quadrant III, and one along
+the positive real axis to the right of 1 (inclusive), continuous with
+quadrant I.  The points <b>-1</b> and 1 are excluded from the
+domain.
+The range is that strip of the complex plane containing
+numbers whose imaginary part is between <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41199.gif"> and
+<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41251.gif">.  A number with imaginary part equal to <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41199.gif">
+is in the range if and only if its real part is strictly negative; a number with
+imaginary part equal to <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41251.gif"> is in the range if and only if its real
+part is strictly positive.  Thus the range of the inverse
+hyperbolic tangent function is identical to
+that of the inverse hyperbolic sine function with the points
+<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41253.gif"> and <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41255.gif"> excluded.
+</DL>
+<img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<p>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif">
+<DL COMPACT><DD>
+A proposal was submitted to X3J13 in September 1989 to replace the
+formula <tt>atanh</tt> with that recommended by Kahan [<A HREF="node368.html#KAHANCOMPLEXFNS">25</A>]:
+<PRE><TT> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41100.gif">
+</TT></PRE>
+There is a good possibility that it will be adopted.  If it is, the complete
+description of the branch cuts of <tt>atanh</tt> will then be as follows.
+<P>
+The branch cut for the inverse hyperbolic tangent function
+is in two pieces: one along the negative real axis to the left of
+<b>-1</b> (inclusive), continuous with quadrant II, and one along
+the positive real axis to the right of 1 (inclusive), continuous with
+quadrant IV.  The points <b>-1</b> and 1 are excluded from the
+domain.
+The range is that strip of the complex plane containing
+numbers whose imaginary part is between <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41199.gif"> and
+<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41251.gif">.  A number with imaginary part equal to <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41199.gif">
+is in the range if and only if its real part is strictly positive; a number with
+imaginary part equal to <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41251.gif"> is in the range if and only if its real
+part is strictly negative.  Thus the range of the inverse
+hyperbolic tangent function is <i>not</i> the same as
+that of the inverse hyperbolic sine function.
+</DL>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+With these definitions, the following useful identities are obeyed
+throughout the applicable portion of the complex domain, even on
+the branch cuts:
+<P>
+<pre>
+sin <i>iz</i> = <i>i</i> sinh <i>z</i>  sinh <i>iz</i> = <i>i</i> sin <i>z</i>        arctan <i>iz</i> = <i>i</i> arctanh <i>z</i>
+cos <i>iz</i> = cosh <i>z</i>    cosh <i>iz</i> = cos <i>z</i>          arcsinh <i>iz</i> = <i>i</i> arcsin <i>z</i>
+tan <i>iz</i> = <i>i</i> tanh <i>z</i>  arcsin <i>iz</i> = <i>i</i> arcsinh <i>z</i>  arctanh <i>iz</i> = <i>i</i> arctan <i>z</i>
+</pre>
+<p>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+I thought it would be useful to provide some graphs illustrating the behavior
+of the irrational and transcendental functions in the complex plane.
+It also provides an opportunity to show off the Common Lisp code that
+was used to generate them.
+<P>
+Imagine the complex plane to be decorated
+as follows.  The real and imaginary axes are painted with thick lines.
+Parallels from the axes on both sides at distances of 1, 2, and 3 are painted
+with thin lines; these parallels are doubly infinite lines, as are the axes.
+Four annuli (rings) are painted in gradated shades of gray.  Ring 1, the inner ring,
+consists of points whose radial distances from the origin lie in the range
+[1/4, 1/2]; ring 2 is in the radial range [3/4, 1]; ring 3, in the range
+[<b>pi</b>/2, 2]; and ring 4, in the range [3, <b>pi</b>].
+Ring <i>j</i> is divided into <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41295.gif"> equal sectors, with each sector
+painted a different shade of gray, darkening as one proceeds counterclockwise
+from the positive real axis.
+<P>
+We can illustrate the behavior of a numerical function <b><i>f</i></b> by considering how
+it maps the complex plane to itself.  More specifically, consider each
+point <b><i>z</i></b> of the decorated plane.  We decorate a new plane by coloring
+the point <i>f(z)</i> with the same color that point <b><i>z</i></b> had in the original
+decorated plane.  In other words, the newly decorated plane illustrates
+how the <b><i>f</i></b> maps the axes, other horizontal and vertical lines, and annuli.
+<P>
+In each figure we will show only a fragment of the complex plane,
+with the real axis horizontal in the usual manner (<b>-pi</b> to the left, <b>+pi</b>
+to the right) and the imaginary axis vertical (<b>-<i>i</i></b> below, <b>+pi<i>i</i></b>
+above).  Each fragment shows a region containing points whose real and imaginary
+parts are in the range [-4.1, 4.1].  The axes of the new plane are shown as very
+thin lines, with large tick marks at integer coordinates and somewhat smaller
+tick marks at multiples of <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41251.gif">.
+<P>
+Figure <A HREF="_24769_figure12561.gif">12-1</A> shows the result of plotting the <tt>identity</tt> function
+(quite literally); the graph exhibits the decoration of the original plane.
+<P>
+Figures <A HREF="node129.html#SECONDPLOT">12-2</A> through <A HREF="node129.html#LASTPLOT">12-20</A> show the graphs for the functions
+<tt>sqrt</tt>, <tt>exp</tt>, <tt>log</tt>, <tt>sin</tt>, <tt>asin</tt>, <tt>cos</tt>, <tt>acos</tt>, <tt>tan</tt>, <tt>atan</tt>,
+<tt>sinh</tt>, <tt>asinh</tt>, <tt>cosh</tt>, <tt>acosh</tt>, <tt>tanh</tt>, and <tt>atanh</tt>, and
+as a bonus, the graphs for the functions <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41335.gif">,
+<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41321.gif">, <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41323.gif">, and <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41325.gif">.  All of these are related
+to the trigonometric functions in various ways.  For example, if
+<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41327.gif">, then <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41329.gif">, and if <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41331.gif">, then
+<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41333.gif">.  It is instructive to examine the graph for <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41335.gif">
+and try to visualize how it transforms the graph for <tt>sin</tt> into the graph for <tt>cos</tt>.
+<P>
+Each figure is accompanied by a commentary on what maps to what and other interesting
+features.  None of this material is terribly new; much of it may be found in any
+good textbook on complex analysis.  I believe that the particular form in which the
+graphs are presented is novel, as well as the fact that the graphs have been generated
+as PostScript [<A HREF="node368.html#ADOBEPOSTSCRIPT">1</A>] code by Common Lisp code.  This PostScript
+code was then fed directly to the typesetting equipment that set the pages for this book.
+Samples of this PostScript code follow the figures themselves,
+after which the code for the entire program is presented.
+<P>
+In the commentaries that accompany the figures I
+sometimes speak of mapping the points <b>+/- infinity</b> or <b>+/- infinity <i>i</i></b>.
+When I say that function <b><i>f</i></b> maps <b>+infinity</b> to a certain point <b><i>z</i></b>, I mean that
+<PRE><TT> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41101.gif">
+</TT></PRE>
+Similarly, when I say that <b><i>f</i></b> maps
+<b>-<i>i</i></b> to <b><i>z</i></b>, I mean that
+<PRE><TT> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41102.gif">
+</TT></PRE>
+In other words, I am considering a limit as one travels out along one of the
+main axes.  I also speak in a similar manner of mapping <i>to</i> one of these
+infinities.
+<P>
+<HR>
+<P>
+<UL>
+<LI> <A NAME=IDENTITYPLOT>&#160;</A><A href="_24769_figure12561.gif">Identity Plot</A>
+<LI> <A NAME=SECONDPLOT>&#160;</A><A href="_24769_figure12567.gif">Square Root Function</A>
+<LI> <A href="_24769_figure12578.gif">Exponential Function</A>
+<LI> <A href="_24769_figure12588.gif">Natural Logarithm Function</A>
+<LI> <A href="_24769_figure12594.gif">Function (z-1)/(z+1)</A>
+<LI> <A href="_24769_figure12605.gif">Function (1+z)/(1-z)</A>
+<LI> <A href="_24769_figure12645.gif">Sine Function</A>
+<LI> <A href="_24769_figure12654.gif">Arc Sine Function</A>
+<LI> <A href="_24769_figure12664.gif">Cosine Function</A>
+<LI> <A href="_24769_figure12677.gif">Arc Cosine Function</A>
+<LI> <A href="_24769_figure12688.gif">Tanget Function</A>
+<LI> <A href="_24769_figure12710.gif">Arc Tangent Function</A>
+<LI> <A href="_24769_figure12731.gif">Hyperbolic Sine Function</A>
+<LI> <A href="_24769_figure12754.gif">Hyperbolic Arc Sine Function</A>
+<LI> <A href="_24769_figure12766.gif">Hyperbolic Cosine Function </A>
+<LI> <A href="_24769_figure12781.gif">Hyperbolic Arc Cosine Function</A>
+<LI> <A href="_24769_figure12787.gif">Hyperbolic Tangent Function</A>
+<LI> <A NAME=ATANHPLOT>&#160;</A><A href="_24769_figure12806.gif">Hyperbolic Arc Tangent Function</A>
+<LI> <A href="_24769_figure12815.gif">SQRT(1 - SQR(z))</A>
+<LI> <A NAME=LASTPLOT>&#160;</A><A href="_24769_figure12826.gif">SQRT(1 + SQR(z))</A>
+</UL>
+<P>
+Here is a sample of the PostScript code that generated
+figure <A HREF="node129.html#IDENTITYPLOT">12-1</A>, showing the initial scaling,
+translation, and clipping parameters; the code for one
+sector of the innermost annulus; and the code for the negative
+imaginary axis.  Comment lines indicate how path or boundary
+segments were generated separately and then spliced (in order to
+allow for the places that a singularity might lurk, in which case
+the generating code can ``inch up'' to the problematical argument
+value).
+<P>
+The size of the entire PostScript file for the
+<tt>identity</tt> function was about 68 kilobytes (2757 lines, including comments).
+The smallest files
+were the plots for <tt>atan</tt> and <tt>atanh</tt>, about 65 kilobytes apiece;
+the largest were the plots for <tt>sin</tt>, <tt>cos</tt>, <tt>sinh</tt>, and <tt>cosh</tt>,
+about 138 kilobytes apiece.
+<P>
+<listing>
+% PostScript file for plot of function IDENTITY 
+% Plot is to fit in a region 4.666666666666667 inches square 
+%  showing axes extending 4.1 units from the origin. 
+
+40.97560975609756 40.97560975609756 scale 
+4.1 4.1 translate 
+newpath 
+  -4.1 -4.1 moveto 
+  4.1 -4.1 lineto 
+  4.1 4.1 lineto 
+  -4.1 4.1 lineto 
+  closepath 
+clip 
+% Moby grid for function IDENTITY 
+% Annulus 0.25 0.5 4 0.97 0.45 
+% Sector from 4.7124 to 6.2832 (quadrant 3) 
+newpath 
+  0.0 -0.25 moveto 
+  0.0 -0.375 lineto 
+  %middle radial 
+  0.0 -0.375 lineto 
+  0.0 -0.5 lineto 
+  %end radial 
+  0.0 -0.5 lineto 
+  0.092 -0.4915 lineto 
+  0.1843 -0.4648 lineto 
+  0.273 -0.4189 lineto 
+  0.3536 -0.3536 lineto 
+  %middle circumferential 
+  0.3536 -0.3536 lineto 
+  0.413 -0.2818 lineto 
+  0.4594 -0.1974 lineto 
+  0.4894 -0.1024 lineto 
+  0.5 0.0 lineto 
+  %end circumferential 
+  0.5 0.0 lineto 
+  0.375 0.0 lineto 
+  %middle radial 
+  0.375 0.0 lineto 
+  0.25 0.0 lineto 
+  %end radial 
+  0.25 0.0 lineto 
+  0.2297 -0.0987 lineto 
+  0.1768 -0.1768 lineto 
+  %middle circumferential 
+  0.1768 -0.1768 lineto 
+  0.0922 -0.2324 lineto 
+  0.0 -0.25 lineto 
+  %end circumferential 
+  closepath 
+currentgray   0.45 setgray   fill   setgray
+</listing>
+<P>
+[2598 lines omitted]
+<P><listing>
+% Vertical line from (0.0, -0.5) to (0.0, 0.0) 
+newpath 
+  0.0 -0.5 moveto 
+  0.0 0.0 lineto 
+0.05 setlinewidth   1 setlinecap  stroke 
+% Vertical line from (0.0, -0.5) to (0.0, -1.0) 
+newpath 
+  0.0 -0.5 moveto 
+  0.0 -1.0 lineto 
+0.05 setlinewidth   1 setlinecap  stroke 
+% Vertical line from (0.0, -2.0) to (0.0, -1.0) 
+newpath 
+  0.0 -2.0 moveto 
+  0.0 -1.0 lineto 
+0.05 setlinewidth   1 setlinecap  stroke 
+% Vertical line from (0.0, -2.0) to (0.0, -1.1579208923731617E77) 
+newpath 
+  0.0 -2.0 moveto 
+  0.0 -6.3553 lineto 
+  0.0 -6.378103166302659 lineto 
+  0.0 -6.378103166302659 lineto 
+  0.0 -6.378103166302659 lineto 
+0.05 setlinewidth   1 setlinecap  stroke
+</listing><P>
+[84 lines omitted]
+<P><listing>
+% End of PostScript file for plot of function IDENTITY
+</listing><P>
+
+<P>
+Here is the program that generated the PostScript code for
+the graphs shown in figures <A HREF="node129.html#IDENTITYPLOT">12-1</A> through <A HREF="node129.html#LASTPLOT">12-20</A>.
+It contains a mixture of fairly general mechanisms and <i>ad hoc</i> kludges
+for plotting functions of a single complex argument while gracefully handling
+extremely large and small values,
+branch cuts, singularities, and periodic behavior.
+The aim was to provide a simple user interface that would not
+require the caller to provide special advice for each function
+to be plotted.
+The file for figure <A HREF="node129.html#IDENTITYPLOT">12-1</A>, for example, was generated
+by the call <tt>(picture 'identity)</tt>, which resulted in the writing of
+a file named <tt>identity-plot.ps</tt>.
+<P>
+The program assumes that any periodic behavior will have a period that is a multiple of
+2<b>pi</b>; that branch cuts will fall along the real or imaginary axis;
+and that singularities or very large or small values
+will occur only at the origin, at <b>1</b> or <b>+/-<i>i</i></b>,
+or on the boundaries of the annuli (particularly those with radius <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap41251.gif"> or <b>pi</b>).
+The central function is <tt>parametric-path</tt>, which accepts four arguments:
+two real numbers that are the endpoints of an interval of real numbers,
+a function that maps this interval into a path in the complex plane,
+and the function to be plotted; the task of <tt>parametric-path</tt> is to
+generate PostScript code (a series of <tt>lineto</tt> operations)
+that will plot an approximation to the image of the parametric path
+as transformed by the function to be plotted.
+Each of the functions <tt>hline</tt>, <tt>vline</tt>, <tt>-hline</tt>, <tt>-vline</tt>, <tt>radial</tt>,
+and <tt>circumferential</tt> takes appropriate parameters
+and returns a function suitable for use as the third argument
+to <tt>parametric-path</tt>.
+There is some code that defends against errors
+(by using <tt>ignore-errors</tt>) and against certain peculiarities of
+IEEE floating-point arithmetic (the code that checks for not-a-number (NaN) results).
+<P>
+The program is offered here without further comment or apology.
+<P>
+
+<BR><HR><listing>
+
+(defparameter units-to-show 4.1) 
+(defparameter text-width-in-picas 28.0) 
+(defparameter device-pixels-per-inch 300) 
+(defparameter pixels-per-unit 
+  (* (/ (/ text-width-in-picas 6) 
+        (* units-to-show 2)) 
+     device-pixels-per-inch)) 
+
+(defparameter big (sqrt (sqrt most-positive-single-float))) 
+(defparameter tiny (sqrt (sqrt least-positive-single-float))) 
+
+(defparameter path-really-losing 1000.0) 
+(defparameter path-outer-limit (* units-to-show (sqrt 2) 1.1)) 
+(defparameter path-minimal-delta (/ 10 pixels-per-unit)) 
+(defparameter path-outer-delta (* path-outer-limit 0.3)) 
+(defparameter path-relative-closeness 0.00001) 
+(defparameter back-off-delta 0.0005)
+
+(defun comment-line (stream &amp;rest stuff) 
+  (format stream &quot;~%% &quot;) 
+  (apply #'format stream stuff) 
+  (format t &quot;~%% &quot;) 
+  (apply #'format t stuff)) 
+
+(defun parametric-path (from to paramfn plotfn) 
+  (assert (and (plusp from) (plusp to))) 
+  (flet ((domainval (x) (funcall paramfn x)) 
+         (rangeval (x) (funcall plotfn (funcall paramfn x))) 
+         (losing (x) (or (null x) 
+                         (/= (realpart x) (realpart x))  ;NaN? 
+                         (/= (imagpart x) (imagpart x))  ;NaN? 
+                         (&gt; (abs (realpart x)) path-really-losing) 
+                         (&gt; (abs (imagpart x)) path-really-losing)))) 
+    (when (&gt; to 1000.0) 
+      (let ((f0 (rangeval from)) 
+            (f1 (rangeval (+ from 1))) 
+            (f2 (rangeval (+ from (* 2 pi)))) 
+            (f3 (rangeval (+ from 1 (* 2 pi)))) 
+            (f4 (rangeval (+ from (* 4 pi))))) 
+        (flet ((close (x y) 
+                 (or (&lt; (careful-abs (- x y)) path-minimal-delta) 
+                     (&lt; (careful-abs (- x y)) 
+                        (* (+ (careful-abs x) (careful-abs y)) 
+                           path-relative-closeness))))) 
+          (when (and (close f0 f2) 
+                     (close f2 f4) 
+                     (close f1 f3) 
+                     (or (and (close f0 f1) 
+                              (close f2 f3)) 
+                         (and (not (close f0 f1)) 
+                              (not (close f2 f3))))) 
+            (format t &quot;~&amp;Periodicity detected.&quot;) 
+            (setq to (+ from (* (signum (- to from)) 2 pi))))))) 
+     (let ((fromrange (ignore-errors (rangeval from))) 
+          (torange (ignore-errors (rangeval to)))) 
+      (if (losing fromrange) 
+          (if (losing torange) 
+              '() 
+              (parametric-path (back-off from to) to paramfn plotfn)) 
+          (if (losing torange) 
+              (parametric-path from (back-off to from) paramfn plotfn) 
+              (expand-path (refine-path (list from to) #'rangeval) 
+                           #'rangeval))))))
+
+(defun back-off (point other) 
+  (if (or (&gt; point 10.0) (&lt; point 0.1)) 
+      (let ((sp (sqrt point))) 
+        (if (or (&gt; point sp other) (&lt; point sp other)) 
+            sp 
+            (* sp (sqrt other)))) 
+      (+ point (* (signum (- other point)) back-off-delta)))) 
+
+(defun careful-abs (z) 
+  (cond ((or (&gt; (realpart z) big) 
+             (&lt; (realpart z) (- big)) 
+             (&gt; (imagpart z) big) 
+             (&lt; (imagpart z) (- big))) 
+         big) 
+        ((complexp z) (abs z)) 
+        ((minusp z) (- z)) 
+        (t z))) 
+
+(defparameter max-refinements 5000) 
+
+(defun refine-path (original-path rangevalfn) 
+  (flet ((rangeval (x) (funcall rangevalfn x))) 
+    (let ((path original-path)) 
+      (do ((j 0 (+ j 1))) 
+          ((null (rest path))) 
+        (when (zerop (mod (+ j 1) max-refinements)) 
+              (break &quot;Runaway path&quot;)) 
+        (let* ((from (first path)) 
+               (to (second path)) 
+               (fromrange (rangeval from)) 
+               (torange (rangeval to)) 
+               (dist (careful-abs (- torange fromrange))) 
+               (mid (* (sqrt from) (sqrt to))) 
+               (midrange (rangeval mid))) 
+          (cond ((or (and (far-out fromrange) (far-out torange)) 
+                     (and (&lt; dist path-minimal-delta) 
+                          (&lt; (abs (- midrange fromrange)) 
+                             path-minimal-delta) 
+                          ;; Next test is intentionally asymmetric to 
+                          ;;  avoid problems with periodic functions. 
+                          (&lt; (abs (- (rangeval (/ (+ to (* from 1.5)) 
+                                                  2.5)) 
+                                     fromrange)) 
+                             path-minimal-delta))) 
+                 (pop path)) 
+                ((= mid from) (pop path)) 
+                ((= mid to) (pop path)) 
+                (t (setf (rest path) (cons mid (rest path))))))))) 
+  original-path) 
+
+(defun expand-path (path rangevalfn) 
+  (flet ((rangeval (x) (funcall rangevalfn x))) 
+    (let ((final-path (list (rangeval (first path))))) 
+      (do ((p (rest path) (cdr p))) 
+          ((null p) 
+           (unless (rest final-path) 
+             (break &quot;Singleton path&quot;)) 
+           (reverse final-path)) 
+        (let ((v (rangeval (car p)))) 
+          (cond ((and (rest final-path) 
+                      (not (far-out v)) 
+                      (not (far-out (first final-path))) 
+                      (between v (first final-path) 
+                                 (second final-path))) 
+                 (setf (first final-path) v)) 
+                ((null (rest p))   ;Mustn't omit last point 
+                 (push v final-path)) 
+                ((&lt; (abs (- v (first final-path))) path-minimal-delta)) 
+                ((far-out v) 
+                 (unless (and (far-out (first final-path)) 
+                              (&lt; (abs (- v (first final-path))) 
+                                 path-outer-delta)) 
+                   (push (* 1.01 path-outer-limit (signum v)) 
+                         final-path))) 
+                (t (push v final-path)))))))) 
+
+(defun far-out (x) 
+  (&gt; (careful-abs x) path-outer-limit)) 
+
+(defparameter between-tolerance 0.000001) 
+
+(defun between (p q r) 
+  (let ((px (realpart p)) (py (imagpart p)) 
+        (qx (realpart q)) (qy (imagpart q)) 
+        (rx (realpart r)) (ry (imagpart r))) 
+    (and (or (&lt;= px qx rx) (&gt;= px qx rx)) 
+         (or (&lt;= py qy ry) (&gt;= py qy ry)) 
+         (&lt; (abs (- (* (- qx px) (- ry qy)) 
+                    (* (- rx qx) (- qy py)))) 
+            between-tolerance))))
+
+(defun circle (radius) 
+  #'(lambda (angle) (* radius (cis angle)))) 
+
+(defun hline (imag) 
+  #'(lambda (real) (complex real imag))) 
+
+(defun vline (real) 
+  #'(lambda (imag) (complex real imag))) 
+
+(defun -hline (imag) 
+  #'(lambda (real) (complex (- real) imag))) 
+
+(defun -vline (real) 
+  #'(lambda (imag) (complex real (- imag)))) 
+
+(defun radial (phi quadrant) 
+  #'(lambda (rho) (repair-quadrant (* rho (cis phi)) quadrant))) 
+
+(defun circumferential (rho quadrant) 
+  #'(lambda (phi) (repair-quadrant (* rho (cis phi)) quadrant))) 
+
+;;; Quadrant is 0, 1, 2, or 3, meaning I, II, III, or IV. 
+
+(defun repair-quadrant (z quadrant) 
+  (complex (* (+ (abs (realpart z)) tiny) 
+              (case quadrant (0 1.0) (1 -1.0) (2 -1.0) (3 1.0))) 
+           (* (+ (abs (imagpart z)) tiny) 
+              (case quadrant (0 1.0) (1 1.0) (2 -1.0) (3 -1.0))))) 
+
+(defun clamp-real (x) 
+  (if (far-out x) 
+      (* (signum x) path-outer-limit) 
+      (round-real x))) 
+
+(defun round-real (x) 
+  (/ (round (* x 10000.0)) 10000.0)) 
+
+(defun round-point (z) 
+  (complex (round-real (realpart z)) (round-real (imagpart z)))) 
+
+(defparameter hiringshade 0.97) 
+(defparameter loringshade 0.45) 
+
+(defparameter ticklength 0.12) 
+(defparameter smallticklength 0.09)
+
+;;; This determines the pattern of lines and annuli to be drawn. 
+(defun moby-grid (&amp;optional (fn 'sqrt) (stream t)) 
+  (comment-line stream &quot;Moby grid for function ~S&quot; fn) 
+  (shaded-annulus 0.25 0.5 4 hiringshade loringshade fn stream) 
+  (shaded-annulus 0.75 1.0 8 hiringshade loringshade fn stream) 
+  (shaded-annulus (/ pi 2) 2.0 16 hiringshade loringshade fn stream) 
+  (shaded-annulus 3 pi 32 hiringshade loringshade fn stream) 
+  (moby-lines :horizontal 1.0 fn stream) 
+  (moby-lines :horizontal -1.0 fn stream) 
+  (moby-lines :vertical 1.0 fn stream) 
+  (moby-lines :vertical -1.0 fn stream) 
+  (let ((tickline 0.015) 
+        (axisline 0.008)) 
+    (flet ((tick (n) (straight-line (complex n ticklength) 
+                                    (complex n (- ticklength)) 
+                                    tickline 
+                                    stream)) 
+           (smalltick (n) (straight-line (complex n smallticklength) 
+                                         (complex n (- smallticklength)) 
+                                         tickline 
+                                         stream))) 
+      (comment-line stream &quot;Real axis&quot;) 
+      (straight-line #c(-5 0) #c(5 0) axisline stream) 
+      (dotimes (j (floor units-to-show)) 
+        (let ((q (+ j 1))) (tick q) (tick (- q)))) 
+      (dotimes (j (floor units-to-show (/ pi 2))) 
+        (let ((q (* (/ pi 2) (+ j 1)))) 
+          (smalltick q) 
+          (smalltick (- q))))) 
+    (flet ((tick (n) (straight-line (complex ticklength n) 
+                                    (complex (- ticklength) n) 
+                                    tickline 
+                                    stream)) 
+           (smalltick (n) (straight-line (complex smallticklength n) 
+                                         (complex (- smallticklength) n) 
+                                         tickline 
+                                         stream))) 
+      (comment-line stream &quot;Imaginary axis&quot;) 
+      (straight-line #c(0 -5) #c(0 5) axisline stream) 
+      (dotimes (j (floor units-to-show)) 
+        (let ((q (+ j 1))) (tick q) (tick (- q)))) 
+      (dotimes (j (floor units-to-show (/ pi 2))) 
+        (let ((q (* (/ pi 2) (+ j 1)))) 
+          (smalltick q) 
+          (smalltick (- q)))))))
+
+(defun straight-line (from to wid stream) 
+  (format stream 
+          &quot;~%newpath  ~S ~S moveto  ~S ~S lineto  ~S ~ 
+           setlinewidth  1  setlinecap  stroke&quot; 
+          (realpart from) 
+          (imagpart from) 
+          (realpart to) 
+          (imagpart to) 
+
+;;; This function draws the lines for the pattern. 
+(defun moby-lines (orientation signum plotfn stream) 
+  (let ((paramfn (ecase orientation 
+                   (:horizontal (if (&lt; signum 0) #'-hline #'hline)) 
+                   (:vertical (if (&lt; signum 0) #'-vline #'vline))))) 
+    (flet ((foo (from to other wid) 
+             (ecase orientation 
+               (:horizontal 
+                (comment-line stream 
+                              &quot;Horizontal line from (~S, ~S) to (~S, ~S)&quot; 
+                              (round-real (* signum from)) 
+                              (round-real other) 
+                              (round-real (* signum to)) 
+                              (round-real other))) 
+               (:vertical 
+                (comment-line stream 
+                              &quot;Vertical line from (~S, ~S) to (~S, ~S)&quot; 
+                              (round-real other) 
+                              (round-real (* signum from)) 
+                              (round-real other) 
+                              (round-real (* signum to))))) 
+             (postscript-path 
+               stream 
+               (parametric-path from 
+                                to 
+                                (funcall paramfn other) 
+                                plotfn)) 
+             (postscript-penstroke stream wid))) 
+      (let* ((thick 0.05) 
+             (thin 0.02)) 
+        ;; Main axis 
+        (foo 0.5 tiny 0.0 thick) 
+        (foo 0.5 1.0 0.0 thick) 
+        (foo 2.0 1.0 0.0 thick) 
+        (foo 2.0 big 0.0 thick) 
+        ;; Parallels at 1 and -1 
+        (foo 2.0 tiny 1.0 thin) 
+        (foo 2.0 big 1.0 thin) 
+        (foo 2.0 tiny -1.0 thin) 
+        (foo 2.0 big -1.0 thin) 
+        ;; Parallels at 2, 3, -2, -3 
+        (foo tiny big 2.0 thin) 
+        (foo tiny big -2.0 thin) 
+        (foo tiny big 3.0 thin) 
+        (foo tiny big -3.0 thin))))) 
+
+(defun splice (p q) 
+  (let ((v (car (last p))) 
+        (w (first q))) 
+    (and (far-out v) 
+         (far-out w) 
+         (&gt;= (abs (- v w)) path-outer-delta) 
+         ;; Two far-apart far-out points.  Try to walk around 
+         ;;  outside the perimeter, in the shorter direction. 
+         (let* ((pdiff (phase (/ v w))) 
+                (npoints (floor (abs pdiff) (asin .2))) 
+                (delta (/ pdiff (+ npoints 1))) 
+                (incr (cis delta))) 
+           (do ((j 0 (+ j 1)) 
+                (p (list w &quot;end splice&quot;) (cons (* (car p) incr) p))) 
+
+;;; This function draws the annuli for the pattern. 
+(defun shaded-annulus (inner outer sectors firstshade lastshade fn stream) 
+  (assert (zerop (mod sectors 4))) 
+  (comment-line stream &quot;Annulus ~S ~S ~S ~S ~S&quot; 
+                (round-real inner) (round-real outer) 
+                sectors firstshade lastshade) 
+  (dotimes (jj sectors) 
+    (let ((j (- sectors jj 1))) 
+      (let* ((lophase (+ tiny (* 2 pi (/ j sectors)))) 
+             (hiphase (* 2 pi (/ (+ j 1) sectors))) 
+             (midphase (/ (+ lophase hiphase) 2.0)) 
+             (midradius (/ (+ inner outer) 2.0)) 
+             (quadrant (floor (* j 4) sectors))) 
+        (comment-line stream &quot;Sector from ~S to ~S (quadrant ~S)&quot; 
+                      (round-real lophase) 
+                      (round-real hiphase) 
+                      quadrant) 
+        (let ((p0 (reverse (parametric-path midradius 
+                                            inner 
+                                            (radial lophase quadrant) 
+                                            fn))) 
+              (p1 (parametric-path midradius 
+                                   outer 
+                                   (radial lophase quadrant) 
+                                   fn)) 
+              (p2 (reverse (parametric-path midphase 
+                                            lophase 
+                                            (circumferential outer 
+                                                             quadrant) 
+                                            fn))) 
+              (p3 (parametric-path midphase 
+                                   hiphase 
+                                   (circumferential outer quadrant) 
+                                   fn)) 
+              (p4 (reverse (parametric-path midradius 
+                                            outer 
+                                            (radial hiphase quadrant) 
+                                            fn))) 
+              (p5 (parametric-path midradius 
+                                   inner 
+                                   (radial hiphase quadrant) 
+                                   fn)) 
+              (p6 (reverse (parametric-path midphase 
+                                            hiphase 
+                                            (circumferential inner 
+                                                             quadrant) 
+                                            fn))) 
+              (p7 (parametric-path midphase 
+                                   lophase 
+                                   (circumferential inner quadrant) 
+                                   fn))) 
+          (postscript-closed-path stream 
+            (append 
+              p0 (splice p0 p1) '(&quot;middle radial&quot;) 
+              p1 (splice p1 p2) '(&quot;end radial&quot;) 
+              p2 (splice p2 p3) '(&quot;middle circumferential&quot;) 
+              p3 (splice p3 p4) '(&quot;end circumferential&quot;) 
+              p4 (splice p4 p5) '(&quot;middle radial&quot;) 
+              p5 (splice p5 p6) '(&quot;end radial&quot;) 
+              p6 (splice p6 p7) '(&quot;middle circumferential&quot;) 
+              p7 (splice p7 p0) '(&quot;end circumferential&quot;) 
+              )))
+        (postscript-shade stream 
+                          (/ (+ (* firstshade (- (- sectors 1) j)) 
+                                (* lastshade j)) 
+                             (- sectors 1))))))) 
+
+(defun postscript-penstroke (stream wid) 
+  (format stream &quot;~%~S setlinewidth   1 setlinecap  stroke&quot; 
+          wid)) 
+
+(defun postscript-shade (stream shade) 
+  (format stream &quot;~%currentgray   ~S setgray   fill   setgray&quot; 
+          shade)) 
+
+(defun postscript-closed-path (stream path) 
+  (unless (every #'far-out (remove-if-not #'numberp path)) 
+    (postscript-raw-path stream path) 
+    (format stream &quot;~%  closepath&quot;))) 
+
+(defun postscript-path (stream path) 
+  (unless (every #'far-out (remove-if-not #'numberp path)) 
+    (postscript-raw-path stream path))) 
+
+;;; Print a path as a series of PostScript &quot;lineto&quot; commands. 
+(defun postscript-raw-path (stream path) 
+  (format stream &quot;~%newpath&quot;) 
+  (let ((fmt &quot;~%  ~S ~S moveto&quot;)) 
+    (dolist (pt path) 
+      (cond ((stringp pt) 
+             (format stream &quot;~%  %~A&quot; pt)) 
+            (t (format stream 
+                       fmt 
+                       (clamp-real (realpart pt)) 
+                       (clamp-real (imagpart pt))) 
+               (setq fmt &quot;~%  ~S ~S lineto&quot;)))))) 
+
+;;; Definitions of functions to be plotted that are not 
+;;; standard Common Lisp functions. 
+
+(defun one-plus-over-one-minus (x) (/ (+ 1 x) (- 1 x))) 
+
+(defun one-minus-over-one-plus (x) (/ (- 1 x) (+ 1 x))) 
+
+(defun sqrt-square-minus-one (x) (sqrt (- 1 (* x x)))) 
+
+(defun sqrt-one-plus-square (x) (sqrt (+ 1 (* x x))))
+
+;;; Because X3J13 voted for a new definition of the atan function, 
+;;; the following definition was used in place of the atan function 
+;;; provided by the Common Lisp implementation I was using. 
+
+(defun good-atan (x) 
+  (/ (- (log (+ 1 (* x #c(0 1)))) 
+        (log (- 1 (* x #c(0 1))))) 
+     #c(0 2))) 
+
+;;; Because the first edition had an erroneous definition of atanh, 
+;;; the following definition was used in place of the atanh function 
+;;; provided by the Common Lisp implementation I was using. 
+
+(defun really-good-atanh (x) 
+  (/ (- (log (+ 1 x)) 
+        (log (- 1 x))) 
+
+;;; This is the main procedure that is intended to be called by a user. 
+(defun picture (&amp;optional (fn #'sqrt)) 
+  (with-open-file (stream (concatenate 'string 
+                                       (string-downcase (string fn)) 
+                                       &quot;-plot.ps&quot;) 
+                          :direction :output) 
+    (format stream &quot;% PostScript file for plot of function ~S~%&quot; fn) 
+    (format stream &quot;% Plot is to fit in a region ~S inches square~%&quot; 
+            (/ text-width-in-picas 6.0)) 
+    (format stream 
+            &quot;%  showing axes extending ~S units from the origin.~%&quot; 
+            units-to-show) 
+    (let ((scaling (/ (* text-width-in-picas 12) (* units-to-show 2)))) 
+      (format stream &quot;~%~S ~:*~S scale&quot; scaling)) 
+    (format stream &quot;~%~S ~:*~S translate&quot; units-to-show) 
+    (format stream &quot;~%newpath&quot;) 
+    (format stream &quot;~%  ~S ~S moveto&quot; (- units-to-show) (- units-to-show)) 
+    (format stream &quot;~%  ~S ~S lineto&quot; units-to-show (- units-to-show)) 
+    (format stream &quot;~%  ~S ~S lineto&quot; units-to-show units-to-show) 
+    (format stream &quot;~%  ~S ~S lineto&quot; (- units-to-show) units-to-show) 
+    (format stream &quot;~%  closepath&quot;) 
+    (format stream &quot;~%clip&quot;) 
+    (moby-grid fn stream) 
+    (format stream 
+            &quot;~%% End of PostScript file for plot of function ~S&quot; 
+            fn) 
+    (terpri stream)))
+</listing><P>
+<BR> <HR><A NAME=tex2html3139 HREF="node130.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3137 HREF="node126.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3133 HREF="node128.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3141 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3142 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3140 HREF="node130.html"> Type Conversions and </A>
+<B>Up:</B> <A NAME=tex2html3138 HREF="node126.html"> Irrational and Transcendental </A>
+<B> Previous:</B> <A NAME=tex2html3134 HREF="node128.html"> Trigonometric and Related </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

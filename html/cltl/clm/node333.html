@@ -1,0 +1,115 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node333.html by HTTrack Website Copier/3.x [XR&CO'2014], Thu, 21 Oct 2021 14:59:12 GMT -->
+<HEAD>
+<TITLE>29.3.18. Printing Conditions</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Printing Conditions">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html5849 HREF="node334.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5847 HREF="node315.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5843 HREF="node332.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5851 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5852 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5850 HREF="node334.html"> Program Interface to </A>
+<B>Up:</B> <A NAME=tex2html5848 HREF="node315.html"> Survey of Concepts</A>
+<B> Previous:</B> <A NAME=tex2html5844 HREF="node332.html"> Condition Handlers</A>
+<HR> <P>
+<H2><A NAME=SECTION0033318000000000000000>29.3.18. Printing Conditions</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+When <tt>*print-escape*</tt> is <tt>nil</tt> (for example,
+when the <tt>princ</tt> function or the <tt>~A</tt>
+directive is used with <tt>format</tt>), the report method for the condition will be invoked. This will
+be done automatically by functions such as <tt>invoke-debugger</tt>, <tt>break</tt>, and <tt>warn</tt>,
+but there may still be situations in which it is desirable to have a
+condition report under explicit user control. For example,
+<P><pre>
+(let ((form '(open &quot;nosuchfile&quot;))) 
+  (handler-case (eval form) 
+    (serious-condition (c) 
+      (format t &quot;~&amp;Evaluation of ~S failed:~%~A&quot; form c))))
+</pre><P>
+might print something like
+<P><pre>
+Evaluation of (OPEN &quot;nosuchfile&quot;) failed: 
+The file &quot;nosuchfile&quot; was not found.
+</pre><P>
+Some suggestions about the form of text typed by report methods:
+<UL> <LI>
+    The message should generally be a complete sentence, beginning with a
+   capital letter and ending with appropriate punctuation (usually a period).
+<P>
+ <LI>
+    The message should <i>not</i> include any introductory text such as ``<tt>Error:</tt>''
+   or ``<tt>Warning:</tt>'' and should not be followed by a trailing newline. Such
+   text will be added as may be appropriate to context by the routine invoking
+   the report method.
+<P>
+ <LI>
+    Except where unavoidable, the tab character (which is only semi-standard anyway)
+    should not be used in
+   error messages. Its effect may vary from one implementation to another and may
+   cause problems even within an implementation because it may do different
+   things depending on the column at which the error report begins.
+<P>
+ <LI>
+    Single-line messages are preferred, but newlines in the middle of long
+   messages are acceptable.
+<P>
+ <LI>
+   If any program (for example, the debugger) displays messages indented from the
+   prevailing left margin (for example, indented seven spaces because they
+   are prefixed by the seven-character herald ``<tt>Error: </tt>''), then that program
+   will take care of inserting the appropriate indentation into the extra
+   lines of a multi-line error message. Similarly, a program that prefixes
+   error messages with semicolons so that they appear to be comments should
+   take care of inserting a semicolon at the beginning of each line in a
+   multi-line error message. (These rules are important because, even within
+   a single implementation, there may be more than one program that presents
+   error messages to the user, and they may use different styles of
+   presentation. The caller of <tt>error</tt> cannot anticipate all such possible
+   styles, and so it is incumbent upon the presenter of the message to make
+   any necessary adjustments.)
+</UL>
+[Note: These recommendations expand upon those in section <A HREF="node220.html#ERRORSIGNALLINGFUNCTIONS">24.1</A>.-GLS]
+<P>
+When <tt>*print-escape*</tt> is not <tt>nil</tt>, the object should print in some useful (but
+usually fairly abbreviated) fashion according to the style of the
+implementation. It is not expected that a condition will be printed in a form
+suitable for <tt>read</tt>. Something like <tt>#&lt;ARITHMETIC-ERROR 1734&gt;</tt>
+is fine.
+<P>
+X3J13 voted in March 1989 (ZLOS-CONDITIONS) <A NAME=36660>&#160;</A>  to integrate the
+Condition System and the Object System.
+In the original Condition System proposal,
+no function was provided for directly accessing or setting the printer for
+a condition type, or for invoking it; the techniques described above were
+the sole interface to reporting.  The vote specified that, in CLOS terms,
+condition reporting is mediated through the <tt>print-object</tt>
+method for the condition type (that is, class) in question, with <tt>*print-escape*</tt>
+bound to <tt>nil</tt>.  Specifying <tt>(:report <i>fn</i>)</tt> to
+<tt>define-condition</tt> when defining
+condition type <i>C</i> is equivalent to a separate method definition:
+<P><pre>
+(defmethod print-object ((x <i>C</i>) stream) 
+  (if *print-escape* 
+      (call-next-method) 
+      (funcall #'<i>fn</i> x stream)))
+</pre><P>
+Note that the method uses <i>fn</i> to print the condition
+only when <tt>*print-escape*</tt> has the value <tt>nil</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html5849 HREF="node334.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5847 HREF="node315.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5843 HREF="node332.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5851 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5852 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5850 HREF="node334.html"> Program Interface to </A>
+<B>Up:</B> <A NAME=tex2html5848 HREF="node315.html"> Survey of Concepts</A>
+<B> Previous:</B> <A NAME=tex2html5844 HREF="node332.html"> Condition Handlers</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

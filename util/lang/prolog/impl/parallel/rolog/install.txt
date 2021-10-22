@@ -1,0 +1,131 @@
+#!/bin/csh -f
+#
+if ($#argv == 0) then
+    echo Please identify the target machine:  INSTALL \<machineID\>
+    echo \<machineID\> must be one of sun, unix, max, sequent, alliant or ipsc2
+    echo ' '
+    exit(1)
+endif
+
+if ($1 != 'ipsc2' && $2 == 'priority') then
+    echo ' '
+    echo 'Enter Priority Type: Only one from the following'
+    echo ' '
+    echo 'Priority with Distance Bits        : Enter 1'
+    echo 'Priority with Static Instance Bits : Enter 2'
+    echo 'Priority with Dynamic Instance Bits: Enter 3'
+    echo ' '
+
+    echo -n 'Priority Type? '
+    set PRIOTYPE = ($<)
+
+    if ($PRIOTYPE == 1) then
+	set PRIOFLAG = '-DPRIORITY'
+	set PRIOSIMFLAG = '-DPRIO_DISTANCE'
+	echo 'Priority Selected: Distance Bits'
+
+    else if ($PRIOTYPE == 2) then
+	set PRIOFLAG = '-DPRIORITY'
+	set PRIOSIMFLAG = '-DINST_STATIC'
+	echo 'Priority Selected: Distance and Static Instance Bits'
+
+    else if ($PRIOTYPE == 3) then
+	set PRIOFLAG = '-DPRIORITY'
+	set PRIOSIMFLAG = '-DINST_DYNAMIC'
+	echo 'Priority Selected: Distance and Dynamic Instance Bits'
+    endif
+    echo ''
+
+    if ($PRIOTYPE > 3 || $PRIOTYPE <= 0 ) then
+	echo 'Incorrect Priority Type.'
+	echo 'Exiting from Install........'
+	echo 'Please Do Install Again and Enter the Correct Priority Type Next Time'
+    	exit(1)
+    endif
+
+else
+    set PRIOFLAG = ''
+    set PRIOSIMFLAG = ''
+endif
+
+if ($1 == 'ipsc2' && $2 == 'priority') then
+	echo 'Prioritized Execution of ROLOG on'
+	echo 'Nonshared Memory Machines Currently Not Supported'
+endif
+
+echo 'This will take a little time. You may want to take a coffee break ...'
+echo ' '
+echo Extracting chare kernel files ...
+echo ' '
+if (-f ck.tar.gz) then
+    gunzip ck.tar.gz
+endif
+tar -xof ck.tar
+echo Extracting rolog_compiler files...
+echo ' '
+if (-f rolog.tar.gz) then
+    gunzip rolog.tar.gz
+endif
+tar -xof rolog.tar
+set ROLOG_HOME = `pwd`
+if ($1 == 'ipsc2') then
+    set MEMORYTYPE = 'nonshared'
+else
+    set MEMORYTYPE = 'shared'
+endif
+
+if ($1 == 'sun') then
+    set argv[1] = unix
+    set LONGJUMPFLAG = '-J'
+else 
+     set LONGJUMPFLAG = ''
+endif
+
+echo Making the Chare Kernel ...
+echo ' '
+chdir $ROLOG_HOME/ck/$MEMORYTYPE/$1
+
+if ($2 == 'priority') then
+    set MEMSTRAT = 'memsa.o'
+    set QSTRAT = 'qs_bitvec.o'
+    make ROOT=$ROLOG_HOME QUEUE='qs_bitvec.o' MEMS='memsa.o'
+else
+    set MEMSTRAT = 'memsa.o'
+    set QSTRAT = 'queue.o'
+    make ROOT=$ROLOG_HOME QUEUE='queue.o' MEMS='memsa.o'
+endif
+
+echo ' '
+echo Making the code generator ...
+echo ' '
+chdir $ROLOG_HOME/rolog_compiler/gen
+make ROOT=$ROLOG_HOME MACHINE=$1 MEMTYPE=$MEMORYTYPE CPRIOFLAGS=$PRIOFLAG
+mv -f gen $ROLOG_HOME/gen
+
+echo ' '
+echo Making the $1 abstract machine simulator ...
+chdir $ROLOG_HOME/rolog_compiler/$1
+echo ' '
+make ROOT=$ROLOG_HOME MACHINE=$1 LONG_JUMP=$LONGJUMPFLAG MEMFILE=$MEMSTRAT QSFILE=$QSTRAT MEMTYPE=$MEMORYTYPE CPRIOFLAGS=$PRIOFLAG CPRIOTYPEFLAG=$PRIOSIMFLAG
+
+
+if ($1 == 'ipsc2') then
+    mv -f sim.host $ROLOG_HOME/sim.host
+    mv -f sim.node $ROLOG_HOME/sim.node
+    mv -f sim.in  $ROLOG_HOME/sim.in
+else
+    mv -f sim $ROLOG_HOME/sim
+endif
+
+echo ' '
+echo Making the disassembler ...
+echo ' '
+chdir $ROLOG_HOME/rolog_compiler/dis
+make ROOT=$ROLOG_HOME MACHINE=$1 MEMTYPE=$MEMORYTYPE CPRIOFLAGS=$PRIOFLAG
+
+mv -f disasm $ROLOG_HOME/disasm
+chdir $ROLOG_HOME
+
+echo ' '
+echo 'Done\!'
+

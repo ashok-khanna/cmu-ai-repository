@@ -1,0 +1,230 @@
+;;; -*- Mode: LISP; Syntax: Common-lisp -*-
+;;; Tue Aug  7 15:24:11 1990 by Mark Kantrowitz <mkant@GLINDA.OZ.CS.CMU.EDU>
+;;; generic-search.lisp
+
+;;; ****************************************************************
+;;; Generic Search *************************************************
+;;; ****************************************************************
+;;;
+;;; This file implements a generic framework for search. It is intended
+;;; as a pedagological tool for teaching students about the variety of
+;;; forms of search as discussed in the AI literature. 
+;;;
+;;; Written by Mark Kantrowitz, August 1990.
+;;; 
+;;; Address: Carnegie Mellon University
+;;;          School of Computer Science
+;;;          Pittsburgh, PA 15213
+;;;
+;;; This code is in the public domain and is distributed without warranty
+;;; of any kind.
+;;;
+;;; Portions of this code are based upon a problem set from MIT course 6.824.
+;;;
+;;; Use and copying of this software and preparation of derivative works
+;;; based upon this software are permitted, so long as the following
+;;; conditions are met:
+;;;      o no fees or compensation are charged for use, copies, or
+;;;        access to this software
+;;;      o this copyright notice is included intact.
+;;; This software is made available AS IS, and no warranty is made about
+;;; the software or its performance.
+;;;
+;;; Please send bug reports, comments and suggestions to mkant@cs.cmu.edu.
+
+;;; ****************************************************************
+;;; Documentation **************************************************
+;;; ****************************************************************
+;;;
+;;; When learning about some types of search commonly used in AI systems,
+;;; it often helps to think in terms of a queue of nodes to be searched.
+;;; Given a function which tests for the goal node, a function which
+;;; finds the node's children, a function which dequeues a node for testing,
+;;; and a function which merges the children into the queue, one can 
+;;; implement a wide variety of search functions. Comparing the functions
+;;; used can help the student understand the difference between the
+;;; various types of search.
+;;;
+;;; The function GENERIC-SEARCH below implements a generic framework
+;;; for search by allowing the user to specify the functions describe above. 
+;;; It takes the following required arguments:
+;;;    initial-state    the start node (the first state examined)
+;;;    goal-p           a function to test whether a node satisfies the goal
+;;;    children         a function which returns a list of a node's children
+;;; and the following keyword arguments:
+;;;    display-fn       a function which is called on each node as it is 
+;;;                     reached. useful to display the search progress
+;;;    merge-fn         a function which returns a new queue when given a
+;;;                     set of new nodes
+;;;    dequeue-fn       a function which returns the next node off the queue.
+;;; The global variable *search-queue* is accessible to each of these 
+;;; functions, and consists of a list representing the current search queue.
+;;;
+;;; The algorithm is quite simple. First it evaluates whether the current
+;;; search state is a solution using GOAL-P. If not, it calls DISPLAY-FN
+;;; on the node to display it. Then it uses CHILDREN to generate a set of
+;;; child nodes and merges them into the search queue using MERGE-FN. It then
+;;; calls DEQUEUE-FN to take the next state to be examined off the queue.
+;;;
+;;; This implementation makes no commitments about the representation of
+;;; the search states or the search queue. The only requirement is that
+;;; the MERGE-FN and DEQUEUE-FN functions use the same queue representation. 
+;;;
+;;; Following the code for GENERIC-SEARCH, we list a variety of AI search
+;;; techniques, along with the corresponding calls to generic search.
+;;;
+
+;;; ****************************************************************
+;;; Generic Search *************************************************
+;;; ****************************************************************
+(defvar *search-queue* nil
+  "The search queue is stored in this variable. The structure of the
+   queue is determined by MERGE-FN and DEQUEUE-FN.")
+
+(defun generic-search (initial-state goal-p children
+				     &key
+				     (display-fn #'print)
+				     (merge-fn #'(lambda (new-states)
+						   (append new-states
+							   *search-queue*)))
+				     (dequeue-fn #'(lambda ()
+						     (pop *search-queue*))))
+  "Generic search function. Arguments are an initial state and the functions:
+      goal-p      -- tests whether a node satisfies the goal
+      children    -- returns a list of a node's children
+      display-fn  -- called on each node as it is reached
+      merge-fn    -- returns a new queue when given a set of new nodes
+      dequeue-fn  -- returns the next node off the queue
+   *search-queue* contains the queue and is accessible to these functions."
+  (let ((*search-queue* nil))
+    (do ((current-state initial-state (funcall dequeue-fn)))
+	((funcall goal-p current-state) current-state)
+      (funcall display-fn current-state)
+      (setq *search-queue*
+	    (funcall merge-fn
+		     (funcall children current-state))))))
+
+(defvar *eval-fn* nil
+  "This variable contains a function which, when applied to a node, returns
+   a numeric evaluation of the node, such as the estimated remaining
+   distance from the node.")
+
+
+;;; ********************************
+;;; Satisficing Paths **************
+;;; ********************************
+;;; The following types of search seek any path from the initial state to a  
+;;; goal state. The length of the discovered path is not important.
+
+;;; *** Depth-First Search ***
+;;; Add the children to the front of the queue.
+#|
+(generic-search initial-state goal-p children
+		:merge-fn #'(lambda (new-states)
+			      (append new-states *search-queue*))
+		:dequeue-fn #'(lambda () (pop *search-queue*)))
+|#
+
+;;; *** Hill-Climbing ***
+;;; Like depth-first search, but sorts the children by estimated remaining
+;;; distance before adding them to the front of the queue.
+#|
+(generic-search initial-state goal-p children
+		:merge-fn #'(lambda (new-states)
+			      (append (sort new-states #'< :key *eval-fn*)
+				      *search-queue*))
+		:dequeue-fn #'(lambda () (pop *search-queue*)))
+|#
+
+;;; *** Breadth-First Search ***
+;;; Add the children to the end of the queue.
+#|
+(generic-search initial-state goal-p children
+		:merge-fn #'(lambda (new-states)
+			      (append *search-queue* new-states))
+		:dequeue-fn #'(lambda () (pop *search-queue*)))
+|#
+
+;;; *** Beam Search ***
+;;; Like breadth-first search, but keeps only the k best nodes at each level.
+#|
+(generic-search initial-state goal-p children
+		:merge-fn #'(lambda (new-states)
+			      (append *search-queue* new-states))
+		:dequeue-fn #'(lambda ()
+				(let ((node (pop *search-queue*)))
+				  (if (eq node '*q-tag*)
+				      (append (first (sort *search-queue*
+							   #'< :key *eval-fn*)
+						     *k*)
+					      '*q-tag*)
+				      node))))
+|#
+
+;;; *** Best-First Search ***
+;;; The next node searched is the best node, no matter where it is in the
+;;; tree. Sorts the entire queue by the estimated remaining distance after
+;;; adding children.
+#|
+(generic-search initial-state goal-p children
+		:merge-fn #'(lambda (new-states)
+			      (sort (append new-states *search-queue*)
+				    #'< :key *eval-fn*))
+		:dequeue-fn #'(lambda () (pop *search-queue*)))
+|#
+
+
+;;; ********************************
+;;; Optimal Paths ******************
+;;; ********************************
+;;; Finds the shortest (optimal) path to the goal node.
+
+;;; *** Branch and Bound ***
+;;; Extends the shortest (least cost) partial path to the goal. Sorts the
+;;; queue by accumulated cost so far (least cost in front) after adding
+;;; children to queue. Looks like best-first search, except the *eval-fn*
+;;; is different.
+
+;;; *** Branch and Bound with Underestimates ***
+;;; Instead of using accumulated cost so far, it adds an underestimate
+;;; (lower bound) on the remaining distance to the total distance already
+;;; travelled to obtain an underestimate of the total path length. It uses
+;;; this underestimate of the total path length to sort the queue.
+
+;;; *** Dynamic Programming ***
+;;; Keeps a table of the best path to each node. Discards redundant paths.
+
+;;; *** A* Search ***
+;;; Branch and Bound with Underestimates and Dynamic Programming.
+
+;;; ********************************
+;;; Priority Queue *****************
+;;; ********************************
+;;; The functions priority-merge-fn and priority-dequeue-fn use a different
+;;; structure for the search queue, and implement a priority queue (best-first
+;;; search), where the entries in the queue are (value . node) pairs.
+
+(defmacro splice (state queue)
+  `(let* ((value (funcall *eval-fn* ,state))
+	  (node (cons value ,state)))
+     (do ((qp ,queue (cdr qp))
+	  (oqp nil qp))
+	 ((or (null qp) (> value (car (first qp))))
+	  (if oqp 
+	      (rplacd oqp
+		      (cons node (cdr oqp)))
+	      (push node ,queue))))))
+
+(defun priority-merge-fn (new-states)
+  "Maintains a priority-queue of (priority . state) values in descending
+   order of priority (useful for best-first, A*, etc.)."
+  (let ((queue *search-queue*))
+    (dolist (state new-states)
+      (splice state queue))
+    queue))
+
+(defun priority-dequeue-fn ()
+  "Partner for priority-merge-fn.  Dequeues top (pri . state) value and
+   returns the state."
+  (cdr (pop *search-queue*)))
+

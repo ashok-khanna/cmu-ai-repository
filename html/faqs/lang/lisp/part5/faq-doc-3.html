@@ -1,0 +1,76 @@
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/faqs/lang/lisp/part5/faq-doc-3.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 05:31:23 GMT -->
+<HEAD>
+<TITLE>FAQ: Object-oriented Programming in Lisp 5/7 [Monthly posting] - [5-2] How can I write a function that can access defstruct slots by name?  I would like to write something like  (STRUCTURE-SLOT <object> '<slot-name>).</TITLE>
+</HEAD>
+<BODY>
+<H1>[5-2] How can I write a function that can access defstruct slots by name?  I would like to write something like  (STRUCTURE-SLOT <object> '<slot-name>).</H1>
+<PRE>
+There is currently no portable, built-in way to access structure slots
+given only the name.  If your Common Lisp includes an implementation
+of CLOS that supports the meta-object protocol specified in the
+original X3J13 draft spec (document X3J13/88-003), then it probably will
+allow (SLOT-VALUE &#60;object&#62; '&#60;slot-name&#62;); however, not all
+implementations of CLOS currently provide this.  Lacking this, some
+implementations may provide implementation-dependent functions that
+allow access to structure slots by name; note that this may cause
+saved images to be larger, as some implementations normally open-code
+structure accessors and discard slot name information.
+
+While it is not possible to write a fully general STRUCTURE-SLOT function,
+it is not very difficult to write version that handles specific structure
+types.  For instance, after defining:
+
+   (defstruct spaceship name captain position velocity)
+
+one may then define:
+
+   (defun spaceship-slot (spaceship slot-name)
+     (ecase slot-name
+       (name (spaceship-name spaceship))
+       (captain (spaceship-captain spaceship))
+       (position (spaceship-position spaceship))
+       (velocity (spaceship-velocity spaceship))))
+
+or using CLOS (generic functions):
+
+(defgeneric spaceship-slot (spaceship slot-name)
+  (:method ((x spaceship) (slot (eql :name)))
+    (spaceship-name x))
+  (:method ((x spaceship) (slot (eql :captain)))
+    (spaceship-captain x))
+  (:method ((x spaceship) (slot (eql :position)))
+    (spaceship-position x))
+  (:method ((x spaceship) (slot (eql :velocity)))
+    (spaceship-velocity x)))
+
+Another popular way to define this is:
+
+   (defun spaceship-slot (spaceship slot-name)
+     (funcall (symbol-function
+                (find-symbol (format nil "SPACESHIP-~A" slot-name)
+                             #.(package-name *package*)))
+              spaceship))
+
+I personally recommend the first version.  It is likely to be much faster
+and more memory efficient than the second version.  It's also easy to get
+the second one wrong; many people forget to specify the package argument to
+FIND-SYMBOL, which can cause incorrect results when the package at run time
+is different from the one at compile time.  Even my version assumes that
+SPACESHIP-SLOT is being defined in a file that is in the same package as
+the one containing the structure definition; if this isn't the case,
+#.(PACKAGE-NAME *PACKAGE*) should be replaced by a string naming the
+correct package.
+
+Another workaround is to define a MY-DEFSTRUCT macro that parses the
+defstruct arguments and expands into a call to DEFSTRUCT along with a
+definition of the runtime slot-accessor function.
+
+Some non-portable techniques include the use of SYSTEM:STRUCTURE-REF
+in Lucid (LCL:STRUCTURE-REF in earlier versions of Lucid) and 
+EXCL:STRUCTURE-REF in Allegro. 
+</PRE>
+<A NAME=up HREF="faq.html">Go Back Up</A><P>
+<A NAME=up HREF="faq-doc-2.html">Go To Previous</A><P>
+<A NAME=up HREF="faq-doc-4.html">Go To Next</A><P>
+</BODY>

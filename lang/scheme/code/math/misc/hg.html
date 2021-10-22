@@ -1,0 +1,82 @@
+; From ep-prei@ophelia.tuwien.ac.at Fri Jul  1 14:31:34 EDT 1994
+; Article: 9320 of comp.lang.scheme
+; Xref: glinda.oz.cs.cmu.edu comp.lang.scheme:9320
+; Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!godot.cc.duq.edu!news.duke.edu!news-feed-1.peachnet.edu!gatech!paladin.american.edu!newsfeed.ACO.net!email.tuwien.ac.at!ophelia.tuwien.ac.at!ep-prei
+; From: ep-prei@ophelia.tuwien.ac.at (PREINING Norbert)
+; Newsgroups: comp.lang.scheme
+; Subject: programming series: hypergeometric
+; Date: 1 Jul 1994 08:55:45 GMT
+; Organization: Technical University Vienna, Austria
+; Lines: 64
+; Message-ID: <2v0lmh$f9i@email.tuwien.ac.at>
+; NNTP-Posting-Host: ophelia.tuwien.ac.at
+; Summary: programming series solutions as recursive procedures
+; Keywords: series
+; X-Newsreader: TIN [version 1.2 PL2]
+; 
+; Here is a first solution for implementing the hypergeometric
+; function recursive. I did all the steps recursively to show
+; the concept, but this way isn't the most effective one.
+; (compare Abelson/Sussman: Structure and Interpretation of 
+; Computer Programs. for a good discussion). Maybe I reimplemented
+; some internal functions, but i only have a very small interpreter
+; with hardly no support.
+; I would be happy to see better versions.
+; 
+; --
+; ciao
+; norb.
+; 
+; ------------------------------
+; - Preining Norbert
+; - ep-prei@ophelia.tuwien.ac.at
+; 
+; ******** file follows *********
+;;;
+;;; File:		hg.scm
+;;; Date:		Fri Jul  1 10:08:25 1994
+;;; Author:		PREINING Norbert (ep-prei)
+;;; 
+;;; Abstract:
+;;;	hypergeometric function
+;;;
+;;; Lisp-Interpreter: Scheme
+;;;
+(define (fact n) 
+  (if (= n 0) 
+      1 
+      (* n (fact (- n 1)))))
+
+(define (upmul j a) 
+  (if (= j 0) 
+      1 
+      (* (+ a (- j 1)) (upmul (- j 1) a))))
+
+(define (koeff a b c i) 
+  (/ (* (upmul i a) (upmul i b)) (upmul i c) (fact i)))
+
+(define (hoch x n) 
+  (if (= n 0) 
+      1 
+      (* x (hoch x (- n 1)))))
+
+(define (term a b c z n) 
+  (* (koeff a b c n) (hoch z n)))
+
+(define (hg a b c z n) 
+  (if (= n 0) 
+      (term a b c z 0) 
+      (+ (term a b c z n) (hg a b c z (- n 1)))))
+
+(define (hg-close a b c z bound)
+  (let ((first (hg a b c z 0)))
+    (define (step sum n)
+      (let ((next (term a b c z n)))
+	(if (< (abs next) bound)
+	    (+ sum next)
+	    (step (+ sum next) (+ n 1)))))
+    (step first 1)))
+    
+;;; end of hg.scm
+
+

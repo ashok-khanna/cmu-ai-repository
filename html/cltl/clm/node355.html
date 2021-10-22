@@ -1,0 +1,99 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node355.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:46:35 GMT -->
+<HEAD>
+<TITLE>A.2.6. Alteration of Series</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Alteration of Series">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html6138 HREF="node356.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html6136 HREF="node349.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html6132 HREF="node354.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html6140 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html6141 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html6139 HREF="node356.html"> Optimization</A>
+<B>Up:</B> <A NAME=tex2html6137 HREF="node349.html"> Series Functions</A>
+<B> Previous:</B> <A NAME=tex2html6133 HREF="node354.html"> Collectors</A>
+<HR> <P>
+<H2><A NAME=SECTION003426000000000000000>A.2.6. Alteration of Series</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+Series that come from scanning data structures such as lists and vectors
+are closely linked to these structures.  The function 
+<tt>alter</tt> can be used to modify the underlying data structure with
+reference to the series derived from it. (Conversely, it is possible to
+modify a series by destructively modifying the data structure it is derived
+from.  However, given the lazy evaluation nature of series, the effects of
+such modifications can be very hard to predict.  As a result, this kind of
+modification is inadvisable.)
+<P>
+<BR><b>[Function]</b><BR>
+<tt>alter <i>destinations</i> <i>items</i></tt><P><tt>alter</tt> changes the series <i>destinations</i> so that it contains
+the elements in the series <i>items</i>.  More importantly, in the
+manner of <tt>setf</tt>, the data structure that underlies <i>destinations</i> is changed so that if the series <i>destinations</i> were
+to be regenerated, the new values would be obtained.  The alteration
+process stops as soon as either input runs out of elements.  The value
+<tt>nil</tt> is always returned. In the example below each negative element in
+a list is replaced with its square.
+<P><pre>
+(let* ((data (list 1 -2 3 4 -5 6)) 
+       (x (choose-if #'minusp (scan data)))) 
+  (alter x (#M* x x)) 
+  data) 
+  => (1 4 3 4 25 6)
+</pre><P>
+<P>
+<tt>alter</tt> can be applied only to series that are <i>alterable</i>.  
+<tt>scan</tt>, <tt>scan-alist</tt>, <tt>scan-multiple</tt>, <tt>scan-plist</tt>, and
+<tt>scan-lists-of-lists-fringe</tt> produce alterable series.  
+However, the alterability of
+the output of
+<tt>scan-lists-of-lists-fringe</tt>
+is incomplete.  If
+<tt>scan-lists-of-lists-fringe</tt>
+is applied to an object that is a leaf,
+altering the output series does not change the object.
+<P>
+In general, the output of a transducer is alterable as long as the elements
+of the output come directly from the elements of an input that is
+alterable.  In particular, the outputs of <tt>choose</tt>, <tt>choose-if</tt>,
+<tt>split</tt>, <tt>split-if</tt>, <tt>cotruncate</tt>, <tt>until</tt>, <tt>until-if</tt>,
+and <tt>subseries</tt> are alterable as long as the corresponding inputs are
+alterable.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>to-alter <i>items</i> <i>alter-fn</i> &amp;rest <em>args</em></tt><P>Given a series <i>items</i>, <tt>to-alter</tt> returns an alterable series <i>A</i> containing the same elements.  The argument <i>alter-fn</i> is a
+function.  The remaining arguments are all series.  Let these series be
+<i>S1</i>, <b>...</b>, <i>Sn</i>.  If there are <b><i>n</i></b> arguments after <i>alter-fn</i>,
+<i>alter-fn</i> must accept <b><i>n</i>+1</b> inputs.  If <tt>(alter <i>A</i> <i>B</i>)</tt> is
+later encountered, the expression
+<tt>(map-fn t <i>alter-fn</i> <i>B</i> <i>S1</i> ... <i>Sn</i>)</tt> is implicitly
+evaluated.  For each
+element in <i>B</i>, <i>alter-fn</i> should make appropriate changes in the
+data structure underlying <i>A</i>.
+<P>
+As an example, consider the following definition of a series function
+that scans the elements of a list.  Alteration is performed by
+changing cons cells in the list being scanned.
+<P><pre>
+(defun scan-list (list) 
+  (declare (optimizable-series-function)) 
+  (let ((sublists (scan-sublists list))) 
+    (to-alter (#Mcar sublists) 
+              #'(lambda (new parent) (setf (car parent) new)) 
+              sublists)))
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html6138 HREF="node356.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html6136 HREF="node349.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html6132 HREF="node354.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html6140 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html6141 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html6139 HREF="node356.html"> Optimization</A>
+<B>Up:</B> <A NAME=tex2html6137 HREF="node349.html"> Series Functions</A>
+<B> Previous:</B> <A NAME=tex2html6133 HREF="node354.html"> Collectors</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

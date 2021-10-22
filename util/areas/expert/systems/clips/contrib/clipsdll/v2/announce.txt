@@ -1,0 +1,301 @@
+Return-Path: <bb760597@longs.lance.colostate.edu>
+Received: from RI.CMU.EDU by A.GP.CS.CMU.EDU id aa02809; 21 Aug 94 4:27:26 EDT
+Received: from longs.lance.colostate.edu by RI.CMU.EDU id aa16843;
+          21 Aug 94 4:26:47 EDT
+Received: from silex.lance.colostate.edu (silex.lance.colostate.edu [129.82.188.49]) by longs.lance.colostate.edu (8.6.5/8.6.5a (LANCE 1.01)) with SMTP id CAA24847; Sun, 21 Aug 1994 02:26:35 -0600
+Message-Id: <199408210826.CAA24847@longs.lance.colostate.edu>
+To: clips-list@cossack.cosmic.uga.edu
+cc: bb760597@longs.lance.colostate.edu, ai.repository@cs.cmu.edu,
+        mitkas@longs.lance.colostate.edu
+Subject: ANNOUNCE: Release 2 of CLIPSDLL for CLIPS 5.1
+Date: Sun, 21 Aug 94 02:26:34 -0600
+From: (Blake Buhlig) <bb760597@longs.lance.colostate.edu>
+X-Mts: smtp
+
+
+I have posted the 2ND RELEASE of the CLIPSDLL package for CLIPS 5.1 that
+I released 2 years ago.  It is currently named "clipsdll.zip" on
+	
+	ftp.cs.cmu.edu:/user/ai/new
+	
+but once the ai-repository accepts it, it will be moved to 
+	
+	/user/ai/areas/expert/systems/clips/contrib/clipsdll
+
+Check the date to make sure you are getting the correct version. 
+
+If you do not have FTP access, I will mail uuencoded versions on a request
+basis.
+
+For more info, read the attachment.
+
+--------------------------------------------------------------------------
+ Blake Buhlig                                bb760597@LANCE.ColoState.edu
+ Colorado State University                Electrical/Computer Engineering
+--------------------------------------------------------------------------
+
+-----
+
+{Attachment: README.TXT}
+
+-----------------------------------------------------------------------------
+Modifications to CLIPS source files for creation of a MS-Windows-based DLL
+by Blake Buhlig
+2ND RELEASE
+August 22, 1994
+
+No copyrights exist on any files or modifications, except those belonging
+to COSMIC and/or NASA, Microsoft, and Borland.
+-----------------------------------------------------------------------------
+
+If you have a question or suggestion, then you can contact me by my E-mail 
+address (that is, until I graduate in December 1994, anyway):
+
+Internet:     bb760597@LANCE.ColoState.edu
+
+
+
+INTRODUCTION
+------------
+	During the summer of 1992, I began implementation of a Windows-based 
+expert system development tool using CLIPS v5.1.  The project, which was 
+part of an undergraduate research program at Colorado State University,
+involved interfacing CLIPS with C++ code.  It was envisioned that the expert 
+system part of the development tool would be created with CLIPS, while the 
+Microsoft Windows support would be designed with Borland C++ and Application
+Frameworks.
+	Due to various problems with statically-linking the CLIPS object code 
+with my C++ code, I sought to create a Dynamic Link Library out of the CLIPS 
+source code.  This package is the result of my efforts thus far. 
+
+
+
+
+DISCLAIMER!!!!        
+--------------
+	It should be emphasized that THIS CODE IS NOT WELL-TESTED, and hence
+any serious developer should be skeptical of every modification and creation
+I have given here.  All I can offer is that what I have included here did
+produce a functional CLIPS DLL that has helped advance my project.  However,
+my project is not finished yet, which means that sometime in the
+future I might discover some catastrophic problem that would force me to
+somehow change or even scrap this approach altogether.
+	I am releasing what I have here to help everyone else trying to
+create a CLIPS DLL.  But if for some reason what I suggest doesn't work,
+don't hold me accountable.
+
+
+
+
+
+A POSSIBLE CATASTROPHIC BUG 
+---------------------------
+	Before I go any further, let me point out a "feature" with this 
+code that may discourage you from continuing.  I have noticed that I cannot 
+execute more than one instance of my development tool at a time without
+crashing Windows with a GPF.  I haven't really investigated further 
+because in my particular application, this is a fairly minor problem.  
+However, your purpose for investigating the DLL approach might be
+to execute multiple CLIPS processes simultaneously.  If this is the case, 
+be aware that the bug I discovered might be a problem with the DLL 
+involving multiple applications calling the DLL at once.  (Or it might be
+a problem with my particular application.  Who knows.)
+
+
+
+
+FILES
+-----
+	The number one request that I received since the last version was
+released was for an prebuilt DLL.  In fact, that is the primary reason
+why I am releasing this version.  If this is what you want, the following
+files will satisfy your needs:
+	
+	CLIPS.DLL
+	CLIPS.LIB
+
+CLIPS.LIB is the Import Library for the DLL.  It should be compiled along
+with whatever program uses the DLL.  And, obviously, CLIPS.DLL is the DLL.
+Note that the DLL contains the basic CLIPS distribution only; the
+UserFunctions() section is blank.
+
+	I have also included a test program that you can use to
+quickly verify the working version of CLIPS.  The program simply loads
+the file TESTDLL.CLP into the CLIPS environment, does a ResetCLIPS() and
+a RunCLIPS(-1).  TESTDLL.CLP contains a single defrule, which retracts
+(initial-fact) and asserts (test-completed).  When the RunCLIPS returns,
+the first fact in the database is printed in a dialog box, which should
+be (test-completed).  It's a simple test, but it should give you some
+confidence if you are leary.  Its also a starting point for you in your
+quest to correctly link the DLL to your own program.
+	The files for the test program are TESTDLL.*.  The C source code,
+Windows DEF, and Borland C++ Project files are yours for examination.
+
+Before you go off and play, make sure you read the rest of the 
+document, especially the Notes and Frequently Answered Questions sections 
+below.
+	
+	
+	For those of you who want to customize the DLL, for example to
+add stuff to the UserFunctions() function, I will describe how you can make 
+your own DLL.  First, note that I have included several modified files from 
+the original CLIPS distribution:
+
+	CONSTRCT.C   CONSTANT.H
+	RETRACT.C    CONSTRCT.H
+	ROUTER.C     ROUTER.H
+	SYSDEP.C     SETUP.H
+	SYSIO.C      SYSDEP.H
+	PROCESS.C
+
+Some of these files were modified specifically to facilitate the DLL; others
+were changed for other purposes.  In each file, I have tried to document
+changes where appropriate.  If I were you, though, I would run a comparison
+between the original CLIPS distribution and these files, and explicitly find
+out what changes I did make.  When you are satisfied, replace the original
+distribution files with these files.
+
+The other files I have included add required extra support for the DLL.
+Most of them will need to be modified to suit you own needs.  The files
+are as follows:
+
+	USRFUNC.C       CLIPS.PRJ    
+	CLIPS.DSK       CLIPS.DEF   
+	DLLSHELL.C
+
+The PRJ and DSK files are Borland C++ specific compiler
+configuration files.  If you are using MSC or some other compiler, you will 
+need to make modifications.  Even if you are using Borland, you will 
+probably still need to customize directory names.  If you don't use some
+file that I mention below, or want to add your own files, make sure you add
+these to the makefile or the project file.
+
+The CLIPS.DEF file is the module definition file for the DLL.  I think
+it is compatible with all compilers.  The most important thing to know about
+this file is that, in it, one must declare explicitly every CLIPS function 
+to be called from the external language.  This includes every function in the
+CLIPS Advanced Programming Guide, AS WELL AS any additional functions you
+create that are to be called by Windows (see the description of USRFUNC).  
+I think I have already declared all documented functions, but you should 
+check yourself just to be sure.  Note that macros are NOT be declared in 
+this file.
+
+The DLLSHELL.C file includes the required DLL entry and exit functions 
+LibMain and WEP.  In my project, these are do-nothing functions.  One could
+potentially put the InitializeCLIPS() call in LibMain, but I decided to call 
+it from my C++ program.
+
+The file USRFUNC.C declares and defines the UserFunctions() function.  In
+this version, it compiles into do-nothing code.  For your investigation,
+the code I used in my own program to declare external functions still exists 
+but has been commented out. This code was used to provide a message-passing
+interface between CLIPS and Windows.  For any robust application, you
+will likely need to do something similar to what I've done.
+
+After you have modified all necessary files, transfer them into the same
+directory as the rest of the CLIPS distribution, and build the DLL using
+the project file.  Then test it out with your own program!
+
+
+
+NOTES
+-----
+	There are some technical things I need to mention before you
+start customizing the files and building the DLL:
+
+	* Always #include <windows.h> before <clips.h>.  I'm not sure why,
+	  but if I do it the other way around, compiler errors always occur.
+
+	* This DLL was built with the Large Memory Model.  If you do things
+	  differently, you may run into trouble with near, far, and huge
+	  pointers, and the like.
+
+	* After building the DLL, make sure an import library was created
+	  for the DLL.  If not, use IMPLIB or some other tool to make one.
+	  Then, make sure you add the import library to your program's 
+	  makefile or project file.
+
+	* If you get linkage errors when binding the DLL to your main program,
+	  check the .DEF file and insure that you added all functions that
+	  you are calling from the CLIPS DLL.
+
+
+FREQUENTLY ANSWERED QUESTIONS
+-----------------------------
+
+Q:  When I compile my own DLL, I get linkage errors referencing the
+    CLIPS functions I call in my program.  What am I doing wrong?
+A:  First, make sure you listed all DLL functions that you are calling in the
+    CLIPS.DEF file.  Next, make sure you have included the import library, 
+    CLIPS.LIB, in your project.  Also, make sure you are compiling with the 
+    large memory model (under Compiler|Code Generation in BC++ 3.1).  
+    Finally, you need to have "Case-sensitive exports" on (under 
+    Linker|Settings in BC++ 3.1).
+
+Q:  CLIPS is not working.  Why?
+	- or -
+Q:  CLIPS is acting weird.  Why?
+A:  You probably forgot to call InitializeCLIPS().  You must call this 
+	before you call any other CLIPS function.
+
+Q:  When I run the DLL, everything works except the TTY output functions
+	(printout, PrintCLIPS(), etc...).  Why?
+A:  Windows does not recognize standard TTY output.  Therefore, you
+	must provide I/O routing code that captures all such
+	output and sends it to something else (a text window, a file, or
+	oblivion, for example).  Otherwise, Windows will either crash,
+	or the display will be overwritten with TTY text.
+
+    An example of I/O routing code in C++ follows.  For other examples
+	see the CLIPS Advanced Programming Guide.
+
+BOOL captureQuery(char *router)
+// This is a function used by the CLIPS I/O routing system.  Essentially,
+// when TTY output is needed, CLIPS queries this function to determine
+// whether this router can handle the output.
+{
+	// If the router comes from stdout, stdin, wclips, wdisplay, ...,
+	// then we will accept the output.  Otherwise, pass the buck onto
+	// someone else.
+	if ((strcmp(router,"stdout") == 0) ||
+	    (strcmp(router,"stdin") == 0) ||
+	    (strcmp(router,"wclips") == 0) ||
+	    (strcmp(router,"wdisplay") == 0) ||
+	    (strcmp(router,"wdialog") == 0) ||
+	    (strcmp(router,"werror") == 0) ||
+	    (strcmp(router,"wtrace") == 0) ||
+	    (strcmp(router,"wagenda") == 0) )
+		{ return TRUE; }
+
+	return FALSE;
+}
+
+int capturePrint(char *router, char *str)
+{
+	// Dump all TTY output to the file CLIPSDLL.ERR
+	ofstream ofError("CLIPSDLL.ERR",ios::out | ios::app);
+	ofError << str;
+	return TRUE;
+}
+
+The function call that would add the router is:
+	
+	AddRouter("capture", 20, captureQuery, capturePrint, NULL, NULL,
+		  NULL);
+
+You would call this shortly after your call to InitializeCLIPS().
+
+
+
+REGARDS
+-------
+	Well, that's all I can think of right now.  If you find something
+wrong with the DLL, or if you just can't get things to work, then feel free
+to drop me a message at the address I mentioned earlier.
+	I'd also like an idea of how many people are using this code is, so 
+if you get it to work and have a minute, drop me a quick line about what
+it is you are doing.
+
+	Good Luck...
+
+{END ATTACHMENT}

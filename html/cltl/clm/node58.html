@@ -1,0 +1,148 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node58.html by HTTrack Website Copier/3.x [XR&CO'2014], Thu, 21 Oct 2021 14:57:17 GMT -->
+<HEAD>
+<TITLE>5.1.2. Variables</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Variables">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2239 HREF="node59.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2237 HREF="node56.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2231 HREF="node57.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2241 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2242 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2240 HREF="node59.html"> Special Forms</A>
+<B>Up:</B> <A NAME=tex2html2238 HREF="node56.html"> Forms</A>
+<B> Previous:</B> <A NAME=tex2html2232 HREF="node57.html"> Self-Evaluating Forms</A>
+<HR> <P>
+<H2><A NAME=SECTION00912000000000000000>5.1.2. Variables</A></H2>
+<P>
+Symbols are used as names of variables in Common Lisp programs.
+When a symbol is evaluated as a form, the value of the variable it names
+is produced.  For example, after doing <tt>(setq items 3)</tt>, which assigns
+the value <tt>3</tt> to the variable named <tt>items</tt>, then <tt>items</tt> => <tt>3</tt>.
+Variables can be <i>assigned</i> to, as by <tt>setq</tt>, or <i>bound</i>,
+as by <tt>let</tt>.
+Any program construct that binds a variable effectively saves the old
+value of the variable and causes it to have a new value, and on exit from
+the construct the old value is reinstated.
+<P>
+There are actually two kinds of variables in Common Lisp, called <i>lexical</i> (or
+<i>static</i>) variables and <i>special</i> (or <i>dynamic</i>) variables.
+At any given time either or both kinds of variable with the same name may
+have a current value.  Which of the two kinds of variable is referred to
+when a symbol is evaluated depends on the context of the evaluation.
+The general rule is that if the symbol occurs textually within a program
+construct that creates a <i>binding</i> for a variable of the same name,
+then the reference is to the variable specified by the binding;
+if no such program construct textually contains the reference, then
+it is taken to refer to the special variable of that name.
+<P>
+The distinction between the two kinds of variable is one of scope
+and extent.  A lexically bound variable can be referred to <i>only</i>
+by forms occurring at any <i>place</i> textually within the program construct that
+binds the variable.  A dynamically bound (special) variable can
+be referred to at any <i>time</i> from the time the binding is made
+until the time evaluation of the construct that binds the variable
+terminates.  Therefore lexical binding of variables
+imposes a spatial limitation
+on occurrences of references (but no temporal limitation, for the
+binding continues to exist as long as the possibility of reference
+remains).  Conversely, dynamic binding of variables imposes a temporal
+limitation on occurrences of references (but no spatial limitation).
+For more information on scope and extent, see chapter <A HREF="node43.html#SCOPE">3</A>.
+<P>
+The value a special variable has when there are currently
+no bindings of that variable is called the <i>global</i> value of the
+(special) variable.
+A global value can be given to a variable only by assignment,
+because a value given by binding is by definition not global.
+<P>
+It is possible for a special variable to have no value at all,
+in which case it is said to be <i>unbound</i>.
+By default, every global variable is unbound unless and until
+explicitly assigned a value, except for those global variables
+defined in this book or by the implementation already to have values
+when the Lisp system is first started.
+It is also possible to establish a binding of a special variable
+and then cause that binding to be valueless by using the
+function <tt>makunbound</tt>.  In this situation the variable
+is also said to be ``unbound,'' although this is a misnomer;
+precisely speaking, it is bound but valueless.
+It is an error to refer to a variable that is unbound.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (UNDEFINED-VARIABLES-AND-FUNCTIONS) <A NAME=3008>&#160;</A> 
+to specify more precisely the effects of referring to an unbound variable.
+<P>
+  Reading an unbound variable or an undefined function
+  must be detected in the highest safety setting (see the
+  <tt>safety</tt> quality of the <tt>optimize</tt> declaration specifier)
+  but the effect is undefined in any other safety setting. That is,
+   reading an unbound variable should signal an error and
+   reading an undefined function should signal an error.
+  (``Reading a function'' includes
+  both references to the function using the <tt>function</tt>
+  special form, such as <tt>f</tt> in <tt>(function f)</tt>, and references to the
+  function in a call, such as <tt>f</tt> in <tt>(f x y)</tt>.)
+<P>
+  For the case of <tt>inline</tt> functions (in implementations where they are
+  supported), a permitted point of view is that performing the inlining
+  constitutes the read of the function, so that an <tt>fboundp</tt>
+  check need not be done at
+  execution time. Put another way, the effect of the application of
+  <tt>fmakunbound</tt> to a function name
+  on potentially inlined references to that function is undefined.
+<P>
+  When an unbound variable 
+  is detected an error of type <tt>unbound-variable</tt> is signaled,
+  and the <tt>name</tt> slot of the
+  <tt>unbound-variable</tt> condition is initialized to the name of the
+  offending variable.
+<P>
+  When an undefined function
+  is detected an error of type <tt>undefined-function</tt> is signaled,
+  and the <tt>name</tt> slot of the
+  <tt>undefined-function</tt> condition is initialized to the name of the
+  offending function.
+<P>
+  The condition type <tt>unbound-slot</tt>, which inherits from
+  <tt>cell-error</tt>, has an additional slot <tt>instance</tt>, which
+  can be initialized using the <tt>:instance</tt> keyword to <tt>make-condition</tt>.
+  The function <tt>unbound-slot-instance</tt> accesses this slot.
+<P>
+  The type of error signaled by the default primary
+  method for the CLOS <tt>slot-unbound</tt> generic function is <tt>unbound-slot</tt>.
+  The <tt>instance</tt> slot
+  of the <tt>unbound-slot</tt> condition is initialized to the offending instance
+  and the <tt>name</tt> slot is initialized
+  to the name of the offending variable.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+Certain global variables are reserved as ``named constants.''
+They have a global value and may not be bound or assigned to.
+For example,
+the symbols <tt>t</tt> and <tt>nil</tt> are reserved.
+One may not assign a value to <tt>t</tt> or <tt>nil</tt>,
+and one may not bind <tt>t</tt> or <tt>nil</tt>.  The global value of
+<tt>t</tt> is always <tt>t</tt>, and the global value of
+<tt>nil</tt> is always <tt>nil</tt>.  Constant symbols defined by
+<tt>defconstant</tt> also become reserved and may not be further
+assigned to or bound (although they may be redefined, if necessary, by
+using <tt>defconstant</tt> again).  Keyword symbols,
+which are notated with a leading colon, are reserved and
+may never be assigned to or bound; a keyword always evaluates
+to itself.
+<P>
+<BR> <HR><A NAME=tex2html2239 HREF="node59.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2237 HREF="node56.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2231 HREF="node57.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2241 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2242 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2240 HREF="node59.html"> Special Forms</A>
+<B>Up:</B> <A NAME=tex2html2238 HREF="node56.html"> Forms</A>
+<B> Previous:</B> <A NAME=tex2html2232 HREF="node57.html"> Self-Evaluating Forms</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

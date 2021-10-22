@@ -1,0 +1,488 @@
+FuzzyCLIPS Version 6.02A Bug Reports and Fixes
+----------------------------------------------
+
+The following file describes BUGS found in FuzzyCLIPS 6.02.
+The modifications will lead to a version 6.02A. To incorporate
+the required modifications to fix these problems access the
+changed files via anonymous ftp to ai.iit.nrc.ca and access
+directory pub/fzclips/fixes.602A.
+
+
+FZBUG.001
+---------
+
+Errors when executing some FuzzyCLIPS functions on machines other
+than Sun, Macintosh and PC.
+
+Certain functions (get-fs-x, get-fs-y, get-u-from, get-u-to,
+get-cf, get-threshold, moment-defuzzify, and maximum-defuzzify)
+will return incorrect values on some machines. This was noticed
+on an SGI machine. The definitions of these functions using
+DefineFunction2 used 'f' for the return value specifier. This 
+should be 'd' for double instead. This also affects the 'sqr'
+function defined in FuzzyCLIPS to be used as a modifier in 
+fuzzy variable specifications. 
+
+e.g.
+change
+   DefineFunction2("get-u-from", 'f', PTIF getu_from, "getu_from", "11z");
+to
+   DefineFunction2("get-u-from", 'd', PTIF getu_from, "getu_from", "11z");
+
+Files affected are:
+
+   cfdef.c
+   fuzzycom.c
+   macmain.c (Macintosh only)
+   main.c (all machines)
+   xmain.c (unix only)
+   main.c (interface file on PC only)
+
+The files main.c, xmain.c and macmain.c affect only the sqr 
+function definition.
+
+FZBUG.002
+---------
+
+When the function get-u-units is executed and there are no units
+associated with a universe of discourse the system will crash.
+
+Need to check for a NULL units specifier in function getu_units
+in file fuzzycom.c:
+
+   hashPtr = factPtr->whichDeftemplate->fuzzyTemplate->u_ptr->units;
+   if (hashPtr == NULL)
+     return((VOID *) AddSymbol(""));
+   else
+     return((VOID *) AddSymbol(ValueToString(hashPtr)));
+
+
+FZBUG.003
+---------
+
+On IBM PC versions of FuzzyCLIPS selecting the "About FuzzyCLPS 6.02"
+menu item has no effect. An information window should be displayed.
+This is because Borland Text was used in the resource file to add
+information about the source organization of FuzzyCLIPS (NRC). This
+prevents the information window from displaying unless the Borland C++
+development system is running. The text has been changed to standard
+text and future releases will work as required. 
+
+This problem has no impact on the correct operation of FuzzyCLIPS.
+
+
+FZBUG.004
+---------
+
+This is an error in the FuzzyCLIPS User's Guide documentation. 
+On page 22 the equation:
+
+
+    u  (v) = max   (min(u   (u), u (v)))
+     F'c        uEU      F'a      R
+
+
+should be
+
+    u  (v) = max   (min(u   (u), u (u,v)))
+     F'c        uEU      F'a      R
+
+(Note that in ASCII form it is not possible to reproduce the special
+ characters necessary to create the equations so we have tried to
+ reproduce the form of the equation here. For example, E is used to
+ represent the 'belongs to' symbol, a represents alpha etc. The 
+ error is in the parameters of the last function on the line --
+ v is supposed to be u,v)
+
+There is no impact on the operation of FuzzyCLIPS and future versions
+of the documentation will have this error corrected.
+
+
+FZBUG.005
+---------
+
+In the current version of FuzzyCLIPS Object Instances have no 
+certainty factors associated with them. Therefore, when an
+object instance is matched in the LHS of a rule it will not
+contribute to the calcualtion of the certainty factor of 
+any asserted facts. It should be treated as if it has a 
+certainty factor of 1.0. This was not handled correctly in 
+6.02. 
+
+Code was changed in cfdef.c to correct this problem. Routines
+computeStdConclCF and computeFuzzyCrispConclCF are affected. 
+Ater the test
+
+       if (tmpFact == NULL) /* will be NULL for NOT matches */
+          continue;         /* just treat as 1.0 CF */
+
+in each of these routines the following code was added
+
+       /* only facts have CF's associated with them -- so if 
+          anything else has been matched (e.g. Object Instance)
+          then just treat as if it had a CF of 1.0)
+          At some later time we may want to associate CFs with
+          Object Instances and this code will change.
+       */
+       if (tmpFact->factHeader.theInfo->base.type != FACT_ADDRESS)
+          continue;
+
+The next version of the FuzzyCLIPS manual will have a note about
+Object Instances not having CFs associated with them.
+
+
+FZBUG.006
+---------
+
+Code in the file fuzzyutl.c will not compile with some compilers.
+In the routine changeValueOfFuzzyFact the following line
+
+   (VOID *)(fact2->theProposition.theFields[0].value) = (VOID *)fv2_hn;
+
+should read
+
+   fact2->theProposition.theFields[0].value = (VOID *)fv2_hn;
+
+There appears to be no evidence that the erroneous code will
+lead to errors in the existing versions of FuzzyCLIPS on the
+Mac, PC or Unix.
+
+
+FZBUG.007
+---------
+
+In certain cases when erroneous fuzzy LHS patterns are used in
+a rule there will be memory leaked (not freed). This could cause
+problems in some applications. 
+
+e.g.   (defrule test  ;; modifier without a term after OR
+          (fz cold OR very)
+        =>
+       )
+
+In the routine fuzzyOrExpression of file fuzzyrhs.c a fuzzyValue
+structure was not being freed on encountering this type of error.
+The following lines
+
+           fv = fuzzyOrExpression(readSource,tempToken,lvp,
+                                  error,NOTbracketFlag);
+           if (*error == CLIPS_TRUE)
+             {
+               return(NULL);
+             }
+
+are changed to 
+
+           fv = fuzzyOrExpression(readSource,tempToken,lvp,
+                                  error,NOTbracketFlag);
+           if (*error == CLIPS_TRUE)
+             {
+               rtnFuzzyValue(w);
+               return(NULL);
+             }
+
+This will affect all platforms.
+
+
+FZBUG.008
+---------
+
+When a fuzzy fact changes due to global contribution or a fact 
+(fuzzy or crisp) has a change in it's certainty factor, the 
+FACTS WINDOW is not always updated correctly. In these cases
+the flag ChangeToFactList must be set to TRUE. To fix this problem 
+modify the following 2 files:
+
+1) File cfdef.c
+
+In routine changeCFofExistingFact change
+
+    if (oldFact->factCF < newFact->factCF)
+      {
+        oldFact->factCF = newFact->factCF;
+
+#if DEBUGGING_FUNCTIONS
+        if (oldFact->whichDeftemplate->watch)
+          {
+            PrintCLIPS(WTRACE,"~CF ");
+            PrintFactWithIdentifier(WTRACE,oldFact);
+            PrintCLIPS(WTRACE,"\n");
+          }
+#endif
+      }
+
+
+to the following
+
+    if (oldFact->factCF < newFact->factCF)
+      {
+        oldFact->factCF = newFact->factCF;
+           
+        /* fact has changed - set flag to say so */
+        SetFactListChanged(CLIPS_TRUE);
+
+#if DEBUGGING_FUNCTIONS
+        if (oldFact->whichDeftemplate->watch)
+          {
+            PrintCLIPS(WTRACE,"~CF ");
+            PrintFactWithIdentifier(WTRACE,oldFact);
+            PrintCLIPS(WTRACE,"\n");
+          }
+#endif
+      }
+
+
+2) File fuzzyutl.c 
+
+In routine changeValueOfFuzzyFact change
+
+   InstallFuzzyValue(fv2_hn);
+    
+   /*==================================================*/
+   /* Show fuzzy fact changing if facts being watched. */
+   /*==================================================*/
+
+#if DEBUGGING_FUNCTIONS
+   if (fact2->whichDeftemplate->watch)
+     {
+      PrintCLIPS(WTRACE,"~~~ ");
+      PrintFactWithIdentifier(WTRACE,fact2);
+      PrintCLIPS(WTRACE,"\n");
+     }
+#endif
+
+
+to the following
+
+   InstallFuzzyValue(fv2_hn);
+     
+   /* fact has changed - set flag to say so */
+   SetFactListChanged(CLIPS_TRUE);
+    
+   /*==================================================*/
+   /* Show fuzzy fact changing if facts being watched. */
+   /*==================================================*/
+
+#if DEBUGGING_FUNCTIONS
+   if (fact2->whichDeftemplate->watch)
+     {
+      PrintCLIPS(WTRACE,"~~~ ");
+      PrintFactWithIdentifier(WTRACE,fact2);
+      PrintCLIPS(WTRACE,"\n");
+     }
+#endif
+
+
+ This will affect all platforms (versions with WINDOWS_INTERFACE).
+
+
+FZBUG.009
+---------
+
+This is not actually a bug but a change to enhance some of the
+FuzzyCLIPS functions. 
+
+Currently the functions get-u, get-u-from, get-u-to and get-u-units
+only accept a fact address or an integer fact index. This allows
+the functions to retrieve the 'universe of discourse' information
+from the deftemplate for the fuzzy fact referenced. In certain
+cases it is useful to be able to access this information directly
+from the fuzzy deftemplate. For example a routine like the following
+could easily be defined to fuzzify a crisp value.
+
+;; Deffunction fuzzify
+;;
+;; Inputs:   ?fztemplate  - name of a fuzzy deftemplate
+;;           ?value       - float value to be fuzzified
+;;           ?delta       - precision of the value
+;;
+;; Asserts a fuzzy fact for the fuzzy deftemplate. The fuzzy set is
+;; a triangular shape centered on the value provided with zero
+;; possibility at value+delta and value-delta. Note that the function
+;; checks the bounds of the universe of discourse to generate a fuzzy
+;; set that does not have values outside of the universe range.
+;;
+
+ (deffunction fuzzify (?fztemplate ?value ?delta?)
+
+        (bind ?low (get-u-from ?fztemplate))
+        (bind ?hi  (get-u-to   ?fztemplate))
+
+        (if (<= ?value ?low)
+          then
+            (assert-string
+              (format nil "(%s (%g 1.0) (%g 0.0))" ?fztemplate ?low ?delta))
+          else
+            (if (>= ?value ?hi)
+              then
+                (assert-string
+                   (format nil "(%s (%g 0.0) (%g 1.0))"
+                               ?fztemplate (- ?hi ?delta) ?hi))
+              else
+                (assert-string
+                   (format nil "(%s (%g 0.0) (%g 1.0) (%g 0.0))"
+                               ?fztemplate (max ?low (- ?value ?delta))
+                               ?value (min ?hi (+ ?value ?delta)) ))
+            )
+        )
+  )
+
+
+In this example the routines get-u-from and get-u-to have a symbol
+as the argument. This symbol is the name of the fuzzy deftemplate
+for which the universe information is requested.
+
+For the call
+
+    (fuzzify temperature 95 0.1)
+
+when the fuzzy deftemplate 'temperature' has been defined and has a 
+universe of discourse specified as "0 100 degrees-C", the following 
+assert would be executed:
+
+   (assert-string "(temperature (94.9 0) (95 1) (95.1 0))")
+
+All of the routines get-u, get-u-from, get-u-to and get-u-units now
+will accept a symbol argument that should be the name of a fuzzy 
+deftemplate and will return the required values from the universe
+of discourse associated with that deftemplate.
+
+The file fuzzycom.c has been changed considerably to make this
+addition (the changes are too extensive to show here). It is 
+suggested that this file be accessed from the ftp directory 
+pub/fzclips/fixes.602A.
+
+
+
+FZBUG.010
+---------
+
+There is an error in the documentation of FuzzyCLIPS. On page 36 the
+formular for interpolation to find membership values in the straight
+line segments is incorrect.
+
+It reads:
+
+
+   u(x ),   x <= x
+             1           1
+
+           u(x   ) - u(x )
+              i+1       i
+   u(x) =  ---------------(x),   x  < x <= x
+            (x   - x )            i         i+1
+              i+1   i
+
+
+   u(x ),  x < x
+             n     n
+
+
+But should read:
+
+
+   u(x) = u(x ),   x <= x
+             1           1
+
+                  u(x   ) - u(x )
+                     i+1       i
+   u(x) = u(x ) + ---------------(x - x ),   x  < x <= x
+             i     (x   - x )          i      i         i+1
+                     i+1   i
+
+
+   u(x) = u(x ),  x < x
+             n     n
+
+This will be changed in future versions of the documentation.
+
+
+
+
+FZBUG.011
+---------
+
+On some systems (problem reported for SGI machine) error messages 
+are generated by the compiler indicating inconsistent prototype 
+definitions. This occurs for the files fuzzypsr.c and fuzzylhs.c.
+The solution is to reorder the include statements so that all
+fuzzyxxx.h includes come after other includes. This has been done 
+for these two files and the new versions are in the fixes.602A 
+directory.
+
+
+FZBUG.012
+---------
+
+When defuzzifying and the fuzzy set being defuzzified is a single
+point (constant fuzzy set) or the maximum value in the set is 0.0
+AND the minimum value for the universe of discourse is not 0.0,
+then the value returned will be incorrect. 
+
+In fuzzycom.c change line (in moment_deffuzzification):
+
+   result = 0.5 * (xmax -xmin);
+to
+   result = 0.5 * (xmax -xmin) + xmin;
+
+In fuzzycom.c change line (in maximum_deffuzzification):
+
+   result = (xmax-xmin)/2;
+to
+   result = (xmax-xmin) * 0.5 + xmin;
+
+
+
+FZBUG.013
+---------
+
+In a fuzzy deftemplate if a term has the name as another in that
+deftemplate the second is added to the list of terms but only
+1 of them will be used. There should be an error message in this case.
+
+e.g.
+   (deftemplate temp
+      0 100 C
+      ( (ok (PI 5 50))
+        (ok (PI 5 80))     <- duplicate term 'ok' *** error ***
+      )
+    )
+
+Code is added in fuzzypsr.c to fix this problem. In routine
+parsePrimaryTermList add:
+
+      /* make sure not defining same term a second time! */
+      { SYMBOL_HN *thisName;
+        struct primary_term *ptPtr = assert_list;
+
+        thisName  = (ValueToFuzzyValue(next_one->fuzzy_value_description))->name;
+
+        while (ptPtr != NULL)
+          {
+            if (thisName == (ValueToFuzzyValue(ptPtr->fuzzy_value_description))->name)
+              {
+                *DeftemplateError = CLIPS_TRUE;
+                SyntaxErrorMessage("Deftemplate (duplicate TERM being defined)");
+                rtnPrimaryTermList(assert_list);                
+                return( NULL );
+              }
+            ptPtr = ptPtr->next;
+          }
+       }
+
+in spot indicated below:
+
+   /* expect to see a set of terms, each enclosed in ()  */
+    while ((next_one = parsePrimaryTerm(readSource, inputToken,
+                                   DeftemplateError, u)) != NULL)
+     {        
+         <<<<< add here
+
+      if (last_one == NULL)
+        { assert_list = next_one; }
+      else
+        { last_one->next = next_one; }
+      last_one = next_one;     
+     }
+
+

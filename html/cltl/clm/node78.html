@@ -1,0 +1,383 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node78.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:46:43 GMT -->
+<HEAD>
+<TITLE>7.1.1. Reference</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Reference">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2502 HREF="node79.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2500 HREF="node77.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2494 HREF="node77.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2504 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2505 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2503 HREF="node79.html"> Assignment</A>
+<B>Up:</B> <A NAME=tex2html2501 HREF="node77.html"> Constants and Variables</A>
+<B> Previous:</B> <A NAME=tex2html2495 HREF="node77.html"> Constants and Variables</A>
+<HR> <P>
+<H2><A NAME=SECTION001111000000000000000>7.1. Reference</A></H2>
+<P>
+The value of an ordinary variable
+may be obtained simply by writing the name of the variable
+as a form to be executed.  Whether this is treated as the name
+of a special variable or a lexical variable is determined
+by the presence or absence of an applicable <tt>special</tt> declaration;
+see chapter <A HREF="node103.html#DECLAR">9</A>.
+<P>
+The following functions and special forms allow reference to the
+values of constants and variables in other ways.
+<P>
+<BR><b>[Special Form]</b><BR>
+<tt>quote</tt> <tt><i>object</i></tt><P><tt>(quote <i>x</i>)</tt> simply returns <i>x</i>.
+The <i>object</i> is not evaluated and may be any Lisp object whatsoever.
+This construct allows any Lisp object to be written as a constant
+value in a program.
+For example:
+<P><pre>
+(setq a 43) 
+(list a (cons a 3)) => (43 (43 . 3)) 
+(list (quote a) (quote (cons a 3)) => (a (cons a 3))
+</pre><P>
+Since <tt>quote</tt> forms are so frequently useful
+but somewhat cumbersome to type, a standard abbreviation is defined for them:
+any form <i>f</i> preceded by a single quote <tt>(')</tt> character
+is assumed to have <tt>(quote  )</tt> wrapped around it to
+make <tt>(quote <i>f</i>)</tt>.
+For example:
+<P><pre>
+(setq x '(the magic quote hack))
+</pre><P>
+is normally interpreted by <tt>read</tt> to mean
+<P><pre>
+(setq x (quote (the magic quote hack)))
+</pre><P>
+See section <A HREF="node190.html#MACROCHARACTERSSECTION">22.1.3</A>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989 (CONSTANT-MODIFICATION) <A NAME=4833>&#160;</A>  to clarify that
+it is an error to destructively modify any object that appears as a constant
+in executable code, whether within a <tt>quote</tt> special form or as
+a self-evaluating form.
+<P>
+See section <A HREF="node224.html#COMPILERSECTION">25.1</A> for a discussion of how quoted constants
+are treated by the compiler.
+<P>
+X3J13 voted in March 1989 (QUOTE-SEMANTICS) <A NAME=4838>&#160;</A>  to clarify that
+<tt>eval</tt> and <tt>compile</tt> are not permitted either to copy or
+to coalesce (``collapse'') constants (see <tt>eq</tt>)
+appearing in the code they process; the resulting
+program behavior must refer to objects that are <tt>eql</tt> to the
+corresponding objects in the source code.
+Moreover, the constraints introduced by the votes on
+issues (CONSTANT-COMPILABLE-TYPES) <A NAME=4843>&#160;</A> 
+and (CONSTANT-CIRCULAR-COMPILATION) <A NAME=4844>&#160;</A> 
+on what kinds of objects may appear
+as constants apply only to <tt>compile-file</tt> (see section <A HREF="node224.html#COMPILERSECTION">25.1</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Special Form]</b><BR>
+<tt>function</tt> <tt><i>fn</i></tt><P>The value of <tt>function</tt> is always the functional interpretation
+of <i>fn</i>; <i>fn</i> is interpreted as if it had appeared
+in the functional position of a function invocation.
+In particular,
+if <i>fn</i> is a symbol, the functional definition associated with
+that symbol is returned; see <tt>symbol-function</tt>.
+If <i>fn</i> is a lambda-expression, then a
+``lexical closure'' is returned, that is, a function that when invoked
+will execute the body of the lambda-expression in such a way as to
+observe the rules of lexical scoping properly.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1988 (FUNCTION-TYPE) <A NAME=4857>&#160;</A> 
+to specify that the result of a <tt>function</tt> special form is always
+of type <tt>function</tt>.  This implies that a form <tt>(function <i>fn</i>)</tt>
+may be interpreted as <tt>(the (function <i>fn</i>))</tt>.
+<P>
+It is an error to use the <tt>function</tt> special form on a
+    symbol that does not denote a function in the lexical or global environment in
+    which the special form appears.  Specifically, it is an error to use the
+    <tt>function</tt> special form on a symbol that denotes a macro or special form.
+    Some implementations may choose not to signal this error for
+        performance reasons, but implementations are forbidden
+        to extend the semantics of <tt>function</tt> in this respect; that is, an
+        implementation is not allowed to
+        define the failure to signal an error to be a ``useful'' behavior.
+<P>
+X3J13 voted in March 1989 (FUNCTION-NAME) <A NAME=4867>&#160;</A>  to extend <tt>function</tt>
+to accept any function-name (a symbol or a list
+whose <i>car</i> is <tt>setf</tt>-see section <A HREF="node77.html#FUNCTIONNAMESECTION">7.1</A>)
+as well as lambda-expressions.
+Thus one may write <tt>(function (setf cadr))</tt> to refer to the <tt>setf</tt>
+expansion function for <tt>cadr</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<A NAME=4876>&#160;</A>
+For example:
+<P><pre>
+(defun adder (x) (function (lambda (y) (+ x y))))
+</pre><P>
+The result of <tt>(adder 3)</tt> is a function that will add <tt>3</tt> to its
+argument:
+<P><pre>
+(setq add3 (adder 3)) 
+(funcall add3 5) => 8
+</pre><P>
+This works because <tt>function</tt> creates a closure of
+the inner lambda-expression that is able to refer to the value <tt>3</tt>
+of the variable <tt>x</tt> even after control has returned from the
+function <tt>adder</tt>.
+<P>
+More generally, a lexical closure in effect retains the ability to
+refer to lexically visible <i>bindings</i>, not just values.
+Consider this code:
+<P><pre>
+(defun two-funs (x) 
+  (list (function (lambda () x)) 
+        (function (lambda (y) (setq x y))))) 
+(setq funs (two-funs 6)) 
+(funcall (car funs)) => 6 
+(funcall (cadr funs) 43) => 43 
+(funcall (car funs)) => 43
+</pre><P>
+The function <tt>two-funs</tt> returns a list of two functions, each of which
+refers to the <i>binding</i> of the variable <tt>x</tt> created on entry to
+the function <tt>two-funs</tt> when it was called with argument <tt>6</tt>.
+This binding has the value <tt>6</tt> initially, but <tt>setq</tt> can alter
+a binding.  The lexical closure created for the first lambda-expression
+does not ``snapshot'' the value <tt>6</tt> for <tt>x</tt> when the closure is created.
+The second function can be used to alter the binding (to <tt>43</tt>, in the
+example), and this altered
+value then becomes accessible to the first function.
+<P>
+In situations where a closure of a lambda-expression over the same set
+of bindings may be produced more than once, the various resulting closures
+may or may not be <tt>eq</tt>, at the discretion of the implementation.
+For example:
+<P><pre>
+(let ((x 5) (funs '())) 
+  (dotimes (j 10) 
+    (push #'(lambda (z) 
+              (if (null z) (setq x 0) (+ x z))) 
+          funs)) 
+  funs)
+</pre><P>
+The result of the above expression is a list of ten closures.
+Each logically requires only the binding of <tt>x</tt>.
+It is the same binding in each case,
+so the ten closures may or may not be the same identical (<tt>eq</tt>) object.
+On the other hand, the result of the expression
+<P><pre>
+(let ((funs '())) 
+  (dotimes (j 10) 
+    (let ((x 5)) 
+      (push (function (lambda (z) 
+                        (if (null z) (setq x 0) (+ x z)))) 
+            funs))) 
+  funs)
+</pre><P>
+is also a list of ten closures.
+However, in this case no two of the closures may be <tt>eq</tt>, because each
+closure is over a distinct binding of <tt>x</tt>, and these bindings can
+be behaviorally distinguished because of the use of <tt>setq</tt>.
+<P>
+The question of distinguishable behavior is important; the result of
+the simpler expression
+<P><pre>
+(let ((funs '())) 
+  (dotimes (j 10) 
+    (let ((x 5)) 
+      (push (function (lambda (z) (+ x z))) 
+            funs))) 
+  funs)
+</pre><P>
+is a list of ten closures that <i>may</i> be pairwise <tt>eq</tt>.  Although
+one might think that a different binding of <tt>x</tt> is involved for
+each closure (which is indeed the case), the bindings cannot be distinguished
+because their values are identical and immutable, there being no occurrence
+of <tt>setq</tt> on <tt>x</tt>.  A compiler would therefore be justified in
+transforming the expression to
+<P><pre>
+(let ((funs '())) 
+  (dotimes (j 10) 
+    (push (function (lambda (z) (+ 5 z))) 
+          funs)) 
+  funs)
+</pre><P>
+where clearly the closures may be the same after all.
+The general rule, then, is that the implementation is free to
+have two distinct evaluations of the same <tt>function</tt> form
+produce identical (<tt>eq</tt>) closures if it can prove that the
+two conceptually distinct resulting closures must in fact be
+behaviorally identical with respect to invocation.
+This is merely a permitted optimization; a perfectly valid
+implementation might simply cause every distinct evaluation of a <tt>function</tt>
+form to produce a new closure object not <tt>eq</tt> to any other.
+<P>
+Frequently a compiler can deduce that a closure in fact does not
+need to close over any variable bindings.  For example,
+in the code fragment
+<P><pre>
+(mapcar (function (lambda (x) (+ x 2))) y)
+</pre><P>
+the function <tt>(lambda (x) (+ x 2))</tt> contains no references to any outside
+entity.  In this important special case, the same ``closure'' may be used
+as the value for all evaluations of the <tt>function</tt> special form.
+Indeed, this value need not be a closure object at all; it may
+be a simple compiled function containing no environment information.
+This example is simply a special case of the foregoing discussion and
+is included as a hint to implementors familiar with previous methods
+of implementing Lisp.  The distinction between closures and other
+kinds of functions is somewhat pointless, actually, as Common Lisp defines
+no particular representation for closures and no way to distinguish
+between closures and non-closure functions.  All that matters is that
+the rules of lexical scoping be obeyed.
+<P>
+Since <tt>function</tt> forms are so frequently useful
+but somewhat cumbersome to type, a standard abbreviation is defined for them:
+any form <i>f</i> preceded by <tt>#'</tt> (<tt>#</tt> followed by an apostrophe)
+is assumed to have <tt>(function  )</tt> wrapped around it to make
+<tt>(function <i>f</i>)</tt>.  For example,
+<P><pre>
+(remove-if #'numberp '(1 a b 3))
+</pre><P>
+is normally interpreted by <tt>read</tt> to mean
+<P><pre>
+(remove-if (function numberp) '(1 a b 3))
+</pre><P>
+See section <A HREF="node191.html#SHARPSIGNMACROCHARACTERSECTION">22.1.4</A>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>symbol-value</tt> <tt><i>symbol</I></tt><P><tt>symbol-value</tt> returns the current value of the dynamic (special) variable
+named by <i>symbol</i>.
+An error occurs if the symbol has no value; see <tt>boundp</tt>
+and <tt>makunbound</tt>.
+Note that constant symbols are really variables that cannot be changed,
+and so <tt>symbol-value</tt> may be used to get the value of
+a named constant.  In particular, <tt>symbol-value</tt> of a keyword
+will return that keyword.
+<P>
+<tt>symbol-value</tt> cannot access the value of a lexical variable.
+<P>
+This function is particularly useful for implementing interpreters
+for languages embedded in Lisp.
+The corresponding assignment primitive is <tt>set</tt>;
+alternatively, <tt>symbol-value</tt> may be used with <tt>setf</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>symbol-function</tt> <tt><i>symbol</I></tt><P><tt>symbol-function</tt> returns the current global function definition
+named by <i>symbol</i>.  An error is signalled if the symbol has no function
+definition; see <tt>fboundp</tt>.  Note that the definition may be a
+function or may be an object representing a special form or macro.
+In the latter case, however, it is an error
+to attempt to invoke the object as a function.
+If it is desired to process macros, special forms, and functions
+equally well, as when writing an interpreter,
+it is best first to test the symbol with <tt>macro-function</tt>
+and <tt>special-form-p</tt>
+and then to invoke the functional value only if these
+two tests both yield false.
+<P>
+This function is particularly useful for implementing interpreters
+for languages embedded in Lisp.
+<P>
+<tt>symbol-function</tt> cannot access the value of a lexical function name
+produced by <tt>flet</tt> or <tt>labels</tt>; it can access only
+the global function value.
+<P>
+The global function definition of a symbol may be altered
+by using <tt>setf</tt> with <tt>symbol-function</tt>.
+Performing this operation causes the symbol to have <i>only</i> the
+specified definition as its global function definition; any previous
+definition, whether as a macro or as a function, is lost.
+It is an error to attempt to redefine the name of a special
+form (see table <A HREF="node59.html#SPECIALFORMTABLE">5-1</A>).
+<p>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1988 (FUNCTION-TYPE) <A NAME=4966>&#160;</A>  to clarify the behavior
+of <tt>symbol-function</tt> in the light of the redefinition of the type <tt>function</tt>.
+<UL><LI> It is permissible to call <tt>symbol-function</tt>
+    on any symbol for which <tt>fboundp</tt> returns true.
+ Note that <tt>fboundp</tt> must return true for a symbol naming a macro or
+    a special form.
+<P>
+<LI> If <tt>fboundp</tt> returns true for a symbol
+        but the symbol denotes a macro or special form,
+        then the value returned by <tt>symbol-function</tt> is not well-defined
+        but <tt>symbol-function</tt> will not signal an error.
+<P>
+<LI> When <tt>symbol-function</tt> is used with <tt>setf</tt>
+ the new value must be of type <tt>function</tt>.
+	It is an error to set the <tt>symbol-function</tt> of a symbol to a
+	symbol, a list, or the value returned by <tt>symbol-function</tt> on
+	the name of a macro or a special form.
+</UL>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<BR><b>[Function]</b><BR>
+<tt>fdefinition</tt> <tt><i>function-name</I></tt><P>X3J13 voted in March 1989 (FUNCTION-NAME) <A NAME=4986>&#160;</A>  to add the function
+<tt>fdefinition</tt> to the language.
+It is exactly like <tt>symbol-function</tt>
+except that its argument may be any function-name (a symbol or a list
+whose <i>car</i> is <tt>setf</tt>-see section <A HREF="node77.html#FUNCTIONNAMESECTION">7.1</A>);
+it returns the current global function
+definition named by the argument <i>function-name</i>.
+One may use <tt>fdefinition</tt> with <tt>setf</tt>
+to change the current global function definition associated with
+a function-name.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>boundp</tt> <tt>symbol</tt><P><tt>boundp</tt> is true if the dynamic (special) variable named by <i>symbol</i>
+has a value; otherwise, it returns <tt>nil</tt>.
+<P>
+See also <tt>set</tt> and <tt>makunbound</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>fboundp</tt> <tt><i>symbol</I></tt><P><tt>fboundp</tt> is true if the symbol has a global function definition.
+Note that <tt>fboundp</tt> is true when the symbol names a special form or
+macro.  <tt>macro-function</tt> and <tt>special-form-p</tt> may be used to test
+for these cases.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1988 (FUNCTION-TYPE) <A NAME=5010>&#160;</A>  to emphasize that,
+despite the tightening of the definition of the type <tt>function</tt>,
+<tt>fboundp</tt> must return true when the argument names a special form or
+macro.
+<P>
+See also <tt>symbol-function</tt> and <tt>fmakunbound</tt>.
+<P>
+X3J13 voted in March 1989 (FUNCTION-NAME) <A NAME=5017>&#160;</A>  to extend <tt>fboundp</tt>
+to accept any function-name (a symbol or a list
+whose <i>car</i> is <tt>setf</tt>-see section <A HREF="node77.html#FUNCTIONNAMESECTION">7.1</A>).
+Thus one may write <tt>(fboundp '(setf cadr))</tt> to determine whether a <tt>setf</tt>
+expansion function has been globally defined for <tt>cadr</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>special-form-p</tt> <tt><i>symbol</I></tt><P>The function <tt>special-form-p</tt> takes a symbol.  If the symbol
+globally names a special form,
+then a non-<tt>nil</tt> value is returned; otherwise <tt>nil</tt> is returned.
+A returned non-<tt>nil</tt> value is typically a function
+of implementation-dependent nature that can be used to
+interpret (evaluate) the special form.
+<P>
+It is possible for <i>both</i> <tt>special-form-p</tt> and <tt>macro-function</tt>
+to be true of a symbol.  This is possible because an implementation is
+permitted to implement any macro also as a special form for speed.
+On the other hand, the macro definition must be available
+for use by programs that understand only the standard special forms
+listed in table <A HREF="node59.html#SPECIALFORMTABLE">5-1</A>.
+<P>
+<BR> <HR><A NAME=tex2html2502 HREF="node79.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2500 HREF="node77.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2494 HREF="node77.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2504 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2505 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2503 HREF="node79.html"> Assignment</A>
+<B>Up:</B> <A NAME=tex2html2501 HREF="node77.html"> Constants and Variables</A>
+<B> Previous:</B> <A NAME=tex2html2495 HREF="node77.html"> Constants and Variables</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

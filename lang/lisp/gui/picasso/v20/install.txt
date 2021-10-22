@@ -1,0 +1,281 @@
+PICASSO INSTALLATION NOTES - version 2 release 0
+January 22, 1992
+
+CHANGES FROM RELEASE 0 BETA
+
+The updated manuals are available for ftp from postgres.berkeley.edu in the
+directory pub/Picasso-papers.  Also pick up the tutorial in the pub
+directory.  It doesn't get up to the tool-building stage, but after working
+through the examples, you should grok Picasso enough to be able to dive into
+the other manuals.
+
+The scripts for using Lucid (Sun) Common Lisp are included.
+
+Some bugs (yes Virginia, there are bugs in Picasso) have been fixed.  Thanks
+to Robert Bowdidge at UCSD for sending a list of bugs and bug fixes (hint,
+hint) from the Beta release.  If (when) you find bugs, send a detailed
+report (what you did, what Picasso said, what happened, etc.) to
+picasso-bugs@postgres.berkeley.edu.
+
+Files that have been changes/added since Picasso 2.0.Beta
+  src/headers/package.cl
+  lib/po/mosaic/mosaic.cl
+  lib/po/picasso/search.dialog
+  lib/po/picasso/replace.dialog
+  src/widgets/text/text-widget.cl
+  src/widgets/text-buffer-gadget-methods.cl
+  bin/Makefile
+  bin/compile-l-picasso
+  bin/dump-l-picasso
+  bin/make-picasso-sbin
+  bin/resource.lisp
+  lib/po/cimtool/support/make-cimtool-sbin
+  lib/po/cimtool/support/compile-l-cimtool
+
+WHAT'S NEXT
+
+We are planning to make another Picasso release in the near future - it will
+probably be called 2.1.  The main changes will be code to allow Picasso
+objects (even whole tools) to be attached and detached from the X server
+more smoothly.  This will allow you to run a tool, detach it, and make an
+image dump.  At some later time you can reload the image, attach the tool,
+and continue where you left off.  Most of this code is complete but hasn't
+been tested much.
+
+2.1 should also include the new improved HIP (Hypermedia In Picasso) tool.
+Quite a few bugs have been found and some minor new features added.  The HIP
+tool isn't included in this release since it is in a state of flux.
+
+Picasso (mainly HIP) doesn't get along all that well with Allegro 4.1 Beta.
+The main problem is some poor name choices for classes that conflict with
+classes in the lisp package.  We turned off locked package errors for now,
+but we will rename the offending classes.
+
+INSTALLATION NOTES
+
+This document explains how to install picasso from a tar file (or tape) on
+either a machine or network of machines.
+
+1.  The picasso account
+
+	Picasso should be installed in the home directory of the picasso
+account.  This account should be created with group picasso and any picasso
+users should be members of the picasso group.  This home directory should be
+provided with ample space (40-60 megabytes recommended).
+
+	You can also install picasso without setting up an account.  You
+still need the 40-60 Megs of file space.  In either case, you'll also need
+plenty of swap space to dump the Picasso image.
+
+If you are using Allegro and you include any foreign function code
+(src/toolkit/resource/gif-utils.cl uses foreign functions and is included in
+the image) such as gifs, sound, cling, sling, etc., due to what appears to
+be a bug in Allegro 4.0, you'll need roughly twice as much swap space as the
+size of the image you are building.  Thus to build an image with 12 Megs of
+Old space and 6 Megs of New space will require at least 36 free Megs of
+swap.  If the amount you have is insufficient, you will get errors during
+the dump-picasso script of the form:
+   ; foreign loading ....
+     foreign function xxx not found....  and probably more errors.
+Either increase the amount of swap space your machine has, or remove
+the foreign functions (comment out line in src/pic.cl).  Gif code is
+included in the image because the vp tool uses gif files.
+
+	If you are using Lucid, you'll still need plenty of swap space.
+Lucid seems to need quite a bit of memory for compilation and not as much
+for making an image dump.  If Lucid is very short on memory, you will get
+errors during compilation.  If it is a little bit short on memory, you will
+get no errors or warnings, but at least two of the source files
+(src/toolkit/base/gc.cl and src/widgets/table/matrix-field-methods.cl) will
+produce corrupted binaries which are undetectable until run-time.  Errors
+involving functions with the words "synth", "row", and "col" are good
+indicators of this problem.  The provided scripts should have the memory
+growth-limit set high enough, but if your machine doesn't have that much
+swap space, strange things happen.
+
+2.  Setting Up the Picasso Directory Tree.
+
+	The tar version of picasso has been set up to allow you to extract it
+directly from the picasso home directory.  All pathnames are relative.
+
+FOR FTP USERS:
+
+	You should have already transferred the file picasso-2.0.tar.Z from
+postgres.berkeley.edu to your machine.  Uncompress this file (using
+uncompress) and place it in the home directory for the picasso account (or
+the picasso home directory you select if you aren't creating a picasso
+account).  Extract the Picasso directory tree with the command:
+
+	tar xvf picasso-2.0.tar
+
+FOR TAPE USERS:
+
+	The tape you have includes these installation and release notes, a
+README file, and the tar-format file picasso-2.0.  Extract these from the
+tape into the picasso account home directory.  Then, extract the rest of the
+Picasso directory structure with the command:
+
+	tar xvf picasso-2.0
+
+3.  Setting Up for Your Environment
+	
+	You need to make several changes to the provided files to ensure that
+Picasso can find all of the files it needs.  You also need to add some 
+environment variables to your .cshrc or .login files.
+
+  A.)  You need to add a DISPLAY environment variable set to "unix:0.0",
+"localhost:0.0" or the-name-of-the-machine-you-use:0.0 (e.g. mysun:0.0).  The
+unix or localhost forms seem to work for most machines in most situations,
+but if you have trouble with them, the machine name always works (it just
+requires a shell script or the like to be able to handle running Picasso
+from any one of a number of machines.)
+
+  B.)  You must add a PICASSOHOME environment variable set to the name of
+the Picasso home directory followed by a trailing "/".  For example
+   setenv PICASSOHOME "/b/usr/applications/picasso/"
+could be a line from your .cshrc.  This is necessary for building a picasso
+dump.
+
+  C.)  In the bin directory, you need to edit the Makefile so that the first
+line sets the variable PICHOME to the Picasso home directory.  For example
+   PICHOME = /b/usr/applications/picasso
+(no trailing /).
+
+  D.)  The file src/headers/compat.cl contains many of things that need
+to changed to port picasso to a new version of Lisp, and all of the
+constants and variables that refer to absolute pathnames.
+
+ 	One of the first lines of code in that file is
+(defconstant *picasso-home-default* "~picasso/").  Again, put the name of
+the Picasso home directory, followed by a /, in the double quotes.  This will
+allow a user to run picasso even if they haven't set their PICASSOHOME
+environment variable.
+
+	Other things in this file that should be changed are the
+*default-font-path*, and the path names for some of the additional features.
+
+	Sound, video, cling, sling, libpq, and hip are all directories
+under widgets that contain features that are not compiled into the
+picasso dumps you make (the lines that would cause these to be
+compiled/loaded are commented out of src/pic.cl).
+
+	For example, you can add sound support to Picasso by compiling
+the file src/widgets/sound/sound.c (this requires using .h include
+files provided by Sun) and changing the *map-sound...  vars to point
+to the sound.o and the libaudio.a (also provided by Sun) files.  Cling
+and Sling (Ingres interfaces) work similarly (you need library files
+provided with the Ingres installation).
+
+	The source for libpq (Postgres interface) is provided, although this
+is an interface to Postgres 1.x and won't work with newer versions of
+Postgres (someone is working (slowly) on an interface to Postgres 3.x).  The
+code for HIP (Hypermedia in Picasso) is also included (the tool isn't), but
+is also not placed in the dump.  A new version of both the Picasso HIP code
+and the HIP are in progress and will be released sometime after the Picasso
+2 release.
+
+	Those trying to port Picasso to a different version of Lisp will
+want to add to or modify the macros in src/headers/compat.cl to match the
+features of your Lisp.  There are other places in the code where #+allegro
+and #+lucid are used to deal with implementation specific issues and these
+are the areas that should be looked at first when making changes.
+
+	If your Lisp doesn't allow concatenation of binary files (such as
+.fasl and .sbin), you will need to change the dump-picasso script so that
+rather than loading picasso.fasl, you instead load src/pic.cl and then do a
+(load-picasso).  Of course, you might need to change a lot of other stuff
+too...
+
+	If you plan on using both Allegro and Lucid Common Lisp, you will
+need to change the "dump-picasso" and "dump-l-picasso" scripts (and the
+"$PICASSOHOME/lib/po/cimtool/support/compile..." scripts) so that the two
+Picasso versions have different names.
+
+  E.)  If you are planning on using Allegro, you should make sure that "cl"
+is in your path before you run the makefile.  Ideally, the CL should have at
+least 11 Megs of Old space and at least 6 Megs of New space.  You will get
+lots of scavenges if you set the New space too small.  Most system
+administrators build their Common Lisps with smaller memory allocations, so
+the default cl is probably less than ideal.  If your version of Allegro has
+a different name, then the last line of the scripts "compile-picasso" and
+"dump-picasso" need to be changed since they reference "cl".
+
+We briefly tested Picasso with Allegro 4.1.Beta.  The first lines of
+src/headers/package.cl turn off locked package errors which are caused by us
+using some bad names for classes (these should be fixed in a later release).
+There are also some problems with HIP, which is not included in this Picasso
+release.
+
+  F.)  If you are using Lucid (Sun) Common Lisp, you should build a custom
+image containing CLX, CLOS, and any provided patches.  You should not use the
+application image as a starting point since Picasso will need to use the
+compiler.  You will need to change the last line of the scripts
+"compile-l-picasso" and "dump-l-picasso" to reference your custom image.
+
+	All of the Picasso Lisp source files have the filename extension
+".cl" (the default for Allegro).  The scripts provided add the ".cl"
+extension to the search path for source files in Lucid (whose default is
+".lisp").
+
+	The Lucid scripts have a commented out line that loads
+"$PICASSOHOME/bin/resource".  This is one of the CLX source files which
+doesn't seem to be included in the CLX binary provided with our copy of
+Lucid.  If you encounter errors involving "resource-database" or something
+similar while compiling Picasso, you should load your custom Lucid image,
+enter production code mode (using (proclaim '(optimize (compilation-speed
+0)))), compile the file "$PICASSOHOME/bin/resource.lisp", and uncomment the
+lines that load this file in the scripts "compile-l-picasso" and
+"dump-l-picasso" (or just make another custom image with this file loaded).
+
+  G.)  You should take advantage of Allegro Presto and the Lucid Delivery
+Toolkit.  Our experience with Presto has been very positive as it results in
+smaller image sizes both on disk and in memory.  The smaller size provides a
+slight performance improvement also.  When our work on attach/detach is
+completed, allowing an image to be saved after most of a tool has loaded and
+initialized, Presto will allow even greater time/space savings.
+
+We are in the middle of investigating the Delivery Toolkit.  The Lucid
+Treeshaker doesn't seem to be appropriate for Picasso, since arbitrary Lisp
+code can appear in any Picasso object, although with a lot of effort some
+code reduction might be possible.  The Reorganizer can help to improve
+performance.
+
+4.  Compiling Picasso
+
+	Now that hard part is over, you should cd to the bin directory and
+type
+	make allegro
+if you are using Allegro Common Lisp, or type
+	make lucid
+if you are using Lucid (Sun) Common Lisp.
+
+This will compile the sources, concatenate them into a picasso.fasl (or
+.sbin for Lucid) file, dump the image bin/new-picasso, and finally, compile
+the support code for cimtool (a good test of whether picasso dumped
+properly).
+
+5.  Getting Started
+
+	We suggest that you obtain any reference materials (by ftp
+from postgres.berkeley.edu in the pub/Picasso-papers directory) that
+you do not already have copies of.  The Picasso documentation (Picasso
+Reference Manual and the Widget Writers Guide) were only changed
+slightly from release 1.0.
+
+Make sure that any Picasso users add $PICASSOHOME/bin to their paths.
+
+	Now we suggest you run a sample Picasso tool to ensure that Picasso is
+correctly installed.
+
+	a.	Start picasso (just type "new-picasso" to the shell if your
+                               path is set correctly)
+	b.      You should get the <new-picasso> prompt from lisp<.
+	c.      Enter (paper)
+                This will run the tool described in the Picasso Programming 
+                Model paper.  Other tools you can run include:
+        		(cimtool)
+			(mosaic)
+        		(test)
+			(vp)
+
+	And now, you can start using Picasso!!

@@ -1,0 +1,623 @@
+                  Future Release of FuzzyCLIPS
+                  ----------------------------
+
+                  NOTES on Changes Made to Version 6.02
+                          of FuzzyCLIPS
+
+                         September 1994
+
+                 ----------------------------------------
+
+The following represent changes made to enhance the utility of 
+FuzzyCLIPS.  
+
+
+1. The current version of FuzzyCLIPS does not allow vertical
+   lines to be used in the description of a fuzzy set. 
+   We now allow vertical lines in the fuzzy sets. For example,
+
+            ___________
+           |           |
+           |           |
+           |           |
+           |           |
+    --------           --------
+
+   This means 2 consecutive x values can be the same (with different
+   y values). Also 3 consecutive values can be used to define a 
+   fuzzy representation of a crisp number.  Consider,
+
+
+           |    
+           |    
+           |    
+           |   
+           |   
+    -----------------    
+
+   This could be define as (5 0) (5 1) (5 0)  OR  (pi 0 5). If there are 4
+   consecutive points with the same x values then only 3 of them will be
+   kept. For example, 
+
+   (5 0) (5 1) (5 .3) (5 .7)  will be changed to  (5 0) (5 1) (5 .7)
+
+   If one thinks about this for a minute it makes sense. 
+
+   We can even have the following:
+
+
+           |    |
+           |    |
+           |    |    |
+           |    |    |----
+           |    |    |    \
+    -----------------      \------
+
+   or any such shape with vertical bars.
+
+   The caution is to note that when 'moment' defuzzifying a set with these 
+   types of shapes, there is no area under these peaks and therefoe no
+   'moment' and they will not contribute to the calcualtion of the defuzzified
+   value. 'maximum' defuzzification will be as expected.
+
+2. Currently the syntax for linguistic expressions:
+
+        (NOT [ very cold OR hot ] )
+
+   is somewhat restrictive. It does not allow expressions that use
+   the AND (intersection) operator. It does not allow NOT to
+   appear more than once in an expression -- therefore one
+   cannot say:
+
+        (NOT hot AND NOT cold)
+
+   This syntax has been extended to give a more normal set of
+   expressions with  AND allowed as well as OR. Brackets [ and ] 
+   still are used to group sub expressions as in:
+
+        ( [ hot AND cold ] OR OK)
+
+   Modifiers (hedges) have the highest precedence followed by AND and then
+   by OR. They will be evaluated left to right. Note that 'not' is not
+   a special artifact anymore -- it is just another modifier
+   Therefore,
+
+       ( A OR B AND C OR D )
+
+   is the same as
+
+       ( A OR [ B AND C ] OR D )
+
+   The BNF for these expressions is as follows:
+
+       <LExpr> ::= <LTerm> | <LExpr> OR <LTerm>                  
+                                                             
+       <LTerm> ::= <modExpr> | <LTerm> AND <modExpr>                                                                         
+       <modExpr> ::= MODIFIER <modExpr> | <element>               
+                                                             
+       <element> ::= PRIMARY-TERM | [ <LExpr> ]                   
+                                                             
+       Note: This gives AND higher precedence than OR.             
+             MODIFIER is a valid modifier (not, very, etc.)        
+             PRIMARY-TERM is a term defined in a fuzzy deftemplate 
+                                                             
+3. Along with this change we now provide a set of standard modifiers
+   (hedges) commonly in use.  Currently none of the hedges are predefined
+   and must be included in the deftemplate description each time:
+
+    (deftemplate temp
+       0 100 C
+       (
+        (cold (Z 5 20))
+        (hot  (S 80 95))
+        (ok   NOT [ cold OR hot ] )
+       )
+       (
+        (very sqr)
+        (more-or-less sqrt)
+       )
+      )
+
+   This was thought to be too much effort since they had to be added for
+   each fuzzy deftemplate. Now they are defined globally and are not
+   defined in the fuzzy deftemplate. This does mean that existing 
+   programs will have to be modified if hedges were used! This is the only
+   change that is not compatible with the previuous version. 
+
+   The following list of modifiers are supplied as system hedges:
+
+      very              -> y**2    
+
+      more-or-less      -> y**0.33  
+
+      somewhat          -> y**0.5
+
+      norm              -> normalizes a fuzzy set so that
+                           the maximum y value is 1.0
+
+      intensify         -> 2(y**2)       if y in [0, 0.5]
+                           1 - 2(1-y)**2 if y in (0.5, 1.0]
+      
+      plus              -> y**1.25
+
+      (note: intensify and plus normally used only to describe
+             other hedges such a slightly)
+
+      slightly          -> intensify [ norm (plus A AND not very A) ]
+
+      extremely         -> y**3
+
+      above             ->  see Cox's Fuzzy Systems Handbook 
+
+      below             ->  see Cox's Fuzzy Systems Handbook 
+
+      (where A is a fuzzy set and the operations indicated with y
+      are applied to all y (membership) values of the fuzzy set.)
+
+   The code for adding user defined hedges in fuzzymod.c has been
+   organized for easy addtions (manual covers this). Also it is still
+   possible to add simple types of hedges (such as dilution and 
+   concentration types) with deffunctions and standard CLIPS functions
+   as was possible in the previous version. however, instead of doing 
+   so in a fuzzy deftemplate, you add them globally and remove them 
+   with 2 new functions:
+
+       (add-fuzzy-modifier modifierName modifierFunctionName)
+
+   and 
+
+       (remove-fuzzy-modifier modifierName)
+
+   Once added the modifiers can be used like in linguistic expressions.
+
+
+4. We can now use linguistic expressions in fuzzy deftemplate
+   definitions. Currently one can use:
+
+      (deftemplate temp
+       0 100 C
+       (
+        (very-cold (0 1) (5 0))
+        (cold      (Z 5 20))
+        .
+        .
+        .
+       )
+      )
+
+   but now one is also able to use:
+
+      (deftemplate temp
+       0 100 C
+       (
+        (cold (Z 5 20))
+        (hot  (S 80 95))
+        (ok   NOT [ cold OR hot ] )
+        .
+        .
+        .
+       )
+      )
+
+   Note that only terms that are already defined in the deftemplate 
+   (along with predefined or user added modifiers/hedges) are allowed.
+   It will not be possible to define 'ok' above before both hot and
+   cold have been defined. 
+
+
+5. A CLIPS callable function has been added to plot fuzzy sets (ASCII
+   representation). The function is:
+
+        (plot-fuzzy-value logicalName plotChars lowlimit highlimit 
+                          fuzzyvalue1 [ fuzzyvalue2 ... fuzzyvalueN ] )
+
+   where:
+        logicalName is any open router 
+        characters to be used in plotting (eg. *  or  "*+.")
+             - for each fuzzyvalue specified a corresponding character
+               from the string or symbol is used as the plotting
+               symbol -- if more fuzzyvalues than symbols the last
+               symbol is used for the remaining plots
+        low limit of plot (x value  OR if not a number default to the
+               low limit of the universe of discourse)
+        high limit for plot (x value OR if not a number default to the
+               high limit of the universe of discourse)
+        fuzzyValue is one of 3 things
+             - an integer that identifies a fuzzy fact
+             - a variable with a fuzzy fact
+             - a variable with a fuzzy value 
+               (the last option is due to other new features
+                that allow ?x wildcards in fuzzy facts and
+                that allow slots in a standard template to 
+                have fuzzy values stored there)
+
+   The fuzzy deftemplate associated with ALL fuzzy values to be plotted on
+   the same plot must be the same one.
+
+   The high and low values allow a window of the universe of discourse to be
+   displayed and provides a kind of scaling.
+
+   For example if fact 0 is created with (assert (temp ok)) and
+   the deftemplate for temp was
+
+        (deftemplate temp 
+           0 100 C
+           ((ok (pi 20 50))
+           )
+         )
+
+   and the function call was
+
+           (plot-fuzzy-value t * nil nil 0)   ;; nil says take default
+
+   the following output would be directed to the console (or main window):
+
+
+Fuzzy Value: temp
+Linguistic Value: ok (*)      
+
+ 1.00                         *                         
+ 0.95                        * *                        
+ 0.90                       *   *                       
+ 0.85                                                   
+ 0.80                      *     *                      
+ 0.75                                                   
+ 0.70                                                   
+ 0.65                     *       *                     
+ 0.60                                                   
+ 0.55                                                   
+ 0.50                    *         *                    
+ 0.45                                                   
+ 0.40                                                   
+ 0.35                   *           *                   
+ 0.30                                                   
+ 0.25                                                   
+ 0.20                  *             *                  
+ 0.15                                                   
+ 0.10                 *               *                 
+ 0.05                *                 *                
+ 0.00****************                   ****************
+     |----|----|----|----|----|----|----|----|----|----|
+    0.00     20.00     40.00     60.00     80.00    100.00   
+
+Universe of Discourse:  From   0.00  to  100.00
+
+   
+
+6. When fuzzy facts are matched to fuzzy patterns on the LHs
+   of rules, the match is considered to be successful if there
+   is any overlap (intersection) between the two. There is now
+   a function that allows the match to succeed only if the 
+   intersection has a membership value greater than this threshold
+   (default is 0.0). There will be a performance hit for this since
+   currently it is very simple to test for non-intersection 
+   (no overlap) but if a threshold other than 0.0 is used the
+   intersection of the sets is done (however, you only get the 
+   performance hit if you set the threshold > 0.0). For example,
+
+       (set-alpha-value 0.05)
+
+   There is a complimentary function to access the current setting:
+
+       (get-alpha-value)
+
+
+7. A new function has been added that returns the linguistic value of 
+   a fuzzy fact.
+
+  e.g. if (temp very hot) is asserted then the function call
+
+             (get-fs-lv ?fuzzyfact)
+
+       would return the string "very hot"
+
+8. A new function has been added that provides a membership value at a 
+   specified x value for the fuzzy set.
+
+   e.g. Suppose we have defined the following
+
+        (deftemplate temp
+         0 100 C
+         (
+           .
+           .
+           (OK (30 0) (60 1) (90 0))
+           .
+           .
+         )
+        )
+
+        and we assert the fact (temp OK). Then if we bind that fact
+        to a variable ?ff we could call
+
+        (get-fs-value ?ff 50.0)
+
+        and it would return 0.6666667
+
+
+9.The ability to do max-prod inferencing as well as the standard max-min 
+  inferencing has been added.
+
+   e.g.  (set-fuzzy-inference-type "max-prod")
+
+         [default is "max-min"]
+
+   There is also a function to query the current setting:
+
+         (get-fuzzy-inference-type)  returns max-min or max-prod
+
+
+10.The capability to control the precision when a fuzzy
+   set is displayed has been added. Currently you might see:
+
+   f-0  (speed_error more_or_less large_positive) CF 1.00
+        ( (0.0 0.0)
+          (0.1 0.3162277660168379) (0.2 0.4472135954999579)
+          (0.3 0.5477225575051661) (0.35 0.5916079783099616)
+          (0.4 0.6324555320336759) (0.5 0.7071067811865476)
+          (0.6 0.7745966692414834) (0.7 0.8366600265340756)
+          (0.8 0.8944271909999159) (0.9 0.9486832980505138)
+          (1.0 1.0)  )
+
+   We can now set the number of digits of precision with:
+
+       (set-fuzzy-display-precision integer)
+
+   and can get the current setting with   
+
+       (get-fuzzy-display-precision)
+
+   The default is now 4 (as opposed to 16 in the previous version).
+   Any value from 2 to 16 can be entered. The above might now look like:
+
+   f-0  (speed_error more_or_less large_positive) CF 1.00
+        ( (0.0 0.0)
+          (0.1 0.32) (0.2 0.45)
+          (0.3 0.55) (0.35 0.59)
+          (0.4 0.63) (0.5 0.71)
+          (0.6 0.77) (0.7 0.84)
+          (0.8 0.89) (0.9 0.95)
+          (1.0 1.0)  )
+
+   As a comment on the options listed in section 11 below, when a
+   fact has fuzzy slots then the fact will display as:
+
+   f-0 (person (name bob) (height tall) (weight heavy)) CF 1.00
+         ( (150.0 0.0) (200.0 1.0) )
+         ( (75.0 0.0) (85.0 1.0) )
+
+   with the 1st set being for height tall and the second for weight heavy.
+
+
+11.One quite significant difficulty occurs when using FuzzyCLIPS
+   and you want to define a set of similar fuzzy variables.
+
+   For example, suppose that you are creating a fuzzy fact base 
+   for a group of people's heights. To do this you currently need
+   to define a fuzzy deftemplate for each person in the fact base.
+
+   e.g. 
+
+        (deftemplate height-of-bob
+         0 300 cm
+         (
+          (short  (Z 100 125))
+          (medium (PI 65 150))
+          (tall   (S 180 200))
+         )
+        )
+
+        (deftemplate height-of-jim
+         0 300 cm
+         (
+          (short  (Z 100 125))
+          (medium (PI 65 150))
+          (tall   (S 180 200))
+         )
+        )
+
+        (deftemplate height-of-alex
+         0 300 cm
+         (
+          (short  (Z 100 125))
+          (medium (PI 65 150))
+          (tall   (S 180 200))
+         )
+        )
+
+        .
+        .
+        .
+
+   This of course is a lot to type. Even though it is easy to 
+   duplicate these deftemplates, it still doesn't address the
+   situation where you don't know in advance who the people are
+   in your population. In this case it is not possible to pre-
+   define the deftemplates.
+
+   There are a number of possible solutions to this. I have implemented
+   one of these which was a combination of a need to not impact too
+   much on exisiting programs and a need to provide more flexibility.
+   It could lead to further changes that would allow slots of objects
+   to also hold fuzzy values.
+
+   This extension allows fuzzy deftemplates to be used as slot specifiers in
+   other deftemplates. In effect the fuzzy deftemplate can be used for
+   creating fuzzy facts (as in the current version) or as a kind of 'type'
+   specifier that defines a FUZZY-VALUE type.
+
+   Consider the following example.
+
+        (deftemplate fz-height
+         0 300 cm
+         (
+          (short  (Z 100 125))
+          (medium (PI 65 150))
+          (tall   (S 180 200))
+         )
+        )
+
+   This deftemplate can be used as in the current version of
+   FuzzyCLIPS BUT it can also be used as in:
+
+        (deftemplate bob
+          (slot height
+               (type FUZZY-VALUE fz-height)
+          )
+        )
+
+   
+        (assert (bob (height very short))
+
+        (defrule test-height-of-bob
+           (bob (height short))
+         =>
+           (printout t ...)
+        )
+
+   The fact (bob ...) is a fuzzy fact since it has a slot that is
+   fuzzy.
+
+   A slightly more generic example would be:
+
+        (deftemplate person
+          (slot name
+               (type symbol)
+          )
+          (slot height
+               (type FUZZY-VALUE fz-height)
+          )
+        )
+
+        (assert (person (name bob) (height tall)))
+
+        (defrule test-height
+           (person (name ?n) (height short))
+         =>
+           (printout t ?n " is short" crlf)
+        )
+
+   Note that it would be possible to have several fuzzy slots
+   in a fact.
+
+       (deftemplate person
+          (slot name
+               (type symbol)
+          )
+          (slot height
+               (type FUZZY-VALUE fz-height)
+          )
+          (slot weight
+               (type FUZZY-VALUE fz-weight)
+          )
+        )
+ 
+   
+   In this variation the fuzzy deftemplate is also a type
+   definition.
+
+   The advantages of this extension are that: current programs
+   continue to operate as they now do; it seems a natural 
+   extension for a deftemplate. 
+
+   A number of functions that access the fuzzy sets and their
+   values (get-fs, get-fs-x, etc) now accept a fuzzy fact as an
+   argument. The extension deals with this by allowing matches on
+   a fuzzy slot to return a value of type FUZZY-VALUE. Therfore we
+   can do the following:
+
+       (defrule test-height
+           (person (name ?n) (height ?h & short) (weight ?w & heavy)
+         =>
+           (printout t ?n " is short and heavy" crlf)
+           (printout t "The universe for height is: " (get-u ?h) crlf)
+           (printout t "The universe for weight is: " (get-u ?w) crlf)
+        )
+
+      OR
+
+        (defrule test-bobs-height
+           (bobx-height ?x & heavy)
+         =>
+           (printout t "Bob's height moment is: " (moment-defuzzify ?x) crlf)
+        )
+
+   Note that these fuzzy slots can only use the 'type' constraint and
+   no others. Also there is no default allowed for a fuzzy slot -- it
+   must be specified.
+
+   This is a step towards making Fuzzy variable a type in CLIPS in the same
+   sense that integers, sysmbols and floats are now. We can work toward 
+   allowing objects to have fuzzy values in their slots, etc.
+
+12. For those who work at a lower level and add their own functions, note that
+    there are 2 new type codes that have been added. They are:
+
+        F   - a fuzzy value type
+        Z   - a fuzzy value, or a (fuzzy deftemplate) fact address or an 
+              integer that references a fuzzy deftemplate fact.
+
+    These would be used like 'd', 'z', 'l', etc. in the DefineFunction2 calls.
+
+     DefineFunction2("get-u", 'w', PTIF getu, "getu", "11Z");
+     DefineFunction2("get-u-from", 'd', PTIF getu_from, "getu_from", "11Z");
+     DefineFunction2("get-u-to", 'd', PTIF getu_to, "getu_to", "11Z");
+     DefineFunction2("get-u-units", 'w', PTIF getu_units, "getu_units", "11Z");
+     DefineFunction2("get-fs", 'w', PTIF get_fs, "get_fs", "11Z");
+     DefineFunction2("get-fs-lv", 'w', PTIF get_fs_lv, "get_fs_lv", "11Z");
+
+13. In a format function the coding %F can now be used to print fuzzy values.
+    Only the 'linguistic value' associated with the fuzzy value will print.
+
+    e.g. (defrule r
+           (temp ?x)
+          =>
+           (format t "The fuzzy value is: %F%n" ?x)
+         )
+
+14. It is often useful to get a fuzzy-value from a slot in a fuzzy fact.
+    This can now be done with 
+
+          (get-fuzzy-slot fact-id [slotName])
+
+    where fact-id is a fact variable or an integer fact identifier and
+    slotName is the name of the slot for standard facts with fuzzy slots
+    or not required for fuzzy deftemplate facts. This functions returns 
+    fuzzy value that can be used for plotting or in other functions
+    that require a fuzzy value.
+
+15. A set of functions for creating and working with fuzzy values has
+    been added. These functions are:
+
+    (fuzzyvaluep arg1) 
+           - returns TRUE if the arg1 is a FUZZY-VALUE type
+
+    (create-fuzzy-value deftemplateName fuzzy-value-expression)
+           - creates a fuzzy value associated with the fuzzy deftemplate
+             identified by the 1st argument
+           - the fuzzy-value-expression is identical to the expression
+             allowed when asserting a fuzzy deftemplate fact or a fuzzy
+             slot in a fact.
+
+             e.g. (create-fuzzy-value temp very cold)
+                  (create-fuzzy-value temp (10 1) (20 0))
+
+                  (plot-fuzzy-value t * nil nil (create-fuzzy-value temp cold))
+
+    (fuzzy-union fuzzyvalue1 fuzzyvalue2)
+           - takes 2 fuzzy value arguments and return a fuzzy value that
+             is the union of them (both fuzzy values must have the same
+             fuzzy deftemplate -- ie. they must be of the same type)
+
+    (fuzzy-intersection fuzzyvalue1 fuzzyvalue2)
+           - takes 2 fuzzy value arguments and return a fuzzy value that
+             is the intersection of them (both fuzzy values must have the same
+             fuzzy deftemplate -- ie. they must be of the same type)
+
+    (fuzzy-modify fuzzyvalue modifier)
+           - modifies the fuzzyvalue supplied by performing the operation
+             specified by the modifier argument and returns the new 
+             fuzzyvalue. The modifier is any legal modifier (hedge) available.
+
+             e.g.  (fuzzy-modify ?x slightly)
+

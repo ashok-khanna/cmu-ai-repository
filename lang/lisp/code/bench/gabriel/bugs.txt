@@ -1,0 +1,141 @@
+From wright@asia.cs.rice.edu Sun Jun 19 21:13:52 EDT 1994
+Article: 13206 of comp.lang.lisp
+Xref: glinda.oz.cs.cmu.edu comp.lang.scheme:9265 comp.lang.lisp:13206
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!godot.cc.duq.edu!news.duke.edu!convex!cs.utexas.edu!newsfeed.rice.edu!rice!asia.cs.rice.edu!wright
+From: wright@asia.cs.rice.edu (Andrew Wright)
+Newsgroups: comp.lang.scheme,comp.lang.lisp
+Subject: Gabriel Benchmark bug?
+Date: 17 Jun 1994 15:52:41 GMT
+Organization: Rice University, Houston
+Lines: 37
+Distribution: world
+Message-ID: <2tsgs9$jj8@larry.rice.edu>
+NNTP-Posting-Host: asia.cs.rice.edu
+
+
+I've tripped over an apparent bug in the Gabriel Benchmark "traverse".
+Below I'm using the Scheme version, but the "bug" exists in the
+original Lisp version too.  Two questions:
+  1.  Is this a known problem?
+  2.  Does anyone care to refute that this is a bug?
+
+The function "traverse-remove" apparently extracts an element from a
+circularly linked list of objects.  The first case handles a list that
+contains only one object. The second case handles extraction of the
+first object.
+
+(define (traverse-remove n q)
+  (cond ((eq? (cdr (car q)) (car q))
+         (let ((x (caar q))) (set-car! q #f) x))
+        ((zero? n)
+         (let ((x (caar q)))
+           (do ((p (car q) (cdr p)))
+               ((eq? (cdr p) (car q))
+                (set-cdr! p (cdr (car q)))
+                (set-car! q p)))
+           x))
+        (else (do ((n n (- n 1))
+                (q (car q) (cdr q))
+                (p (cdr (car q)) (cdr p)))
+               ((zero? n) (let ((x (car q))) (set-cdr! q p) x))))))
+
+The else-clause contains the "bug".  (set-cdr! q p) never does
+anything useful, since p = (cdr q).  Hence the list never gets smaller
+when the else-clause is executed.
+
+The benchmark apparently works because it pseudo-randomly removes
+objects from a list, occasionally removing object 0.  The second case
+correctly deletes object 0 from the list, so the list does eventually
+empty.
+
+Andrew Wright
+
+
+Article 13210 of comp.lang.lisp:
+Xref: glinda.oz.cs.cmu.edu comp.lang.scheme:9268 comp.lang.lisp:13210
+Newsgroups: comp.lang.scheme,comp.lang.lisp
+Path: honeydew.srv.cs.cmu.edu!das-news.harvard.edu!news2.near.net!MathWorks.Com!europa.eng.gtefsd.com!library.ucla.edu!csulb.edu!csus.edu!netcom.com!hbaker
+From: hbaker@netcom.com (Henry G. Baker)
+Subject: Re: Gabriel Benchmark bug?
+Message-ID: <hbakerCrLpMG.5s5@netcom.com>
+Organization: nil
+References: <2tsgs9$jj8@larry.rice.edu>
+Date: Sat, 18 Jun 1994 16:25:28 GMT
+Lines: 31
+
+In article <2tsgs9$jj8@larry.rice.edu> wright@asia.cs.rice.edu (Andrew Wright) writes:
+>I've tripped over an apparent bug in the Gabriel Benchmark "traverse".
+>Below I'm using the Scheme version, but the "bug" exists in the
+>original Lisp version too.  Two questions:
+>  1.  Is this a known problem?
+>  2.  Does anyone care to refute that this is a bug?
+
+I don't know about this particular 'bug', but I've found bugs in many of
+the other Gabriel benchmarks, so this wouldn't surprise me.  Bugs in
+benchmarks are a real problem, because they can't be 'fixed' without
+destroying the usefulness of the benchmark, yet the existence of such
+a bug already makes the benchmark less useful.  This is because 1) who
+cares about optimizing code known to be buggy, and 2) a buggy benchmark
+may be inappropriately stressing the sort of behavior you don't want
+to encourage in either other programmers or in hardware architects (who
+actually base designs on statistics from benchmarks).
+
+Even bad programming style in benchmarks is not good, because it
+either directly (through so many people studying the benchmark) or
+indirectly (by affecting machine/compiler/os design & optimization)
+encourages more bad programming style.  (The bad programming styles
+encouraged by C are reinforced by the coding styles of large corpuses
+of C code -- e.g., Unix & Unix utilities -- which then affect machine
+design; I think that this effect falls into the 'sins of the fathers'
+category).  Some of the 'optimizations' in the Gabriel benchmarks are
+unfortunate for these reasons.
+
+I think that benchmarks should be chosen with the best algorithms and
+programming styles known, without any 'hackish' optimizations.  If such
+optimizations are to be done, they should be done by the implementation.
+
+
+
+Article 9275 of comp.lang.scheme:
+Xref: glinda.oz.cs.cmu.edu comp.lang.scheme:9275
+Newsgroups: comp.lang.scheme
+Path: honeydew.srv.cs.cmu.edu!das-news.harvard.edu!news2.near.net!MathWorks.Com!europa.eng.gtefsd.com!library.ucla.edu!csulb.edu!csus.edu!netcom.com!hbaker
+From: hbaker@netcom.com (Henry G. Baker)
+Subject: Re: R4RS version of the boyer benchmark
+Message-ID: <hbakerCro1uL.F35@netcom.com>
+Organization: nil
+References: <TTHORN.94Jun19215512@ceres.daimi.aau.dk>
+Date: Sun, 19 Jun 1994 22:44:45 GMT
+Lines: 29
+
+In article <TTHORN.94Jun19215512@ceres.daimi.aau.dk> Tommy.Thorn@daimi.aau.dk writes:
+>The Gabriel benchmarks, as found on the scheme repository, are
+>not clean R4RS code. I suspect I'm not the only one wanting fixed
+>versions, do any have any?
+>
+>Expecting a negative answer, I've started fixing them myself. First
+>to be fixed is boyer.scm. The fix consist of:
+>
+>  1) Removing the assumption that #f equals '()
+>  2) Removing the assumption that nil equals '()
+>  3) Removing the assumption that symbols have a property list
+>
+>Any comments greatly appreciated.
+>
+>Regards
+>Tommy Thorn
+>---- Fixed boyer.scm ----
+
+I didn't look at this code carefully, but you should check out the
+following paper for some substantive bugs in the Boyer Benchmark:
+
+Baker, H.G.  "The Boyer Benchmark Meets Linear Logic".  ACM Lisp
+Pointers VI,4 (Oct/Dec 1993), 3-10.
+
+Some, but not all, of these bugs were pointed out in:
+
+Baker, H.G.  "The Boyer Benchmark at Warp Speed".  ACM Lisp Pointers
+V,3 (Jul/Sep 1992), 15-17.
+
+
+

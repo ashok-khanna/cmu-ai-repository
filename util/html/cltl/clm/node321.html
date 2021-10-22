@@ -1,0 +1,111 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node321.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 10:10:47 GMT -->
+<HEAD>
+<TITLE>29.3.6. Anonymous Restarts</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Anonymous Restarts">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html5707 HREF="node322.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5705 HREF="node315.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5699 HREF="node320.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5709 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5710 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5708 HREF="node322.html"> Named Restarts</A>
+<B>Up:</B> <A NAME=tex2html5706 HREF="node315.html"> Survey of Concepts</A>
+<B> Previous:</B> <A NAME=tex2html5700 HREF="node320.html"> Restarts</A>
+<HR> <P>
+<H2><A NAME=SECTION003336000000000000000>29.3.6. Anonymous Restarts</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+The simplest kind of restart involves structured transfer of control using
+a macro called <tt>restart-case</tt>. The <tt>restart-case</tt> form allows execution of
+a piece of code in a context where zero or more restarts are active, and
+where if one of those restarts is ``invoked,'' control will be transferred
+to the corresponding clause in the <tt>restart-case</tt> form. For example, we could
+rewrite the previous <tt>divide</tt> example as follows.
+<P><pre>
+(defun divide (numerator denominator) 
+  (loop 
+    (restart-case 
+        (return 
+          (cond ((or (not (numberp numerator)) 
+                     (not (numberp denominator))) 
+                 (error &quot;(DIVIDE '~S '~S) - Bad arguments.&quot; 
+                         numerator denominator)) 
+                ((zerop denominator) 
+                 (error 'division-by-zero 
+                        :operator 'divide 
+                        :operands (list numerator denominator))) 
+                (t ...))) 
+      (nil (arg1 arg2) 
+          :report &quot;Provide new arguments for use by DIVIDE.&quot; 
+          :interactive 
+            (lambda () 
+               (list (prompt-for 'number &quot;Numerator: &quot;) 
+                     (prompt-for 'number &quot;Denominator: &quot;))) 
+        (setq numerator arg1 denominator arg2)) 
+      (nil (result) 
+          :report &quot;Provide a value to return from DIVIDE.&quot; 
+          :interactive 
+            (lambda () (list (prompt-for 'number &quot;Result: &quot;))) 
+        (return result)))))
+</pre><P>
+<P>
+<hr>
+<b>Remark:</b> The function <tt>prompt-for</tt> used in this chapter in a number of places is
+    not a part of Common Lisp.  It is used in the examples in this chapter only to keep
+    the presentation simple.  It is assumed to accept a type specifier
+     and optionally a format string and associated arguments.  It uses the
+    format string and associated arguments as part of an interactive prompt,
+    and uses <tt>read</tt> to read a Lisp object; however, only an object of the
+    type indicated by the type specifier is accepted.
+<P>
+    The question of whether or not <tt>prompt-for</tt> (or something like it) would be a
+    useful addition to Common Lisp is under consideration by X3J13, but as of
+    January 1989 no action has been taken. In spite of its use in a number of examples,
+    nothing in the Common Lisp Condition System depends on this function.
+<hr>
+<P>
+In the example, the <tt>nil</tt> at the head of each clause
+means that it is an ``anonymous'' restart.
+Anonymous restarts are typically invoked only from within the
+debugger. As we shall see later, it is possible to have ``named restarts''
+that may be invoked from code without the need for user intervention.
+<P>
+If the arguments to anonymous restarts are not optional, then special
+information must be provided about what the debugger should use as arguments.
+Here the <tt>:interactive</tt> keyword is used to specify that information.
+<P>
+The <tt>:report</tt> keyword introduces information to be used when presenting the
+restart option to the user (by the debugger, for example).
+<P>
+Here is a sample interaction that takes advantage of the restarts provided
+by the revised definition of <tt>divide</tt>:
+<P><pre>
+Lisp&gt; (+ (divide 3 0) 7) 
+Error: Attempt to divide 3 by 0. 
+To continue, type :CONTINUE followed by an option number: 
+ 1: Provide new arguments for use by the DIVIDE function. 
+ 2: Provide a value to return from the DIVIDE function. 
+ 3: Return to Lisp Toplevel. 
+Debug&gt; :continue 1 
+1 
+Numerator: 4 
+Denominator: 2 
+ => 9
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html5707 HREF="node322.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5705 HREF="node315.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5699 HREF="node320.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5709 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5710 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5708 HREF="node322.html"> Named Restarts</A>
+<B>Up:</B> <A NAME=tex2html5706 HREF="node315.html"> Survey of Concepts</A>
+<B> Previous:</B> <A NAME=tex2html5700 HREF="node320.html"> Restarts</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

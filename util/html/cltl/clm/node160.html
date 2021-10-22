@@ -1,0 +1,232 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node160.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:31:32 GMT -->
+<HEAD>
+<TITLE>17.3. Array Information</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Array Information">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3525 HREF="node161.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3523 HREF="node157.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3517 HREF="node159.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3527 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3528 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3526 HREF="node161.html"> Functions on Arrays </A>
+<B>Up:</B> <A NAME=tex2html3524 HREF="node157.html"> Arrays</A>
+<B> Previous:</B> <A NAME=tex2html3518 HREF="node159.html"> Array Access</A>
+<HR> <P>
+<H1><A NAME=SECTION002130000000000000000>17.3. Array Information</A></H1>
+<P>
+The following functions extract from an array
+interesting information other than the elements.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>array-element-type <i>array</i></tt><P><tt>array-element-type</tt> returns a type specifier for the set of objects
+that can be stored in the <i>array</i>.  This set may be larger than the
+set requested when the array was created; for example,
+the result of
+<P><pre>
+(array-element-type (make-array 5 :element-type '(mod 5)))
+</pre><P>
+could be <tt>(mod 5)</tt>, <tt>(mod 8)</tt>, <tt>fixnum</tt>, <tt>t</tt>, or any other
+type of which <tt>(mod 5)</tt> is a subtype.  See <tt>subtypep</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>array-rank <i>array</i></tt><P>This returns the number of dimensions (axes) of <i>array</i>.
+This will be a non-negative integer.
+See <tt>array-rank-limit</tt>.
+<P>
+<hr>
+<b>Compatibility note:</b> In Lisp Machine Lisp, this is called <tt>array-#-dims</tt>.
+This name causes problems in other Lisp dialects
+because of the <tt>#</tt> character.
+<hr>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>array-dimension <i>array</i> <i>axis-number</i></tt><P>The length of dimension number <i>axis-number</i> of the <i>array</i> is returned.
+<i>array</i> may be any kind of array, and <i>axis-number</i> should
+be a non-negative integer less than the rank of <i>array</i>.
+If the <i>array</i> is a vector with a fill pointer,
+<tt>array-dimension</tt> returns the total size of the vector,
+including inactive elements,
+not the size indicated by the fill pointer.
+(The function <tt>length</tt> will return the size indicated
+by the fill pointer.)
+<P>
+<hr>
+<b>Compatibility note:</b> This is similar to the Lisp Machine Lisp function
+<tt>array-dimension-n</tt>, but takes its arguments in the other
+order, and is zero-origin for consistency
+instead of one-origin.  In Lisp Machine Lisp <tt>(array-dimension-n 0)</tt>
+returns the length of the array leader.
+<hr>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>array-dimensions <i>array</i></tt><P><tt>array-dimensions</tt> returns a list whose elements are the dimensions
+of <i>array</i>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>array-total-size <i>array</i></tt><P><tt>array-total-size</tt> returns the total number of elements in the <i>array</i>,
+calculated as the product of all the dimensions.
+<P><pre>
+(array-total-size <i>x</i>) 
+   == (apply #'* (array-dimensions <i>x</i>)) 
+   == (reduce #'* (array-dimensions <i>x</i>))
+</pre><P>
+Note that the total size of a zero-dimensional array is <tt>1</tt>.
+The total size of a one-dimensional array is calculated without regard
+for any fill pointer.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>array-in-bounds-p <i>array</i> &amp;rest <i>subscripts</i></tt><P>This predicate checks whether the <i>subscripts</i> are all
+legal subscripts for <i>array</i>.  The predicate is true if they
+are all legal; otherwise it is false.  The <i>subscripts</i> must be integers.
+The number of <i>subscripts</i> supplied must equal the rank of the array.
+Like <tt>aref</tt>, <tt>array-in-bounds-p</tt> ignores fill pointers.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>array-row-major-index <i>array</i> &amp;rest <i>subscripts</i></tt><P>This function takes an array and valid subscripts for the array
+and returns a single non-negative integer less than the total size
+of the array that identifies the
+accessed element in the row-major ordering of the elements.
+The number of <i>subscripts</i> supplied must equal the rank of the array.
+Each subscript must be a non-negative integer less than the
+corresponding array dimension.
+Like <tt>aref</tt>, <tt>array-row-major-index</tt> ignores fill pointers.
+<P>
+A possible definition of <tt>array-row-major-index</tt>, with no error checking,
+would be
+<P><pre>
+(defun array-row-major-index (a <tt>&amp;rest</tt> subscripts) 
+  (apply #'+ (maplist #'(lambda (x y) 
+                          (* (car x) (apply #'* (cdr y)))) 
+                      subscripts 
+                      (array-dimensions a))))
+</pre><P>
+For a one-dimensional array, the result of <tt>array-row-major-index</tt>
+always equals the supplied subscript.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<BR><b>[Function]</b><BR>
+<tt>row-major-aref <i>array</i> <i>index</i></tt><P>X3J13 voted in March 1988
+(AREF-1D) <A NAME=17770>&#160;</A> 
+to add the function <tt>row-major-aref</tt>.
+This allows any array element to be accessed as if the containing array
+were one-dimensional.  The <i>index</i> must be a non-negative integer
+less than the total size of the <i>array</i>.  It indexes into the array as
+if its elements were arranged one-dimensionally in row-major order.
+It may be understood in terms of <tt>aref</tt> as follows:
+<P><pre>
+(row-major-aref <i>array</i> <i>index</i>) == 
+  (aref (make-array (array-total-size array)) 
+                    :displaced-to array 
+                    :element-type (array-element-type array)) 
+        index)
+</pre><P>
+In other words, one may treat an array as one-dimensional by creating
+a new one-dimensional array that is displaced to the old one and then
+accessing the new array.
+Alternatively, <tt>aref</tt> may be understood in terms of <tt>row-major-aref</tt>:
+<P><pre>
+(aref <i>array</i> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42303.gif"> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42299.gif"> ... <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42307.gif">) == 
+  (row-major-aref array 
+                  (array-row-major-index array <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42303.gif"> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42299.gif"> ... <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42307.gif">)
+</pre><P>
+That is, a multidimensional array access is equivalent to a row-major access
+using an equivalent row-major index.
+<P>
+Like <tt>aref</tt>, <tt>row-major-aref</tt> completely ignores fill pointers.
+A call to <tt>row-major-setf</tt> is suitable for use as a <i>place</i> for <tt>setf</tt>.
+<P>
+This operation makes it easier to write code that efficiently processes
+arrays of any rank.  Suppose, for example, that one wishes to set every
+element of an array <tt>tennis-scores</tt> to zero.  One might write
+<P><pre>
+(fill (make-array (array-total-size tennis-scores) 
+                  :element-type (array-element-type tennis-scores) 
+                  :displaced-to tennis-scores) 
+      0)
+</pre><P>
+Unfortunately, this incurs the overhead of creating a displaced array,
+and <tt>fill</tt> cannot be applied to multidimensional arrays.
+Another approach would be to handle each possible rank separately:
+<P><pre>
+(ecase (array-rank tennis-scores) 
+  (0 (setf (aref tennis-scores) 0)) 
+  (1 (dotimes (i0 (array-dimension tennis-scores 0)) 
+       (setf (aref tennis-scores i0) 0))) 
+  (2 (dotimes (i0 (array-dimension tennis-scores 0)) 
+       (dotimes (i1 (array-dimension tennis-scores 1)) 
+         (setf (aref tennis-scores i0 i1) 0)))) 
+  ... 
+  (7 (dotimes (i0 (array-dimension tennis-scores 0)) 
+       (dotimes (i1 (array-dimension tennis-scores 1)) 
+         (dotimes (i2 (array-dimension tennis-scores 1)) 
+           (dotimes (i3 (array-dimension tennis-scores 1)) 
+             (dotimes (i4 (array-dimension tennis-scores 1)) 
+               (dotimes (i5 (array-dimension tennis-scores 1)) 
+                 (dotimes (i6 (array-dimension tennis-scores 1)) 
+                   (setf (aref tennis-scores i0 i1 i2 i3 i4 i5 i6) 
+                         0))))))))) 
+  )
+</pre><P>
+It is easy to get tired of writing such code.  Furthermore, this approach
+is undesirable because some implementations of Common Lisp
+will in fact correctly support arrays of rank greater than 7 (though no
+implementation is required to do so).  A recursively nested loop does the job,
+but it is still pretty hairy:
+<P><pre>
+(labels 
+  ((grok-any-rank (&amp;rest indices) 
+     (let ((d (- (array-rank tennis-scores) (length indices))) 
+       (if (= d 0) 
+           (setf (apply #'row-major-aref indices) 0) 
+           (dotimes (i (array-dimension tennis-scores (- d 1))) 
+             (apply #'grok-any-rank i indices)))))) 
+  (grok-any-rank))
+</pre><P>
+Whether this code is particularly efficient depends on many implementation
+parameters, such as how <tt>&amp;rest</tt> arguments are handled and how
+cleverly calls to <tt>apply</tt> are compiled.
+How much easier it is to use <tt>row-major-aref</tt>!
+<P><pre>
+(dotimes (i (array-total-size tennis-scores)) 
+  (setf (row-major-aref tennis-scores i) 0))
+</pre><P>
+Surely this code is sweeter than the honeycomb.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>adjustable-array-p <i>array</i></tt><P>This predicate is true if the argument (which must be an array)
+is adjustable, and otherwise is false.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989
+(ADJUST-ARRAY-NOT-ADJUSTABLE) <A NAME=17814>&#160;</A> 
+to clarify that <tt>adjustable-array-p</tt> is true of an array
+if and only if <tt>adjust-array</tt>, when applied to that array,
+will return the same array, that is, an array <tt>eq</tt> to the original array.
+If the <tt>:adjustable</tt> argument
+to <tt>make-array</tt> is non-<tt>nil</tt> when an array is created,
+then <tt>adjustable-array-p</tt> must be true of that array.
+If an array is created with the <tt>:adjustable</tt> argument <tt>nil</tt>
+(or omitted), then <tt>adjustable-array-p</tt> may be true or false of that
+array, depending on the implementation.
+X3J13 further voted to <i>define</i>
+the terminology ``adjustable array'' to mean precisely ``an array of
+which <tt>adjustable-array-p</tt> is true.''
+See <tt>make-array</tt> and <tt>adjust-array</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html3525 HREF="node161.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3523 HREF="node157.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3517 HREF="node159.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3527 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3528 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3526 HREF="node161.html"> Functions on Arrays </A>
+<B>Up:</B> <A NAME=tex2html3524 HREF="node157.html"> Arrays</A>
+<B> Previous:</B> <A NAME=tex2html3518 HREF="node159.html"> Array Access</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

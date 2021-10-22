@@ -1,0 +1,84 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node325.html by HTTrack Website Copier/3.x [XR&CO'2014], Thu, 21 Oct 2021 14:59:12 GMT -->
+<HEAD>
+<TITLE>29.3.10. Generalized Restarts</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Generalized Restarts">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html5755 HREF="node326.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5753 HREF="node315.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5747 HREF="node324.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5757 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5758 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5756 HREF="node326.html"> Interactive Condition Handling</A>
+<B>Up:</B> <A NAME=tex2html5754 HREF="node315.html"> Survey of Concepts</A>
+<B> Previous:</B> <A NAME=tex2html5748 HREF="node324.html"> Comparison of Restarts </A>
+<HR> <P>
+<H2><A NAME=SECTION0033310000000000000000>29.3.10. Generalized Restarts</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<A NAME=LASTRESTARTSSECTION><tt>restart-case</tt></A>
+is a mechanism that allows only imperative transfer of control
+for its associated restarts. <tt>restart-case</tt> is built on a lower-level mechanism
+called <tt>restart-bind</tt>, which does not force transfer of control.
+<P>
+<tt>restart-bind</tt> is to <tt>restart-case</tt> as <tt>handler-bind</tt> is to
+<tt>handler-case</tt>.
+The syntax is
+<P><pre>
+(restart-bind ((<i>name</i> <i>function</i> . <i>options</i>)) . <i>body</i>)
+</pre><P>
+The <i>body</i> is executed in a dynamic context within which the <i>function</i>
+will be called whenever 
+<tt>(invoke-restart '<i>name</i>)</tt> is executed. The <i>options</i> are keyword-style and are
+used to pass information such as that provided with the
+<tt>:report</tt> keyword in <tt>restart-case</tt>.
+<P>
+A <tt>restart-case</tt> expands into a call to <tt>restart-bind</tt> where the function
+simply does an unconditional transfer of control to a particular body
+of code, passing along ``argument'' information in a structured way.
+<P>
+It is also possible to write restarts that do not transfer control. Such
+restarts may be useful in implementing various special commands for the
+debugger that are of interest only in certain situations. For example,
+one might imagine a situation where file space was exhausted and the
+following was done in an attempt to free space in directory <tt>dir</tt>:
+<P><pre>
+(restart-bind ((nil #'(lambda () (expunge-directory dir)) 
+                    :report-function 
+                      #'(lambda (stream) 
+                          (format stream &quot;Expunge ~A.&quot; 
+                                  (directory-namestring dir))))) 
+  (cerror &quot;Try this file operation again.&quot; 
+          'directory-full :directory dir))
+</pre><P>
+In this case, the debugger might be entered and the user could first
+perform the expunge (which would not transfer control from the debugger
+context) and then retry the file operation:
+<P><pre>
+Lisp&gt; (open &quot;FOO&quot; :direction :output) 
+Error: The directory PS:&lt;JDOE&gt; is full. 
+To continue, type :CONTINUE followed by an option number: 
+ 1: Try this file operation again. 
+ 2: Expunge PS:&lt;JDOE&gt;. 
+ 3: Return to Lisp Toplevel. 
+Debug&gt; :continue 2 
+Expunging PS:&lt;JDOE&gt; ... 3 records freed. 
+Debug&gt; :continue 1 
+ => #&lt;OUTPUT-STREAM &quot;PS:&lt;JDOE&gt;FOO.LSP&quot; 2323473&gt;
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html5755 HREF="node326.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5753 HREF="node315.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5747 HREF="node324.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5757 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5758 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5756 HREF="node326.html"> Interactive Condition Handling</A>
+<B>Up:</B> <A NAME=tex2html5754 HREF="node315.html"> Survey of Concepts</A>
+<B> Previous:</B> <A NAME=tex2html5748 HREF="node324.html"> Comparison of Restarts </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

@@ -1,0 +1,180 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node139.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:46:47 GMT -->
+<HEAD>
+<TITLE>13.4. Character Conversions</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Character Conversions">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3262 HREF="node140.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3260 HREF="node135.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3254 HREF="node138.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3264 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3265 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3263 HREF="node140.html"> Character Control-Bit Functions</A>
+<B>Up:</B> <A NAME=tex2html3261 HREF="node135.html"> Characters</A>
+<B> Previous:</B> <A NAME=tex2html3255 HREF="node138.html"> Character Construction and </A>
+<HR> <P>
+<H1><A NAME=SECTION001740000000000000000>13.4. Character Conversions</A></H1>
+<P>
+These functions perform various transformations on characters,
+including case conversions.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>character <i>object</i></tt><P>The function <tt>character</tt> coerces its argument to be a character
+if possible; see <tt>coerce</tt>.
+<P><pre>
+(character x) == (coerce x 'character)
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>char-upcase <i>char</i> <BR></tt><tt>char-downcase <i>char</i></tt><P>The argument <i>char</i> must be a character object.
+<tt>char-upcase</tt> attempts to convert its argument to an uppercase
+equivalent; <tt>char-downcase</tt> attempts to convert its argument
+to a lowercase equivalent.
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<tt>char-upcase</tt> returns a character object with the same font
+and bits attributes as <i>char</i>, but with possibly a different code
+attribute.  If the code is different from <i>char</i>'s, then the predicate
+<tt>lower-case-p</tt> is true of <i>char</i>, and <tt>upper-case-p</tt>
+is true of the result character.  Moreover, if <tt>(char= (char-upcase x) x)</tt>
+is <i>not</i> true, then it is true that
+<P><pre>
+(char= (char-downcase (char-upcase x)) x)
+</pre><P>
+Similarly,
+<tt>char-downcase</tt> returns a character object with the same font
+and bits attributes as <i>char</i>, but with possibly a different code
+attribute.  If the code is different from <i>char</i>'s, then the predicate
+<tt>upper-case-p</tt> is true of <i>char</i>, and <tt>lower-case-p</tt>
+is true of the result character.  Moreover, if <tt>(char= (char-downcase x) x)</tt>
+is <i>not</i> true, then it is true that
+<P><pre>
+(char= (char-upcase (char-downcase x)) x)
+</pre>
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+Note that the action of <tt>char-upcase</tt> and <tt>char-downcase</tt> may
+depend on the bits and font attributes of the character.  In particular,
+they have no effect on a character with a non-zero bits attribute,
+because such characters are by definition not alphabetic.
+See <tt>alpha-char-p</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (CHARACTER-PROPOSAL) <A NAME=14961>&#160;</A> 
+to replace the notion of bits and font attributes with
+that of implementation-defined attributes.  The effect of
+<tt>char-upcase</tt> and <tt>char-downcase</tt> is to preserve
+implementation-defined attributes.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>digit-char <i>weight</i> &amp;optional (<i>radix</i> 10) (<i>font</i> 0)</tt><P>All arguments must be integers.  <tt>digit-char</tt>
+determines whether or not it is possible to construct
+a character object
+whose font attribute is <i>font</i>, and whose <i>code</i> is such that the
+result character has the weight <i>weight</i> when considered as
+a digit of the radix <i>radix</i> (see the predicate <tt>digit-char-p</tt>).
+It returns such a character if that is possible, and otherwise returns <tt>nil</tt>.
+<P>
+<tt>digit-char</tt> cannot return <tt>nil</tt> if <i>font</i> is zero,
+<i>radix</i> is between 2 and 36 inclusive, and <i>weight</i> is non-negative
+and less than <i>radix</i>.
+<P>
+If more than one character object can encode
+such a weight in the given radix, one will be chosen consistently
+by any given implementation; moreover, among the standard characters,
+uppercase letters are preferred to lowercase letters.
+For example:
+<P><pre>
+(digit-char 7) => #\7 
+(digit-char 12) => <tt>nil</tt> 
+(digit-char 12 16) => #\C     ;not #\c 
+(digit-char 6 2) => <tt>nil</tt> 
+(digit-char 1 2) => #\1
+</pre><P>
+Note that no argument is provided for specifying the <i>bits</i> component
+of the returned character, because a digit cannot have a non-zero
+<i>bits</i> component.  The reasoning is that every digit is graphic
+(see <tt>digit-char-p</tt>) and no graphic character has a non-zero
+<i>bits</i> component (see <tt>graphic-char-p</tt>).
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (CHARACTER-PROPOSAL) <A NAME=14995>&#160;</A> 
+to eliminate the <i>font</i> argument from the specification of <tt>digit-char</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>char-int <i>char</i></tt><P>The argument <i>char</i> must be a character object.
+<tt>char-int</tt> returns a non-negative integer encoding the character object.
+<P>
+If the font and bits attributes of <i>char</i> are zero, then
+<tt>char-int</tt> returns the same integer <tt>char-code</tt> would.
+Also,
+<P><pre>
+(char= c1 c2) == (= (char-int c1) (char-int c2))
+</pre><P>
+for characters <tt>c1</tt> and <tt>c2</tt>.
+<P>
+This function is provided primarily for the purpose of hashing characters.
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<BR><b>[Function]</b><BR>
+<tt>int-char <i>integer</i></tt><P>The argument must be a non-negative integer.
+<tt>int-char</tt> returns a character object <tt>c</tt> such that
+<tt>(char-int c)</tt> is equal to <i>integer</i>, if possible; otherwise
+<tt>int-char</tt> returns false.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (CHARACTER-PROPOSAL) <A NAME=15021>&#160;</A> 
+to eliminate <tt>int-char</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>char-name <i>char</i></tt><P>The argument <i>char</i> must be a character object.
+If the character has a name, then that name (a string) is returned;
+otherwise <tt>nil</tt> is returned.  All characters that have
+zero font and bits attributes and that are non-graphic
+(do not satisfy the predicate <tt>graphic-char-p</tt>) have names.
+Graphic characters may or may not have names.
+<P>
+The standard newline and space characters have the respective
+names <tt>Newline</tt> and <tt>Space</tt>.
+The semi-standard characters have the names
+<tt>Tab</tt>, <tt>Page</tt>, <tt>Rubout</tt>, <tt>Linefeed</tt>, <tt>Return</tt>, and <tt>Backspace</tt>.
+<P>
+Characters that have names can be notated as <tt>#\</tt> followed
+by the name.  (See section <A HREF="node191.html#SHARPSIGNMACROCHARACTERSECTION">22.1.4</A>.)
+Although the name may be written in any case,
+it is stylish to capitalize it thus: <tt>#\Space</tt>.
+<P>
+<tt>char-name</tt> will only locate ``simple'' character names;
+it will not construct names such as <tt>Control-Space</tt> on the
+basis of the character's bits attribute.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+The easiest way to get a name that includes the bits attribute of
+a character <tt>c</tt> is <tt>(format nil &quot;~:C&quot; c)</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>name-char <i>name</i></tt><P>The argument <tt>name</tt> must be an object coerceable to a string
+as if by the function <tt>string</tt>.
+If the name is the same as the name of a character object
+(as determined by <tt>string-equal</tt>), that object
+is returned; otherwise <tt>nil</tt> is returned.
+<P>
+<BR> <HR><A NAME=tex2html3262 HREF="node140.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3260 HREF="node135.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3254 HREF="node138.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3264 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3265 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3263 HREF="node140.html"> Character Control-Bit Functions</A>
+<B>Up:</B> <A NAME=tex2html3261 HREF="node135.html"> Characters</A>
+<B> Previous:</B> <A NAME=tex2html3255 HREF="node138.html"> Character Construction and </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

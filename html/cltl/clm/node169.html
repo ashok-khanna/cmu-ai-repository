@@ -1,0 +1,152 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node169.html by HTTrack Website Copier/3.x [XR&CO'2014], Thu, 21 Oct 2021 14:58:19 GMT -->
+<HEAD>
+<TITLE>19.1. Introduction to Structures</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Introduction to Structures">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3642 HREF="node170.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3640 HREF="node168.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3634 HREF="node168.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3644 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3645 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3643 HREF="node170.html"> How to Use </A>
+<B>Up:</B> <A NAME=tex2html3641 HREF="node168.html"> Structures</A>
+<B> Previous:</B> <A NAME=tex2html3635 HREF="node168.html"> Structures</A>
+<HR> <P>
+<H1><A NAME=SECTION002310000000000000000>19.1. Introduction to Structures</A></H1>
+<P>
+<A NAME=DEFSTRUCTINTROSECTION>The</A>
+structure facility is embodied in the <tt>defstruct</tt> macro,
+which allows the user to create and use
+aggregate data types with named elements.  These are like
+``structures'' in PL/I, or ``records'' in Pascal.
+<P>
+As an example, assume you are writing a Lisp
+program that deals with space ships in a two-dimensional plane.
+In your program, you need to
+represent a space ship by a Lisp object of some kind.  The interesting
+things about a space ship, as far as your program is concerned, are
+its position (represented as <i>x</i> and <i>y</i> coordinates),
+velocity (represented as components along the <i>x</i> and <i>y</i> axes), and mass.
+<P>
+A ship might therefore be represented as a record structure with five
+components: <i>x</i>-position, <i>y</i>-position, <i>x</i>-velocity, <i>y</i>-velocity, and mass.
+This structure could in turn be implemented as a Lisp object in a
+number of ways.  It could be a list of five elements; the <i>x</i>-position
+could be the <i>car</i>, the <i>y</i>-position the <i>cadr</i>, and so on.  Equally
+well it could be a vector of five elements: the <i>x</i>-position could be
+element 0, the <i>y</i>-position element 1, and so on.  The problem with either
+of these representations is that the components occupy places in the
+object that are quite arbitrary and hard to remember.  Someone looking at
+<tt>(cadddr ship1)</tt> or <tt>(aref ship1 3)</tt> in a piece of code might
+find it difficult to determine that this is accessing the <i>y</i>-velocity
+component of <tt>ship1</tt>.  Moreover, if the representation of a ship should
+have to be changed, it would be very difficult to find all the places
+in the code to be changed to match (not all occurrences of <tt>cadddr</tt>
+are intended to extract the <i>y</i>-velocity from a ship).
+<P>
+Ideally components of record structures should have names.  One would
+like to write something like
+<tt>(ship-y-velocity ship1)</tt> instead of <tt>(cadddr ship1)</tt>.
+One would also like a more mnemonic way to create a ship than this:
+<P><pre>
+(list 0 0 0 0 0)
+</pre><P>
+Indeed, one would like <tt>ship</tt> to be a new data type, just like other
+Lisp data types, that one could test with <tt>typep</tt>, for example.
+The <tt>defstruct</tt> facility provides all of this.
+<P>
+<tt>defstruct</tt> itself is a macro that defines a structure.  For the
+space ship example, one might define the structure by saying:
+<P><pre>
+(defstruct ship 
+  x-position 
+  y-position 
+  x-velocity 
+  y-velocity 
+  mass)
+</pre><P>
+This declares that every <tt>ship</tt> is an object with five named components.
+The evaluation of this form does several things:
+<UL><LI>
+It defines <tt>ship-x-position</tt> to be a function
+of one argument, a ship, that returns the <i>x</i>-position
+of the ship; <tt>ship-y-position</tt>
+and the other components are given similar function definitions.
+These functions are called the <i>access functions</i>, as they
+are used to access elements of the structure.
+<P>
+<LI>
+The symbol <tt>ship</tt> becomes the name of a data type of which instances
+of ships are elements.  This name becomes acceptable to <tt>typep</tt>,
+for example; <tt>(typep x 'ship)</tt> is true if <tt>x</tt> is a ship
+and false if <tt>x</tt> is any object other than a ship.
+<P>
+<LI>
+A function named <tt>ship-p</tt> of one argument is defined; it is a predicate
+that is true if its argument is a ship and is false otherwise.
+<P>
+<LI>
+A function called <tt>make-ship</tt> is defined that, when invoked,
+will create a data structure with five components, suitable for use with
+the access functions.  Thus executing
+<P><pre>
+(setq ship2 (make-ship))
+</pre><P>
+sets <tt>ship2</tt> to a newly created <tt>ship</tt> object.
+One can specify the initial values of any desired component in the call
+to <tt>make-ship</tt> by using keyword arguments in this way:
+<P><pre>
+(setq ship2 (make-ship <tt>:mass</tt> *default-ship-mass* 
+                       <tt>:x-position</tt> 0 
+                       <tt>:y-position</tt> 0))
+</pre><P>
+This constructs a new ship and initializes three of its components.
+This function is called the <i>constructor function</i>
+because it constructs a new structure.
+<P>
+<LI>
+The <tt>#S</tt> syntax can be used to read instances of <tt>ship</tt>
+structures, and a printer function is provided for printing
+out ship structures.  For example, the value of the
+variable <tt>ship2</tt> shown above might be printed as
+<P><pre>
+#S(ship  x-position 0  y-position 0  x-velocity nil 
+         y-velocity nil  mass 170000.0)
+</pre><P>
+<P>
+<LI>
+A function called <tt>copy-ship</tt> of one argument
+is defined that, when given a <tt>ship</tt> object,
+will create a new <tt>ship</tt> object that is a copy of the given one.
+This function is called the <i>copier function</i>.
+<P>
+<LI>
+One may use <tt>setf</tt> to alter the components of a <tt>ship</tt>:
+<P><pre>
+(setf (ship-x-position ship2) 100)
+</pre><P>
+This alters the <i>x</i>-position of <i>ship2</i> to be <tt>100</tt>.
+This works because <tt>defstruct</tt> behaves as if
+it generates an appropriate <tt>defsetf</tt>
+form for each access function.
+</UL>
+<P>
+This simple example illustrates the power of <tt>defstruct</tt> to provide
+abstract record structures in a convenient manner.
+<tt>defstruct</tt> has many other features as well for specialized purposes.
+<P>
+<BR> <HR><A NAME=tex2html3642 HREF="node170.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3640 HREF="node168.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3634 HREF="node168.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3644 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3645 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3643 HREF="node170.html"> How to Use </A>
+<B>Up:</B> <A NAME=tex2html3641 HREF="node168.html"> Structures</A>
+<B> Previous:</B> <A NAME=tex2html3635 HREF="node168.html"> Structures</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

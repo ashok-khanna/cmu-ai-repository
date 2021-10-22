@@ -1,0 +1,92 @@
+From mernst@theory.lcs.mit.edu Mon Mar 14 17:30:10 EST 1994
+Article: 12277 of comp.lang.lisp
+Xref: glinda.oz.cs.cmu.edu comp.lang.lisp:12277
+Path: honeydew.srv.cs.cmu.edu!fs7.ece.cmu.edu!europa.eng.gtefsd.com!news.umbc.edu!eff!news.kei.com!yeshua.marcam.com!charnel!olivea!grapevine.lcs.mit.edu!grapevine!mernst
+From: mernst@theory.lcs.mit.edu (Michael Ernst)
+Newsgroups: comp.lang.lisp
+Subject: Re: help: loading macros from a file (mit-scheme)
+Date: 14 Mar 94 11:53:45
+Organization: MIT Lab for Computer Science
+Lines: 74
+Distribution: world
+Message-ID: <MERNST.94Mar14115345@woodpecker.lcs.mit.edu>
+References: <lynch-090394165604@lynch.ils.nwu.edu> <2lqlc0$dq2@darkstar.UCSC.EDU>
+NNTP-Posting-Host: woodpecker.lcs.mit.edu
+In-reply-to: ian@yahi.cse.ucsc.edu's message of 11 Mar 1994 20:46:56 GMT
+
+In article <2lqlc0$dq2@darkstar.UCSC.EDU> ian@yahi.cse.ucsc.edu (ian barland) writes:
+> Hi, I am using MIT-scheme (v7.3b).
+> I use "define-macro" and all goes smoothly, except that
+> when the macro is defined in a (.scm) file and I try to "load" the
+> file, the macro is in effect only for that file,
+> and isn't available back at the level where I did the "load" from
+> (which is what I want).
+
+Here is some code, written by Roger Crew, that deals with the problem of
+define-macro having effect only for the current file.  Use
+define-global-macro where you were using define-macro, and the macro
+definition will be in effect even after the file containing it is loaded.
+
+					-Michael Ernst
+					 mernst@theory.lcs.mit.edu
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Macros
+;;;
+
+;;; Annoying observation about define-macro:
+;;; it appears that (load ...) pushes a syntax table that gets
+;;; popped upon EOF.  Thus we seem to need a means of exporting
+;;; macro definitions to other files...
+
+;; 
+;; define-system-global-macro
+;;   defines a macro that, for whatever reason, must live alongside 'if
+;;   and 'lambda.
+;; 
+;; define-global-macro
+;;   defines a macro that is global to the zaphod world (i.e., wherever you
+;;   were using define-user-macro before).  This currently is identical to
+;;   define-user-macro, but will eventually change.
+;; 
+;; define-user-macro
+;;   defines a macro that is strictly for the user's playground, e.g.,
+;;   abbreviations for test suites.  Most of the time it will suffice to
+;;   type (define-macro...) to the prompt, but it may be convenient to
+;;   have a collection of useful user macros in a file, in which case
+;;   you'll need define-user-macro.
+;; 
+
+(syntax-table-define
+    system-global-syntax-table
+    'define-system-global-macro
+  (macro (template . body)
+    `(syntax-table-define
+	 system-global-syntax-table
+	 ',(car template)
+       (macro ,(cdr template)
+	 ,@body))))
+
+(syntax-table-define
+    system-global-syntax-table
+    'define-global-macro
+  (macro (template . body)
+    `(syntax-table-define
+	 user-initial-syntax-table
+	 ',(car template)
+       (macro ,(cdr template)
+	 ,@body))))
+
+;; For now, make define-user-macro identical to define-global-macro
+(define-system-global-macro (define-user-macro . def)
+  `(define-global-macro ,@def))
+
+
+(set! sf/default-syntax-table user-initial-syntax-table)
+;; This is necessary so that the compiler knows about global macros
+;; I don't like this, but it'll do for now.
+;; For a stomach-churning alternative, see syntax.scm  --RFC 6/8/93
+
+

@@ -1,0 +1,174 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node339.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:47:03 GMT -->
+<HEAD>
+<TITLE>29.4.5. Defining Conditions</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Defining Conditions">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html5932 HREF="node340.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5930 HREF="node334.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5924 HREF="node338.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5934 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5935 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5933 HREF="node340.html"> Creating Conditions</A>
+<B>Up:</B> <A NAME=tex2html5931 HREF="node334.html"> Program Interface to </A>
+<B> Previous:</B> <A NAME=tex2html5925 HREF="node338.html"> Handling Conditions</A>
+<HR> <P>
+<H2><A NAME=SECTION003345000000000000000>29.4.5. Defining Conditions</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+[The contents of this section are still a subject of some debate within X3J13.
+The reader may wish to take this section with a grain of salt, two aspirin
+tablets, and call a hacker in the morning.-GLS]
+<P>
+<BR><b>[Macro]</b><BR>
+<pre>
+define-condition <i>name</i> ({<i>parent-type</i>}*)
+                 [({<i>slot-specifier</i>}*) {<i>option</i>}*]
+</pre>
+<P>  Defines a new condition type called <i>name</i>, which is a subtype of each given
+  <i>parent-type</i>.  Except as otherwise noted, the arguments are not evaluated.
+<P>
+  Objects of this condition type will have all of the indicated <i>slot</i>s, plus
+  any additional slots inherited from the parent types (its superclasses).
+  If the <i>slot</i>s list is omitted, the empty list is assumed.
+<P>
+  A <i>slot</i> must have the form
+<PRE>
+<i>slot-specifier</i> ::= <i>slot-name</i> | (<i>slot-name</i> <b>[[</b>?<i>slot-option</i><b>]]</b>)
+</PRE>
+For the syntax of a <i>slot-option</i>, see <tt>defclass</tt>.
+The slots of a condition object are normal CLOS slots.
+Note that <tt>with-slots</tt> may be used instead of accessor functions to access slots of a
+condition object.
+<P>
+  <tt>make-condition</tt> will accept keywords (in the keyword package) with the
+  print name of any of the designated slots, and will initialize the
+  corresponding slots in conditions it creates.
+<P>
+  Accessors are created according to the same rules as used by <tt>defclass</tt>.
+<P>
+  The valid <i>options</i> are as follows:
+<P>
+<DL COMPACT><DT><tt>(:documentation <i>doc-string</i>)</tt>
+<DD>
+<P>
+     The <i>doc-string</i> should be either <tt>nil</tt> or
+     a string that describes the purpose of the
+     condition type. If this option is omitted, <tt>nil</tt> is assumed.
+     Calling <tt>(documentation '<i>name</i> 'type)</tt> will retrieve this information.
+<P>
+<DT><tt>(:report <i>exp</i>)</tt>
+<DD>
+<P>
+     If <i>exp</i> is not a literal string, it must be a suitable argument to the
+     <tt>function</tt> special form. The expression <tt>(function <i>exp</i>)</tt> will be evaluated
+     in the current lexical environment. It should produce a function of two
+     arguments, a condition and a stream, that prints on the stream a
+     description of the condition. This function is called whenever the
+     condition is printed while <tt>*print-escape*</tt> is <tt>nil</tt>.
+<P>
+     If <i>exp</i> is a literal string, it is shorthand for
+<P><pre>
+(lambda (c s) 
+  (declare (ignore c)) 
+  (write-string <i>exp</i> s))
+</pre><P>
+     [That is, a function is provided that will simply write the given string literally
+     to the stream, regardless of the particular condition object supplied.-GLS]
+<P>
+     The <tt>:report</tt> option is processed <i>after</i> the new condition type has been defined,
+     so use of the slot accessors within the report function is permitted.
+     If this option is not specified, information about how to report this
+     type of condition will be inherited from the <i>parent-type</i>.
+<P>
+ </DL>
+<P>
+[X3J13 voted in March 1989 (ZLOS-CONDITIONS) <A NAME=37134>&#160;</A>  to integrate the
+Condition System and the Object System.
+In the original Condition System proposal, <tt>define-condition</tt>
+allowed only one <i>parent-type</i> (the inheritance structure was a simple
+hierarchy).
+Slot descriptions were much simpler, even simpler than those for <tt>defstruct</tt>:
+<PRE>
+<i>slot</i> ::= <i>slot-name</i> | (<i>slot-name</i>) | (<i>slot-name</i> <i>default-value</i>)
+</PRE>
+Similarly, <tt>define-condition</tt> allowed
+a <tt>:conc-name</tt> option similar to that of <tt>defstruct</tt>:
+<DL COMPACT><DT><tt>(:conc-name <i>symbol-or-string</i>)</tt>
+<DD>
+<P>
+     <b>Not now part of Common Lisp.</b>
+     As with <tt>defstruct</tt>, this sets up automatic prefixing of the names 
+     of slot accessors. Also as in <tt>defstruct</tt>, the default behavior 
+     is to use the name of the new type, <i>name</i>, followed by a hyphen.
+     (Generated names are interned in the package that is current at the time that the 
+     <tt>define-condition</tt> is processed).
+<P>
+ </DL>
+One consequence of the vote was to make <tt>define-condition</tt> slot descriptions
+like those of <tt>defclass</tt>.-GLS]
+<P>
+Here are some examples of the use of <tt>define-condition</tt>.
+<P>
+  The following form defines a condition of type <tt>peg/hole-mismatch</tt> that
+  inherits from a condition type called <tt>blocks-world-error</tt>:
+<P><pre>
+(define-condition peg/hole-mismatch (blocks-world-error) 
+                  (peg-shape hole-shape) 
+  (:report 
+    (lambda (condition stream) 
+      (with-slots (peg-shape hole-shape) condition 
+        (format stream &quot;A ~A peg cannot go in a ~A hole.&quot; 
+                peg-shape hole-shape))))
+</pre><P>
+  The new type has slots <tt>peg-shape</tt> and <tt>hole-shape</tt>, so <tt>make-condition</tt> will
+  accept <tt>:peg-shape</tt> and <tt>:hole-shape</tt> keywords. The <tt>with-slots</tt> macro 
+  may be used to access the <tt>peg-shape</tt> and <tt>hole-shape</tt> slots,
+  as illustrated in the <tt>:report</tt> information.
+<P>
+  Here is another example. This defines a condition called <tt>machine-error</tt>
+  that inherits from <tt>error</tt>:
+<P><pre>
+(define-condition machine-error (error) 
+                  ((machine-name 
+                    :reader machine-error-machine-name)) 
+  (:report (lambda (condition stream) 
+             (format stream &quot;There is a problem with ~A.&quot; 
+                     (machine-error-machine-name condition)))))
+</pre><P>
+  Building on this definition, we can define a new error condition that
+  is a subtype of <tt>machine-error</tt> for use when machines are not available: 
+<P><pre>
+(define-condition machine-not-available-error (machine-error) () 
+  (:report (lambda (condition stream) 
+             (format stream &quot;The machine ~A is not available.&quot; 
+                     (machine-error-machine-name condition)))))
+</pre><P>
+  We may now define a still more specific condition, built upon 
+  <tt>machine-not-available-error</tt>,
+  that provides a default for <tt>machine-name</tt>
+  but does not provide any new slots or report information. It just
+  gives the <tt>machine-name</tt> slot a default initialization:
+<P><pre>
+(define-condition my-favorite-machine-not-available-error 
+                  (machine-not-available-error) 
+                  ((machine-name :initform &quot;MC.LCS.MIT.EDU&quot;)))
+</pre><P>
+  Note that since no <tt>:report</tt> clause was given, the information inherited from
+  <tt>machine-not-available-error</tt> will be used to report this type of condition.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html5932 HREF="node340.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5930 HREF="node334.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5924 HREF="node338.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5934 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5935 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5933 HREF="node340.html"> Creating Conditions</A>
+<B>Up:</B> <A NAME=tex2html5931 HREF="node334.html"> Program Interface to </A>
+<B> Previous:</B> <A NAME=tex2html5925 HREF="node338.html"> Handling Conditions</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

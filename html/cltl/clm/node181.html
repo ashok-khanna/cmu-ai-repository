@@ -1,0 +1,139 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node181.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:45:55 GMT -->
+<HEAD>
+<TITLE>20.2. The Top-Level Loop</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" The Top-Level Loop">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3785 HREF="node182.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3783 HREF="node179.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3779 HREF="node180.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3787 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3788 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3786 HREF="node182.html"> Streams</A>
+<B>Up:</B> <A NAME=tex2html3784 HREF="node179.html"> The Evaluator</A>
+<B> Previous:</B> <A NAME=tex2html3780 HREF="node180.html"> Run-Time Evaluation of </A>
+<HR> <P>
+<H1><A NAME=SECTION002420000000000000000>20.2. The Top-Level Loop</A></H1>
+<P>
+Normally one interacts with Lisp through a ``top-level
+<tt>read</tt>-<tt>eval</tt>-<tt>print</tt> loop,'' so called because
+it is the highest level of control and consists of an endless
+loop that reads an expression, evaluates it, and prints the
+results.  One has an effect on the state of the Lisp system
+only by invoking actions that have side effects.
+<P>
+The precise nature of the top-level loop for Common Lisp
+is purposely not rigorously specified here so that implementors can
+experiment to improve the user interface.
+For example, an implementor may choose to require line-at-a-time
+input, or may provide a fancy editor or complex graphics-display
+interface.  An implementor may choose to provide
+explicit prompts for input,
+or may choose (as MacLisp does) not to clutter up the transcript
+with prompts.
+<P>
+The top-level loop is required to trap all throws and recover gracefully.
+It is also required to print all values resulting from evaluation of a form,
+perhaps on separate lines.  If a form returns zero values, as little
+as possible should be printed.
+<P>
+The following variables are maintained by the top-level loop
+as a limited safety net, in case the user forgets to save an interesting input
+expression or output value.  (Note that the names of some of these variables
+violate the convention that names of global variables begin and end with
+an asterisk.)  These are intended primarily for user interaction, which is why
+they have short names.  Use of these variables should be avoided in programs.
+<P>
+<BR><b>[Variable]</b><BR>
+<tt>+</tt> <tt><BR></tt><tt>++</tt> <tt><BR></tt><tt>+++</tt><P>While a form is being evaluated by the top-level loop,
+the variable <tt>+</tt> is bound to the previous form read by the loop.
+The variable <tt>++</tt> holds the previous value of <tt>+</tt> (that is, the form
+evaluated two interactions ago), and <tt>+++</tt> holds the previous value
+of <tt>++</tt>.
+<P>
+<BR><b>[Variable]</b><BR>
+<tt>-</tt><P>While a form is being evaluated by the top-level loop,
+the variable <tt>-</tt> is bound to the form itself; that is,
+it is the value about to be given to <tt>+</tt> once this interaction
+is done.
+<p>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<i>Notice of correction.</i>
+In the first edition, the name of the variable <tt>-</tt> was
+inadvertently omitted.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Variable]</b><BR>
+<tt>*<BR></tt><tt>**</tt> <tt><BR></tt><tt>***</tt><P>While a form is being evaluated by the top-level loop,
+the variable <tt>*</tt> is bound to the result printed at the
+end of the last time through the loop; that is, it is the value
+produced by evaluating the form in <tt>+</tt>.  If several values were produced,
+<tt>*</tt> contains the first value only; <tt>*</tt> contains <tt>nil</tt> if zero values
+were produced.
+The variable <tt>**</tt> holds the previous value of <tt>*</tt> (that is, the result
+printed two interactions ago), and <tt>***</tt> holds the previous value
+of <tt>**</tt>.
+<P>
+If the evaluation of <tt>+</tt> is aborted for some reason,
+then the values associated with <tt>*</tt>, <tt>**</tt>, and <tt>***</tt> are not updated;
+they are updated only if the printing of values is at least begun (though not
+necessarily completed).
+<P>
+<BR><b>[Variable]</b><BR>
+<tt>/</tt> <tt><BR></tt><tt>//</tt> <tt><BR></tt><tt>///</tt><P>While a form is being evaluated by the top-level loop,
+the variable <tt>/</tt> is bound to a list of the results printed at the
+end of the last time through the loop; that is, it is a list of all values
+produced by evaluating the form in <tt>+</tt>.  The value of <tt>*</tt> should
+always be the same as the <i>car</i> of the value of <tt>/</tt>.
+The variable <tt>//</tt> holds the previous value of <tt>/</tt> (that is, the results
+printed two interactions ago), and <tt>///</tt> holds the previous value
+of <tt>//</tt>.  Therefore the value of <tt>**</tt> should always be the same
+as the <i>car</i> of <tt>//</tt>, and similarly for <tt>***</tt> and <tt>///</tt>.
+<P>
+If the evaluation of <tt>+</tt> is aborted for some reason,
+then the values associated with <tt>/</tt>, <tt>//</tt>, and <tt>///</tt> are not updated;
+they are updated only if the printing of values is at least begun (though not
+necessarily completed).
+<P>
+As an example of the processing of these variables, consider the
+following possible transcript, where <tt>&gt;</tt> is a prompt by
+the top-level loop for user input:
+<P><pre>
+&gt;(cons - -)		;Interaction 1 
+((CONS - -) CONS - -)	;Cute, huh? 
+
+&gt;(values)		;Interaction 2 
+                        ;Nothing to print 
+
+&gt;(cons 'a 'b)	;Interaction 3 
+(A . B)		        ;There is a single value 
+
+&gt;(hairy-loop)^G	;Interaction 4 
+### QUIT to top level.	;(User aborts the computation.) 
+
+&gt;(floor 13 4)	;Interaction 5 
+3		        ;There are two values 
+1
+</pre><P>
+At this point we have:
+<P><pre>
++++ => (cons 'a 'b)   *** => NIL      /// => ()
+++ => (hairy-loop)    ** => (A . B)   // => ((A . B))
++ => (floor 13 4)     * => 3          / => (3 1)
+</pre><P>
+		
+<P>
+<BR> <HR><A NAME=tex2html3785 HREF="node182.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3783 HREF="node179.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3779 HREF="node180.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3787 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3788 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3786 HREF="node182.html"> Streams</A>
+<B>Up:</B> <A NAME=tex2html3784 HREF="node179.html"> The Evaluator</A>
+<B> Previous:</B> <A NAME=tex2html3780 HREF="node180.html"> Run-Time Evaluation of </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

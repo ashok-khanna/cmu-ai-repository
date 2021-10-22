@@ -1,0 +1,1461 @@
+Return-Path: @netcon.smc.edu:intime!scottm@netcon.smc.edu
+Received: by jove.pa.dec.com; id AA05800; Sun, 5 Dec 93 16:01:06 -0800
+Received: by inet-gw-1.pa.dec.com; id AA20442; Sun, 5 Dec 93 15:45:55 -0800
+Received:  by netcon.smc.edu (5.59/25-eef)id AA17838; Sun, 5 Dec 93 18:47:42 EST
+Subject: SCO ODT 1.1 port
+To: bartlett
+Date: Sun, 5 Dec 1993 15:29:15 -0800 (PST)
+From: Scott Michel <scottm@intime.intime.com>
+X-Mailer: ELM [version 2.4 PL22]
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Content-Length: 41301     
+Message-Id:  <9312051529.aa01716@intime.intime.com>
+
+Joel:
+
+Ok, here it is, the patch file that creates "42" (the answer to
+why we're here, the purpose of life, and everything.) But seriously,
+you have to create the directory 'ports/SCO-ODT11' first, then apply
+the patch file.
+
+I did manage to put in support for integer->double on overflow.
+
+-scottm
+
+------------------- cut here ---------------- cut here -------------------
+**************************************************************************
+Important Note:
+
+- These context diffs require that you create the directory 'ports/SCO-ODT11'
+  first. Please make sure you:
+
+	mkdir ports/SCO-ODT11
+
+  before applying this file to the source code.
+
+- This port was designed for SCO OpenDesktop 1.1. It will probably work for
+  ODT 2.x and 3.x, but I haven't upgraded yet, so I don't know. If it does,
+  fantastic, use it in good health. If it doesn't, pay for my upgrade and
+  I'll be more than happy to make it work.
+
+Scott Michel
+scottm@intime.com
+**************************************************************************
+diff -rNc ./cdecl/makefile ../port-sco/cdecl/makefile
+*** ./cdecl/makefile	Fri Jan 15 11:34:07 1993
+--- ../port-sco/cdecl/makefile	Thu Nov 11 19:40:27 1993
+***************
+*** 32,38 ****
+  
+  srclinks:
+  	for x in ${SCSRC} ${MISC}; \
+! 	   do ln -s ${SRCDIR}/$$x $$x; \
+  	done
+  
+  tarfiles:
+--- 32,38 ----
+  
+  srclinks:
+  	for x in ${SCSRC} ${MISC}; \
+! 	   do ln ${SRCDIR}/$$x $$x; \
+  	done
+  
+  tarfiles:
+diff -rNc ./makefile ../port-sco/makefile
+*** ./makefile	Tue Feb 16 11:20:09 1993
+--- ../port-sco/makefile	Thu Nov 11 19:09:56 1993
+***************
+*** 92,97 ****
+--- 92,104 ----
+  	cp ports/VAX/vax.s VAX/server
+  	cp ports/VAX/options-server.h VAX/server/options.h
+  
++ forSCO-ODT11:
++ 	make "CPU=SCO-ODT11" forANY
++ 	cp ports/SCO-ODT11/sco-odt11.s SCO-ODT11/scrt
++ 	cp ports/SCO-ODT11/options.h SCO-ODT11/scrt
++ 	cp ports/SCO-ODT11/sco-odt11.s SCO-ODT11/server
++ 	cp ports/SCO-ODT11/options-server.h SCO-ODT11/server/options.h
++ 
+  forWIN16:
+  	make "CPU=WIN16" forANY
+  	rm -r WIN16/scsc
+diff -rNc ./ports/SCO-ODT11/makefile-head ../port-sco/ports/SCO-ODT11/makefile-head
+*** ./ports/SCO-ODT11/makefile-head
+--- ../port-sco/ports/SCO-ODT11/makefile-head	Sun Dec  5 13:06:23 1993
+***************
+*** 0 ****
+--- 1,35 ----
++ #
++ # This is the header file for constructing make files for SCO ODT 1.1
++ #
++ # This port was done by Scott Michel (scottm@intime.intime.com)
++ # Please flavour this makefile to taste.
++ #
++ 
++ # Default flags to use when invoking the C compiler.
++ # BTW: I use the GNU GCC compiler. You might not.
++ 
++ CFLAGS = -O2
++ CC = gcc
++ 
++ # Assembly language object files.
++ 
++ Aruntime = sco-odt11.o 
++ 
++ # Profiled library
++ 
++ Plib = libsc_p.a
++ 
++ # Installation tools
++ 
++ RANLIB = true
++ 
++ # X library
++ # I prefer to use the X11 shared library, but if you don't drop the "_s"
++ 
++ XLIB = -lX11_s
++ XLIBCFLAGS =
++ 
++ sco-odt11.o: sco-odt11.s
++ 	as -o sco-odt11.o sco-odt11.s
++ 
++ # End of SCO ODT 1.1 header.
+diff -rNc ./ports/SCO-ODT11/options-server ../port-sco/ports/SCO-ODT11/options-server
+*** ./ports/SCO-ODT11/options-server
+--- ../port-sco/ports/SCO-ODT11/options-server	Mon Nov 15 14:52:41 1993
+***************
+*** 0 ****
+--- 1,425 ----
++ /* SCHEME->C */
++ 
++ /*           Copyright 1989-1993 Digital Equipment Corporation
++  *                         All Rights Reserved
++  *
++  * Permission to use, copy, and modify this software and its documentation is
++  * hereby granted only under the following terms and conditions.  Both the
++  * above copyright notice and this permission notice must appear in all copies
++  * of the software, derivative works or modified versions, and any portions
++  * thereof, and both notices must appear in supporting documentation.
++  *
++  * Users of this software agree to the terms and conditions set forth herein,
++  * and hereby grant back to Digital a non-exclusive, unrestricted, royalty-free
++  * right and license under any changes, enhancements or extensions made to the
++  * core functions of the software, including but not limited to those affording
++  * compatibility with other hardware or software environments, but excluding
++  * applications which incorporate this software.  Users further agree to use
++  * their best efforts to return to Digital any such changes, enhancements or
++  * extensions that they make and inform Digital of noteworthy uses of this
++  * software.  Correspondence should be provided to Digital at:
++  * 
++  *                       Director of Licensing
++  *                       Western Research Laboratory
++  *                       Digital Equipment Corporation
++  *                       250 University Avenue
++  *                       Palo Alto, California  94301  
++  * 
++  * This software may be distributed (but not offered for sale or transferred
++  * for compensation) to third parties, provided such third parties agree to
++  * abide by the terms and conditions of this notice.  
++  * 
++  * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
++  * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF
++  * MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
++  * CORPORATION BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
++  * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
++  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
++  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
++  * SOFTWARE.
++ */
++ 
++ /* This file defines compilation options for a specific implementation */
++ 
++ #define CHECKSTACK	1	/* 0 = don't check stack height */
++ 				/* 1 = check stack height */
++ 
++ #define TIMESLICE	1	/* 0 = don't time slice execution */
++ 				/* 1 = time slice execution */
++ 
++ #define COMPACTPUSHTRACE 0	/* 0 = inline procedure entry checks.
++ 				   1 = emit procedure call for procedure
++ 				       entry checks.
++ 				*/
++ 
++ #define COMPACTPOPTRACE 0	/* 0 = inline procedure exit cleanup.
++ 				   1 = emit procedure call for procedure exit
++ 				       cleanup.
++ 				*/
++ 
++ #define S2CSIGNALS	0	/* 0 = Scheme->C doesn't handle signals */
++ 				/* 1 = Scheme->C does handle signals */
++ 
++ #define	MATHTRAPS	0	/* 0 = don't detect fixed point overflow */
++ 				/* 1 = recover on fixed point overflow */
++ 
++ /* Define only one of the supported processor types:
++ 
++ 	AOSF		Alpha AXP OSF/1
++ 	HP700		HP 9000/700
++ 	MAC		Macintosh system 7.1 with Think-C 5.0
++ 	MC680X0		HP 9000/300, Sun 3, Next
++ 	MIPS		DECstation, SGI, Sony News
++ 	VAX		Vax ULTRIX
++ 	WIN16		Microsoft Windows 3.1
++ 	SCO_ODT11	SCO Unix System V/OpenDeskTop 1.1
++ */
++ 
++ #define SCO_ODT11 1
++ 
++ /* Attributes of the selected architecture:
++ 
++    The following four macros define specific aspects of the system.  They
++    are defined as strings, or specifically undefined:
++ 
++ 	IMPLEMENTATION_MACHINE	machine type
++ 	IMPLEMENTATION_CPU	cpu type
++ 	IMPLEMENTATION_OS	operating system
++ 	IMPLEMENTATION_FS	file system
++ 
++    Big endian vs. little endian:
++ 
++ 	BIGENDIAN		defined to 1 to denote bigendian systems
++ 
++    C compiler:
++ 
++ 	OLD_FASHIONED_C		defined to 1 for pre-ANSI compilers
++ 
++    Alignment:
++ 
++ 	DOUBLE_ALIGN		defined to 1 to force doubles to be aligned on
++ 				an even S2CINT boundary
++ 
++    Macro expansion:
++ 
++ 	NEED_MACRO_ARGS		defined to 1 to declare a macro like X() as
++ 				X(dummy)
++ 
++    The types S2CINT and S2CUINT are defined to be signed and unsigned integers
++    that are the same size as pointers.  This is the basic "word" used by
++    Scheme->C.
++ 
++    The machine state when a continuation is created is captured in the
++    sc_jmp_buf data structure.
++ 
++    STACKPTR( x ) is a define that stores the address of the stack pointer
++    in x.
++ 
++    Unix flavors:
++ 
++ 	POSIX			POSIX.1 compliant
++ 	SYSV			System V or derivative
++ 	SYSV4			System V release 4 (also define SYSV, POSIX)
++ */
++ 
++ /**************/
++ /*    AOSF    */
++ /**************/
++ 
++ #ifdef AOSF
++ #define IMPLEMENTATION_MACHINE	"Alpha AXP"
++ #undef  IMPLEMENTATION_CPU	
++ #define IMPLEMENTATION_OS	"OSF/1"
++ #undef  IMPLEMENTATION_FS
++ 
++ typedef long int S2CINT;		/* Signed pointer size integer */
++ typedef long unsigned S2CUINT;		/* Unsigned pointer size interger */
++ 
++ typedef int PAGELINK;			/* 32-bit sc_pagelink values */
++ #define MAXS2CINT  0x7fffffffffffffffL	/* Maximum value of an S2CINT */
++ #define MSBS2CUINT 0x8000000000000000L	/* S2CUINT with 1 in the MSB */
++ 
++ typedef long int sc_jmp_buf[ 9 ]; /* The buffer contains the following items:
++ 				     s0-s6	saved registers
++ 				     ra		return address
++ 				     sp	        stack pointer
++ 				  */
++ 
++ #define STACKPTR( x ) x = sc_getsp()
++ extern  S2CINT*  sc_getsp();
++ 
++ #define NEED_MACRO_ARGS 1
++ #endif
++ 
++ /***************/
++ /*    HP700    */
++ /***************/
++ 
++ #ifdef HP700
++ 
++ #ifdef __hp9000s700
++ #define IMPLEMENTATION_MACHINE	"HP9000/700"
++ #else
++ #ifdef __hp9000s800
++ #define IMPLEMENTATION_MACHINE	"HP9000/800"
++ #endif
++ #endif
++ 
++ #define IMPLEMENTATION_CPU	"HP-PA"
++ 
++ #define BIGENDIAN 1
++ 
++ #define DOUBLE_ALIGN 1
++ 
++ typedef int S2CINT;			/* Signed pointer size integer */
++ typedef unsigned S2CUINT;		/* Unsigned pointer size interger */
++ 
++ typedef int PAGELINK;			/* 32-bit sc_pagelink values */
++ #define MAXS2CINT  0x7fffffff		/* Maximum value of an S2CINT */
++ #define MSBS2CUINT 0x80000000		/* S2CUINT with 1 in the MSB */
++ 
++ #define STACKPTR(x) ((x) = (sc_processor_register (30)))
++ 
++ #define STACK_GROWS_POSITIVE 1
++ 
++ #endif
++ 
++ #ifdef __hpux
++ #define IMPLEMENTATION_OS	"HP-UX"
++ #undef  IMPLEMENTATION_FS
++ 
++ #ifdef __STDC__
++ #undef OLD_FASHIONED_C
++ #else
++ #define OLD_FASHIONED_C 1
++ #endif
++ 
++ #include <setjmp.h>
++ typedef jmp_buf sc_jmp_buf;
++ 
++ #define SYSV 1
++ #define POSIX 1
++ 
++ #endif
++ 
++ /*************/
++ /*    MAC    */
++ /*************/
++ 
++ #ifdef MAC
++ #define IMPLEMENTATION_MACHINE	"Apple Macintosh"
++ #define IMPLEMENTATION_CPU	"680x0"
++ #define IMPLEMENTATION_OS	"7.1"
++ #undef  IMPLEMENTATION_FS
++ 
++ #define BIGENDIAN 1
++ 
++ typedef long int S2CINT;		/* Signed pointer size integer */
++ typedef long unsigned S2CUINT;		/* Unsigned pointer size interger */
++ 
++ typedef short int PAGELINK;		/* 16-bit sc_pagelink values */
++ #define MAXS2CINT  0x7fffffffL		/* Maximum value of an S2CINT */
++ #define MSBS2CUINT 0x80000000L		/* S2CUINT with 1 in the MSB */
++ 
++ #include <setjmp.h>
++ typedef jmp_buf sc_jmp_buf;
++ #undef TRUE
++ #undef FALSE
++ 
++ #define STACKPTR( x ) x = sc_getsp()
++ extern  S2CINT*  sc_getsp();
++ 
++ #define SCHEAP 1
++ #define SCMAXHEAP 15
++ #endif
++ 
++ /****************/
++ /*   MC680X0    */
++ /****************/ 
++ 
++ #ifdef MC680X0
++ #define IMPLEMENTATION_CPU	"680x0"
++ 
++ #define BIGENDIAN 1
++ 
++ typedef int S2CINT;			/* Signed pointer size integer */
++ typedef unsigned S2CUINT;		/* Unsigned pointer size interger */
++ 
++ typedef int PAGELINK;			/* 32-bit sc_pagelink values */
++ #define MAXS2CINT  0x7fffffff		/* Maximum value of an S2CINT */
++ #define MSBS2CUINT 0x80000000		/* S2CUINT with 1 in the MSB */
++ 
++ #define STACKPTR(x) ((x) = (sc_processor_register (15)))
++ 
++ #ifdef __hp9000s400
++ #define IMPLEMENTATION_MACHINE	"HP9000/400"
++ #else
++ #ifdef __hp9000s300
++ #define IMPLEMENTATION_MACHINE	"HP9000/300"
++ #endif
++ #endif
++ 
++ /* HP-UX dependent conditionalizations performed above.  */
++ 
++ #endif
++ 
++ /**************/
++ /*    MIPS    */
++ /**************/
++ 
++ #ifdef MIPS
++ #define IMPLEMENTATION_MACHINE	"DECstation"
++ #define IMPLEMENTATION_CPU	"Rx000"
++ #define IMPLEMENTATION_OS	"ULTRIX"
++ #undef  IMPLEMENTATION_FS
++ 
++ #define DOUBLE_ALIGN 1
++ 
++ typedef int S2CINT;			/* Signed pointer size integer */
++ typedef unsigned S2CUINT;		/* Unsigned pointer size interger */
++ 
++ typedef int PAGELINK;			/* 32-bit sc_pagelink values */
++ #define MAXS2CINT  0x7fffffff		/* Maximum value of an S2CINT */
++ #define MSBS2CUINT 0x80000000		/* S2CUINT with 1 in the MSB */
++ 
++ #ifndef MIPSEL
++ #define BIGMIPS 1
++ #define BIGENDIAN 1
++ #undef  IMPLEMENTATION_MACHINE
++ #define IMPLEMENTATION_MACHINE	"Big Endian MIPS"
++ #undef  IMPLEMENTATION_OS
++ 
++ /* Not sure what the correct conditionalization is here -- NEWS-OS
++    5.xx defines both "sony" and "sonyrisc", but apparently NEWS-OS
++    4.xx defines "sony_mips", because the previous version of Scheme->C
++    was conditionalized on "sony_mips" which is *not* defined by
++    NEWS-OS 5.xx.  If there's an intersection between the symbols
++    defined by 4.xx and 5.xx then a member of that intersection should
++    be used for the conditionalization; otherwise test for both.
++ */
++ #ifdef sonyrisc
++ 
++ #undef  IMPLEMENTATION_MACHINE
++ #define IMPLEMENTATION_MACHINE	"Sony MIPS"
++ #undef  IMPLEMENTATION_CPU
++ #define IMPLEMENTATION_CPU	"R3000"
++ #undef  IMPLEMENTATION_OS
++ #define IMPLEMENTATION_OS	"NEWS-OS"
++ 
++ #ifdef SYSTYPE_SYSV
++ 
++ #define SYSV4 1
++ #define SYSV 1
++ #define POSIX 1
++ 
++ /* This can be implemented but requires generalizing the signal
++    handler to know about SYSV4 siginfo structure.
++ */
++ 
++ #undef  MATHTRAPS
++ #define MATHTRAPS 0
++ 
++ #define NEED_MACRO_ARGS 1
++ 
++ #define COPY_STACK_BEFORE_LONGJMP 1
++ 
++ #endif
++ #endif
++ #endif
++ 
++ #include <setjmp.h>
++ typedef jmp_buf sc_jmp_buf;
++ 
++ #define STACKPTR( x ) x = sc_processor_register( 29 )
++ #endif
++ 
++ /*************/
++ /*    VAX    */
++ /*************/
++ 
++ #ifdef VAX
++ #define IMPLEMENTATION_MACHINE	"VAX"
++ #undef  IMPLEMENTATION_CPU
++ #define IMPLEMENTATION_OS	"ULTRIX"
++ #undef  IMPLEMENTATION_FS
++ 
++ #define OLD_FASHIONED_C 1
++ 
++ typedef int S2CINT;			/* Signed pointer size integer */
++ typedef unsigned S2CUINT;		/* Unsigned pointer size interger */
++ 
++ typedef int PAGELINK;			/* 32-bit sc_pagelink values */
++ #define MAXS2CINT  0x7fffffff		/* Maximum value of an S2CINT */
++ #define MSBS2CUINT 0x80000000		/* S2CUINT with 1 in the MSB */
++ 
++ typedef int sc_jmp_buf[ 16 ];	/* The buffer contains the following items:
++ 				   R2-R11	saved registers
++ 				   SIGM		saved signal mask
++ 				   SP		stack pointer on entry to
++ 				   		setjmp
++ 				   PSW		PSW word from stack frame
++ 				   AP		saved argument ptr from frame
++ 				   FP		saved frame ptr from frame
++ 				   PC		saved program cntr from frame
++ 				*/
++ 
++ #define STACKPTR( x ) x = sc_processor_register( 14 )
++ #endif
++ 
++ /***************/
++ /*    WIN16    */
++ /***************/
++ 
++ #ifdef WIN16
++ #define IMPLEMENTATION_MACHINE	"Generic PC"
++ #define IMPLEMENTATION_CPU	"Intelx86"
++ #define IMPLEMENTATION_OS	"Microsoft Windows 3.1"
++ #undef  IMPLEMENTATION_FS
++ 
++ typedef long int S2CINT;		/* Signed pointer size integer */
++ typedef long unsigned S2CUINT;		/* Unsigned pointer size interger */
++ 
++ typedef short int PAGELINK;		/* 16-bit sc_pagelink values */
++ #define MAXS2CINT  0x7fffffffL		/* Maximum value of an S2CINT */
++ #define MSBS2CUINT 0x80000000L		/* S2CUINT with 1 in the MSB */
++ 
++ #include <windows.h>
++ #undef TRUE
++ #undef FALSE
++ typedef CATCHBUF sc_jmp_buf;
++ 
++ #define STACKPTR( x ) x = sc_processor_register( 0 )
++ 
++ #define MAXSTRINGSIZE	       ((S2CINT)65532)
++ #define MAXVECTORSIZE	       ((S2CINT)16383)
++ 
++ #define SCHEAP 2
++ #define SCMAXHEAP 15
++ #endif
++ 
++ #ifdef SCO_ODT11
++ #undef IMPLEMENTATION_MACHINE
++ #define IMPLEMENTATION_MACHINE	"Generic 386/486 PC"
++ #undef  IMPLEMENTATION_CPU
++ #define  IMPLEMENTATION_CPU	"Intel 386/486"
++ #undef IMPLEMENTATION_OS
++ #define IMPLEMENTATION_OS	"SCO OpenDesktop 1.1"
++ #undef  IMPLEMENTATION_FS
++ 
++ #define DOUBLE_ALIGN		1
++ /* #define POSIX			1 */
++ #define SYSV			1
++ 
++ typedef int S2CINT;			/* Signed pointer size integer */
++ typedef unsigned S2CUINT;		/* Unsigned pointer size interger */
++ 
++ typedef int PAGELINK;			/* 32-bit sc_pagelink values */
++ #define MAXS2CINT  0x7fffffff		/* Maximum value of an S2CINT */
++ #define MSBS2CUINT 0x80000000		/* S2CUINT with 1 in the MSB */
++ 
++ #include <setjmp.h>
++ 
++ typedef jmp_buf sc_jmp_buf;		/* For call/cc */
++ 
++ #define STACKPTR( x ) x = sc_processor_register( 0 )
++ #endif 		/* SCO_ODT11 */
+diff -rNc ./ports/SCO-ODT11/options.h ../port-sco/ports/SCO-ODT11/options.h
+*** ./ports/SCO-ODT11/options.h
+--- ../port-sco/ports/SCO-ODT11/options.h	Tue Nov 16 13:18:18 1993
+***************
+*** 0 ****
+--- 1,422 ----
++ /* SCHEME->C */
++ 
++ /*           Copyright 1989-1993 Digital Equipment Corporation
++  *                         All Rights Reserved
++  *
++  * Permission to use, copy, and modify this software and its documentation is
++  * hereby granted only under the following terms and conditions.  Both the
++  * above copyright notice and this permission notice must appear in all copies
++  * of the software, derivative works or modified versions, and any portions
++  * thereof, and both notices must appear in supporting documentation.
++  *
++  * Users of this software agree to the terms and conditions set forth herein,
++  * and hereby grant back to Digital a non-exclusive, unrestricted, royalty-free
++  * right and license under any changes, enhancements or extensions made to the
++  * core functions of the software, including but not limited to those affording
++  * compatibility with other hardware or software environments, but excluding
++  * applications which incorporate this software.  Users further agree to use
++  * their best efforts to return to Digital any such changes, enhancements or
++  * extensions that they make and inform Digital of noteworthy uses of this
++  * software.  Correspondence should be provided to Digital at:
++  * 
++  *                       Director of Licensing
++  *                       Western Research Laboratory
++  *                       Digital Equipment Corporation
++  *                       250 University Avenue
++  *                       Palo Alto, California  94301  
++  * 
++  * This software may be distributed (but not offered for sale or transferred
++  * for compensation) to third parties, provided such third parties agree to
++  * abide by the terms and conditions of this notice.  
++  * 
++  * THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
++  * WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF
++  * MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
++  * CORPORATION BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
++  * DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
++  * PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
++  * ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
++  * SOFTWARE.
++ */
++ 
++ /* This file defines compilation options for a specific implementation */
++ 
++ #define CHECKSTACK	0	/* 0 = don't check stack height */
++ 				/* 1 = check stack height */
++ 
++ #define TIMESLICE	0	/* 0 = don't time slice execution */
++ 				/* 1 = time slice execution */
++ 
++ #define COMPACTPUSHTRACE 0	/* 0 = inline procedure entry checks.
++ 				   1 = emit procedure call for procedure
++ 				       entry checks.
++ 				*/
++ 
++ #define COMPACTPOPTRACE 0	/* 0 = inline procedure exit cleanup.
++ 				   1 = emit procedure call for procedure exit
++ 				       cleanup.
++ 				*/
++ 
++ #define S2CSIGNALS	1	/* 0 = Scheme->C doesn't handle signals */
++ 				/* 1 = Scheme->C does handle signals */
++ 
++ #define	MATHTRAPS	1	/* 0 = don't detect fixed point overflow */
++ 				/* 1 = recover on fixed point overflow */
++ 
++ /* Define only one of the supported processor types:
++ 
++ 	AOSF		Alpha AXP OSF/1
++ 	HP700		HP 9000/700
++ 	MAC		Macintosh system 7.1 with Think-C 5.0
++ 	MC680X0		HP 9000/300, Sun 3, Next
++ 	MIPS		DECstation, SGI, Sony News
++ 	VAX		Vax ULTRIX
++ 	WIN16		Microsoft Windows 3.1
++ 	SCO_ODT11	SCO Unix System V/OpenDeskTop 1.1
++ */
++ 
++ #define SCO_ODT11 1
++ 
++ /* Attributes of the selected architecture:
++ 
++    The following four macros define specific aspects of the system.  They
++    are defined as strings, or specifically undefined:
++ 
++ 	IMPLEMENTATION_MACHINE	machine type
++ 	IMPLEMENTATION_CPU	cpu type
++ 	IMPLEMENTATION_OS	operating system
++ 	IMPLEMENTATION_FS	file system
++ 
++    Big endian vs. little endian:
++ 
++ 	BIGENDIAN		defined to 1 to denote bigendian systems
++ 
++    C compiler:
++ 
++ 	OLD_FASHIONED_C		defined to 1 for pre-ANSI compilers
++ 
++    Alignment:
++ 
++ 	DOUBLE_ALIGN		defined to 1 to force doubles to be aligned on
++ 				an even S2CINT boundary
++ 
++    Macro expansion:
++ 
++ 	NEED_MACRO_ARGS		defined to 1 to declare a macro like X() as
++ 				X(dummy)
++ 
++    The types S2CINT and S2CUINT are defined to be signed and unsigned integers
++    that are the same size as pointers.  This is the basic "word" used by
++    Scheme->C.
++ 
++    The machine state when a continuation is created is captured in the
++    sc_jmp_buf data structure.
++ 
++    STACKPTR( x ) is a define that stores the address of the stack pointer
++    in x.
++ 
++    Unix flavors:
++ 
++ 	POSIX			POSIX.1 compliant
++ 	SYSV			System V or derivative
++ 	SYSV4			System V release 4 (also define SYSV, POSIX)
++ */
++ 
++ /**************/
++ /*    AOSF    */
++ /**************/
++ 
++ #ifdef AOSF
++ #define IMPLEMENTATION_MACHINE	"Alpha AXP"
++ #undef  IMPLEMENTATION_CPU	
++ #define IMPLEMENTATION_OS	"OSF/1"
++ #undef  IMPLEMENTATION_FS
++ 
++ typedef long int S2CINT;		/* Signed pointer size integer */
++ typedef long unsigned S2CUINT;		/* Unsigned pointer size interger */
++ 
++ typedef int PAGELINK;			/* 32-bit sc_pagelink values */
++ #define MAXS2CINT  0x7fffffffffffffffL	/* Maximum value of an S2CINT */
++ #define MSBS2CUINT 0x8000000000000000L	/* S2CUINT with 1 in the MSB */
++ 
++ typedef long int sc_jmp_buf[ 9 ]; /* The buffer contains the following items:
++ 				     s0-s6	saved registers
++ 				     ra		return address
++ 				     sp	        stack pointer
++ 				  */
++ 
++ #define STACKPTR( x ) x = sc_getsp()
++ extern  S2CINT*  sc_getsp();
++ 
++ #define NEED_MACRO_ARGS 1
++ #endif
++ 
++ /***************/
++ /*    HP700    */
++ /***************/
++ 
++ #ifdef HP700
++ 
++ #ifdef __hp9000s700
++ #define IMPLEMENTATION_MACHINE	"HP9000/700"
++ #else
++ #ifdef __hp9000s800
++ #define IMPLEMENTATION_MACHINE	"HP9000/800"
++ #endif
++ #endif
++ 
++ #define IMPLEMENTATION_CPU	"HP-PA"
++ 
++ #define BIGENDIAN 1
++ 
++ #define DOUBLE_ALIGN 1
++ 
++ typedef int S2CINT;			/* Signed pointer size integer */
++ typedef unsigned S2CUINT;		/* Unsigned pointer size interger */
++ 
++ typedef int PAGELINK;			/* 32-bit sc_pagelink values */
++ #define MAXS2CINT  0x7fffffff		/* Maximum value of an S2CINT */
++ #define MSBS2CUINT 0x80000000		/* S2CUINT with 1 in the MSB */
++ 
++ #define STACKPTR(x) ((x) = (sc_processor_register (30)))
++ 
++ #define STACK_GROWS_POSITIVE 1
++ 
++ #endif
++ 
++ #ifdef __hpux
++ #define IMPLEMENTATION_OS	"HP-UX"
++ #undef  IMPLEMENTATION_FS
++ 
++ #ifdef __STDC__
++ #undef OLD_FASHIONED_C
++ #else
++ #define OLD_FASHIONED_C 1
++ #endif
++ 
++ #include <setjmp.h>
++ typedef jmp_buf sc_jmp_buf;
++ 
++ #define SYSV 1
++ #define POSIX 1
++ 
++ #endif
++ 
++ /*************/
++ /*    MAC    */
++ /*************/
++ 
++ #ifdef MAC
++ #define IMPLEMENTATION_MACHINE	"Apple Macintosh"
++ #define IMPLEMENTATION_CPU	"680x0"
++ #define IMPLEMENTATION_OS	"7.1"
++ #undef  IMPLEMENTATION_FS
++ 
++ #define BIGENDIAN 1
++ 
++ typedef long int S2CINT;		/* Signed pointer size integer */
++ typedef long unsigned S2CUINT;		/* Unsigned pointer size interger */
++ 
++ typedef short int PAGELINK;		/* 16-bit sc_pagelink values */
++ #define MAXS2CINT  0x7fffffffL		/* Maximum value of an S2CINT */
++ #define MSBS2CUINT 0x80000000L		/* S2CUINT with 1 in the MSB */
++ 
++ #include <setjmp.h>
++ typedef jmp_buf sc_jmp_buf;
++ #undef TRUE
++ #undef FALSE
++ 
++ #define STACKPTR( x ) x = sc_getsp()
++ extern  S2CINT*  sc_getsp();
++ 
++ #define SCHEAP 1
++ #define SCMAXHEAP 15
++ #endif
++ 
++ /****************/
++ /*   MC680X0    */
++ /****************/ 
++ 
++ #ifdef MC680X0
++ #define IMPLEMENTATION_CPU	"680x0"
++ 
++ #define BIGENDIAN 1
++ 
++ typedef int S2CINT;			/* Signed pointer size integer */
++ typedef unsigned S2CUINT;		/* Unsigned pointer size interger */
++ 
++ typedef int PAGELINK;			/* 32-bit sc_pagelink values */
++ #define MAXS2CINT  0x7fffffff		/* Maximum value of an S2CINT */
++ #define MSBS2CUINT 0x80000000		/* S2CUINT with 1 in the MSB */
++ 
++ #define STACKPTR(x) ((x) = (sc_processor_register (15)))
++ 
++ #ifdef __hp9000s400
++ #define IMPLEMENTATION_MACHINE	"HP9000/400"
++ #else
++ #ifdef __hp9000s300
++ #define IMPLEMENTATION_MACHINE	"HP9000/300"
++ #endif
++ #endif
++ 
++ /* HP-UX dependent conditionalizations performed above.  */
++ 
++ #endif
++ 
++ /**************/
++ /*    MIPS    */
++ /**************/
++ 
++ #ifdef MIPS
++ #define IMPLEMENTATION_MACHINE	"DECstation"
++ #define IMPLEMENTATION_CPU	"Rx000"
++ #define IMPLEMENTATION_OS	"ULTRIX"
++ #undef  IMPLEMENTATION_FS
++ 
++ #define DOUBLE_ALIGN 1
++ 
++ typedef int S2CINT;			/* Signed pointer size integer */
++ typedef unsigned S2CUINT;		/* Unsigned pointer size interger */
++ 
++ typedef int PAGELINK;			/* 32-bit sc_pagelink values */
++ #define MAXS2CINT  0x7fffffff		/* Maximum value of an S2CINT */
++ #define MSBS2CUINT 0x80000000		/* S2CUINT with 1 in the MSB */
++ 
++ #ifndef MIPSEL
++ #define BIGMIPS 1
++ #define BIGENDIAN 1
++ #undef  IMPLEMENTATION_MACHINE
++ #define IMPLEMENTATION_MACHINE	"Big Endian MIPS"
++ #undef  IMPLEMENTATION_OS
++ 
++ /* Not sure what the correct conditionalization is here -- NEWS-OS
++    5.xx defines both "sony" and "sonyrisc", but apparently NEWS-OS
++    4.xx defines "sony_mips", because the previous version of Scheme->C
++    was conditionalized on "sony_mips" which is *not* defined by
++    NEWS-OS 5.xx.  If there's an intersection between the symbols
++    defined by 4.xx and 5.xx then a member of that intersection should
++    be used for the conditionalization; otherwise test for both.
++ */
++ #ifdef sonyrisc
++ 
++ #undef  IMPLEMENTATION_MACHINE
++ #define IMPLEMENTATION_MACHINE	"Sony MIPS"
++ #undef  IMPLEMENTATION_CPU
++ #define IMPLEMENTATION_CPU	"R3000"
++ #undef  IMPLEMENTATION_OS
++ #define IMPLEMENTATION_OS	"NEWS-OS"
++ 
++ #ifdef SYSTYPE_SYSV
++ 
++ #define SYSV4 1
++ #define SYSV 1
++ #define POSIX 1
++ 
++ /* This can be implemented but requires generalizing the signal
++    handler to know about SYSV4 siginfo structure.
++ */
++ 
++ #undef  MATHTRAPS
++ #define MATHTRAPS 0
++ 
++ #define NEED_MACRO_ARGS 1
++ 
++ #define COPY_STACK_BEFORE_LONGJMP 1
++ 
++ #endif
++ #endif
++ #endif
++ 
++ #include <setjmp.h>
++ typedef jmp_buf sc_jmp_buf;
++ 
++ #define STACKPTR( x ) x = sc_processor_register( 29 )
++ #endif
++ 
++ /*************/
++ /*    VAX    */
++ /*************/
++ 
++ #ifdef VAX
++ #define IMPLEMENTATION_MACHINE	"VAX"
++ #undef  IMPLEMENTATION_CPU
++ #define IMPLEMENTATION_OS	"ULTRIX"
++ #undef  IMPLEMENTATION_FS
++ 
++ #define OLD_FASHIONED_C 1
++ 
++ typedef int S2CINT;			/* Signed pointer size integer */
++ typedef unsigned S2CUINT;		/* Unsigned pointer size interger */
++ 
++ typedef int PAGELINK;			/* 32-bit sc_pagelink values */
++ #define MAXS2CINT  0x7fffffff		/* Maximum value of an S2CINT */
++ #define MSBS2CUINT 0x80000000		/* S2CUINT with 1 in the MSB */
++ 
++ typedef int sc_jmp_buf[ 16 ];	/* The buffer contains the following items:
++ 				   R2-R11	saved registers
++ 				   SIGM		saved signal mask
++ 				   SP		stack pointer on entry to
++ 				   		setjmp
++ 				   PSW		PSW word from stack frame
++ 				   AP		saved argument ptr from frame
++ 				   FP		saved frame ptr from frame
++ 				   PC		saved program cntr from frame
++ 				*/
++ 
++ #define STACKPTR( x ) x = sc_processor_register( 14 )
++ #endif
++ 
++ /***************/
++ /*    WIN16    */
++ /***************/
++ 
++ #ifdef WIN16
++ #define IMPLEMENTATION_MACHINE	"Generic PC"
++ #define IMPLEMENTATION_CPU	"Intelx86"
++ #define IMPLEMENTATION_OS	"Microsoft Windows 3.1"
++ #undef  IMPLEMENTATION_FS
++ 
++ typedef long int S2CINT;		/* Signed pointer size integer */
++ typedef long unsigned S2CUINT;		/* Unsigned pointer size interger */
++ 
++ typedef short int PAGELINK;		/* 16-bit sc_pagelink values */
++ #define MAXS2CINT  0x7fffffffL		/* Maximum value of an S2CINT */
++ #define MSBS2CUINT 0x80000000L		/* S2CUINT with 1 in the MSB */
++ 
++ #include <windows.h>
++ #undef TRUE
++ #undef FALSE
++ typedef CATCHBUF sc_jmp_buf;
++ 
++ #define STACKPTR( x ) x = sc_processor_register( 0 )
++ 
++ #define MAXSTRINGSIZE	       ((S2CINT)65532)
++ #define MAXVECTORSIZE	       ((S2CINT)16383)
++ 
++ #define SCHEAP 2
++ #define SCMAXHEAP 15
++ #endif
++ 
++ #ifdef SCO_ODT11
++ #define IMPLEMENTATION_MACHINE	"Generic 386/486 PC"
++ #define  IMPLEMENTATION_CPU	"Intel 386/486"
++ #define IMPLEMENTATION_OS	"SCO OpenDesktop 1.1"
++ #undef  IMPLEMENTATION_FS
++ 
++ #define DOUBLE_ALIGN		1
++ /* #define POSIX			1 */
++ #define SYSV			1
++ 
++ typedef int S2CINT;			/* Signed pointer size integer */
++ typedef unsigned S2CUINT;		/* Unsigned pointer size interger */
++ 
++ typedef int PAGELINK;			/* 32-bit sc_pagelink values */
++ #define MAXS2CINT  0x7fffffff		/* Maximum value of an S2CINT */
++ #define MSBS2CUINT 0x80000000		/* S2CUINT with 1 in the MSB */
++ 
++ #include <setjmp.h>
++ 
++ typedef jmp_buf sc_jmp_buf;		/* For call/cc */
++ 
++ #define STACKPTR( x ) x = sc_processor_register( 0 )
++ #endif 		/* SCO_ODT11 */
+diff -rNc ./ports/SCO-ODT11/sco-odt11.s ../port-sco/ports/SCO-ODT11/sco-odt11.s
+*** ./ports/SCO-ODT11/sco-odt11.s
+--- ../port-sco/ports/SCO-ODT11/sco-odt11.s	Sun Dec  5 13:31:05 1993
+***************
+*** 0 ****
+--- 1,185 ----
++ 		.file	"sco-odt11.s"
++ 		.text
++ 
++ / SCHEME->C
++ /
++ / SCO ODT 1.1 assembly code. This requires the MASM utility. After you
++ / MASM this file, be sure to run cvtomf over the object file. This should
++ / already be done for you in the make file.
++ /
++ / This code was inspired by the VAX assembly code.
++ /
++ /           Copyright 1989-1993 Digital Equipment Corporation
++ /                         All Rights Reserved
++ /
++ / Permission to use, copy, and modify this software and its documentation is
++ / hereby granted only under the following terms and conditions.  Both the
++ / above copyright notice and this permission notice must appear in all copies
++ / of the software, derivative works or modified versions, and any portions
++ / thereof, and both notices must appear in supporting documentation.
++ /
++ / Users of this software agree to the terms and conditions set forth herein,
++ / and hereby grant back to Digital a non-exclusive, unrestricted, royalty-free
++ / right and license under any changes, enhancements or extensions made to the
++ / core functions of the software, including but not limited to those affording
++ / compatibility with other hardware or software environments, but excluding
++ / applications which incorporate this software.  Users further agree to use
++ / their best efforts to return to Digital any such changes, enhancements or
++ / extensions that they make and inform Digital of noteworthy uses of this
++ / software.  Correspondence should be provided to Digital at:
++ / 
++ /                       Director of Licensing
++ /                       Western Research Laboratory
++ /                       Digital Equipment Corporation
++ /                       250 University Avenue
++ /                       Palo Alto, California  94301  
++ / 
++ / This software may be distributed (but not offered for sale or transferred
++ / for compensation) to third parties, provided such third parties agree to
++ / abide by the terms and conditions of this notice.  
++ / 
++ / THE SOFTWARE IS PROVIDED "AS IS" AND DIGITAL EQUIPMENT CORP. DISCLAIMS ALL
++ / WARRANTIES WITH REGARD TO THIS SOFTWARE, INCLUDING ALL IMPLIED WARRANTIES OF
++ / MERCHANTABILITY AND FITNESS.   IN NO EVENT SHALL DIGITAL EQUIPMENT
++ / CORPORATION BE LIABLE FOR ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL
++ / DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR
++ / PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS
++ / ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS
++ / SOFTWARE.
++ 
++ /+
++ / Scheme->C recommends that if the machine can handle it, that on integer
++ / overflow, the operands be converted into doubles, and the arithmetic
++ / operation be retried.
++ /-
++ 
++ /+
++ / sc_iplus(a, b)
++ /
++ / Attempts perform integer a + b, but on overflow, converts a and b to
++ / doubles and gets the coprocessor to deal with the addition.
++ /-
++ 
++ 		.globl	sc_iplus
++ 		.align	4
++ sc_iplus:
++ 
++ 		pushl	%ebp
++ 		movl	%esp, %ebp
++ 
++ 		movl	8(%ebp), %eax
++ 		addl	12(%ebp), %eax
++ 		jo	.plus_overflow
++ 
++ 		leave
++ 		ret
++ 
++ .plus_overflow:
++ 		sarl	$2, 8(%ebp)		/ Remove type tags
++ 		sarl	$2, 12(%ebp)
++ 		subl	$8, %esp
++ 
++ 		fildl	8(%ebp)			/ arg0 --> ST
++ 		fiaddl	12(%ebp)		/ ST + arg1
++ 		fstpl	(%esp)
++ 		call	sc_makedoublefloat
++ 
++ 		leave
++ 		ret
++ 
++ /+
++ / sc_idifference(a, b)
++ /
++ / This is the underflow handling version of a - b.
++ /-
++ 
++ 		.globl	sc_idifference
++ 		.align	4
++ 
++ sc_idifference:
++ 		pushl	%ebp
++ 		movl	%esp, %ebp
++ 
++ 		movl	8(%ebp), %eax
++ 		subl	12(%ebp), %eax
++ 		jo	.diff_overflow
++ 
++ 		leave
++ 		ret
++ 
++ .diff_overflow:
++ 		sarl	$2, 8(%ebp)		/ Remove type tag
++ 		sarl	$2, 12(%ebp)		/ Remove type tag
++ 		subl	$8, %esp
++ 
++ 		fildl	8(%ebp)			/ arg0 --> ST
++ 		fisubl	12(%ebp)		/ ST = ST - arg1
++ 		fstpl	(%esp)			/ Move out of coproc
++ 		call	sc_makedoublefloat
++ 
++ 		leave
++ 		ret
++ 
++ /+
++ / sc_inegate(a)
++ /
++ / This is the negation function. Actually, 
++ /-
++ 
++ 		.globl	sc_inegate
++ 		.align	4
++ 
++ sc_inegate:
++ 		pushl	%ebp
++ 		movl	%esp, %ebp
++ 
++ 		movl	8(%ebp), %eax
++ 		negl	%eax
++ 		jo	.neg_overflow
++ 
++ 		leave
++ 		ret
++ 
++ .neg_overflow:
++ 		sarl	$2, 8(%ebp)		/ Remove type tag
++ 		subl	$8, %esp
++ 
++ 		fildl	8(%ebp)			/ arg0 --> ST
++ 		fchs				/ ST = -ST
++ 		fstpl	(%esp)
++ 		call	sc_makedoublefloat
++ 
++ 		leave
++ 		ret
++ 
++ /+
++ / sc_itimes(a, b)
++ /
++ / This is the overflow version of the a * b operation.
++ /-
++ 
++ 		.globl	sc_itimes
++ 		.align	4
++ 
++ sc_itimes:
++ 		pushl	%ebp
++ 		movl	%esp, %ebp
++ 
++ 		movl	8(%ebp), %eax
++ 		imul	12(%ebp), %eax
++ 		jo	.mul_overflow
++ 
++ 		leave
++ 		ret
++ 
++ .mul_overflow:
++ 		sarl	$2, 12(%ebp)		/ Remove type tag
++ 		subl	$8, %esp
++ 
++ 		fildl	8(%ebp)			/ arg0 --> ST
++ 		fimull	12(%ebp)		/ ST = ST * arg1
++ 		fstpl	(%esp)
++ 		call	sc_makedoublefloat
++ 
++ 		leave
++ 		ret
+Binary files ./ports/WIN16/release/embedded.exe and ../port-sco/ports/WIN16/release/embedded.exe differ
+Binary files ./ports/WIN16/release/scheme2c.dll and ../port-sco/ports/WIN16/release/scheme2c.dll differ
+Binary files ./ports/WIN16/release\embedd and ../port-sco/ports/WIN16/release\embedd differ
+Binary files ./ports/WIN16/release\scheme and ../port-sco/ports/WIN16/release\scheme differ
+diff -rNc ./scrt/callcc.c ../port-sco/scrt/callcc.c
+*** ./scrt/callcc.c	Tue Feb 23 15:25:41 1993
+--- ../port-sco/scrt/callcc.c	Thu Nov 11 19:59:03 1993
+***************
+*** 91,96 ****
+--- 91,101 ----
+  #define  SETJMP( x )		sc_setjmp( x )
+  #endif
+  
++ #ifdef SCO_ODT11
++ #define	 LONGJMP(x, y)		longjmp(x, y)
++ #define	 SETJMP(x)		setjmp(x)
++ #endif
++ 
+  TSCP  sc_clink;		/* Pointer to inner most continuation on stack. */
+  
+  /* Static declarations for data structures internal to the module.  These
+diff -rNc ./scrt/cio.c ../port-sco/scrt/cio.c
+*** ./scrt/cio.c	Tue Feb 23 15:26:58 1993
+--- ../port-sco/scrt/cio.c	Fri Nov 12 10:20:02 1993
+***************
+*** 143,148 ****
+--- 143,157 ----
+  #define HAVE_RUSAGE
+  #endif
+  
++ #ifdef SCO_ODT11
++ #include <sys/param.h>
++ #include <memory.h>
++ 
++ #define HAVE_TIMES
++ #define CLK_TCK HZ
++ #define bzero(addr,sz) memset(addr, 0, sz)
++ #endif
++ 
+  #ifdef SYSV
+  #define HAVE_TIMES
+  #else
+***************
+*** 1121,1128 ****
+  #endif
+  {
+  #ifndef MAC
+  	(*old_mask) = (sigsetmask( 0xffffffff ));
+! #endif
+  }
+  
+  #ifdef OLD_FASHIONED_C
+--- 1130,1139 ----
+  #endif
+  {
+  #ifndef MAC
++ #ifndef SCO_ODT11
+  	(*old_mask) = (sigsetmask( 0xffffffff ));
+! #endif /* SCO_ODT11 */
+! #endif /* MAC */
+  }
+  
+  #ifdef OLD_FASHIONED_C
+***************
+*** 1134,1141 ****
+  #endif
+  {
+  #ifndef MAC
+  	sigsetmask( *old_mask );
+! #endif
+  }
+  
+  #endif
+--- 1145,1154 ----
+  #endif
+  {
+  #ifndef MAC
++ #ifndef SCO_ODT11
+  	sigsetmask( *old_mask );
+! #endif /* SCO_ODT11 */
+! #endif /* MAC */
+  }
+  
+  #endif
+diff -rNc ./scrt/heap.c ../port-sco/scrt/heap.c
+*** ./scrt/heap.c	Mon Feb 22 08:11:33 1993
+--- ../port-sco/scrt/heap.c	Fri Nov 12 09:20:12 1993
+***************
+*** 66,71 ****
+--- 66,74 ----
+  #ifdef VAX
+  extern  sc_r2tor11( );
+  #endif
++ #ifdef SCO_ODT11
++ extern	sc_allregs( S2CINT* a );
++ #endif
+  
+  /* Forward declarations */
+  
+***************
+*** 369,374 ****
+--- 372,403 ----
+  
+  	sc_r2tor11( r2tor11 );
+  	STACKPTR( pp );
++ 	while  (pp != sc_stackbase)  move_continuation_ptr( ((SCP)*pp++) );
++ }
++ #endif
++ 
++ #ifdef SCO_ODT11
++ /* The following code is used to read the stack pointer.  The register
++    number is passed in to force an argument to be on the stack, which in
++    turn can be used to find the address of the top of stack.
++ */
++ 
++ S2CINT  *sc_processor_register( reg )
++ 	S2CINT reg;
++ {
++ 	return( &reg+1 );
++ }
++ 
++ /* All processor registers which might contain pointers are traced by the
++    following procedure.
++ */
++ 
++ static  trace_stack_and_registers()
++ {
++ 	S2CINT  allregs[6], *pp;
++ 
++ 	/* sc_allregs( allregs ); */
++ 	STACKPTR( pp );
+  	while  (pp != sc_stackbase)  move_continuation_ptr( ((SCP)*pp++) );
+  }
+  #endif
+diff -rNc ./scrt/makefile ../port-sco/scrt/makefile
+*** ./scrt/makefile	Tue Feb 16 17:55:48 1993
+--- ../port-sco/scrt/makefile	Thu Nov 11 19:41:09 1993
+***************
+*** 129,137 ****
+  
+  srclinks:
+  	for x in ${Cruntimec} ${Chfiles} ${Sruntimec} ${Sruntimesc} ${Smisc}; \
+! 	    do ln -s ${SRCDIR}/$$x $$x;\
+  	done
+! 	rm options.h
+  
+  tarfiles:
+  	@echo " scrt/*.sc scrt/*.h scrt/*.c scrt/README scrt/makefile "
+--- 129,137 ----
+  
+  srclinks:
+  	for x in ${Cruntimec} ${Chfiles} ${Sruntimec} ${Sruntimesc} ${Smisc}; \
+! 	    do ln ${SRCDIR}/$$x $$x;\
+  	done
+! 	rm -f options.h
+  
+  tarfiles:
+  	@echo " scrt/*.sc scrt/*.h scrt/*.c scrt/README scrt/makefile "
+diff -rNc ./scsc/main.sc ../port-sco/scsc/main.sc
+*** ./scsc/main.sc	Mon Feb 22 07:59:07 1993
+--- ../port-sco/scsc/main.sc	Mon Nov 15 14:49:19 1993
+***************
+*** 299,311 ****
+  			             `(,cc " -I" ,c-include-dir
+  			               ,@(map (lambda (x)
+  						      (string-append " " x))
+! 			                      (append (reverse c-flags)
+! 						      (if (member "-pg"
+! 								  c-flags)
+! 							  `(,sc-library_p
+! 							    "-lm")
+! 							  `(,sc-library
+! 							    "-lm"))))))))
+  		 (reset))
+  	 (catch-error
+  	     (lambda ()
+--- 299,310 ----
+  			             `(,cc " -I" ,c-include-dir
+  			               ,@(map (lambda (x)
+  						      (string-append " " x))
+! 					       (if (not (member "-c" c-flags))
+! 					           (append (reverse c-flags)
+! 						    (if (member "-pg" c-flags)
+! 							 `(,sc-library_p "-lm")
+! 							 `(,sc-library "-lm")))
+! 						   (reverse c-flags)))))))
+  		 (reset))
+  	 (catch-error
+  	     (lambda ()
+diff -rNc ./scsc/makefile ../port-sco/scsc/makefile
+*** ./scsc/makefile	Fri Jan 29 15:17:02 1993
+--- ../port-sco/scsc/makefile	Sun Dec  5 14:05:55 1993
+***************
+*** 57,65 ****
+  	     "OWNER = -o `whoami`" install
+  
+  install:
+! 	echo '#! /bin/csh -f' > ${BINDIR}/scc
+  	echo '${BINDIR}/sccomp -scl ${SCL} -scmh ${SCMH} \
+! 	     -cc ${CC} -LIBDIR ${LIBDIR}/schemetoc $$argv' >> ${BINDIR}/scc
+  	chmod +x ${BINDIR}/scc
+  	cp sccomp ${BINDIR}
+  
+--- 57,65 ----
+  	     "OWNER = -o `whoami`" install
+  
+  install:
+! 	echo '#! /bin/sh' > ${BINDIR}/scc
+  	echo '${BINDIR}/sccomp -scl ${SCL} -scmh ${SCMH} \
+! 	     -cc ${CC} -LIBDIR ${LIBDIR}/schemetoc $$*' >> ${BINDIR}/scc
+  	chmod +x ${BINDIR}/scc
+  	cp sccomp ${BINDIR}
+  
+***************
+*** 78,92 ****
+  
+  srclinks:
+  	for x in ${scsc} ${scc} ${scsch}; \
+! 	    do ln -s ${SRCDIR}/$$x $$x;\
+  	done
+! 	echo '#! /bin/csh -f' > scc
+  	echo `pwd`'/sccomp -scl ${SCL} -scmh ${SCMH} \
+! 	     -cc ${CC} -LIBDIR ' `pwd`'/${RTDIR} $$argv' >> scc
+  	chmod +x scc
+! 	echo '#! /bin/csh -f' > Xscc
+  	echo `pwd`'/Xsccomp -scl ${SCL} -scmh ${SCMH} \
+! 	     -cc ${CC} -LIBDIR ' `pwd`'/${RTDIR} $$argv' >> Xscc
+  	chmod +x Xscc
+  
+  tarfiles:
+--- 78,92 ----
+  
+  srclinks:
+  	for x in ${scsc} ${scc} ${scsch}; \
+! 	    do ln ${SRCDIR}/$$x $$x;\
+  	done
+! 	echo '#! /bin/sh' > scc
+  	echo `pwd`'/sccomp -scl ${SCL} -scmh ${SCMH} \
+! 	     -cc ${CC} -LIBDIR ' `pwd`'/${RTDIR} $$*' >> scc
+  	chmod +x scc
+! 	echo '#! /bin/sh' > Xscc
+  	echo `pwd`'/Xsccomp -scl ${SCL} -scmh ${SCMH} \
+! 	     -cc ${CC} -LIBDIR ' `pwd`'/${RTDIR} $$*' >> Xscc
+  	chmod +x Xscc
+  
+  tarfiles:
+diff -rNc ./test/makefile ../port-sco/test/makefile
+*** ./test/makefile	Tue Jan 19 17:55:32 1993
+--- ../port-sco/test/makefile	Thu Nov 11 19:41:20 1993
+***************
+*** 97,103 ****
+  
+  srclinks:
+  	for x in ${source}; \
+! 	    do ln -s ${SRCDIR}/$$x $$x;\
+  	done
+  
+  tarfiles:
+--- 97,103 ----
+  
+  srclinks:
+  	for x in ${source}; \
+! 	    do ln ${SRCDIR}/$$x $$x;\
+  	done
+  
+  tarfiles:
+diff -rNc ./xlib/makefile ../port-sco/xlib/makefile
+*** ./xlib/makefile	Mon Mar  1 09:24:36 1993
+--- ../port-sco/xlib/makefile	Thu Nov 11 19:41:25 1993
+***************
+*** 139,145 ****
+  
+  srclinks:
+  	for x in ${XD} ${XDP} ${XMISC}; \
+! 	  do ln -s ${SRCDIR}/$$x $$x; \
+  	done
+  
+  tarfiles:
+--- 139,145 ----
+  
+  srclinks:
+  	for x in ${XD} ${XDP} ${XMISC}; \
+! 	  do ln ${SRCDIR}/$$x $$x; \
+  	done
+  
+  tarfiles:

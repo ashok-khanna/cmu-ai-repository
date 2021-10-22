@@ -1,0 +1,82 @@
+;;; -*- Syntax: Common-lisp; Package: clim-user -*-
+
+(in-package :clim-user)
+
+#||
+  Date: Mon, 22 Feb 93 11:25:06 -0500
+  From: Jeff Morrill <jmorrill@BBN.COM>
+
+  I am wondering how to write a command in clim 2 that will hardcopy one
+  pane of a frame.  Any advice would be greatly appreciated.
+  
+  This isn't too hard when the pane has a redisplay function.
+  I can simply run the pane's redisplay function inside of
+  with-output-to-postscript-stream to generate a file, then send
+  the file to the printer.  However, the pane I am now interested in
+  has a history of user interaction that is not recorded anywhere
+  except in the output history of the window.
+  
+  I have two ideas:
+  
+  1.  Replay the output history of the window to a postscript stream.
+  I have no idea how to do this, but it's closest to what I want.
+
+This isn't possible because output records are intimately connected to
+the port they are displayed on.  This doesn't seem to be implied by clim's
+design, but an artifact of its implementation.
+  
+  2.  Use the UNIX command "xwd | xpr -device ps".  This has the problem that
+  it asks the user to point at the window with the mouse, which is
+  rather silly since its the only window.  It also has the problem
+  that it doesn't print anything that has scrolled off the top of
+  the window.
+  
+This is what I ended up doing.  fwhite@bbn.com noted that xwd takes a
+window id as an undocumented argument.  It is possible to query a clim
+window to get its window id and then run the above shell command,
+thereby avoiding the "silly" window-choose operation.
+||#
+
+(defun sheet-to-xid (sheet)
+  ;; Get the window id such as might be obtained from xwininfo.
+  #+clim-2
+  (ff:foreign-pointer-address (tk::widget-window (sheet-mirror sheet))))
+
+;;; The "xwd" from openlook gave me a hard time, but the
+;;; one in X11R5 worked fine.
+(defvar *hardcopy-window-command* 
+    "xwd -id 0x~X -display $DISPLAY | xpr -device ps | ~A")
+
+(defun run-shell-command-with-notifications (command)
+  (let ((errorio (string (gentemp "/tmp/printerr"))))
+    (unless  
+	(zerop (run-shell-command command
+				  :output errorio
+				  :error-output :output))
+      (let ((messages nil))
+	(with-open-file (err errorio :direction :input)
+	  (loop
+	    (let ((message (read-line err nil nil)))
+	      (if message (push message messages) (return)))))
+	(setq messages (nreverse messages))
+	(notify-user *application-frame*
+		     (format nil 
+			     "While executing the shell command:~%~A~%~{~%~A~}"
+			     command messages)
+		     :exit-boxes '((:exit "  OK  "))
+		     :style :error)))))
+
+(defun print-sheet (sheet &optional (print-command "psprint"))
+  (let ((id (sheet-to-xid sheet)))
+    (cond ((not id)
+	   (notify-user *application-frame* 
+			"A printable window could not be found."
+			:exit-boxes '((:exit "  OK  "))
+			:style :error))
+	  (t
+	   (let ((command (format nil *hardcopy-window-command*
+				  id print-command)))
+	     (run-shell-command-with-notifications command))))))
+
+(defun print-frame (frame &optional (print-command "psprint"))
+  (print-sheet (clim:frame-top-level-sheet frame) print-command))

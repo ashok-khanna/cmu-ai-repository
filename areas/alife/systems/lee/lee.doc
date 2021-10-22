@@ -1,0 +1,496 @@
+LEE V. 1.1 - Documentation (February 1994)
+==========================================
+
+1. Introduction
+
+        LEE (Latent Energy Environments) is both an Alife model 
+and a software tool to be used for simulations within the
+framework of that model. We hope that LEE will help understand 
+a broad range of issues in theoretical, behavioral, and 
+evolutionary biology. The LEE tool described here consists 
+of approximately 7,000 lines of C code and runs in both Unix
+and Macintosh platforms.
+
+1.1. Authors
+
+	The persons who have cooperated in writing LEE are, in
+alphabetical order:
+Rik Belew       University of California, San Diego, USA
+Jeff Elman      University of California, San Diego, USA
+Greg Linden     University of California, San Diego, USA
+Filippo Menczer University of California, San Diego, USA
+Stefano Nolfi   Institute of Psychology, C.N.R., Rome, Italy
+
+1.2. Files 
+
+	Here is a list of source files with short descriptions:
+
+FILE			IS
+====			==
+LEE.proj.rsrc.hqx	Mac resources (BinHex4 format)
+Makefile		for compiling with make in Unix
+body.c			sensory-motor system handling routines
+config.c		for creating .cf files
+defs.h			header: defines, typedefs, externals
+globals.c		global variables declarations
+include.c		random generation and options routines
+interact.c		system-dependent routines
+io.c			file input/output
+lee.doc			this document (read me!)
+macdisplay.c		Mac display routines
+macinterface.c		Mac interface routines
+main.c			main function, sturtup, usage
+net.c			neural nets handling routines
+populati.c		population and GA handling routines
+stats.c			statistics collecting and writing
+table.c			for creating .tb files
+world.c			world handling routines
+
+2. Model
+
+	It is not the purpose of this document to describe
+details of the LEE model. So we will just introduce some
+general points and refer the interested reader to other
+sources of information regarding the theoretical issues.
+ 
+2.1. Motivation
+
+	The modeling of environmental complexity across 
+different Alife experiments is perhaps the main motivation behind
+this project. LEE allows the specification of environments of
+graduated complexity. A spacially distributed series of
+"atomic elements" must be combined to transform their "latent
+potential energy" into "work" necessary for survival.
+Behavioral strategies must be evolved by the population such
+as to allow an efficient exploitation of the available energy. 
+This latent energy can be used to measure the environment
+complexity with respect to the survival task.
+
+2.2. GA
+
+	The genetic algorithm implemented in LEE is a steady-
+state model rather then a lock-step generational one. The 
+progression of the adaptive process is measured in terms of time 
+rather than generations. At any one time step possibly all the 
+organisms in the population may live, use and/or acquire energy, 
+and reproduce or die. Consequently, the size of the population
+varies with time. If latent energy is not made available at a
+rate sufficient to support the energy expense of the
+population, extintion may occur. 
+	The notion of fitness is replaced by those of energy
+intake per unit time, or number of offsprings per lifetime.
+In the current version, organisms are created initially with 
+random energy distributed uniformly in the interval [0,ALPHA]. 
+When the energy of an individual reaches 0, it dies. When its
+energy passes the ALPHA threshold, it reproduces and gives
+half of its energy to the offspring.
+
+2.3. Neural nets
+
+	An organism is implemented by a feed-forward neural
+network plus a sensory-motor system and a gut, i.e. a 
+reservoir for energy, both in work (usable) and latent 
+(atomic elements) form. The sensory system consists of a
+user-specified set of sensors that are mapped onto the network
+input units. The network may have as many hidden layers as desired.
+The output layer maps its activation values onto the motor
+system, made of a set of user-specified motors. Learning can 
+occur in the current version by means of standard
+back-propagation of error. The error is computed on an input
+prediction task.
+
+2.4. Life
+
+	Each organisms lives by moving in a world consisting
+of a rectangular grid with toroidal edge conditions. Each 
+basic life cycle (sweep) consists of 5 steps:
+1. Gather information about the surrounding world by means of
+a set of sensors.
+2. Elaborate the sensory information to produce a motor action.
+3. Make a movement in the world by means of a set o motors.
+4. (Optional) Use the new sensory information as teaching
+input for a prediction task learned during an organism's
+lifetime on a subset of the neural net.
+5. Consequences of the movement: there is an energy cost,
+there may be an energy increase or decrease (depending on the 
+contents of the new world position and the reactions caused 
+by the acquisition of such contents), and finally these energy 
+changes may result in death or reproduction.
+
+3. Sensory-motor system
+
+	This can be made arbitrarily simple or complex
+depending on the object of the simulation/experiment. The
+numbers of sensors and motors are fixed at compile time 
+(NMOTORS, NSENSORS parameters in defs.h) and the types of 
+sensors and motors (systems) must be specified in the .cf 
+file. All the routines relative to the sensory-motor system 
+are in the file body.c. 
+
+3.1. Sensors
+
+	Different sensor systems are numbered 0,1,2,... and 
+named in defs.h. Each sensor can be of any system. Different
+systems map onto different numbers of input units. There are 
+3 sensor systems implemented in the current version: GUT, 
+CONTACT, and AMBIENT. The first senses elements present in an 
+organism's own gut; the second senses those present in the 
+world cell in front of the position currently occupied by the 
+organism; the third senses those present in a local range,
+weighed according to their distange in number of steps. 
+Each sensor has a complex that identifies which element(s) can 
+be sensed by it.
+
+3.2. Motors
+
+	Different motor systems are numbered 0,1,2,... and
+named in defs.h. Each motor can be of any system. Different
+systems are mapped onto by different numbers of output units.
+There is 1 motor system implemented in the current version:
+BINARY. It allows the organism to make one of four possible
+moves: stay still, turn left or right 90 degrees, or move 
+ahead. Each motor has a power that specifies how far the
+organism can be moved by it.
+
+4. Code description
+
+	The source code is commented at function level. A
+high-level description of the program structure follows.
+
+4.1 Data structures
+
+	All the global variables that should be under the
+experimenter's control are initialized to a default value and
+allowed to be changed without recompiling the code by
+command-line options. Default values are in defs.h. All the
+simulation parameters and structure declarations are also in 
+defs.h. Globals variables are in globals.c. 
+	The world is implemented by a 2-D matrix where each 
+element points to a cell which is a linked list of elements 
+and pointers to organisms. The population is a linked list 
+of individuals. Each of them is a structure that contains a  
+description of its genotype and phenotype. In the current
+version, the genotype contains the network weights and the
+sensory-motor system specifications. The phenotype contains a
+copy of the network weights (modifiable during life by
+learning) and a number of other features such as gut content,
+position, orientation, age, etc.
+	Finally, the reaction table is a 2-D matrix of
+reactions, one for each couple of different element types. A
+reaction can be possible or impossible. In the former case it 
+may be esothermic (with gain of energy for the organism) or
+endothermic (loss of energy) and it may have by-products. The
+reaction table represents in the LEE model the set of all the
+environment features that are not under the control of the 
+evolutionary process. It could be seen as all the (non-adaptive)
+"physical-chemical laws". Unary reactions are also allowed.
+
+4.2. Compiling LEE and setting up a simulation
+
+4.2.1. Unix
+
+	Make sure all the .c files, defs.h, and Mekefile, are
+in the current directory. Then compile using "make all" on 
+the command line. The preferred Unix compiler is indicated
+in Makefile. Other changes may also be necessary in Makefile,
+depending on the particolar Unix system. The make utility 
+creates the object (.o) files, the archive (lee.a), and 
+the executable (lee). Also use the commands "make table" and
+"make config" to compile the utility programs every time
+changes are made to config.c, table.c, and/or defs.h.
+
+4.2.2. Macintosh
+
+	The Macintosh compiler we refer to is Think-C. 
+BinHex'ed files (.hqx) must be decoded (using Compactor Pro, 
+Unstuffit, or one of many other Mac and UNIX utilities). 
+The resource file must have the same name as the project 
+with an ".rsrc" extension added for the resources to be 
+loaded properly. Naming the project "LEE.proj" and the 
+resource file "LEE.proj.rsrc" is recommended.
+	Using a new project, add all the files (except config.c
+and table.c) to the project using the Add... command under the
+Source menu.  Add the libraries ANSI and unix from the C Libraries
+folder and MacTraps from the Mac Libraries folder.
+	The Macintosh loads the code in 32k segments, swapping them
+in and out of memory when necessary.  This means that the code
+cannot be longer than 32k, which this is.  So, the code must be
+segmented.  This is done by clicking and dragging the filenames in
+the project window to the very bottom (below all the others) and
+releasing.  We recommend segmenting into three or more segments by
+moving the ANSI library into its own segment, moving MacTraps, unix,
+macinterface.c, macdisplay.c, and interact.c into a second,
+and the rest of the files in the remaining ones.  When a file or 
+group of files is in a separate segment, a dotted line will appear 
+between them and the others.
+	Under the Project menu, choose "Set Project Type...".  Set the
+partition to at least 500k (sufficient for contact sensors), change 
+the creator to "GLEE" and change the Multifinder options to 
+"Background NULL events". Make sure that the code generation 
+option (Edit menu) <MacHeaders> is checked.
+	For the utility programs, new projects must be created 
+to compile the config.c and table.c files separately. Do this
+if any changes are made to defs.h as well.
+
+4.3. Utility programs
+
+	Two utility programs make it easier to prepare the two
+files (named <filename>.cf and <filename>.tb) that are necessary 
+to set up and run a simulation.
+ 
+4.3.1. Config
+
+	The file config.c contains the source code for generating 
+configuration (.cf) files. The configuration for a simulation
+consists of a description of the neural net's architecture
+(number of layers including input, number of units per layer,
+etc) plus other individual features such as the size of the
+gut (max number of elements it may contain) and the types of
+sensors and motors.
+	In Unix, to create a configuration file, type "config". 
+For the Macintosh, just double-click on the config icon.
+The .cf extension is added automatically, while the
+filename must be given: "test" is the lee default, and if
+another filename is chosen then lee must be told by using the
+-f options. This helps in distinguishing different experiments.
+
+4.3.2. Table
+
+	The file table.c contains the source code for
+generating table (.tb or tu) files. The table for a simulation 
+consists, first, of a description of the spacial distributions and
+for atomic elements. Elements of each type are generated 
+by a replenishment function according to a 2-D normal
+distribution for which the experimenter must specify center
+coordinates, peakedness, and magnitude. Second, the table
+contains the entries for all the "chemical" reactions as
+described in the section on data structures.
+	In Unix, to create a table file, type "table". 
+For the Macintosh, just double-click on the table icon.
+The extension is added automatically (tb for binary reactions,
+tu for unary reactions), while the filename (which must 
+coincide with the .cf one) must be given: "test" is 
+the lee default, and if another filename is chosen then lee must
+be told by using the -f options. This helps in distinguishing
+different experiments.
+
+4.4. LEE source code 
+
+	The files defs.h and globals.c contain all of the 
+simulation parameters. Many of the parameters can be set 
+at run time with command-line options. Changes in these 
+files will require recompilation. However, users should only 
+need to change values of constants in defs.h. Most of the 
+variables and constants should be sufficiently commented to 
+understand their usage. 
+	main.c has the main() function, initialization
+procedures, printing information to stdout, options
+processing, usage, etc.
+	include.c has code that was taken from other sources.
+Routines in this file deal with command-line option processing
+and pseudo-random numbers. A portable random number generator
+was taken from the GAucsd package. 
+	io.c contains most of the routines that deal with
+input/output, either from/to standard input and ouput and
+files. For example all the checkpointing is done by these
+routines in order to save/load the current state of a
+simulation.
+	net.c contains all the routines relative to the neural
+nets management, such as initialization, memory allocation, 
+spreading of activation, logistic function computation, 
+back-propagation, etc. Note that in the current version the
+phenotype weights are simply copied by the genotype ones. In
+future versions, we expect that more complex mechamisms may 
+guide this developmental process.
+        populati.c contains the function that performs the
+main generational loop: for each time step, each individual is
+given a stochastic chance at a "life cycle". This stochastic
+mechanism is an unbiased way to implement serially the
+parallel life process. An outer generational loop is
+maintained mainly for checkpointing and data collection 
+purposes. Other functions in this file deal with population
+initialization, reproduction, death, mutation, and other
+population handling routines. Note that in the current version
+mutation is the only genetic operator available. Uniform
+(float) deviate mutation is applied to the genotype weights and
+biases of the network at reproduction, and other types of 
+mutation are devised ad-hoc for the sensory-motor system.
+        world.c contains all of the routines that handle 
+the world: initialization, interaction with the organisms, 
+chemical reactions, and replenishment of atomic elements. 
+	body.c contains all of the routines that handle
+the sensory-motor apparatus and their mutation operators. 
+	stats.c containes a function, save_dat(), 
+which the experimenter is supposed to tailor to
+his/her needs for the purpose of performing data collection.
+As an example of useful statistics and how to compute them,
+stats.c.ex contains a typical example of how to implement 
+this function.
+	Finally, interact.c contains all the routines with
+system-dependencies, i.e. interactive vs. non-interactive
+version compatibility differences. Note that in the 
+current version, the only interactive environment is
+the Macintosh one, where a graphic representation of the world
+and the life process can be observed on the screen. The
+Macintosh version, however, can also work in non-interactive
+mode. In future versions, there might also be an
+interactive mode in the Unix version using the X interface. 
+	The files macdisplay.c and macinterface.c are for the 
+Macintosh version only and are not necessary in Unix.
+
+5. Running the program
+
+5.1. Input 
+
+	The .cf and .tb created with config and table must me
+in the simulation folder/directory along with the lee executable.
+
+5.1.1. Non-interactive
+
+	Run lee by typing "lee" alone or followed by 
+command-line options.  Type "lee -u" for a list of the available 
+options with a brief explanation of their function. For
+example, the -v option allows to select the verbose level (the
+noninteractive default is 1, the lowest which allows data saving 
+and checkpointing).
+
+5.1.2. Interactive
+
+	Run lee by double-clicking on the LEE application
+icon; a window will pop-up to allow Unix-like command-line
+options. If the program exits with malloc errors, it probably
+does not have sufficient memory to run. This will happen , for
+example, with ambient sensors which require a lot of dynamic
+memory. In such cases, increase the memory size as needed
+using the 'Get Info' command (in the File menu of the Finder)
+for the lee application.
+
+5.1.2.1. Menus
+	The menus allow user interface with the simulation in the
+Macintosh application.  There are three menus:  File, Options, and
+Graphs.
+
+5.1.2.1.1   File Menu
+	The file menu allows the user to save the current state of 
+the simulation, load an old saved state, or to quit the application.
+[Save/Load functions are not yet implemented but can be
+obtained through command-line options as in Unix.] Note that
+Command-Q to quit in non-interactive mode (see next section) with 
+verbose > 0 is not functioning (known bug).
+
+5.1.2.1.2   Options Menu
+	Interactive mode - Unselecting this option will cause the Mac
+to emulate the UNIX version of the simulation. Selecting it
+allows a graphical representation of the LEE environment. 
+The simulation runs considerably faster with interactive mode 
+turned off.  Since the default value of verbose 
+on the Mac is 0 (off), the command line option to set
+verbose to 1 or higher must be given to cause any output to the
+console window.  This can be set in the initial window at the
+beginning of the simulation (by typing LEE.proj "-v 1" for example).
+	Lasso On - This option causes a selected organism to be
+tracked with the zoomWindow when it moves.  If this option is off, the
+zoomWindow will switch to a different item in the cell if the organism
+moves out of the cell. This feature has a bug.
+	Pause - Useful for examining organisms.
+
+5.1.3.1.3   Graphs Menu 	[Unimplemented.]
+
+5.2. Output
+
+5.2.1. Non-interactive
+
+5.2.1.1. Standard Output
+
+	The verbose level determines the amount of information
+printed to the standard output in the non-interactive version
+or to the console in non-interactive mode. 
+Level 0 means nothing is printed on stdout and no checkpointing, 
+data or error files are saved. This is the default for the
+interactive case. Levels 1 and up send increasing amounts 
+of information to stdout (redirection to a file can be used);
+data and checkpointing files are saved (the latter according to 
+the -e option; default is saving only at the end of the 
+simulation). 
+
+5.2.1.2. Files
+
+	Most non-interactive output is done through files. 
+The <gen>.wld and <gen>.ind files contain information 
+needed for checkpointing (<gen> is the generation number). The 
+former refers to world data and the latter to state and population 
+data. Checkpointing is determined by the -e (for saving) and
+-g (for loading) options. The super<n>.ind files (according to
+the -d command line option) contain descriptions of the best 
+individuals, ranked by <n>. The <filename>.err file contains 
+backpropagation sum-squared errors (<filename> is the same as 
+for the .cf and .tb files). 
+	The files <seed>.dat and <seed>.gen contain, for each 
+generation, data relative to the simulation (<seed> is the 
+random generator seed number, either generated by a time routine 
+or set with the -R option). The .gen file has the energies of 
+all the organisms (can be used for energy istograms). It is
+not saved with lowest verbose level.
+	The .dat file contains by default, for each line, 
+generation number and population size, separated by tabs. 
+These data can be used to analyse/monitor the simulation results
+using any plotting program. Additionally, the experimenter may
+want to keep track of other data and/or statystical measures 
+computed throughout the simulation. This can be done most easily 
+following the template in the function save_dat() in the stats.c 
+file. In the current version, there is a variant (stats.c.ex) of 
+this file to collect population-wide statistics for experiments 
+to study the evolution of age, reproductive success, etc. The 
+function save_dat() is called once for each generation, and each 
+datum should be printed on the .dat file preceded by a tab 
+separator, on the same line (without new-line characters).
+Notice that in a steady-state GA there is no such thing as a
+global generation, so here 'generation' is simply a time
+interval used for collecting statistics. It corresponds to a
+number of lifecycles determined by the -s option (default is
+INIT_LIFE_CYCLES parameter).
+
+5.2.2. Interactive
+
+	Files are saved just as in the interactive case (data,
+checkpointing, etc.). Standard output can also be saved to a file.
+
+5.2.2.1. Windows
+	console - This is the UNIX emulation window and can be used to
+have the Macintosh emulate the UNIX version of LEE by setting the
+verbose level > 0 with the -v command line option and (eventually)
+unselecting interactive from the Options menu.  Otherwise, this 
+window is hidden behind the other windows.
+	LEE - This is the window showing the toroidal world, 
+with all the organisms and food elements.  Food is represented by
+three shades of gray (more than three types of food will cause the
+additional types to be indistinguishable without zooming).  Organisms
+and their facings are represented by a circle with a wedge missing in
+the direction of facing.  In the case of multiple items in a cell,
+the last organism in the cell is displayed if there is an organism,
+otherwise the last food item in the cell is displayed.
+	zoomWindow - This window allows the user to examine the
+contents of a specific cell.  By clicking on a cell in the LEE window,
+the zoomWindow is brought up for that cell.  When multiple items are
+present in a selected cell, the previous and next arrows are
+activated, allowing the user to scroll through the items in the cell.
+For food items, the number of the item (starting from 0)
+and the type of food is displayed.  For organisms, the item number is
+displayed, the energy of the organism given, and the neural network of
+the organism is shown.  The network is represented by drawing negative
+weighted connections as thin gray lines for medium negative values and
+thick gray lines for high negative values.  High and medium positive
+values are drawn as thick and thin black lines respectively.  The bias
+of the node is shown by drawing a bias of 0 as a gray-filled circle, a
+negative bias as light gray or white depending on the value, and a
+positive bias as dark gray or black. The rightmost output nodes 
+(as many as the number of input nodes) are those used to predict 
+the input at the next time step, used to train the net.
+ 
+Appendix. Getting the code
+
+The LEE software can be obtained via anonymous ftp
+from cs.ucsd.edu in the directory pub/LEE.
+For inquires, please email to Filippo Menczer (fil@ucsd.edu).
+
+======================== END OF LEE.DOC =========================

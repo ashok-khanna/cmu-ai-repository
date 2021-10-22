@@ -1,0 +1,372 @@
+From Qobi@CS.Toronto.EDU Wed Mar 16 22:52:26 EST 1994
+Article: 12311 of comp.lang.lisp
+Xref: glinda.oz.cs.cmu.edu comp.lang.lisp:12311 gnu.emacs.help:17998
+Path: honeydew.srv.cs.cmu.edu!bb3.andrew.cmu.edu!news.sei.cmu.edu!cis.ohio-state.edu!math.ohio-state.edu!cyber2.cyberstore.ca!nntp.cs.ubc.ca!utcsri!newsServ.csri!qobi
+Newsgroups: comp.lang.lisp,gnu.emacs.help
+From: qobi@qobi.ai.toronto.edu (Jeffrey Mark Siskind)
+Subject: Re: Source Level Debug support for Inferior LISP
+Message-ID: <QOBI.94Mar16164659@qobi.ai.toronto.edu>
+Reply-To: Qobi@CS.Toronto.EDU
+In-reply-to: srini@ale.usask.ca's message of 16 Mar 1994 17:41:58 GMT
+Organization: Department of Computer Science, University of Toronto
+References: <2m7gd6$2g7@tribune.usask.ca>
+Date: 16 Mar 94 21:47:00 GMT
+Lines: 355
+
+   Is there any Emacs-Lisp package that allow me to do source-level debugging
+   of
+   Inferior Common Lisp process running in Emacs buffer. 
+   I am using Allegro Common LISP and GNU Emacs 19.22
+
+I wrote a simple extension to ILisp 5.x that provides a number of single
+character key bindings to the most common debugger commands. This has two
+advantages over the native debugger interface.
+
+1. You can go up and down the stack by holding down c- and m- and typing
+several p's or n's in succession, which is much easier than typing
+: u p <return> : u p <return> etc.
+
+2. The same interface works across many different CommonLisps (Lucid, Allegro,
+CMUCL, AKCL for now, other easily added) with the same key bindings so you
+don't have to remember all of the arcane different commands for different
+implementation's debuggers.
+
+The code is included at the end of this posting. Some of the stuff is
+hardwired to the pathnames on my system so you'll have to make appropriate
+changes.
+	Jeff
+-------------------------------------------------------------------------------
+;;; ILD: A common Common Lisp debugger user interface for ILisp.
+;;;   ---Jeffrey Mark Siskind
+
+;;; Keystroke c-u? What it does
+;;; ---------------------------------------------------------
+;;; m-a            Abort
+;;; m-c            Continue
+;;; c-m-n     *    Next stack frame
+;;; c-m-p     *    Previous stack frame
+;;; c-c <          Top stack frame
+;;; c-c >          Bottom stack frame
+;;; m-b            Backtrace
+;;; c-m-d          Display all locals
+;;; c-m-l     *    Display particular local
+;;; c-c r          Return
+;;; c-m-r          Retry
+;;; c-x t          Trap on exit
+
+(require 'ilisp)
+
+(deflocal ild-abort-string nil)
+(deflocal ild-continue-string nil)
+(deflocal ild-next-string nil)
+(deflocal ild-next-string-arg nil)
+(deflocal ild-previous-string nil)
+(deflocal ild-previous-string-arg nil)
+(deflocal ild-top-string nil)
+(deflocal ild-bottom-string nil)
+(deflocal ild-backtrace-string nil)
+(deflocal ild-locals-string nil)
+(deflocal ild-local-string-arg nil)
+(deflocal ild-return-string nil)
+(deflocal ild-retry-string nil)
+(deflocal ild-trap-on-exit-string nil)
+
+(defun ild-debugger-command (string)
+ (process-send-string (get-buffer-process (current-buffer))
+		      (format "%s\n" string)))
+
+(defun ild-prompt ()
+ (save-excursion
+  (beginning-of-line)
+  (comint-skip-prompt)
+  (eobp)))
+
+(defun ild-abort ()
+ (interactive)
+ (ild-debugger-command ild-abort-string))
+
+(defun ild-continue (&optional arg)
+ (interactive "P")
+ (if (ild-prompt)
+     (ild-debugger-command ild-continue-string)
+     (if arg (capitalize-word arg) (capitalize-word 1))))
+
+(defun ild-next (&optional arg)
+ (interactive "P")
+ (if arg
+     (ild-debugger-command (format ild-next-string-arg arg))
+     (ild-debugger-command ild-next-string)))
+
+(defun ild-previous (&optional arg)
+ (interactive "P")
+ (if arg
+     (ild-debugger-command (format ild-previous-string-arg arg))
+     (ild-debugger-command ild-previous-string)))
+
+(defun ild-top (&optional arg)
+ (interactive "P")
+ (ild-debugger-command ild-top-string))
+
+(defun ild-bottom (&optional arg)
+ (interactive "P")
+ (ild-debugger-command ild-bottom-string))
+
+(defun ild-backtrace (&optional arg)
+ (interactive "P")
+ (if (ild-prompt)
+     (ild-debugger-command ild-backtrace-string)
+     (if arg (backward-word arg) (backward-word 1))))
+
+(defun ild-locals (&optional arg)
+ (interactive "P")
+ (ild-debugger-command ild-locals-string))
+
+(defun ild-local (&optional arg)
+ (interactive "P")
+ (if arg
+     (ild-debugger-command (format ild-local-string-arg arg))
+     (ild-debugger-command ild-locals-string)))
+
+(defun ild-return ()
+ (interactive)
+ (ild-debugger-command ild-return-string))
+
+(defun ild-retry ()
+ (interactive)
+ (ild-debugger-command ild-retry-string))
+
+(defun ild-trap-on-exit (&optional arg)
+ (interactive "P")
+ (ild-debugger-command ild-trap-on-exit-string))
+
+(defun stack-limit-lisp (limit)
+ "Set the stack limit for the next inferior lisp process to be created."
+ (interactive "nLimit: ")
+ (setq clim-program
+       (format "/bin/csh /u/qobi/bin/limit-lisp %d" limit)))
+
+(defun fast-lisp ()
+ "Use the production compiler."
+ (interactive)
+ (ilisp-send "(progn (proclaim '(optimize (speed 3) (safety 0) (space 0) (compilation-speed 0) (debug 0))) #+akcl (use-fast-links t))"))
+
+(defun slow-lisp ()
+ "Use the development compiler."
+ (interactive)
+ (ilisp-send "(progn (proclaim '(optimize (speed 0) (safety 3) (space 3) (compilation-speed 3) (debug 3))) #+akcl (use-fast-links nil))"))
+
+(defun select-lisp ()
+ "Select the lisp buffer in one window mode"
+ (interactive)
+ (cond ((and (lisp-mem ilisp-buffer
+		       (buffer-list)
+		       (function (lambda (x y) (equal x (buffer-name y)))))
+	     (get-buffer-process (get-buffer ilisp-buffer)))
+	(delete-other-windows)
+	(switch-to-buffer ilisp-buffer))
+       (t (cond ((equal (system-name) "qobi.ai.toronto.edu") (clim))
+		((equal (system-name) "dvp.cs") (allegro)))
+	  (delete-other-windows))))
+
+(defun select-ilisp (arg)
+ "Select the current ILISP buffer."
+ (interactive "P")
+ (if (and (not arg)
+          (lisp-mem
+	   (buffer-name (current-buffer))
+	   ilisp-buffers
+	   (function (lambda (x y) (equal x (format "*%s*" (car y)))))))
+     (setq ilisp-buffer (buffer-name (current-buffer)))
+     (let ((new (completing-read
+		 (if ilisp-buffer
+		     (format "Buffer [%s]: "
+			     (substring ilisp-buffer 1
+					(1- (length ilisp-buffer))))
+		     "Buffer: ")
+		 ilisp-buffers nil t)))
+      (if (not (zerop (length new)))
+	  (setq ilisp-buffer (format "*%s*" new))))))
+
+;;; This fixes a bug in ILISP 4.1
+
+(defun defkey-ilisp (key command &optional inferior-only)
+ "Define KEY as COMMAND in ilisp-mode-map and lisp-mode-map unless
+optional INFERIOR-ONLY is T.  If the maps do not exist they will be
+created.  This should only be called after ilisp-prefix is set to the
+desired prefix."
+ (if (not ilisp-mode-map) (ilisp-bindings))
+ (define-key ilisp-mode-map key command)
+ (if (not inferior-only) (define-key lisp-mode-map key command)))
+
+;;; This is a convenient command since c-Z c-W doesn't default to the whole
+;;; buffer if there is no region
+
+(defun compile-buffer ()
+ "Compile the current buffer"
+ (interactive)
+ (compile-region-and-go-lisp (point-min) (point-max)))
+
+(defkey-ilisp "\M-a"    'ild-abort t)
+(defkey-ilisp "\M-c"    'ild-continue t)
+(defkey-ilisp "\C-\M-n" 'ild-next t)
+(defkey-ilisp "\C-\M-p" 'ild-previous t)
+(defkey-ilisp "\C-c<"   'ild-top t)
+(defkey-ilisp "\C-c>"   'ild-bottom t)
+(defkey-ilisp "\M-b"    'ild-backtrace t)
+(defkey-ilisp "\C-\M-d" 'ild-locals t)
+(defkey-ilisp "\C-\M-l" 'ild-local t)
+(defkey-ilisp "\C-cr"   'ild-return t)
+(defkey-ilisp "\C-\M-r" 'ild-retry t)
+(defkey-ilisp "\C-xt"   'ild-trap-on-exit t)
+(define-key   global-map     "\C-cL" 'select-lisp)
+(ilisp-defkey lisp-mode-map  "\C-f"  'fast-lisp)
+(ilisp-defkey ilisp-mode-map "\C-f"  'fast-lisp)
+(ilisp-defkey lisp-mode-map  "\C-s"  'slow-lisp)
+(ilisp-defkey ilisp-mode-map "\C-s"  'slow-lisp)
+
+(defdialect lucid "Lucid Common LISP"
+  clisp
+  (ilisp-load-init 'lucid "lucid.lisp")
+  (setq comint-prompt-regexp "^\\(->\\)+ \\|^[^> ]*> "
+	comint-fix-error ":a"
+	ilisp-reset ":a :t"
+	comint-continue ":c"
+	comint-interrupt-regexp ">>Break: Keyboard interrupt"
+	comint-prompt-status 
+	(function (lambda (old line)
+	  (comint-prompt-status old line 'lucid-check-prompt))))
+  (setq ilisp-error-regexp "ILISP:[^\"]*\\|>>[^\n]*")
+  (setq ilisp-source-types (append ilisp-source-types '(("any"))))
+  (setq ilisp-find-source-command 
+	"(ILISP:ilisp-source-files \"%s\" \"%s\" \"%s\")")
+  (setq ilisp-binary-command 
+	"(first (last lucid::*load-binary-pathname-types*))")
+  (setq ild-abort-string ":A"
+	ild-continue-string ":C"
+	ild-next-string ":N"
+	ild-next-string-arg ":N %s"
+	ild-previous-string ":P"
+	ild-previous-string-arg ":P %s"
+	ild-top-string ":<"
+	ild-bottom-string ":>"
+	ild-backtrace-string ":B"
+	ild-locals-string ":V"
+	ild-local-string-arg ":L %s"
+	ild-return-string ":R"
+	ild-retry-string ":F"
+	ild-trap-on-exit-string ":X T"))
+(setq lucid-program "/u/qobi/lucid/lisp/lisp-4.1.1")
+
+(defdialect clim "Lucid CLIM" lucid)
+(setq clim-program "/u/qobi/lucid/lisp/lisp-clim")
+
+(defdialect qsim "Lucid QSIM" lucid)
+(setq qsim-program "/u/qobi/lucid/lisp/lisp-qsim")
+
+(defdialect allegro "Allegro Common LISP"
+  clisp
+  (ilisp-load-init 'allegro "allegro.lisp")
+  (setq comint-fix-error ":pop"
+	ilisp-reset ":reset"
+	comint-continue ":cont"
+	comint-interrupt-regexp  "Error: [^\n]* interrupt\)")
+  (setq comint-prompt-status 
+	(function (lambda (old line)
+	  (comint-prompt-status old line 'allegro-check-prompt))))
+  ;; <cl> or package> at top-level
+  ;; [0-9c] <cl> or package> in error
+  ;; (setq comint-prompt-regexp "^\\(\\[[0-9]*c*\\] \\|\\)\\(<\\|\\)[^>]*> ")
+  (setq comint-prompt-regexp "^\\(\\[[0-9]+i?c?\\] \\|\\[step\\] \\)?\\(<?[-A-Za-z]* ?[0-9]*?>\\|[-A-Za-z0-9]+([0-9]+):\\) ")
+  (setq ilisp-error-regexp
+	"\\(ILISP:[^\"]*\\)\\|\\(Error:[^\n]*\\)\\|\\(Break:[^\n]*\\)")
+
+  (setq ilisp-binary-command "excl:*fasl-default-type*")
+  (setq ilisp-source-types (append ilisp-source-types '(("any"))))
+  (setq ilisp-find-source-command 
+	"(ILISP:ilisp-source-files \"%s\" \"%s\" \"%s\")")
+  (setq ilisp-init-binary-command 
+	"(let ((ext (or #+m68k \"68fasl\"
+		        #+sparc \"sfasl\"
+		        #+iris4d \"ifasl\"
+                        #+dec3100 \"pfasl\"
+                        excl:*fasl-default-type*)))
+           #+allegro-v4.0 (setq ext (concatenate 'string ext \"4\"))
+           ext)")
+  (setq ild-abort-string ":pop"
+	ild-continue-string ":cont"
+	ild-next-string ":dn"
+	ild-next-string-arg ":dn %s"
+	ild-previous-string ":up"
+	ild-previous-string-arg ":up %s"
+	ild-top-string ":to"
+	ild-bottom-string ":bo"
+	ild-backtrace-string ":bt"
+	ild-locals-string ":local"
+	ild-local-string-arg ":local %s"
+	ild-return-string ""		;needs work
+	ild-retry-string ":rest"
+	ild-trap-on-exit-string ":boe"))
+(setq allegro-program "/local/lib/cl/bin/clim2xm_composer")
+
+
+(defdialect akcl "Austin Kyoto Common LISP"
+ kcl
+ (setq comint-prompt-regexp "^[-A-Z]*>+")
+ (setq ild-abort-string ":q"
+       ild-continue-string ":r"
+       ild-next-string ":up"
+       ild-next-string-arg ":up %s"
+       ild-previous-string ":down"
+       ild-previous-string-arg ":down %s"
+       ild-top-string ":down 1000000"
+       ild-bottom-string ":up 1000000"
+       ild-backtrace-string ":bt"
+       ild-locals-string ":fr"
+       ild-local-string-arg ":loc %s"
+       ild-return-string ":r"
+       ild-retry-string ""		;needs work
+       ild-trap-on-exit-string ""))	;needs work
+(setq akcl-program "akcl")
+
+(defdialect pcl "Austin Kyoto Common LISP with PCL" akcl)
+(setq pcl-program "pcl")
+
+(defdialect cmulisp "CMU Common LISP"
+  clisp
+  (ilisp-load-init 'cmu "cmulisp.lisp")
+  (if cmulisp-local-source-directory
+      (setq ilisp-source-directory-fixup-alist
+	    (list 
+	     (cons cmulisp-source-directory-regexp
+		   cmulisp-local-source-directory)))
+    (message "cmulisp-local-source-directory not set."))
+  (setq comint-prompt-regexp "^\\([0-9]+\\]+\\|\\*\\) "
+	ilisp-trace-command "(ILISP:cmulisp-trace \"%s\" \"%s\" \"%s\")"
+	comint-prompt-status 
+	(function (lambda (old line)
+	  (comint-prompt-status old line 'cmulisp-check-prompt)))
+	ilisp-error-regexp "ILISP:[^\"]*\\|Error [^\n]*"
+	ilisp-arglist-command "(ILISP:arglist \"%s\" \"%s\")"
+	ilisp-find-source-command "(ILISP:source-file \"%s\" \"%s\" \"%s\")"
+	comint-fix-error ":pop"
+	comint-continue ":go"
+	ilisp-reset ":q"
+	comint-interrupt-regexp "Interrupted at"
+	ilisp-binary-extension "sparcf")
+  (setq ild-abort-string ":abort"
+	ild-continue-string ":go"
+	ild-next-string ":down"
+	ild-next-string-arg ""		;needs work
+	ild-previous-string ":up"
+	ild-previous-string-arg ""	;needs work
+	ild-top-string ":bottom"
+	ild-bottom-string ":top"
+	ild-backtrace-string ":backtrace"
+	ild-locals-string ":l"
+	ild-local-string-arg "(debug:arg %s)"
+	ild-return-string ""		;needs work (debug:debug-return x)
+	ild-retry-string ""
+	ild-trap-on-exit-string ""))
+(setq cmulisp-program "/u/qobi/cmucl/bin/cmucl")
+
+

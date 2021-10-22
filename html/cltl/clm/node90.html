@@ -1,0 +1,156 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node90.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:47:30 GMT -->
+<HEAD>
+<TITLE>7.8.4. Mapping</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Mapping">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2649 HREF="node91.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2647 HREF="node86.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2641 HREF="node89.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2651 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2652 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2650 HREF="node91.html"> The ``Program Feature''</A>
+<B>Up:</B> <A NAME=tex2html2648 HREF="node86.html"> Iteration</A>
+<B> Previous:</B> <A NAME=tex2html2642 HREF="node89.html"> Simple Iteration Constructs</A>
+<HR> <P>
+<H2><A NAME=SECTION001184000000000000000>7.8.4. Mapping</A></H2>
+<P>
+<A NAME=7393>Mapping</A>
+is a type of iteration in which a function is 
+successively applied to pieces of one or more sequences.
+The result of the iteration is a sequence containing the respective
+results of the function applications.
+There are several options for the way in which the pieces of the list are
+chosen and for what is done with the results returned by the applications of
+the function.
+<P>
+The function <tt>map</tt> may be used to map over any kind of sequence.
+The following functions operate only on lists.
+<P>
+<BR><b>[Function]</b><BR>
+<pre>
+mapcar <i>function</i> <i>list</i> &amp;rest <i>more-lists</i> 
+maplist <i>function</i> <i>list</i> &amp;rest <i>more-lists</i> 
+mapc <i>function</i> <i>list</i> &amp;rest <i>more-lists</i> 
+mapl <i>function</i> <i>list</i> &amp;rest <i>more-lists</i> 
+mapcan <i>function</i> <i>list</i> &amp;rest <i>more-lists</i> 
+mapcon <i>function</i> <i>list</i> &amp;rest <i>more-lists</i>
+</pre>
+<P>
+For each of these mapping functions,
+the first argument is a function and the rest must be lists.
+The function must take as many arguments as there are lists.
+<P>
+<tt>mapcar</tt> operates on successive elements of the lists.
+First the function is applied to the <i>car</i> of each list,
+then to the <i>cadr</i> of each list, and so on.
+(Ideally all the lists are the same length; if not,
+the iteration terminates when the shortest list runs out,
+and excess elements in other lists are ignored.)
+The value returned by <tt>mapcar</tt> is a list of the
+results of the successive calls to the function.
+For example:
+<P><pre>
+(mapcar #'abs '(3 -4 2 -5 -6)) => (3 4 2 5 6) 
+(mapcar #'cons '(a b c) '(1 2 3)) => ((a . 1) (b . 2) (c . 3))
+</pre><P>
+<P>
+<tt>maplist</tt> is like <tt>mapcar</tt> except that the function is applied to
+the lists and successive <i>cdr</i>'s of those lists rather than to successive
+elements of the lists.
+For example:
+<P><pre>
+(maplist #'(lambda (x) (cons 'foo x)) 
+         '(a b c d)) 
+   => ((foo a b c d) (foo b c d) (foo c d) (foo d))
+</pre><P>
+<P>
+<P><pre>
+(maplist #'(lambda (x) (if (member (car x) (cdr x)) 0 1))) 
+         '(a b a c d b c)) 
+   => (0 0 1 0 1 1 1) 
+   ;An entry is <tt>1</tt> if the corresponding element of the input 
+   ; list was the last instance of that element in the input list.
+</pre><P>
+<P>
+<tt>mapl</tt> and <tt>mapc</tt> are like <tt>maplist</tt> and <tt>mapcar</tt>,
+respectively, except that they do not accumulate the results
+of calling the function.
+<P>
+<hr>
+<b>Compatibility note:</b> In all Lisp systems since Lisp 1.5,
+<tt>mapl</tt> has been called <tt>map</tt>.  In the chapter on sequences
+it is explained why this was a bad choice.  Here the name <tt>map</tt>
+is used for the far more useful generic sequence mapper,
+in closer accordance with the computer science literature,
+especially the growing body of papers on functional programming.
+Note that this remark, predating the design of the Common Lisp Object System,
+uses the term ``generic'' in a generic sense and not necessarily
+in the technical sense used by CLOS
+(see chapter <A HREF="node15.html#DTYPES">2</A>).
+<hr>
+<P>
+These functions are used when the function is being called merely for its
+side effects rather than for its returned values.
+The value returned by <tt>mapl</tt> or <tt>mapc</tt> is the second argument,
+that is, the first sequence argument.
+<P>
+<tt>mapcan</tt> and <tt>mapcon</tt> are like <tt>mapcar</tt> and <tt>maplist</tt>, respectively,
+except that they combine the results of
+the function using <tt>nconc</tt> instead of <tt>list</tt>.  That is,
+<P><pre>
+(mapcon <i>f</i> <i>x1</i> ... <i>xn</i>) 
+   == (apply #'nconc (maplist <i>f</i> <i>x1</i> ... <i>xn</i>))
+</pre><P>
+and similarly for the relationship between <tt>mapcan</tt> and <tt>mapcar</tt>.
+Conceptually, these functions allow the mapped function to return
+a variable number of items to be put into the output list.
+This is particularly useful for effectively returning zero or one item:
+<P><pre>
+(mapcan #'(lambda (x) (and (numberp x) (list x))) 
+        '(a 1 b c 3 4 d 5)) 
+   => (1 3 4 5)
+</pre><P>
+In this case the function serves as a filter; this is a standard Lisp
+idiom using <tt>mapcan</tt>.
+(The function <tt>remove-if-not</tt> might have been useful in this
+particular context, however.)
+Remember that <tt>nconc</tt> is a destructive operation, and therefore
+so are <tt>mapcan</tt> and <tt>mapcon</tt>; the lists returned by the <i>function</i>
+are altered in order to concatenate them.
+<P>
+Sometimes a <tt>do</tt> or a straightforward recursion is preferable to a
+mapping operation;  however, the mapping functions should be used wherever they
+naturally apply because this increases the clarity of the code.
+<P>
+The functional argument to a mapping function must be acceptable
+to <tt>apply</tt>; it cannot be a macro or the name of a special form.
+Of course, there is nothing wrong with using a function that has <tt>&amp;optional</tt>
+and <tt>&amp;rest</tt> parameters as the functional argument.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1988 (FUNCTION-TYPE) <A NAME=7454>&#160;</A>  to allow the <i>function</i>
+to be only of type <tt>symbol</tt> or <tt>function</tt>; a lambda-expression
+is no longer acceptable as a functional argument.  One must use the
+<tt>function</tt> special form or the abbreviation <tt>#'</tt> before
+a lambda-expression that appears as an  explicit argument form.
+<P>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=7462>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html2649 HREF="node91.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2647 HREF="node86.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2641 HREF="node89.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2651 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2652 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2650 HREF="node91.html"> The ``Program Feature''</A>
+<B>Up:</B> <A NAME=tex2html2648 HREF="node86.html"> Iteration</A>
+<B> Previous:</B> <A NAME=tex2html2642 HREF="node89.html"> Simple Iteration Constructs</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

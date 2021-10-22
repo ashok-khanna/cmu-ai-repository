@@ -1,0 +1,226 @@
+;; NETATI25.INF (Windows 9x/2000 combined network installation file)
+;;
+;; Allied Telesyn AT-2500 Series PCI Ethernet Adapters
+;;
+;; Copyright 1996-2000, Allied Telesyn International
+;;
+
+[version]
+Signature    = "$Chicago$"
+Compatible   = 1
+Class        = Net
+ClassGUID    = {4d36e972-e325-11ce-bfc1-08002be10318}
+Provider     = %Allied%                                 
+CatalogFile = a25v3m5.cat                              
+DriverVer    = 06/08/2000,5.376.0608.2000
+
+[Manufacturer]
+%Allied%   = Allied
+
+[ControlFlags]
+ExcludeFromSelect    = PCI\VEN_10EC&DEV_8139 , \
+ 		       PCI\VEN_10EC&DEV_8139&SUBSYS_25001259 , \
+ 		       PCI\VEN_10EC&DEV_8139&SUBSYS_25031259 , \
+ 		       PCI\VEN_10EC&DEV_8139&SUBSYS_25301259 , \
+
+[Allied]
+%AT2500.DeviceDesc%  = AT2500.ndi, PCI\VEN_10EC&DEV_8139&SUBSYS_25001259
+%AT2503.DeviceDesc%  = AT2500.ndi, PCI\VEN_10EC&DEV_8139&SUBSYS_25031259
+%AT2530.DeviceDesc%  = AT2500.ndi, PCI\VEN_10EC&DEV_8139&SUBSYS_25301259
+
+;;****************************************************************************
+;; Windows 9x
+;;****************************************************************************
+[AT2500.ndi]
+DriverVer       = 06/08/2000, 376
+AddReg          = AT2500.id.reg, AT2500.common.reg, AT2500.win.reg, AT2500.autondis.reg
+CopyFiles       = AT2500.CopyDLL, AT2500.CopyFiles98
+
+;;****************************************************************************
+;; Windows 2000
+;;****************************************************************************
+[AT2500.ndi.NT]
+AddReg          = AT2500.common.reg, AT2500.reg
+Characteristics = 0x84
+BusType         = 5
+CopyFiles       = AT2500.CopyFiles
+
+[AT2500.ndi.NT.Services]
+AddService = AT2500, 2, AT2500.Service, AT2500.EventLog
+
+
+;;***************************************************************************
+;; Windows 9x parameters
+;;***************************************************************************
+[AT2500.id.reg]
+HKR, Ndi, DeviceID,                             0,     "PCI\VEN_10EC&DEV_8139"
+
+HKR, Ndi\Install,                       ,       0,      AT2500.install
+HKR, NDI\Params\DuplexMode,             flag,   1,      30, 00, 00, 00
+HKR, Ndi\Params\EarlyTxThreshold,       flag,   1,      20, 00, 00, 00
+HKR, NDI\Params\NetworkAddress,         flag,   1,      30, 00, 00, 00
+HKR, NDI\Params\WakeUpFrame,            flag,   1,      30, 00, 00, 00
+
+[AT2500.win.reg]
+HKR, ,  DriverDesc,     0,      "AT-2500 Series NDIS 5.0 Miniport Driver"
+HKR, ,  DevLoader,      0,      *ndis
+HKR, ,  DeviceVxDs,     0,      A25v3m5.sys
+HKR, ,  EnumPropPages,  0,      netdi.dll,      EnumPropPages
+
+;;params
+HKR, ,  MediaType,      0,      1
+HKR, ,  AdapterType,    0,      5
+HKR, ,  BusType,        0,      5
+
+;; NDIS Info
+HKR, NDIS,              MajorNdisVersion,       1,      03
+HKR, NDIS,              MinorNdisVersion,       1,      0a
+HKR, NDIS,              LogDriverName,          0,      "AT2500"
+
+;; Interfaces
+HKR, Ndi\Interfaces,    DefLower,               ,       "ethernet"
+HKR, Ndi\Interfaces,    LowerRange,             ,       "ethernet"
+HKR, Ndi\Interfaces,    DefUpper,               ,       "ndis3"
+HKR, Ndi\Interfaces,    UpperRange,             ,       "ndis3"
+
+;; Install sections
+HKR, Ndi,               NdiInstaller,            ,      "ATINDI.DLL,MyNdiProc"
+HKR, Ndi\Install,       ndis3,                  0,      "AT2500.ndis5"
+
+[AT2500.autondis.reg]
+HKR, NDI\params\NDIS_VERSION,           flag,   1,      20, 00, 00, 00
+HKR,,NDIS_VERSION,,"AUTO"
+HKR,NDI\params\NDIS_VERSION,,,"AUTO"
+HKR,NDI\params\NDIS_VERSION,ParamDesc,,"NDIS Driver Version"
+HKR,NDI\params\NDIS_VERSION,type,,enum
+HKR,Ndi\params\NDIS_VERSION\enum,AUTO,,"Auto Select"
+HKR,Ndi\params\NDIS_VERSION\enum,NDIS3,,"NDIS 3"
+HKR,Ndi\params\NDIS_VERSION\enum,NDIS4,,"NDIS 4"
+HKR,Ndi\params\NDIS_VERSION\enum,NDIS5,,"NDIS 5"
+HKR,Ndi\params\NDIS_VERSION\Drivers,NDIS3,,"a25v3m.sys"
+HKR,Ndi\params\NDIS_VERSION\Drivers,NDIS4,,"a25v3m4.sys"
+HKR,Ndi\params\NDIS_VERSION\Drivers,NDIS5,,"a25v3m5.sys"
+
+;;****************************************************************************
+;; AT-2500 common parameters
+;;****************************************************************************
+[AT2500.common.reg]
+HKR, Ndi\params\DuplexMode,      ParamDesc,    0, %DuplexMode%
+HKR, Ndi\params\DuplexMode,      type,         0, "enum"
+HKR, Ndi\params\DuplexMode,      default,      0, "1"
+HKR, Ndi\params\DuplexMode\enum, 1,            0, %dmAutoMode%
+HKR, Ndi\params\DuplexMode\enum, 2,            0, %dm10HalfMode%
+HKR, Ndi\params\DuplexMode\enum, 3,            0, %dm10FullMode%
+HKR, Ndi\params\DuplexMode\enum, 4,            0, %dm100HalfMode%
+HKR, Ndi\params\DuplexMode\enum, 5,            0, %dm100FullMode%
+
+HKR,Ndi\Params\EarlyTxThreshold, ParamDesc,    0, %EarlyTxThreshold%
+HKR,Ndi\Params\EarlyTxThreshold, Type,         0, "int"
+HKR,Ndi\Params\EarlyTxThreshold, Default,      0, "38"
+HKR,Ndi\Params\EarlyTxThreshold, Min,          0, "0"
+HKR,Ndi\Params\EarlyTxThreshold, Max,          0, "63"
+HKR,Ndi\Params\EarlyTxThreshold, Step,         0, "1"
+HKR,Ndi\Params\EarlyTxThreshold, Base,         0, "10"
+
+HKR,Ndi\params\NetworkAddress,   ParamDesc,    0, %NetworkAddress%
+HKR,Ndi\params\NetworkAddress,   type,         0, "edit"
+HKR,Ndi\params\NetworkAddress,   default,      0, "000000000000"
+HKR,Ndi\params\NetworkAddress,   LimitText,    0, "12"
+HKR,Ndi\params\NetworkAddress,   UpperCase,    0, "1"
+HKR,Ndi\params\NetworkAddress,   Optional,     0, "1"
+
+HKR, Ndi\params\WakeUpFrame,       ParamDesc,  0, %WakeUpFrame%
+HKR, Ndi\params\WakeUpFrame,       default,    0, "0"
+HKR, Ndi\params\WakeUpFrame,       type,       0, "enum"
+HKR, Ndi\params\WakeUpFrame\enum,  "0",        0, "Enable"
+HKR, Ndi\params\WakeUpFrame\enum,  "1",        0, "Disable"
+
+HKR, Ndi\params\PME,               ParamDesc,  0, %APMWakeUp%
+HKR, Ndi\params\PME,               default,    0, "1"
+HKR, Ndi\params\PME,               type,       0, "enum"
+HKR, Ndi\params\PME\enum,          "0",        0, "Enable"
+HKR, Ndi\params\PME\enum,          "1",        0, "Disable"
+
+HKR, Ndi\params\EnableLDPS,        ParamDesc,  0, %LinkDown%
+HKR, Ndi\params\EnableLDPS,        default,    0, "0"
+HKR, Ndi\params\EnableLDPS,        type,       0, "enum"
+HKR, Ndi\params\EnableLDPS\enum,   "0",        0, "Disable"
+HKR, Ndi\params\EnableLDPS\enum,   "1",        0, "Enable"
+
+;;****************************************************************************
+;; NT 5.0 parameters
+;;****************************************************************************
+[AT2500.reg]
+HKR, Ndi\Interfaces,            UpperRange,    0, "ndis5"
+HKR, Ndi\Interfaces,            LowerRange,    0, "ethernet"
+HKR, Ndi,                       Service,       0, "AT2500"
+
+[AT2500.Service]
+DisplayName     = %AT2500.Service.DispName%
+ServiceType     = 1                             ; %SERVICE_KERNEL_DRIVER%
+StartType       = 3                             ; %SERVICE_DEMAND_START%
+ErrorControl    = 1                             ; %SERVICE_ERROR_NORMAL%
+ServiceBinary   = %12%\A25v3m5.SYS
+LoadOrderGroup  = NDIS
+
+[AT2500.EventLog]
+Addreg = AT2500.AddEventLog.reg
+
+[AT2500.AddEventLog.reg]
+HKR,    ,   EventMessageFile,   0x00020000, "%%SystemRoot%%\System32\netevent.dll"
+HKR,    ,   TypesSupported,     0x00010001, 7
+
+;;****************************************************************************
+;; Destination Directory
+;;****************************************************************************
+[DestinationDirs]
+AT2500.CopyFiles           = 12
+AT2500.CopyFiles98         = 11
+DefaultDestDir             = 12
+
+;;****************************************************************************
+;; Source Files
+;;****************************************************************************
+[SourceDisksNames]
+1 = %DISKNAME%,,,
+
+[SourceDisksFiles]
+A25v3m.sys    = 1
+A25v3m4.sys   = 1
+A25v3m5.sys   = 1
+netati25.inf  = 1
+atindi.dll    = 1
+a25v3m5.cat   = 1
+
+[AT2500.CopyFiles]
+A25v3m5.sys,,,2
+
+[AT2500.CopyFiles98]
+A25v3m.sys,,,2
+A25v3m4.sys,,,2
+A25v3m5.sys,,,2
+atindi.dll,,,2
+;a25v3m5.cat,,,2
+
+[AT2500.CopyDLL]
+atindi.dll,,,2
+
+[Strings]
+Allied                    = "Allied Telesyn"
+DISKNAME                  = "CardAssistant Diskette"
+NetworkAddress            = "Network Address (LAA)"
+EarlyTxThreshold          = "Early Tx Threshold"
+DuplexMode                = "Line Speed/Duplex Mode"
+dmAutoMode                = "Auto Detect"
+dm10HalfMode              = "10Mb/Half Duplex"
+dm10FullMode              = "10Mb/Full Duplex"
+dm100HalfMode             = "100Mb/Half Duplex"
+dm100FullMode             = "100Mb/Full Duplex"
+WakeUpFrame               = "Magic Packet"
+APMWakeUp                 = "APM WakeUp"
+LinkDown                  = "Link Down WakeUp"
+
+AT2500.DeviceDesc         = "Allied Telesyn AT-2500TX Series PCI Ethernet Adapter"
+AT2503.DeviceDesc         = "Allied Telesyn AT-2500TX (with Magic Packet) PCI Ethernet Adapter"
+AT2530.DeviceDesc         = "Allied Telesyn AT-2500BT PCI Ethernet Adapter"
+AT2500.Service.DispName   = "Allied Telesyn AT-2500 Series PCI Ethernet Adapter Driver"

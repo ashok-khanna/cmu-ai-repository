@@ -1,0 +1,140 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node213.html by HTTrack Website Copier/3.x [XR&CO'2014], Thu, 21 Oct 2021 14:58:19 GMT -->
+<HEAD>
+<TITLE>23.1.5.5. Discussion of Logical Pathnames</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Discussion of Logical Pathnames">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4218 HREF="node214.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4216 HREF="node208.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4212 HREF="node212.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4220 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4221 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4219 HREF="node214.html"> Pathname Functions</A>
+<B>Up:</B> <A NAME=tex2html4217 HREF="node208.html"> Logical Pathnames</A>
+<B> Previous:</B> <A NAME=tex2html4213 HREF="node212.html"> Examples of the </A>
+<HR> <P>
+<H3><A NAME=SECTION002715500000000000000>23.1.5.5. Discussion of Logical Pathnames</A></H3>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<P>
+  Large programs can be moved between sites without changing any
+  pathnames, provided all pathnames used are logical.  A portable system
+  construction tool can be created that operates on programs defined as
+  sets of files named by logical pathnames.
+<P>
+   Logical pathname syntax was chosen to be easily translated into the formats of most
+  popular file systems, while still being powerful enough for storing large
+  programs.  Although they have hierarchical directories, extended wildcard
+  matching, versions, and no limit on the length of names, logical pathnames can be
+  mapped onto a less capable real file system by translating each
+  directory that is used into a flat directory name, processing wildcards in
+  the Lisp implementation rather than in the file system, treating all versions as <tt>:newest</tt>,
+  and using translations to shorten long names.
+<P>
+  Logical pathname words are restricted to non-case-sensitive letters,
+  digits, and hyphens to avoid creating problems with real file systems
+  that support limited character sets for file naming.
+  (If logical pathnames were
+  case-sensitive, it would be very difficult to map them into a
+  file system that is not sensitive to case in its file names.)
+<P>
+  It is not a goal of logical pathnames to be able to represent all
+  possible file names.  Their goal is rather to represent just enough file
+  names to be useful for storing software.  Real pathnames, in contrast,
+  need to provide a uniform interface to all possible file names, including
+  names and naming conventions that are not under the control of Common
+  Lisp.
+<P>
+  The choice of logical pathname syntax, using colon, semicolon, and
+  period, was guided by the goals of being visually distinct from real file
+  systems and minimizing the use of special characters.
+<P>
+  The <tt>logical-pathname</tt> function is separate from the <tt>pathname</tt> function
+  so that the syntax of logical pathname namestrings does not constrain the
+  syntax of physical pathname namestrings in any way.  Logical pathname
+  syntax must be defined by Common Lisp so that logical pathnames can be
+  conveniently exchanged between implementations, but physical pathname
+  syntax is dictated by the operating environments.
+<P>
+The <tt>compile-file-pathname</tt> function and the specification of <tt>LISP</tt>
+  as the type of a logical pathname for a Common Lisp source file together
+  provide enough information about compilation to make possible a portable system
+  construction tool.  Suppose that it is desirable
+  to call <tt>compile-file</tt> only if the source file is newer than the compiled
+  file.  For this to succeed, it must be possible to know the name of the
+  compiled file without actually calling <tt>compile-file</tt>.
+  In some implementations the compiler produces one of several file types,
+  depending on a variety of implementation-dependent circumstances,
+  so it is not sufficient simply to prescribe a standard logical file type
+  for compiled files;
+  <tt>compile-file-pathname</tt> provides access to the defaulting that is performed
+  by <tt>compile-file</tt> ``in a manner
+  appropriate to the implementation's file system conventions.''
+<P>
+The use of the logical pathname host name <tt>SYS</tt> for the implementation
+  is current practice.  Standardizing on this name helps users choose
+  logical pathname host names that avoid conflicting with
+  implementation-defined names.
+<P>
+Loading of logical pathname translations from a site-dependent file
+  allows software to be distributed using logical pathnames.  The assumed
+  model of software distribution is a division of labor between the
+  supplier of the software and the user installing it.  The supplier
+  chooses logical pathnames to name all the files used or created by the
+  software, and supplies examples of logical pathname translations for a
+  few popular file systems.  Each example uses an assumed directory and/or
+  device name, assumes local file naming conventions, and provides
+  translations that will translate all the logical pathnames used or
+  generated by the particular software into valid physical pathnames.
+  For a powerful file system these translations can be quite simple.  For
+  a more restricted file system, it may be necessary to list an explicit
+  translation for every logical pathname used (for example, when dealing
+  with restrictions on the maximum length of a file name).
+<P>
+The user installing the software decides on which device and directory
+  to store the files and edits the example logical pathname translations
+  accordingly.  If necessary, the user also adjusts the translations for
+  local file naming conventions and any other special aspects of the user's
+  local file system policy and local Common Lisp implementation.  For
+  example, the files might be divided among several file server hosts to
+  share the load.  The process of defining site-customized logical pathname
+  translations is quite easy for a user of a popular file system for which
+  the software supplier has provided an example.  A user of a more unusual
+  file system might have to take more time; the supplier can help by
+  providing a list of all the logical pathnames used or generated by the
+  software.Once the user has created and executed
+  a suitable <tt>setf</tt> form for setting the <tt>logical-pathname-translations</tt>
+  of the relevant logical host, the software can be loaded and run.  It
+  may be necessary to use the translations again, or on another workstation
+  at the same site, so it is best to save the <tt>setf</tt> form in the standard
+  place where it can be found later by <tt>load-logical-pathname-translations</tt>.
+  Often a software supplier will include a program for restoring software
+  from the distribution medium to the file system and a program for loading
+  the software from the file system into a Common Lisp; these programs
+  will start by calling <tt>load-logical-pathname-translations</tt> to make sure that
+  the logical pathname host is defined.
+<P>
+  Note that the <tt>setf</tt> of <tt>logical-pathname-translations</tt> form isn't part of
+  the program; it is separate and is written by the user, not by the
+  software supplier.  That separation and a uniform convention for
+  doing the separation are the key aspects of logical pathnames.  For small
+  programs involving only a handful of files, it doesn't matter much.  The
+  real benefits come with large programs with hundreds or thousands of
+  files and more complicated situations such as program-generated file
+  names or porting a program developed on a system with long file names
+  onto a system with a very restrictive limit on the length of file names.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html4218 HREF="node214.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4216 HREF="node208.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4212 HREF="node212.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4220 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4221 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4219 HREF="node214.html"> Pathname Functions</A>
+<B>Up:</B> <A NAME=tex2html4217 HREF="node208.html"> Logical Pathnames</A>
+<B> Previous:</B> <A NAME=tex2html4213 HREF="node212.html"> Examples of the </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

@@ -1,0 +1,439 @@
+From Brent.Benson@mail.csd.harris.com Wed May 11 14:22:47 EDT 1994
+Article: 8664 of comp.lang.scheme
+Xref: glinda.oz.cs.cmu.edu comp.lang.scheme:8664
+Path: honeydew.srv.cs.cmu.edu!rochester!udel!MathWorks.Com!usenet.fiu.edu!usenet.ufl.edu!hawk.csd.harris.com!hawk!Brent.Benson
+From: Brent.Benson@mail.csd.harris.com (Brent Benson)
+Newsgroups: comp.lang.scheme
+Subject: [ANNOUNCE] libscheme-0.1
+Date: 28 Apr 1994 18:20:42 GMT
+Organization: Harris Computer Systems, Ft. Lauderdale, FL
+Lines: 41
+Distribution: world
+Message-ID: <BRENT.BENSON.94Apr28142042@jade.mail.csd.harris.com>
+Reply-To: Brent.Benson@mail.csd.harris.com
+NNTP-Posting-Host: jade.ssd.csd.harris.com
+
+I just uploaded libscheme-0.1.tar.gz to the Scheme repository's
+incoming directory:
+
+	ftp://ftp.cs.indiana.edu/pub/scheme-repository/incoming/
+
+It will soon be moved to the imp/ directory.
+
+libscheme is a C library implementing Scheme as described in the
+Revised^4 Report on the Algorithmic Language Scheme.  It is easily
+integrated into a C program as a command interpreter or extension
+langauge, and is easily extended in C with new primitive types,
+primitve functions and syntax.
+
+It should run on the following machines and should be portable to most
+machines with an ANSI C compiler.
+
+	    Sun 3
+	    Sun 4 under SunOS 4.X or Solaris2.X
+	    Vax under 4.3BSD, Ultrix
+	    Intel 386 or 486 under many operating systems, but not MSDOS.
+	    Sequent Symmetry  (single threaded)
+	    Encore Multimax   (single threaded)
+	    MIPS M/120 (and presumably M/2000) (RISC/os 4.0 with BSD libraries)
+	    IBM PC/RT  (Berkeley UNIX)
+	    IBM RS/6000
+	    HP9000/300
+	    HP9000/700
+	    DECstations under Ultrix
+	    DEC Alpha running OSF/1
+	    SGI workstations under IRIX
+	    Sony News
+	    Apple MacIntosh under A/UX
+	    Commodore Amiga (see README.amiga)
+	    NeXT machines
+            Harris Nighthawk
+
+It is available under the GNU Copyleft.
+
+--
+Brent Benson                     
+Harris Computer Systems
+
+
+Article 8685 of comp.lang.scheme:
+Xref: glinda.oz.cs.cmu.edu comp.lang.scheme:8685
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!godot.cc.duq.edu!news.duke.edu!MathWorks.Com!europa.eng.gtefsd.com!library.ucla.edu!ihnp4.ucsd.edu!pacbell.com!toad.com!lord
+From: lord@cygnus.com (Tom Lord)
+Newsgroups: comp.lang.scheme
+Subject: Re: [ANNOUNCE] libscheme-0.1
+Message-ID: <48848@toad.com>
+Date: 1 May 94 04:30:15 GMT
+References: <BRENT.BENSON.94Apr28142042@jade.mail.csd.harris.com>
+Sender: news@toad.com
+Distribution: world
+Organization: Cygnus Support
+Lines: 23
+Nntp-Posting-Host: rtl.cygnus.com
+In-reply-to: Brent.Benson@mail.csd.harris.com's message of 28 Apr 1994 18:20:42 GMT
+
+
+
+	I just uploaded libscheme-0.1.tar.gz to the Scheme repository's
+	incoming directory:
+
+
+I think it would be really helpful if announcements like this,
+especially for new implementations, had a few words about the
+implementation strategy.
+
+Is it byte-code interpreted?  graph-interpreted?  What kind of garbage
+collector does it have?  How are closures allocated? How is `call/cc'
+handled?  What numerics does it have?  What do the object
+representations look like?
+
+A lot of announcments talk about the special features of a particular
+implementation but say nothing about the fundamentals.
+
+There are no good scheme benchmarks that i know of but an
+implementation sketch such as i've suggested would make a good
+stand-in for them.
+
+-t
+
+
+Article 8697 of comp.lang.scheme:
+Xref: glinda.oz.cs.cmu.edu comp.lang.scheme:8697
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!newsfeed.pitt.edu!godot.cc.duq.edu!news.duke.edu!solaris.cc.vt.edu!MathWorks.Com!usenet.fiu.edu!usenet.ufl.edu!hawk.csd.harris.com!hawk!Brent.Benson
+From: Brent.Benson@mail.csd.harris.com (Brent Benson)
+Newsgroups: comp.lang.scheme
+Subject: Re: [ANNOUNCE] libscheme-0.1
+Date: 02 May 1994 13:07:08 GMT
+Organization: Harris Computer Systems, Ft. Lauderdale, FL
+Lines: 36
+Distribution: world
+Message-ID: <BRENT.BENSON.94May2090708@jade.mail.csd.harris.com>
+References: <BRENT.BENSON.94Apr28142042@jade.mail.csd.harris.com> <48848@toad.com>
+Reply-To: Brent.Benson@mail.csd.harris.com
+NNTP-Posting-Host: jade.ssd.csd.harris.com
+In-reply-to: lord@cygnus.com's message of 1 May 94 04:30:15 GMT
+
+lord@cygnus.com (Tom Lord) writes:
+# 
+# 	I just uploaded libscheme-0.1.tar.gz to the Scheme repository's
+# 	incoming directory:
+#
+# I think it would be really helpful if announcements like this,
+# especially for new implementations, had a few words about the
+# implementation strategy.
+# 
+# Is it byte-code interpreted?  graph-interpreted?  What kind of garbage
+# collector does it have?  How are closures allocated? How is `call/cc'
+# handled?  What numerics does it have?  What do the object
+# representations look like?
+#
+
+libscheme is very simple.  Each primitive is implemented as a C
+procedure.  Each object is a 3 word structure with a type tag (the
+type tag is also a first class Scheme object) and 2 data words.   It
+parses Scheme expressions into a tree of these objects and then
+interprets the tree.  It uses Hans Boehm's conservative garbage
+collector.  Closures are allocated on the heap.  Full continuations
+are not supported.  Escape continuations are implemented using
+setjmp/longjmp.  It provides 1 word integers and 2 word floating point
+numbers. 
+
+I didn't spend a lot of time working on libscheme's efficiency
+(although I tried not to do anything really stupid, and I spent some
+time with a profiler).  I wanted a library based Scheme similar to Tcl
+that I could easily link with C code.  I decided that writing a little
+scheme interpreter (one of my favorite pastimes) was preferable to
+hacking apart the pieces of SCM or SIOD.  Code reuse police, take me
+away :-).
+
+--
+Brent Benson                     
+Harris Computer Systems
+
+
+Article 8698 of comp.lang.scheme:
+Xref: glinda.oz.cs.cmu.edu comp.lang.scheme:8698
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!godot.cc.duq.edu!news.duke.edu!MathWorks.Com!europa.eng.gtefsd.com!howland.reston.ans.net!agate!anarres.CS.Berkeley.EDU!bh
+From: bh@anarres.CS.Berkeley.EDU (Brian Harvey)
+Newsgroups: comp.lang.scheme
+Subject: Re: [ANNOUNCE] libscheme-0.1
+Date: 2 May 1994 14:00:49 GMT
+Organization: University of California, Berkeley
+Lines: 8
+Message-ID: <2q312h$imb@agate.berkeley.edu>
+References: <BRENT.BENSON.94Apr28142042@jade.mail.csd.harris.com> <48848@toad.com> <BRENT.BENSON.94May2090708@jade.mail.csd.harris.com>
+NNTP-Posting-Host: anarres.cs.berkeley.edu
+
+Brent.Benson@mail.csd.harris.com writes:
+>  Each object is a 3 word structure with a type tag (the
+>type tag is also a first class Scheme object) and 2 data words.
+
+Hmm.  Every object has a tag, and the tag is an object.  It follows
+that every object requires infinite memory!
+
+You can't fool me -- it's turtles all the way down!  :-)
+
+
+Article 8699 of comp.lang.scheme:
+Xref: glinda.oz.cs.cmu.edu comp.lang.scheme:8699
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!newsfeed.pitt.edu!godot.cc.duq.edu!news.duke.edu!MathWorks.Com!usenet.fiu.edu!usenet.ufl.edu!hawk.csd.harris.com!hawk!Brent.Benson
+From: Brent.Benson@mail.csd.harris.com (Brent Benson)
+Newsgroups: comp.lang.scheme
+Subject: Re: [ANNOUNCE] libscheme-0.1
+Date: 02 May 1994 14:31:59 GMT
+Organization: Harris Computer Systems, Ft. Lauderdale, FL
+Lines: 18
+Message-ID: <BRENT.BENSON.94May2103159@jade.mail.csd.harris.com>
+References: <BRENT.BENSON.94Apr28142042@jade.mail.csd.harris.com> <48848@toad.com>
+	<BRENT.BENSON.94May2090708@jade.mail.csd.harris.com>
+	<2q312h$imb@agate.berkeley.edu>
+Reply-To: Brent.Benson@mail.csd.harris.com
+NNTP-Posting-Host: jade.ssd.csd.harris.com
+In-reply-to: bh@anarres.CS.Berkeley.EDU's message of 2 May 1994 14:00:49 GMT
+
+bh@anarres.CS.Berkeley.EDU (Brian Harvey) writes:
+#
+# Brent.Benson@mail.csd.harris.com writes:
+# >  Each object is a 3 word structure with a type tag (the
+# >type tag is also a first class Scheme object) and 2 data words.
+# 
+# Hmm.  Every object has a tag, and the tag is an object.  It follows
+# that every object requires infinite memory!
+# 
+# You can't fool me -- it's turtles all the way down!  :-)
+#
+
+You got me.  There is one object (the object <type> which represents
+the type of all types) that has a type tag with value 0.
+
+--
+Brent Benson                     
+Harris Computer Systems
+
+
+Article 8710 of comp.lang.scheme:
+Xref: glinda.oz.cs.cmu.edu comp.lang.scheme:8710
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!newsfeed.pitt.edu!gatech!howland.reston.ans.net!pipex!zaphod.crihan.fr!jussieu.fr!univ-lyon1.fr!swidir.switch.ch!epflnews!monnier
+From: monnier@di.epfl.ch (Stefan Monnier)
+Newsgroups: comp.lang.scheme
+Subject: Re: [ANNOUNCE] libscheme-0.1
+Date: 2 May 1994 20:20:57 GMT
+Organization: Ecole Polytechnique Federale de Lausanne
+Lines: 11
+Message-ID: <2q3nb9$hf4@info.epfl.ch>
+References: <BRENT.BENSON.94Apr28142042@jade.mail.csd.harris.com> <BRENT.BENSON.94May2090708@jade.mail.csd.harris.com> <2q312h$imb@agate.berkeley.edu> <BRENT.BENSON.94May2103159@jade.mail.csd.harris.com>
+NNTP-Posting-Host: didec4.epfl.ch
+
+In article <BRENT.BENSON.94May2103159@jade.mail.csd.harris.com>,
+Brent Benson <Brent.Benson@mail.csd.harris.com> wrote:
+> You got me.  There is one object (the object <type> which represents
+> the type of all types) that has a type tag with value 0.
+
+So, the type of the object "type of all types" is not part of "type of
+all types" ? 
+Why not have a cycle (<type>'s type tag pointing to <type>) ?
+
+
+	Stefan
+
+
+Article 8719 of comp.lang.scheme:
+Xref: glinda.oz.cs.cmu.edu comp.lang.scheme:8719
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!godot.cc.duq.edu!news.duke.edu!MathWorks.Com!usenet.fiu.edu!usenet.ufl.edu!hawk.csd.harris.com!hawk!Brent.Benson
+From: Brent.Benson@mail.csd.harris.com (Brent Benson)
+Newsgroups: comp.lang.scheme
+Subject: Re: [ANNOUNCE] libscheme-0.1
+Date: 03 May 1994 12:15:02 GMT
+Organization: Harris Computer Systems, Ft. Lauderdale, FL
+Lines: 17
+Message-ID: <BRENT.BENSON.94May3081502@jade.mail.csd.harris.com>
+References: <BRENT.BENSON.94Apr28142042@jade.mail.csd.harris.com>
+	<BRENT.BENSON.94May2090708@jade.mail.csd.harris.com>
+	<2q312h$imb@agate.berkeley.edu>
+	<BRENT.BENSON.94May2103159@jade.mail.csd.harris.com>
+	<2q3nb9$hf4@info.epfl.ch>
+Reply-To: Brent.Benson@mail.csd.harris.com
+NNTP-Posting-Host: jade.ssd.csd.harris.com
+In-reply-to: monnier@di.epfl.ch's message of 2 May 1994 20:20:57 GMT
+
+monnier@di.epfl.ch (Stefan Monnier) writes:
+#
+# Brent Benson <Brent.Benson@mail.csd.harris.com> wrote:
+# > You got me.  There is one object (the object <type> which represents
+# > the type of all types) that has a type tag with value 0.
+# 
+# So, the type of the object "type of all types" is not part of "type of
+# all types" ? 
+# Why not have a cycle (<type>'s type tag pointing to <type>) ?
+# 
+
+I just checked the code and that was my original intention.  The 0
+type tag was a bootstrapping bug.  It'll be fixed in the next release. 
+
+--
+Brent Benson                     
+Harris Computer Systems
+
+
+Article 8721 of comp.lang.scheme:
+Xref: glinda.oz.cs.cmu.edu comp.lang.scheme:8721
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!newsfeed.pitt.edu!godot.cc.duq.edu!news.duke.edu!convex!cs.utexas.edu!howland.reston.ans.net!agate!anarres.CS.Berkeley.EDU!bh
+From: bh@anarres.CS.Berkeley.EDU (Brian Harvey)
+Newsgroups: comp.lang.scheme
+Subject: Re: [ANNOUNCE] libscheme-0.1
+Date: 3 May 1994 13:54:55 GMT
+Organization: University of California, Berkeley
+Lines: 6
+Message-ID: <2q5l3f$as8@agate.berkeley.edu>
+References: <BRENT.BENSON.94May2103159@jade.mail.csd.harris.com> <2q3nb9$hf4@info.epfl.ch> <BRENT.BENSON.94May3081502@jade.mail.csd.harris.com>
+NNTP-Posting-Host: anarres.cs.berkeley.edu
+
+Brent.Benson@mail.csd.harris.com writes:
+>I just checked the code and that was my original intention.  The 0
+>type tag was a bootstrapping bug.  It'll be fixed in the next release. 
+
+Pretty neat.  This discussion started as a joke (about infinite regress
+of types) and turned out to be isomorphic to an actual programming error!
+
+
+Article 8732 of comp.lang.scheme:
+Xref: glinda.oz.cs.cmu.edu comp.lang.scheme:8732
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!newsfeed.pitt.edu!godot.cc.duq.edu!news.duke.edu!MathWorks.Com!europa.eng.gtefsd.com!howland.reston.ans.net!pipex!uknet!EU.net!uunet!thehulk!mitech!gjc
+Newsgroups: comp.lang.scheme
+Subject: Re: [ANNOUNCE] libscheme-0.1
+Message-ID: <953@mitech.com>
+From: gjc@mitech.com (George J. Carrette)
+Date: 3 May 94 11:04:38 GMT
+References: <BRENT.BENSON.94Apr28142042@jade.mail.csd.harris.com> <48848@toad.com>
+Distribution: world
+Organization: Mitech Corporation, Concord MA
+Lines: 32
+
+In article <48848@toad.com>, lord@cygnus.com (Tom Lord) writes:
+> 	I just uploaded libscheme-0.1.tar.gz to the Scheme repository's
+> 	incoming directory:
+> 
+> 
+> I think it would be really helpful if announcements like this,
+> especially for new implementations, had a few words about the
+> implementation strategy.
+
+I'll second that. But what we really need is a uniform review format.
+For example, say 5 different people (like myself) download libscheme-0.1.tar.gz
+and unpack it and build it. All 5 people find out the same thing, and
+work could have been saved if there could be some sharing of info.
+Or worse, different people are looking at different aspects and fail
+to see the whole picture do to lack of time.
+
+One thing I found: Libscheme-0.1 is a straightforward implementation
+                   using Boems GC.
+
+> There are no good scheme benchmarks that i know of but an
+> implementation sketch such as i've suggested would make a good
+> stand-in for them.
+
+Or better, when you have review areas such as "how much of the runtime
+library" is hand-coded in C or compiled by a native-code compiler.
+
+Ouch: Do you think we could use a standard "C-programmers bindings" for Lisp
+      programming? (A standard content of <include> files, type names,
+      macros, and procedure names?).
+
+Might be a good way to kill off lisp and an independant language branch.
+
+
+
+Article 8744 of comp.lang.scheme:
+Xref: glinda.oz.cs.cmu.edu comp.lang.scheme:8744
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!godot.cc.duq.edu!news.duke.edu!MathWorks.Com!usenet.fiu.edu!usenet.ufl.edu!hawk.csd.harris.com!hawk!Brent.Benson
+From: Brent.Benson@mail.csd.harris.com (Brent Benson)
+Newsgroups: comp.lang.scheme
+Subject: [ANNOUNCE] libscheme-0.2
+Date: 04 May 1994 12:56:34 GMT
+Organization: Harris Computer Systems, Ft. Lauderdale, FL
+Lines: 21
+Distribution: world
+Message-ID: <BRENT.BENSON.94May4085634@jade.mail.csd.harris.com>
+Reply-To: Brent.Benson@mail.csd.harris.com
+NNTP-Posting-Host: jade.ssd.csd.harris.com
+
+I just uploaded libscheme-0.2.tar.gz to the Scheme repository's
+incoming directory:
+
+	ftp://ftp.cs.indiana.edu/pub/scheme-repository/incoming/
+
+It will soon be moved to the imp/ directory.
+
+libscheme is a C library implementing Scheme as described in the
+Revised^4 Report on the Algorithmic Language Scheme.  It is easily
+integrated into a C program as a command interpreter or extension
+language, and is easily extended in C with new primitive types,
+primitve functions and syntax.
+
+This release fixes several bugs including one that prevented libscheme
+from working on the SPARC architecture (and probably others).  Thanks
+to Shriram Krishnamurthi, Eric Raible, and Mike Spreitzer for
+reporting and fixing bugs.
+
+--
+Brent Benson                     
+Harris Computer Systems
+
+
+From Brent.Benson@mail.csd.harris.com Tue Sep 20 20:19:15 EDT 1994
+Article: 9810 of comp.lang.scheme
+Path: cantaloupe.srv.cs.cmu.edu!das-news.harvard.edu!news2.near.net!MathWorks.Com!europa.eng.gtefsd.com!howland.reston.ans.net!gatech!usenet.ufl.edu!hawk.csd.harris.com!hawk!Brent.Benson
+From: Brent.Benson@csd.harris.com (Brent Benson)
+Newsgroups: comp.lang.scheme
+Subject: ANNOUNCE: libscheme-0.4
+Followup-To: comp.lang.scheme
+Date: 20 Sep 1994 19:29:28 GMT
+Organization: Harris Computer Systems, Ft. Lauderdale, FL
+Lines: 40
+Distribution: world
+Message-ID: <BRENT.BENSON.94Sep20152930@jade.csd.harris.com>
+Reply-To: Brent.Benson@mail.csd.harris.com
+NNTP-Posting-Host: jade.ssd.csd.harris.com
+
+I just uploaded libscheme-0.4.tar.gz to the Scheme repository's
+incoming directory:
+
+	ftp://ftp.cs.indiana.edu/pub/scheme-repository/incoming/
+
+It will soon be moved to the imp/ directory.
+
+libscheme is a C library implementing Scheme as described in the
+Revised^4 Report on the Algorithmic Language Scheme (minus full
+continuations).  It is easily integrated into a C program as a command
+interpreter or extension language, and is easily extended in C with
+new primitive types, primitve functions and syntax.
+
+New in release 0.4:
+
+New interface to scheme_apply() that makes it easier not to do
+unnecessary consing at function application time.
+scheme_apply_to_list() is still around for backward compatibility.
+
+A first cut at generic input and output ports.  File and string ports
+have been implemented on top of this interface, with the addition of
+open-input-string, with-input-from-string, write-to-string, and
+display-to-string.  It should be fairly easy to extend libscheme with
+new kinds of input and output ports.
+
+An upgrade to version 4.2 of the Boehm garbage collector.
+
+A libscheme extension providing bindings to the POSIX file system
+functions. 
+
+A copy of the paper "libscheme: Scheme as a C Library" which will
+appear in the proceedings of the 1994 USENIX Symposium on Very High
+Level Languages.
+
+No longer uses alloca().
+
+Many bug fixes.
+--
+Brent Benson                     
+Harris Computer Systems
+
+

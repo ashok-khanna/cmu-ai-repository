@@ -1,0 +1,245 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node167.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:47:30 GMT -->
+<HEAD>
+<TITLE>18.3. String Construction and Manipulation</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" String Construction and Manipulation">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3608 HREF="node168.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3606 HREF="node164.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3602 HREF="node166.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3610 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3611 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3609 HREF="node168.html"> Structures</A>
+<B>Up:</B> <A NAME=tex2html3607 HREF="node164.html"> Strings</A>
+<B> Previous:</B> <A NAME=tex2html3603 HREF="node166.html"> String Comparison</A>
+<HR> <P>
+<H1><A NAME=SECTION002230000000000000000>18.3. String Construction and Manipulation</A></H1>
+<P>
+Most of the interesting operations on strings may be performed
+with the generic sequence functions described in chapter <A HREF="node141.html#KSEQUE">14</A>.
+The following functions perform additional operations that are specific
+to strings.
+<p>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+Note that this remark, predating the design of the Common Lisp Object System,
+uses the term ``generic'' in a generic sense and not necessarily
+in the technical sense used by CLOS
+(see chapter <A HREF="node15.html#DTYPES">2</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<BR><b>[Function]</b><BR>
+<tt>make-string <i>size</i> &amp;key :initial-element</tt><P>This returns a string (in fact a simple string)
+of length <i>size</i>, each of whose characters
+has been initialized to the <tt>:initial-element</tt> argument.
+If an <tt>:initial-element</tt> argument is not specified, then the string will
+be initialized in an implementation-dependent way.
+<P>
+<hr>
+<b>Implementation note:</b> It may be convenient to initialize the string
+to null characters, or to spaces, or to garbage (``whatever was there'').
+<hr>
+<P>
+A string is really just a one-dimensional array of ``string
+characters'' (that is, those characters that are members of type
+<tt>string-char</tt>).  More complex character arrays may be constructed using the
+function <tt>make-array</tt>.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (CHARACTER-PROPOSAL) <A NAME=18277>&#160;</A> 
+to eliminate the type <tt>string-char</tt> and to add a keyword
+argument <tt>:element-type</tt> to <tt>make-string</tt>.  The new function
+description is as follows.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>make-string <i>size</i> &amp;key :initial-element :element-type</tt><P>This returns a simple string
+of length <i>size</i>, each of whose characters
+has been initialized to the <tt>:initial-element</tt> argument.
+If an <tt>:initial-element</tt> argument is not specified, then the string will
+be initialized in an implementation-dependent way.
+<P>
+The <tt>:element-type</tt> argument names the type of the elements
+of the string; a string is constructed of the most specialized type
+that can accommodate elements of the given type.  If <tt>:element-type</tt>
+is omitted, the type <tt>character</tt> is the default.
+<P>
+X3J13 voted in January 1989
+(ARGUMENTS-UNDERSPECIFIED) <A NAME=18288>&#160;</A> 
+to clarify that the <i>size</i> argument
+must be a non-negative integer less than the value of
+<tt>array-dimension-limit</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>string-trim <i>character-bag</i> <i>string</i> <BR></tt><tt>string-left-trim <i>character-bag</i> <i>string</i> <BR></tt><tt>string-right-trim <i>character-bag</i> <i>string</i></tt><P><tt>string-trim</tt> returns a substring of <i>string</i>, with all characters in
+<i>character-bag</i> stripped off the beginning and end.
+The function <tt>string-left-trim</tt> is similar but strips characters
+off only the beginning; <tt>string-right-trim</tt> strips off only the end.
+The argument <i>character-bag</i> may be any sequence containing
+characters.
+For example:
+<P><pre>
+(string-trim '(#\Space #\Tab #\Newline) &quot; garbanzo beans 
+        &quot;) => &quot;garbanzo beans&quot; 
+(string-trim &quot; (*)&quot; &quot; ( *three (silly) words* ) &quot;) 
+   => &quot;three (silly) words&quot; 
+(string-left-trim &quot; (*)&quot; &quot; ( *three (silly) words* ) &quot;) 
+   => &quot;three (silly) words* ) &quot; 
+(string-right-trim &quot; (*)&quot; &quot; ( *three (silly) words* ) &quot;) 
+   => &quot; ( *three (silly) words&quot;
+</pre><P>
+If no characters need to be trimmed from the <i>string</i>,
+then either the argument <i>string</i> itself or a copy of it may
+be returned, at the discretion of the implementation.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (STRING-COERCION) <A NAME=18308>&#160;</A> 
+to clarify string coercion (see <tt>string</tt>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>string-upcase <i>string</i> &amp;key :start :end <BR></tt><tt>string-downcase <i>string</i> &amp;key :start :end <BR></tt><tt>string-capitalize <i>string</i> &amp;key :start :end</tt><P><tt>string-upcase</tt> returns a string just like <i>string</i> with all lowercase
+characters replaced by the corresponding uppercase characters.  More
+precisely, each character of the result string is produced by applying
+the function <tt>char-upcase</tt> to the corresponding character of
+<i>string</i>.
+<P>
+<tt>string-downcase</tt> is similar, except that uppercase characters are
+converted to lowercase characters (using <tt>char-downcase</tt>).
+<P>
+The keyword arguments <tt>:start</tt> and <tt>:end</tt> delimit the portion
+of the string to be affected.  The result is always of the same length
+as <i>string</i>, however.
+<P>
+The argument is not destroyed.  However, if no characters in the argument
+require conversion, the result may be either the argument or a copy of it,
+at the implementation's discretion.
+For example:
+<P><pre>
+(string-upcase &quot;Dr. Livingstone, I presume?&quot;) 
+   => &quot;DR. LIVINGSTONE, I PRESUME?&quot; 
+(string-downcase &quot;Dr. Livingstone, I presume?&quot;) 
+   => &quot;dr. livingstone, i presume?&quot; 
+(string-upcase &quot;Dr. Livingstone, I presume?&quot; <tt>:start</tt> 6 <tt>:end</tt> 10) 
+   => &quot;Dr. LiVINGstone, I presume?&quot;
+</pre><P>
+<P>
+<tt>string-capitalize</tt> produces a copy of <i>string</i> such that,
+for every word in the copy, the first character of the word,
+if case-modifiable, is uppercase and
+any other case-modifiable characters in the word are lowercase.
+For the purposes of <tt>string-capitalize</tt>,
+a word is defined to be a
+consecutive subsequence consisting of alphanumeric characters or digits,
+delimited at each end either by a non-alphanumeric character
+or by an end of the string.
+For example:
+<P><pre>
+(string-capitalize &quot; hello &quot;) => &quot; Hello &quot; 
+(string-capitalize 
+    &#175;&quot;occlUDeD cASEmenTs FOreSTAll iNADVertent DEFenestraTION&quot;) 
+=>\&gt;&quot;Occluded Casements Forestall Inadvertent Defenestration&quot; 
+(string-capitalize 'kludgy-hash-search) => &quot;Kludgy-Hash-Search&quot; 
+(string-capitalize &quot;DON'T!&quot;) => &quot;Don'T!&quot;     ;<i>not</i> &quot;Don't!&quot; 
+(string-capitalize &quot;pipe 13a, foo16c&quot;) => &quot;Pipe 13a, Foo16c&quot;
+</pre><P>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (STRING-COERCION) <A NAME=18333>&#160;</A> 
+to clarify string coercion (see <tt>string</tt>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<hr>
+<b>Compatibility note:</b> Some very approximate Interlisp equivalents to
+<tt>string-upcase</tt>, <tt>string-downcase</tt>, and <tt>string-capitalize</tt>
+are <tt>u-case</tt>, <tt>l-case</tt> with second argument <tt>nil</tt>,
+and <tt>l-case</tt> with second argument <tt>t</tt>.
+<hr>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>nstring-upcase <i>string</i> &amp;key :start :end <BR></tt><tt>nstring-downcase <i>string</i> &amp;key :start :end <BR></tt><tt>nstring-capitalize <i>string</i> &amp;key :start :end</tt><P>These three functions are just like <tt>string-upcase</tt>,
+<tt>string-downcase</tt>, and <tt>string-capitalize</tt>
+but destructively modify the argument <i>string</i> by altering
+case-modifiable characters as necessary.
+<P>
+The keyword arguments <tt>:start</tt> and <tt>:end</tt> delimit the portion
+of the string to be affected.  The argument <i>string</i> is returned as
+the result.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>string <i>x</i></tt><P>Most of the string
+functions effectively apply <tt>string</tt>
+to such of their arguments as are supposed to be
+strings.
+If <i>x</i> is a string, it is returned.
+If <i>x</i> is a symbol, its print name is returned.
+<p>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+If <i>x</i> is a string character (a character of type <tt>string-char</tt>),
+then a string containing that one character is returned.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (CHARACTER-PROPOSAL) <A NAME=18365>&#160;</A> 
+to eliminate the type <tt>string-char</tt> and to redefine the type
+<tt>string</tt> to be the union of one or more specialized vector
+types, the types of whose elements are subtypes of the type <tt>character</tt>.
+Presumably converting a character to a string always works according
+to this vote.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+In any other situation, an error is signaled.
+<P>
+To convert a sequence of characters to a string, use <tt>coerce</tt>.
+(Note that <tt>(coerce x 'string)</tt> will not succeed if <tt>x</tt> is a symbol.
+Conversely, <tt>string</tt> will not convert a list or other sequence
+to be a string.)
+<P>
+To get the string representation of a number or any other Lisp
+object, use <tt>prin1-to-string</tt>, <tt>princ-to-string</tt>,
+or <tt>format</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (STRING-COERCION) <A NAME=18378>&#160;</A> 
+to specify that the following functions perform coercion
+on their <i>string</i> arguments identical to that performed
+by the function <tt>string</tt>.
+<P>
+<pre>
+string=       string-equal           string-trim 
+string<       string-lessp           string-left-trim 
+string>       string-greaterp        string-right-trim 
+string<=      string-not-greaterp    string-upcase 
+string>=      string-not-lessp       string-downcase  
+string/=      string-not-equal       string-capitalize
+</pre>
+<P>
+Note that <tt>nstring-upcase</tt>, <tt>nstring-downcase</tt>, and
+<tt>nstring-capitalize</tt> are absent from this list; because they modify destructively,
+the argument must be a string.
+<P>
+As part of the same vote X3J13 specified that <tt>string</tt>
+may perform additional implementation-dependent coercions
+but the returned value must be of type <tt>string</tt>.
+Only when no coercion is defined, whether standard or implementation-dependent,
+is <tt>string</tt> required to signal an error, in which case the error condition
+must be of type <tt>type-error</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+	
+<P>
+<BR> <HR><A NAME=tex2html3608 HREF="node168.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3606 HREF="node164.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3602 HREF="node166.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3610 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3611 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3609 HREF="node168.html"> Structures</A>
+<B>Up:</B> <A NAME=tex2html3607 HREF="node164.html"> Strings</A>
+<B> Previous:</B> <A NAME=tex2html3603 HREF="node166.html"> String Comparison</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

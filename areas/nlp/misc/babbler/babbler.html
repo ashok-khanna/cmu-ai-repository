@@ -1,0 +1,471 @@
+10 'BABBLER.BAS 06/16/1992   updated 18-DEC-1992   QuickBASIC
+12 'MODEM ASCII TRANSFER VERSION
+17 ' see note at lines 330-335 for architecture limitation
+20 'Define integer Variables
+30 DEFINT B,F,H-L,N,P-S,U,V,X,Y
+40 ' Wherever possible ASCII code integers are used in lieu of string
+50 ' variables
+59 Z$="" 'Used for inkey$ function
+60 ESC$=CHR$(27):' ESCape keystroke
+61 F1$=CHR$(0)+CHR$(59) '  F1 Key  Memory check
+62 F2$=CHR$(0)+CHR$(60) '  F2 Key  Resume
+63 F3$=CHR$(0)+CHR$(61) '  F3 Key  Slower
+64 F4$=CHR$(0)+CHR$(62) '  F4 Key  Faster
+65 F5$=CHR$(0)+CHR$(63) '  F5 Key  Break in
+66 F6$=CHR$(0)+CHR$(64) '  f6 Key  Program Info
+69 F9$=CHR$(0)+CHR$(67) '  F9 Key
+70 SP$=CHR$(32)         '  Space Bar
+75 DEFSTR A,E,M,T
+80 SUL=0    'Storage Unit Length
+90 DS=32 '   Down Shift increment
+100 X=0:'    1st Address coordinate in Memory Array MA(X,Y)
+110 Y=0:'    2nd Address coordinate in Memory Array MA(X,Y)
+112 XF=0'    X in Forget function
+114 YF=0:'   Y in Forget function
+116 NUF=0:'  NU in Forget function
+120 USP=0:'  Unit Start Position on Memory Array MA(X,Y) shelf
+130 I=0:'    General Counter
+135 J=0 '    General Counter
+140 K=0:'    General Counter
+142 LLD=50'  Lower Limit Delay
+144 ULD=30000' Upper Limit Delay
+150 N=0:'   Attention Span
+155 NDR=5  'Number of Delay Repetitions
+160 PML=0: 'Pattern Matching Length
+170 SUL=0: 'Storage Unit Length
+180 NU=0:'  Number of Units in Storage shelf
+190 E="":'  Current Text in reading/thinking field of view (Sliding window)
+200 ETEMP="":'Temporary E used to store contents of dead ended E during
+210 '         reverse search
+220 ESYN="":'Synaptic version of string E
+230 FC=0:'  First Character (in reverse search E's)
+240 LC=0:'  Latest Character (for input/output - sliding window)
+250 PC=0:'  Previous Character
+260 BWF=0:' Branch Weighting Factor takes on values of 1 through 99
+270 '       Forgetting is modeled by decreasing BWF, by 1, on a random
+275 '       occasional basis.
+280 SST=0:' String Storage Total
+282 ULM1=29500 ' Upper Limit Memory 1
+284 ULM2=31500 ' Upper Limit Memory 2
+286 ULM3=32500 ' Upper Limit Memory 3
+290 BWFP=0' Branch Weighting Factor Position (on MA(X,Y) shelf)
+300 DELAY=2000:'  For GW-BASIC make DELAY to 400
+302 SYNAPSE=0:'   Counter used as activity flag for synapse function
+304 cls:print:print:print:print:print
+306 print "                                   Low-Tec"
+308 print
+310 print "                       Scientific Simulations Software"
+312 print
+314 print "                                B A B B L E R"
+316 locate 22,25:PRINT "Calculating operational speed"
+318 GOSUB 5000 'Calculate system delays
+325 DIM MA(64,64):REM Memory array
+330 ' There needs to be some way to stick MA(x,y) into dynamic memory
+335 ' Right now the program bombs out when MA(x,y) has used up 32K of RAM
+340 DIM PBA(100):REM Branching Array
+350 :
+360 VIEW PRINT 1 TO 25:CLS
+370 PRINT TAB(33); "B A B B L E R"
+375 PRINT
+380 PRINT "                    Copyright (C) 1992 Robert S. Fritzius"
+382 PRINT "                             All rights reserved."
+383 print
+385 PRINT "       Portions of run-time module Copyrighted by Microsoft 1982-1987"
+386 print
+388 print
+390 print
+392 PRINT "                                Manufactured by
+394 PRINT "                Low-Tec   P.O. Box 1327   Starkville, MS 39759"
+396 print "                               18 December 1992"
+415 PRINT
+430 LOCATE 23,1
+440 PRINT "                   I=Program Info  R=Run  ESC=Exit program"
+450 Z$=INKEY$:IF Z$="" THEN 450
+455 IF Z$="I" OR Z$="i" THEN GOSUB 8000:GOTO 480 'Info section
+460 IF Z$="R" OR Z$="r" THEN GOTO 480
+465 IF Z$=ESC$ THEN CLS:END
+470 GOTO 450
+475 :
+480 CLS:FOR I=1 TO 50:FOR J=1 TO DELAY:NEXT J:NEXT I
+485 GOSUB 7000 'Put help keys at bottom of screen
+500 LOCATE 2,1
+501 PRINT "                               B A B B L E R ":PRINT
+502 PRINT "      What attention span (3-15 characters) for BABBLER (0 to Exit)   ";
+504 LOCATE 4,68:INPUT N
+510 IF N=0 THEN VIEW PRINT 1 TO 25:goto 360
+515 IF N<3 OR N>15 THEN 500
+520 :
+525 VIEW PRINT 1 TO 23
+526 LOCATE 5,1
+530 :
+540 SUL=N+1:' Storage Unit Length, one extra character is added for Branch
+550 '         Weighting Factor  BWF
+560 PML=N-1:' Pattern matching length.  The last N-1 characters in
+570 '         sliding window E are compared to the first N-1 characters of
+580 '         memory Units in MA(X,Y) shelves
+590 E=STRING$(N,"."):'Sliding Window - (Character Shift Register)
+600 ' Its width equals the attention span  N
+610 ' E starts off loaded with N periods.
+620 ' It contains the latest keyboard inputs or memory derived outputs
+630 PRINT "Begin typing."
+640 PRINT ">";
+650 :
+660 '<<<<<<<<<  Set address pointers NR and NS for input mode >>>>>>>>>>>
+670 NR=INT(N/2):'1st Address position in sliding window E:' {GO HERE 1}
+680 NS=NR+1:'    2nd Address position in sliding window E
+690 :
+700 ' <<<<<<<<<      Keyboard input     >>>>>>>>>>
+710 'Check the keyboard for keystrokes or DELAY adjustments
+720 FOR I=1 TO NDR '{GO HERE 1A}
+725  FOR J=1 TO DELAY
+730   T=INKEY$
+732   IF T=F3$ AND DELAY < ULD THEN DELAY=INT(1.2*DELAY):GOSUB 4000:GOTO 750
+733   IF T=F3$ AND DELAY >=ULD THEN BEEP:GOTO 750
+734   IF T=F4$ AND DELAY > LLD THEN DELAY=INT(0.8*DELAY):GOSUB 4000:GOTO 750
+735   IF T=F4$ AND DELAY <=LLD THEN BEEP:GOTO 750
+740   IF T<>"" THEN J=DELAY:I=NDR'This insures closing of the  FOR-NEXT loops
+750  NEXT J
+755 NEXT I
+760 IF DELAY < LLD THEN DELAY=LLD
+765 IF DELAY > ULD THEN DELAY=ULD
+770 '<<<<<<<<<<<<<<<<<       Input? (Yes/No)       >>>>>>>>>>>>>>>>>>>
+780 'Branch to Pre-Process Keystrokes and Memory Entry or to Forward Search
+790 IF T = "" THEN GOTO 1590
+795 IF T = CHR$(13) THEN GOTO 720
+800 IF T = F1$ THEN GOSUB 2800:PRINT:GOTO 640 ' Memory-Dump/Exit
+805 IF T = F6$ THEN GOSUB 8000:GOSUB 7000:PRINT:GOTO 640 ' Program Info
+810 IF T <> F9$ AND T<> ESC$ THEN GOTO 830
+815 PRINT:INPUT "Are you sure  (Y/N)";Z$
+818 IF Z$<>"Y" AND Z$<>"y" THEN GOTO 830
+820 IF T=F9$ THEN RUN
+822 IF T=ESC$ THEN VIEW PRINT 1 TO 25:CLS:END
+830 '<<<<<<<<<   Pre-Process Key Strokes   >>>>>>>>>>>
+840 PC=LC:'Previous Character  (for space deletion/restoration) {GO HERE 2}
+850 GOSUB 3350:' Forget Function
+860 LC=ASC(T):'Convert Keystroke T to ASCII code for Latest Character
+870 :
+880 'Transpose any lower case alpabetical ASCII codes to upper case codes
+890 IF LC>96 AND LC<123 THEN LC=LC-DS
+900 :
+910 'Weed out non-alphanumeric or non-puncuation keystrokes
+920 IF LC<32 OR LC>90 THEN GOTO 720
+930 :
+940 'Spaces Control
+950 IF LC<>32 THEN 1060:' Bypass this section if LC is not for a space.
+960 'Remove spaces that follow periods, commas, question marks and
+970 'exclamation marks.  This is done to reduce the number of memory storage
+980 'shelves whose addresses are derived, in part, from "space" codes.
+990 IF PC=32 OR PC=33 OR PC=44 OR PC=46 OR PC=63 THEN LC=PC:GOTO 720
+1000 ' ASCII codes 32=" "  33="!"  44=","  46="."  63="?"
+1010 :
+1020 'Change spaces that immediately follow letters A thru M to @ 's
+1030 IF PC>64 AND PC<78 THEN LC=64
+1040 :
+1050 'Print a space to screen in place of the @ space replacemnt symbol
+1060 IF LC=64 THEN PRINT CHR$(32);:GOTO 1190:' {GO HERE 3}
+1070 'Synapse feedback entry point - "Synapse", as used here, means the
+1080 'joining of the ends of brand new sentences to the body of information
+1090 'already resident in memory.  The synapse feedback loop is the most
+1100 'contorted part of the program.
+1110 :
+1120 'Print Latest Character to screen
+1130 PRINT CHR$(LC);
+1140  :
+1150 'Print spaces to screen following line-level punctuation marks
+1160 IF LC=33 OR LC=44 OR LC=46 OR LC=63 THEN PRINT " ";
+1170 'ASCII codes 33 = "!"  44 = ","  46 = "."  63 = "?"
+1180  :
+1190 BWF=0:'Branch Weighting Factor:'     {GO HERE 4}
+1200 :
+1210 E=MID$(E,2,PML)+CHR$(LC):'Remove First character, add Latest Character
+1220 'Sliding window E behaves like a shift register
+1230 :
+1240 GOSUB 3260:'Get X,Y coordinates for Memory Array Shelf and Number of
+1250 '           Memory Units (NU) on shelf
+1260 :
+1270 IF NU=0 THEN GOTO 1510 'No units on shelf
+1271 '
+1285 :
+1290 'Check shelf for usable memory units
+1300 FOR UNIT=1 TO NU   '<<<<GO HERE from 1270>>>
+1310  USP=UNIT*SUL-PML:'Define Unit Starting Position on shelf
+1320  BWFP=USP-1:'Branch Weighting Factor Position is one character before
+1330 '           Unit String
+1340 'Look for an exact match of E on Memory Shelf MA(X,Y)
+1350  IF MID$(MA(X,Y),USP,N)<>E THEN GOTO 1470:' Exact Match was not found
+1360   :
+1370  'Exact Match was found
+1380  'Convert the Branch Weighting Factor string to numeric BWF
+1390   BWF=ASC(MID$(MA(X,Y),BWFP,1))
+1400  'For values of BWF 1 to 254, increase it by 1
+1410   IF BWF<255 THEN BWF=BWF+1
+1420   MID$(MA(X,Y),BWFP,1)=CHR$(BWF):'Restore CHR$ version of BWF
+1430   :
+1470 NEXT UNIT
+1480 :
+1490 IF BWF>=1 THEN GOTO 1530:'Storage Unit is already present
+1500 :
+1510 MA(X,Y)=MA(X,Y)+CHR$(1)+E:'          {GO HERE 6}
+1515 SST=SST+N
+1517 IF SST>=ULM1 AND SST<ULM1+N THEN PRINT:PRINT "Memory has reached "ULM1".":GOTO 1530
+1520 IF SST>=ULM1+N AND SST<ULM2 THEN SOUND 800,1:SOUND 600,1    :GOTO 1530
+1522 IF SST>=ULM2 AND SST<ULM2+N THEN PRINT:PRINT "Memory has reached "ULM2".  Better take it easy.":GOTO 1530
+1525 IF SST>=ULM2+N AND SST<ULM3 THEN SOUND 880,1:SOUND 640,1    :GOTO 1530
+1526 IF SST>=ULM3 AND SST<ULM3+N THEN PRINT:PRINT "Memory has reached "ULM3".  LOOK OUT!":GOTO 1530
+1528 IF SST>=ULM3+N THEN SOUND 1000,1:SOUND 750,1
+1530 '<<<<<<<  Synapse Active Y/N ?  >>>>>>>>>>>>>>>   {GO HERE 7}
+1540 IF SYNAPSE > 1 AND SYNAPSE < N THEN GOTO 2730
+1542 '
+1550 :
+1560 GOTO 720
+1570 :
+1580 '<<<<<< Shift to Free Running Forward Search  >>>>>>>>>>>   {GO HERE 8}
+1590   NR=NR+1:NS=NS+1
+1600   IF LC=33 OR LC=44 OR LC=46 OR LC=63 THEN PRINT " ";
+1610 :
+1620 '<<<< Forward Free-running Chaining/Branching  >>>>>>>
+1630  GOSUB 3260:'Get X and Y coordinates of Memory Array Shelf {GO HERE 9}
+1640  ' and Number of storage Units on shelf
+1641 :
+1642 Z$=INKEY$:IF Z$=F5$ THEN 670 'KEYBOARD INTERRUPT
+1644 :
+1645  IF NU=0 AND N=3 THEN GOTO 670:'Don't try reverse search in 3-ltr mode
+1650  IF NU=0 THEN GOTO 1870
+1655  GOSUB 3350:' Forget Function
+1660  Z$=INKEY$:IF Z$<>F5$ THEN 1670
+1665  PRINT "~";:GOTO 670
+1670  K=0
+1675  FOR UNIT=1 TO NU
+1680   USP=UNIT*SUL-PML
+1690   BWFP=USP-1:'Branch Weighting Factor Factor Position
+1700   IF MID$(MA(X,Y),USP,PML)<>RIGHT$(E,PML) THEN GOTO 1810
+1710   BWF=ASC(MID$(MA(X,Y),BWFP,1))
+1720   :
+1730   LC=ASC(MID$(MA(X,Y),USP+PML,1))
+1740   FOR K=K+1 TO K+BWF
+1750    PBA(K)=LC
+1760    ' Branching Array PBA(K) contains character codes LC's that may be
+1770    ' chained/branched to.  Each LC is entered into the array the same
+1780    ' number of times as it's associated Branch Weighting Factor  BWF.
+1790   NEXT K
+1800   K=K-1:' Reset K to equal total number of elemnts in array
+1810  NEXT UNIT:'                                               {GO HERE 10}
+1820  :
+1830 '<<<<<<<<<<<<<<<<  Match(es) Found?  >>>>>>>>>>>>>>>>>>
+1840  IF K>0 THEN GOTO 1930:' At least one chainable Match was found
+1850  :
+1860  'At a dead ended statement or question go to reverse search
+1870  IF LC=33 OR LC=46 OR LC=63 THEN GOTO 2140:'               {GO HERE 11}
+1880 :
+1890 '<<<<<<<<<  Go to Keyboard Search  >>>>>>>>>>>>>>>>>
+1900 GOTO 670
+1910 :
+1920 ' <<<<<<<  Select and Print Output  >>>>>>
+1930 K=INT(K*RND(1)+1):'            {GO HERE 13}
+1940 :
+1950 LC=PBA(K)
+1960 IF LC=64 THEN PRINT CHR$(32);:GOTO 2010
+1970 PRINT CHR$(LC);
+1980 'Type a space following periods, commas, question and exclamation marks
+1990 IF LC=33 OR LC=44 OR LC=46 OR LC=63 THEN PRINT CHR$(32);
+2000 :
+2010 E=MID$(E,2,PML)+CHR$(LC):'Trim 1st char, add Latest Char  {GO HERE 14}
+2020 :
+2030 FOR I=1 TO NDR*2
+2032  FOR J=1 TO DELAY:NEXT J
+2034 NEXT I
+2040 :
+2050 ' <<<<<<<<<<<<<<<<<  End of Sentence?  >>>>>>>>>>>>>>>>>
+2060 IF LC<>33 AND LC<>46 AND LC<>63 THEN GOTO 1630
+2070 :
+2080 GOTO 670:' Have to reset address pointers for input mode
+2090 :
+2100 :
+2110 :
+2120 :
+2130 '<<<<<< Setup for Reverse Search >>>>>>>
+2140 ETEMP=E:'Store "dead ended" E in a temporary string  ETEMP  {GO HERE 15}
+2150 ' If the program is at this point, then the ending of the current
+2160 ' keyboard input 'sliding window' E has no place to forward link to.
+2170 ' There is not a next step forward that can be taken, because no ending
+2180 ' (N characters long) like the present one has occurred in the past.
+2190 ' The program will chain/branch search, in reverse, to find the
+2200 ' beginning of a sentence, i.e. a character preceeded by a period,
+2210 ' question mark, or an exclamation point.  The contents of ETEMP will be
+2220 ' glued (Synapsed) to the beginning of the sentence.  The synaptic action
+2230 ' (New ending glued to Old beginning) will be recorded in memory, using
+2240 ' the second through last characters of the ESYN 'string' as input.
+2250 ' If there is no material in memory that can be associated with the
+2260 ' new sentence, the end of the new sentence will be synapsed to its
+2270 ' own beginning and the program will loop through the new sentence until
+2280 ' further keyboard input breaks the loop.
+2290 :
+2300 ' Shift address pointers from forward free-run to reverse search
+2310 NR=NR-2:NS=NS-2
+2320 :
+2330 '<<<<<  Reverse "Branching" Memory Search >>>>>>>
+2340 K=0 :'                 {GO HERE 16}
+2350 GOSUB 3260:'Get X and Y coordinates of Memory Array Shelf and number of
+2360 'units on the shelf
+2370 FOR UNIT=1 TO NU
+2380  USP=UNIT*SUL-PML
+2390  BWFP=USP-1
+2400  :
+2410  IF MID$(MA(X,Y),USP+1,PML)<>LEFT$(E,PML) THEN GOTO 2530
+2420  BWF=ASC(MID$(MA(X,Y),BWFP,1)):' Branch Weighting Factor
+2430  :
+2440  FC=ASC(MID$(MA(X,Y),USP,1)):'Code for First Character in unit
+2450  FOR K=K+1 TO BWF
+2460   PBA(K)=FC
+2470   'Probabalistic Branching Array PBA(K) contains character codes RC's
+2480   'that may be chained/branched to.  Each LC is entered into the array
+2490   'the same number of times as it's associated weighting factor  BWF.
+2500  NEXT K
+2510  K=K-1:'Reset K to equal number of elements in array
+2520  :
+2530 NEXT UNIT:'                       {GO HERE 17}
+2540 :
+2550 IF K=1 THEN RK=1:GOTO 2570:'Only one match was found
+2560 RK=INT(K*RND(1)+1):'Pick a Random Number in range 1 to K
+2570 LC=PBA(RK):'                     {GO HERE 18}
+2580 :
+2590 E=CHR$(LC)+LEFT$(E,PML):'Building E in reverse direction
+2600 ' Keep it up until the beginning of a sentence is found.
+2610 :
+2620 '<<<<<<<<<<<<<<<  Beginning of Sentence? >>>>>>>>>>>>>>>>>
+2630 IF LC<>33 AND LC<>46 AND LC<>63 THEN GOTO 2340
+2640 :
+2650 '<<<<<<<<<<<<<<< Synapse Prep >>>>>>>>>>>>>>>>>>
+2660 'Shift address pointers for Input mode with ESYN as source of LC's
+2670 NR=NR+1:NS=NS+1
+2680 :
+2690 SYNAPSE=1
+2700 ESYN=E:' Use ESYN as input during synapse action
+2710 E=ETEMP:' Restore original dead ended contents of string E
+2720 :
+2730 '<<<<<<<<<  Synapse Loop Control >>>>>>>
+2740 SYNAPSE=SYNAPSE+1:'      {GO HERE 19}
+2750 :
+2760 LC=ASC(MID$(ESYN,SYNAPSE,1))
+2770 FOR I=1 TO NDR*3
+2772  FOR J=1 TO DELAY:NEXT J
+2774 NEXT I
+2780 GOTO 1060
+2790 :
+2800 PRINT:PRINT USING "Memory Total = ##### bytes.";SST
+2810 PRINT "Press SPACE BAR for memory dump or F2 to resume."
+2815 T=INKEY$:IF T="" THEN 2815  'goto from 3150
+2820 IF T=ESC$ THEN goto 360
+2825 IF T=F2$ THEN RETURN
+2827 IF T=F9$ THEN RUN
+2830 IF T<>SP$ THEN 2815
+2840 P$=""
+2850 INPUT "Hard Copy (Y/N)";P$
+2860 IF P$="y" THEN P$="Y"
+2870 :
+2880 IF P$="Y" THEN PRINT "Make sure printer is ready.":GOTO 2920
+2890 :
+2900 IF P$<>"N" AND P$<>"n" THEN GOTO 2840
+2910 :
+2920 PRINT "Press any key to START/STOP print out." ' {GO HERE 20}
+2930 Z$=INKEY$:IF Z$="" THEN 2930
+2940 :
+2950 FOR X=0 TO 58
+2960  FOR Y=0 TO 58
+2970 :
+2980   IF MA(X,Y)="" THEN NU=0:GOTO 3080
+2985   NU=LEN(MA(X,Y))/SUL
+2990 :
+3000    FOR UNIT=1 TO NU
+3010     USP=UNIT*SUL-PML:' Unit Start Position in MA(X,Y)
+3020     BWFP=USP-1:' Branch Weighting Factor Position in MA(X,Y)
+3030     A=RIGHT$("  "+STR$(ASC(MID$(MA(X,Y),BWFP,1))),2)
+3035     A=A+"-"+MID$(MA(X,Y),USP,N)
+3040     GOSUB 3200:' Print/Lineprint function
+3050     T=INKEY$:IF T="" THEN GOTO 3070
+3060     T=INKEY$:IF T="" THEN GOTO 3060
+3070   NEXT UNIT:'       {GO HERE 21}
+3075   PRINT
+3080  NEXT Y
+3090 NEXT X
+3100 IF P$="Y" THEN LPRINT STRING$(255," ")
+3110 :
+3140 PRINT "Memory Dump is complete."
+3150 GOTO 2810
+3190 :
+3200 PRINT A,:IF P$="Y" THEN LPRINT A,:'Print/Lineprint string A
+3210 RETURN
+3250 :
+3260 'Get X and Y coordinates for storage shelf from Sliding Window E
+3270 'Array coordinates are ASCII codes minus downshift DS=32
+3280 X=ASC(MID$(E,NR,1))-DS
+3290 Y=ASC(MID$(E,NS,1))-DS
+3300 'Get Number of Units in Memory Array Shelf MA(X,Y)
+3310 NU=INT(LEN(MA(X,Y))/SUL)
+3320 RETURN
+3330 :
+3340 'Forget function (Memory unit de-emphasis)  Hits all possible shelves
+3350 XX=INT(64*RND(1)):IF XX<0 OR XX>64 THEN GOTO 3350
+3360 YY=INT(64*RND(1)):IF YY<0 OR YY>64 THEN GOTO 3360
+3370 NUF=INT(LEN(MA(XX,YY))/SUL):'Number of Units on shelf
+3380 IF NUF=0 THEN RETURN
+3390 UNIT=INT(NUF*RND(1)+1):'Pick a unit (on shelf) at random
+3400 IF UNIT=0 THEN RETURN
+3410 IF UNIT>NUF THEN UNIT=NUF
+3420 USP=UNIT*SUL-PML:' Unit Start Position in MA(X,Y)
+3430 BWFP=USP-1:' Branch Weighting Factor Position in MA(X,Y)
+3440 BWF=ASC(MID$(MA(XX,YY),BWFP,1)):' Numerical Value of weighting Factor
+3450 IF BWF<=1 THEN RETURN:'Don't completely forget
+3460 BWF=BWF-1:'Decrease weighting Factor by 1
+3470 'print "*";:' A bit of forgetting is about to take place
+3480 MID$(MA(XX,YY),BWFP,1)=CHR$(BWF):'Replace BWF as a string
+3490 RETURN
+3990 :
+4000 'Audible tone for speed changes
+4015 SOUND 1000-INT(50*LOG(DELAY)),1
+4020 RETURN
+4025 :
+5000 ' Calculate system delays
+5010 B1=VAL(RIGHT$(TIME$,2))
+5020 J=0
+5030 FOR I=1 TO 1000:NEXT I
+5040 J=J+1
+5050 B2=VAL(RIGHT$(TIME$,2))
+5060 IF B2<B1 THEN B2=B2+60
+5070 IF B2<B1+5 THEN GOTO 5030
+5080 DELAY=J
+5090 RETURN
+5095 :
+7000 'Print help codes at bottom of screen
+7010 VIEW PRINT 1 TO 25
+7030 LOCATE 24,1
+7040 PRINT "  F1=Memory Check/Dump    F2=Resume    F3=Slower    F4=Faster   F5=Break In"
+7060 PRINT "                F6=Program Info    F9=New Run    ESC=Exit Program";
+7070 VIEW PRINT 1 TO 23
+7080 RETURN
+7090 :
+8000 'Information section
+8010 VIEW PRINT 1 TO 25:CLS:PRINT
+8400 PRINT
+8410 PRINT "  BABBLER learns language from your  keyboard entries.  Type in  narrative or"
+8420 PRINT "conversational material.  Use  normal  punctuation.
+8422 PRINT "  Sorry, no  back  spacing for error corrections.  "
+8425 PRINT "  BABBLER will respond  to each  input.   For  new  material there  will be a"
+8427 PRINT "hesitation in the output stream while BABBLER  establishes new  associations."
+8428 PRINT "  Following each  computer generated output there will be a short pause while"
+8430 PRINT "the program looks  for new  keyboard inputs.  If no input occurs BABBLER will"
+8432 PRINT "continue  its  chain  of  thought.  If  you  forget to  close sentences  with"
+8434 PRINT "appropriate  punctuation marks, BABBLER  may  get tangled up  in a non-ending"
+8437 PRINT "output stream.  If this happens, press the  F5 function key to go to keyboard"
+8440 PRINT "input.  A tilde ~  will be printed to signal that you are in the  input mode."
+8470 PRINT "  BABBLER is a limited-capacity  Markov chain  implementation.  It will crash"
+8475 PRINT "if its memory gets filled to 32.6K.  There will be Audible and  visual alerts"
+8478 PRINT "as this limit is  approached.  For  audible warnings  the computer will  beep"
+8480 PRINT "whenever brand-new material is being inputted.
+8482 PRINT "   Use the F3 function key to slow down operation or the F4 key to  speed up."
+8490 PRINT "   If you start a new run,  crash the program,  or  exit,  BABBLER's  current"
+8492 PRINT "memory (in RAM) will go to ASCII heaven.  Nostalgia is permitted."
+8500 LOCATE 21,1
+8510 PRINT "                         Press any key to return.";
+8520 z$=inkey$:if z$="" then 8520
+8540 CLS:PRINT:RETURN

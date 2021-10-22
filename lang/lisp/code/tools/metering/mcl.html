@@ -1,0 +1,142 @@
+Return-Path: <brunk@ruffles.ICS.UCI.EDU>
+Received: by A.GP.CS.CMU.EDU id aa17156; 28 Jun 94 13:48:44 EDT
+Received: from GLINDA.OZ.CS.CMU.EDU by A.GP.CS.CMU.EDU id aa17075;
+          28 Jun 94 13:43:38 EDT
+Received: from paris.ics.uci.edu by GLINDA.OZ.CS.CMU.EDU id aa11297;
+          28 Jun 94 13:42:15 EDT
+Received: from ruffles.ics.uci.edu by paris.ics.uci.edu id aa10848;
+          28 Jun 94 10:41 PDT
+To: mkant@GLINDA.OZ.CS.CMU.EDU
+Subject: Common Lisp Metering System
+Date: Tue, 28 Jun 1994 10:41:32 -0700
+From: Cliff Brunk <brunk@ruffles.ICS.UCI.EDU>
+Message-ID:  <9406281041.aa10848@paris.ics.uci.edu>
+
+Hi Mark,
+  I use your Common Lisp metering system pretty often on under MCL 2.01.
+Thanks for making this nice profiling tool available, it has helped alot.
+However, I notied that the amount of space used by functions that contain
+an &optional is much higher for the monitoring-encapsulation than
+from the original function.  I beleive this is because the encapsulation
+creates a list for the optional arguments using &rest.  If one adds
+a dynmaic-extentent declaration after the lambda list in many implementations
+of Common Lisp the &rest arglist will be stack allocated and the amount of
+storage reported will be a truer indication of how the function performs
+outside of the encapsulation.  Below is the modification that I'm currently
+using and seems to work at least under MCL.
+
+Cliff Brunk
+
+
+(defun make-monitoring-encapsulation (min-args optionals-p)
+  (let (required-args)
+    (dotimes (i min-args) (push (gensym) required-args))
+    `(lambda (name)
+       (let ((inclusive-time 0)
+	     (inclusive-cons 0)
+	     (exclusive-time 0)
+	     (exclusive-cons 0)
+	     (calls 0)
+	     (nested-calls 0)
+	     (old-definition (place-function name)))
+	 (declare (type time-type inclusive-time)
+		  (type time-type exclusive-time)
+		  (type consing-type inclusive-cons)
+		  (type consing-type exclusive-cons)
+		  (fixnum calls)
+		  (fixnum nested-calls))
+	 (pushnew name *monitored-functions*)
+
+	 (setf (place-function name)
+	       #'(lambda (,@required-args
+			  ,@(when optionals-p `(&rest optional-args)))
+                   ,(when optionals-p `(declare (dynamic-extent optional-args)))   ;;; &rest optional-args can be stack allocated
+		   (let ((prev-total-time *total-time*)
+			 (prev-total-cons *total-cons*)
+			 (prev-total-calls *total-calls*)
+;			 (old-time inclusive-time)
+;			 (old-cons inclusive-cons)
+;			 (old-nested-calls nested-calls)
+			 (start-time (get-time))
+			 (start-cons (get-cons)))
+		     (declare (type time-type prev-total-time)
+			      (type time-type start-time)
+			      (type consing-type prev-total-cons)
+			      (type consing-type start-cons)
+			      (fixnum prev-total-calls))
+		     (multiple-value-prog1
+			 ,(if optionals-p
+			      `(apply old-definition 
+				      ,@required-args optional-args)
+			      `(funcall old-definition ,@required-args))
+		       (let ((delta-time (- (get-time) start-time))
+			     (delta-cons (- (get-cons) start-cons)))
+			 ;; Calls
+			 (incf calls)
+			 (incf *total-calls*)
+			    ;;; nested-calls includes this call
+			 (incf nested-calls (the fixnum 
+						 (- *total-calls*
+						    prev-total-calls)))
+;			 (setf nested-calls (+ old-nested-calls
+;					       (- *total-calls*
+;						  prev-total-calls)))
+			 ;; Time
+			    ;;; Problem with inclusive time is that it
+			    ;;; currently doesn't add values from recursive
+			    ;;; calls to the same function. Change the
+			    ;;; setf to an incf to fix this?
+			 (incf inclusive-time (the time-type delta-time))
+;			 (setf inclusive-time (+ delta-time old-time))
+			 (incf exclusive-time (the time-type
+						   (+ delta-time
+						      (- prev-total-time 
+							 *total-time*))))
+			 (setf *total-time* (the time-type
+						 (+ delta-time
+						    prev-total-time)))
+			 ;; Consing
+			 (incf inclusive-cons (the consing-type delta-cons))
+;			 (setf inclusive-cons (+ delta-cons old-cons))
+			 (incf exclusive-cons (the consing-type 
+						   (+ delta-cons
+						      (- prev-total-cons 
+							 *total-cons*))))
+			 (setf *total-cons* 
+			       (the consing-type 
+				    (+ delta-cons prev-total-cons))))))))
+	 (setf (get-monitor-info name)
+	       (make-metering-functions
+		:name name
+		:old-definition old-definition
+		:new-definition (place-function name)
+		:read-metering #'(lambda ()
+				   (values inclusive-time
+					   inclusive-cons
+					   exclusive-time
+					   exclusive-cons
+					   calls
+					   nested-calls))
+		:reset-metering #'(lambda ()
+				    (setq inclusive-time 0
+					  inclusive-cons 0
+					  exclusive-time 0 
+					  exclusive-cons 0
+					  calls 0
+					  nested-calls 0)
+				    t)))))))
+
+
+_______________________________________________________________________________
+Cliff Brunk                             I'm not really listening. It's all non-
+Information and Computer Science        sense.  I'm working on a new problem:
+University of California                Find the value for n such that n plus
+Irvine, California  92717-3425          everything else in your life makes you
+(714) 725-3491                          feel all right.  What would n equal?
+brunk@ics.uci.edu                       Solve for n.            - Peter Cameron
+_______________________________________________________________________________
+
+
+
+
+

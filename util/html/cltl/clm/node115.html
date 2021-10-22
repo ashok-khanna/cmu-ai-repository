@@ -1,0 +1,141 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node115.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 10:08:54 GMT -->
+<HEAD>
+<TITLE>11.4. Exporting and Importing Symbols</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Exporting and Importing Symbols">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2959 HREF="node116.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2957 HREF="node111.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2951 HREF="node114.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2961 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2962 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2960 HREF="node116.html"> Name Conflicts</A>
+<B>Up:</B> <A NAME=tex2html2958 HREF="node111.html"> Packages</A>
+<B> Previous:</B> <A NAME=tex2html2952 HREF="node114.html"> Translating Strings to </A>
+<HR> <P>
+<H1><A NAME=SECTION001540000000000000000>11.4. Exporting and Importing Symbols</A></H1>
+<P>
+<A NAME=EXPORTIMPORTSECTION>Symbols</A>
+from one package may be made accessible in another package in
+two ways.
+<P>
+First, any individual symbol may be added to a package by use
+of the function <tt>import</tt>.  The form <tt>(import 'editor:buffer)</tt> takes
+the external symbol named <tt>buffer</tt> in the <tt>editor</tt> package (this
+symbol was located when the form was read by the Lisp reader) and adds
+it to the current package as an internal symbol.  The symbol is then
+present in the current package.  The imported symbol is
+not automatically exported from the current package, but if it is
+already present and external, then the fact that it
+is external is not changed.  After the call to
+<tt>import</tt> it is possible to refer to <tt>buffer</tt> in the importing package
+without any qualifier.  The status of <tt>buffer</tt> in the package named
+<tt>editor</tt> is unchanged, and <tt>editor</tt> remains the home package for
+this symbol.  Once imported, a symbol is <i>present</i> in the
+importing package and can be removed only by calling <tt>unintern</tt>.
+<P>
+If the symbol is already present in the importing package, <tt>import</tt>
+has no effect.  If a distinct symbol with the name <tt>buffer</tt> is
+accessible in the importing package (directly or by inheritance), then a
+correctable error is signaled, as described in
+section <A HREF="node116.html#NAMECONFLICTSSECTION">11.5</A>, because <tt>import</tt> avoids letting
+one symbol shadow another.
+<P>
+A symbol is said to be <i>shadowed</i> by another symbol in
+some package if the first symbol would be accessible by inheritance
+if not for the presence of the second symbol.
+To import a symbol without the possibility
+of getting an
+error because of shadowing,
+use the function <tt>shadowing-import</tt>.  This inserts
+the symbol into the specified package as an internal symbol, regardless
+of whether another symbol of the same name will be shadowed by this
+action.
+If a different symbol of the same name is already present
+in the package, that symbol will first be uninterned from the package
+(see <tt>unintern</tt>).  The new symbol is
+added to the package's shadowing-symbols list.  <tt>shadowing-import</tt>
+should be used with caution.  It changes the state of the package system
+in such a way that the consistency rules do not hold across the change.
+<P>
+The second mechanism is provided by the function <tt>use-package</tt>.  This
+causes a package to inherit all of the external symbols of some other
+package.  These symbols become accessible as <i>internal</i> symbols of the
+using package.  That is, they can be referred to without a qualifier
+while this package is current, but they are not passed along to any
+other package that uses this package.  Note that <tt>use-package</tt>,
+unlike <tt>import</tt>, does not cause any new symbols to be <i>present</i>
+in the current package but only makes them <i>accessible</i> by inheritance.
+<tt>use-package</tt> checks carefully for
+name conflicts between the newly imported symbols and those already
+accessible in the importing package.  This is described in detail in
+section <A HREF="node116.html#NAMECONFLICTSSECTION">11.5</A>.
+<P>
+Typically a user, working by default in the <tt>user</tt> package, will
+load a number of packages into Lisp to provide an augmented working
+environment, and then call <tt>use-package</tt> on each of these packages
+to allow easy access to their external symbols.
+<tt>unuse-package</tt> undoes the effects of a previous <tt>use-package</tt>.  The
+external symbols of the used package are no longer inherited.  However,
+any symbols that have been imported into the using package continue to
+be present in that package.
+<P>
+There is no way to inherit the <i>internal</i> symbols of another package;
+to refer to an internal symbol, the user must either make that symbol's home
+package current, use a qualifier, or import that symbol into the current
+package.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+The distinction between
+external and internal symbols is a primary means of hiding names
+so that one program does not tread on the namespace of another.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+When <tt>intern</tt> or some other function wants to look up a symbol in a
+given package, it first looks for the symbol among the external and
+internal symbols of the package itself; then it looks through the
+external symbols of the used packages in some unspecified order.  The
+order does not matter; according to the rules for handling name
+conflicts (see below), if conflicting symbols appear in two or more
+packages inherited by package <i>X</i>, a symbol of this name must also appear
+in <i>X</i> itself as a shadowing symbol.  Of course, implementations are free
+to choose other, more efficient ways of implementing this search, as
+long as the user-visible behavior is equivalent to what is described
+here.
+<P>
+The function <tt>export</tt> takes a symbol that is accessible in some
+specified package (directly or by inheritance) and makes it an external
+symbol of that package.  If the symbol is already accessible as an
+external symbol in the package, <tt>export</tt> has no effect.  If the symbol
+is directly present in the package as an internal symbol, it is simply
+changed to external status.  If it is accessible as an internal symbol
+via <tt>use-package</tt>, the symbol is first imported into the package, then
+exported.  (The symbol is then present in the specified package
+whether or not the package
+continues to use the package through which the symbol was originally
+inherited.)  If the symbol is not
+accessible at all in the specified package, a correctable error is
+signaled that, upon continuing, asks the user whether the symbol
+should be imported.
+<P>
+The function <tt>unexport</tt> is provided mainly as a way to undo erroneous
+calls to <tt>export</tt>.  It works only on symbols directly present
+in the current package, switching them back to internal status.  If
+<tt>unexport</tt> is given a symbol already accessible as an internal
+symbol in the current package, it does nothing; if it is given a symbol
+not accessible in the package at all, it signals an error.
+<P>
+<BR> <HR><A NAME=tex2html2959 HREF="node116.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2957 HREF="node111.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2951 HREF="node114.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2961 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2962 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2960 HREF="node116.html"> Name Conflicts</A>
+<B>Up:</B> <A NAME=tex2html2958 HREF="node111.html"> Packages</A>
+<B> Previous:</B> <A NAME=tex2html2952 HREF="node114.html"> Translating Strings to </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

@@ -1,0 +1,849 @@
+NeuDL: Neural-Network Description Language
+
+by Samuel Joe Rogers
+
+August 2, 1993
+
+
+------------------------------------------------------------------------------
+
+
+Introduction
+
+	Neural networks have demonstrated their value in many
+applications, such as pattern recognition, classification,
+generalization, forecasting, noise filtering, etc.[1] Most of these
+applications have been successful through the use of generic network
+implementations, like the standard backpropagation training algorithm.
+These generic implementations illustrate the adaptive nature inherent
+in neural networks; however, deviating from standard architectures and
+gearing the design specifically for a problem can sometimes reduce
+network training time and improve network accuracy.  A neural network
+tool is needed to facilitate the manipulation of the network
+architectures along with training methods, training parameters, input
+data preprocessing, and network analysis.
+
+	There are several examples of how changes to traditional
+neural networks can yield more desirable results than the original
+algorithms.  While it may not be clear exactly how to deviate from the
+standard designs, it is limiting to try to solve all problems with one
+fixed neural network implementation.  However, there is supporting
+evidence to pursue new designs and variations of old ones.  For
+example, Karnin describes a method for dynamically pruning
+backpropagation neural network weights during training.  This approach
+allows training to begin with a purposely oversized network and end up
+with one of the appropriate size.[2]  Sontag describes how
+more creative network weight connections can be used to provide more
+stabilized learning, faster convergence, and reduce the likelihood of
+the local minima problem.[3]  Tveter presents a collection of
+techniques that can be used to improve backpropagation neural network
+performance.[4]
+
+	These ideas and others are generally not supported by the generic
+neural network implementations currently available.  Most currently
+available neural network tools provide a generic template of a basic
+network architecture which can be used for a variety of diverse
+problems.[5] These tools allow the user to modify many of the training
+parameters and even some aspects of the network architecture, such as
+the number of middle layer nodes in a backpropagation neural network.
+However, when more significant changes to the network architecture are
+desired, these tools become very inflexible.  The obvious solution to
+this problem is to code a neural network algorithm tailored
+specifically to the needs of a problem.  Unfortunately, implementing a
+new architecture has many drawbacks.  First, coding a network
+architecture can be time consuming, and since errors can arise from
+the network design as well as from the code itself, debugging can be
+difficult.  Second, a great deal of effort is wasted if a new design,
+once implemented, does not perform as well as expected.  Third, a user
+who understands the concepts and ideas behind neural networks may not
+understand the intricacies of a programming language well enough to
+successfully realize his or her design.
+
+	Another approach is to use prewritten library functions or
+objects to remove the need for the user to deal with detailed code
+pertaining to the neural network's implementation.  However, a certain
+level of programming expertise is still required, and if the source
+code is unavailable, poorly documented, or cryptically coded,
+modifications may be impossible to make.  Masters has provided a rich
+set of neural network objects for the C++ language.[6] However, if a
+user wishes to modify these objects, even though inheritance
+simplifies this action, the user may not have the programming skills
+necessary to accomplish this task.  Masters provides the NEURAL
+program to serve as an interface to the neural network objects.  This
+interface serves well for the objects as they are, but many of the
+objects are not primitive enough to allow the user to utilize his or
+her creative abilities in creating the network.
+
+	Another approach proposed by Mesrobian and Skrzypek is that of
+a neural network simulation environment called SFINX (Structure and
+Function in Neural ConneXtions).[7] This approach combines graphics,
+programming languages, and a wide range of neural networks into an
+interactive software package.  While SFINX offers its users a great
+deal of flexibility, it still requires some low level coding and it
+lacks the ability to dynamically modify the neural networks during
+training.
+
+	This paper introduces a new tool with an interpreted
+programming language interface to build, train, test, and run neural
+network designs.  Currently, this tool is limited to backpropagation 
+neural networks.[8]  However, by bridging the gap between inflexible
+generic tools and time consuming coding, it clearly demonstrates the
+power and flexibility such an interface gives to the design and
+operation of neural networks.
+
+
+NeuDL
+
+	The Neural-Network Description Language or NeuDL is a
+programming language which facilitates the operations associated with
+neural network design and operation.  NeuDL's grammar is C-like;
+however, by eliminating many of the esoteric C conventions, it is 
+usable by both C and non-C programmers.
+
+	Many of C's execution flow instructions are present in NeuDL,
+including: if/else, while, and for.  These instructions are virtually
+identical to their C counterparts in both syntax and semantics.  Also,
+statements are compounded in NeuDL, as they are in C, by placing braces
+({,}) around them.
+
+	NeuDL also provides a set of data manipulation instructions to
+create and maintain training and testing sets for neural networks.
+These data sets are made up of elements each having three components:
+an identification number, an array of input values, and an array of
+output values.  A data set can be loaded from disk, entered manually,
+or placed directly in the NeuDL code.  Instructions exist to gather
+statistical information from data sets, normalize data sets, and print
+data sets.  Each data set is referenced by an identification number
+which can be the result of evaluating an expression.  Examples of the
+data manipulation instructions are shown below:
+
+	Create_Data(data_id,num_inputs,num_outputs);
+
+		Create_Data will create a data set with the specified
+		number of input and output values per element and assign
+		it to the parameterized data set identification number.
+
+	Load_Data(data_id,"filename");
+
+		Load_Data will load a formatted data file and assign
+		it to the parameterized data set identification number.
+		
+	Add_Data(data_id,id_num,in_1,...,in_n,..out_1,...,out_n);
+
+		Add_Data will add a data element to a data set.  The first
+		parameter is the identification number of the data set it will
+		be added to, the second parameter is the identification number
+		of the new element, and the remaining parameters are the
+		input and output values.  If the data set has n inputs per
+		element and m outputs per element, then the first n parameters
+		after the element identification number are the element's input
+		values, and the next m parameters are the element's output 
+		values.  All parameters can be expressions.
+
+	Reset_To_Head(data_id);
+	Reset_To_Tail(data_id);
+
+		These instructions reset the current data pointer to
+	        the head or tail of a data list.
+	
+	Next_Data(data_id,id_num,in_array[],out_array[]);
+
+		Next_Data retrieves the element identification number, the 
+		input values, and the output values of the current data set
+		element.  The current data element pointer is then
+	        updated to point to the next element.  If only the data 
+		identification number is provided, the current pointer is 
+		advanced and nothing is returned.
+
+	Find_High_Low(data_id,high_in[],low_in[],high_out[],low_out[]);
+		
+		Find_High_Low will find the high and low values for each
+		input and output component in the data set and will store
+		the results in the arrays provided.
+
+	Normalize_Data(data_id,high_in[],low_in[],high_out[],low_out[]);
+	Denormalize_Data(data_id);
+
+		Normalize_Data will take the high/low range values in
+		the parameterized arrays and will normalize each input
+		and output component between 0.0 and 1.0 for each data set
+		element.  Denormalize_Data will return the data back to
+		its original values.
+
+	Another feature of NeuDL is a set of system variables that are
+used to maintain current information about the network and data sets.
+Using certain data manipulation instructions, like Create_Data,
+Load_Data, and Add_Data, will update several system variables to
+reflect the current state of the data sets.  The system variables
+relating to the data sets are shown below:
+
+	Data_Counts[]  -  An array holding the number of elements in
+			  each data set.  The Data_Count array is indexed
+			  by the data set identification number.
+
+	Data_Inputs[]  -  An array holding the number of input components
+			  in each element of a data set.  The array is
+			  indexed by the data set identification number.
+
+	Data_Output[]  -  An array holding the number of output components
+			  in each element of a data set.  The array is 
+			  indexed by the data set identification number.
+			 
+	To improve the readability of NeuDL code, two other system
+variables are also provided: TRAINING and TESTING.  TRAINING is
+initialized to 0, and TESTING is initialized to 1.  These variables can
+be used as data set identification numbers instead of expressions or
+literals.
+
+	The remaining NeuDL instructions deal with creating and
+running the neural network.  A Create_Network instruction will create
+a network in memory; it has a variable length parameter list which
+specifies the number of nodes in each layer.  
+
+	Create_Network(input_layer,mid_layer_1,...,mid_layer_n,output_layer);
+
+For example, if the user wants a network with 2 input layer nodes, 3
+middle layer nodes, and 1 output layer node, the following instruction
+will create this network in memory:
+
+	Create_Network(2,3,1);
+
+The number of network layers is determined by how many parameters the
+instruction has.  The following example will create a network with 10
+input nodes, 7 nodes in the first middle layer, 5 nodes in the second
+middle layer, and 2 nodes in the output layer:
+
+	Create_Network(10,7,5,2);
+
+An ADALINE can also be specified by having only one output layer node
+and no middle layer nodes:
+
+	Create_Network(10,1);
+
+
+	The Create_Network instruction does not connect any of the
+network nodes together.  Instead, NeuDL provides several primitive
+commands that allow the user to connect the network according to his or
+her specifications.  The Connect_Weight instruction will connect two
+network nodes together with a directed weighted connection.  The
+Connect_Weight instruction takes four parameters: a from layer, a from
+node, a to layer, and a to node:
+
+	Connect_Weight(from_layer,from_node,to_layer,to_node);
+
+The output of the from node in the from layer will be an input to the
+to node in the to layer (nodes and layers are indexed from 0 to the
+number of nodes or layers minus 1).  For example, if a connection is
+needed between the 3rd node (node 2) in the input layer (layer 0) and
+the 4th node (node 3) in the first middle layer (layer 1), then the
+following instruction can be used:
+
+	Connect_Weight(0,2,1,3);
+
+The Connect_Weight instruction initializes the weighted value between
+the connected nodes to a random value; however, a Set_Weight
+instruction is also provided to give the user more control over the
+network.  For example:
+
+        Set_Weight(from_layer,from_node,to_layer,to_node,init_value);
+
+	Set_Weight(0,2,1,3,0.2342);
+
+
+There are also complementary commands to Connect_Weight and Set_Value:
+
+	Remove_Weight(from_layer,from_node,to_layer,to_node);
+
+	Get_Weight(from_layer,from_node,to_layer,to_node,return_variable);
+
+
+	There are also two instructions provided to connect networks
+in traditional methods: Partially_Connect and Fully_Connect.
+Partially_Connect connects each node in each layer to each node in its
+succeeding layer.  Fully_Connect connects each node in each layer to
+each node in each succeeding layer.  These two commands can be
+implemented with the primitive commands; however, they are convenient
+to use if they correspond to the desired network architecture.  For example:
+
+	Create_Network(2,3,1);
+
+	for (i=0; i<2; i++)             // For each node in input layer
+		for (j=0; j<3; j++)     // For each node in middle layer
+			Connect_Weight(0,i,1,j);
+
+	for (i=0; i<3; i++)             // For each node in middle layer
+		Connect_Weight(1,i,1,0);
+
+
+The two for loops are equivalent to:
+
+	Partially_Connect;
+
+
+	When executed, certain instructions will update system
+variables to reflect the current network state.  For example, when the
+Create_Network instruction is executed the following variables are
+updated:
+
+	Layer_Count  -> The number of layers in the network.
+
+	Layer[]      -> An array containing the number of nodes in each layer.
+		        The input layer is Layer[0] and Layer[Layer_Count-1] is
+		        the output layer.
+
+	Input_Layer  -> The index of the input layer (always 0).
+
+	Output_Layer -> The index of the output layer (Layer_Count-1).
+
+	Weight_Count -> The number of weighted connections in the network
+
+These variables can be used at any point in a NeuDL program's
+execution; however, they will not be initialized until the
+Create_Network or Load_Network (discussed below) instructions are
+executed.  For example, the following code illustrates how a generic
+partially_connect and a generic fully_connect can be implemented with
+primitives:
+
+
+	// Equivalent to Partially_Connect:
+
+	for (i=Input_Layer; i<Output_Layer; i++)
+		for (j=0; j<Layer_Nodes[i]; j++)
+			for (k=0; k<Layer_Nodes[i+1]; k++)
+				Connect_Weight(i,j,i+1,k);
+
+
+
+	// Equivalent to: Fully_Connect:
+
+	for (i=Input_Layer; i<Output_Layer; i++)
+		for (j=i+1; j<=Output_Layer; j++)
+			for (k=0; k<Layer_Nodes[i]; k++)
+				for (l=0; l<Layer_Nodes[j]; l++)
+					Connect_Weight(i,k,j,l);
+
+
+	Three more instructions are provided to allow easy access to
+all weights in the network.  A current pointer to the network weights
+is maintained.  When the Reset_Current_Weight instruction is executed,
+the pointer is set to the first weight in the network.  A
+Get_Current_Weight instruction will retrieve the weight value and
+position (from_layer,from_node,to_layer,to_node) of the current
+weight.  A Next_Weight instruction advances the current pointer to the
+next weight.  These instructions are shown below:
+
+	Reset_Current_Weight;
+
+	Get_Current_Weight(from_layer,from_node,to_layer,to_node,weight_value);
+
+	Next_Weight;
+
+
+	To get an output from the network, a forward pass must be
+performed: input must be loaded into the input layer and then
+propagated through the network.  NeuDL provides a Forward_Pass
+instruction to accomplish this task.  Forward_Pass is an overloaded
+instruction, so it will execute differently depending on what
+parameters it is given.  If two array names are provided as
+parameters, the first array's values will be loaded into the input
+layer, a forward pass will be performed, and the output layer will be
+loaded into the second array.  
+
+	Forward_Pass(in_array[],out_array[]);
+
+
+A second version of Forward_Pass allows the current element in a data
+set to be sent as the network input and no output is returned.
+
+	Forward_Pass(data_id);
+
+
+This variation is useful when training a network with the primitive
+commands since it is more efficient.
+
+	For training purposes, NeuDL provides a backward error
+propagation instruction called Backward_Pass.  Backward_Pass uses the
+current element's output array in the parameterized data set to
+compute the network error and adjust the weights.
+
+	Backward_Pass(data_id);
+
+Two system variables are implicit parameters for Backward_Pass.
+Learning_Rate, which is the percent each weight is adjusted, and
+Momentum, which is the percent of the previous weight change added to
+the current change.  If these variables are not modified by the user,
+default values will be used by Backward_Pass; however, the user
+can change these variables before and during training.
+
+	Two additional instructions are provided to give further
+support to the Backward_Pass instruction.  When executed, the
+Backward_Pass instruction adds the square of the error for the input
+pattern to an accumulator variable.  If the user needs the network error
+value, the Get_Network_Error instruction will retrieve this value.
+The user must reset the accumulator manually with the
+Reset_Network_Error instruction.
+
+	Reset_Network_Error;
+
+	Get_Network_Error(error_value);
+
+
+	Training can be achieved in many ways using the primitive
+commands.  The following code segment is a trivial example of
+performing 1000 training iterations on a training set:
+
+	Load_Data(TRAINING,"test.trn");   // Load Training Set Data from file
+
+					       // Create Network in memory
+					       // with the number of input 
+					       // and output layer nodes
+					       // corresponding to the number
+					       // of inputs and outputs in the
+					       // loaded data file.  The number
+					       // of middle layer nodes is half
+	Create_Network(Data_Inputs[TRAINING],  // the sum of inputs and outputs
+		       (Data_Inputs[TRAINING]+ 
+			Data_Outputs[TRAINING])/2),
+		       Data_Outputs[TRAINING]);
+
+	Partially_Connect;
+
+	for (i=0; i<1000; i++)    // Perform 1000 Training Iterations
+		{
+		Reset_To_Head(TRAINING);  // Set Current Pointer to Head 
+		
+		for (j=0; j<Data_Count[TRAINING]; j++)   // Go through each
+			{				 // Training Element
+			Forward_Pass(TRAINING);	  // Forward Pass to get output
+			Backward_Pass(TRAINING);  // Backward Pass to correct 
+						  // network error
+
+			Next_Data(TRAINING);	// Advance current data set 
+			}			// pointer
+		}
+
+	Save_Network("test.net");	        // Save Network weights to file
+
+
+
+More complicated heuristics can be used to determine if the network
+has finished training other than a predetermined number of iterations.
+The following code segment uses an overall network error tolerance to
+determine when training should end:
+
+
+
+	Load_Data(TRAINING,"test.trn");   // Load Training Set Data from file
+
+	Create_Network(Data_Inputs[TRAINING],  // Create Network in memory
+		       (Data_Inputs[TRAINING]+Data_Outputs[TRAINING])/2),
+		       Data_Outputs[TRAINING]);
+
+	Partially_Connect;
+
+	Network_Error=1;     // Initialize to a value that will enter loop
+
+	while (Network_Error>0.10)  // Train until network error is below 0.10
+		{			
+		Reset_Network_Error;	// Reset error from last iteration
+
+		Reset_To_Head(TRAINING);  // Set Current Pointer to Head 
+
+		for (j=0; j<Data_Count[TRAINING]; j++)   // Go through each
+			{				 // Training Element
+			Forward_Pass(TRAINING);	  // Forward Pass to get output
+
+			Backward_Pass(TRAINING);       // Backward Pass to 
+	 			                       // correct network error
+ 
+			Next_Data(TRAINING);	  // Advance current data set 
+			}			  // pointer
+
+		Get_Network_Error(Network_Error);  // Get network error
+		}
+
+	Save_Network("test.net");	        // Save Network weights to file
+
+
+
+Far more elaborate training methods can be implemented than the ones
+illustrated above.  However, it should be clear that the primitive
+training instructions allow a great deal of flexibility.
+
+	A more automated training method is also provided by NeuDL.
+The BP_Train instruction is a generic method for training a neural
+network using the Backpropagation algorithm.  It uses the primitive
+instructions shown above; however, if the user wants to use a generic
+training method and not code the details, this instruction will
+conveniently accomplish that task.  BP_Train takes three parameters:
+an output file to store the network weights, a training data set
+identification number, and a testing data set identification number:
+
+	BP_Train("filename",training_data_id,testing_data_id);
+
+This instruction also uses several system variables as input parameters:
+
+	Learning_Rate   -  Percent to adjust weights on each backward pass
+
+	Momentum        -  Percent of each previous weight change to add into
+			   the current weight change
+
+	Tolerance	-  The greatest amount of error any output node can
+			   have and the input pattern be considered correct
+
+	Display_Rate    -  How many iterations must pass before status 
+			   information is printed on the screen
+
+	Min_Iterations  -  The minimum number of training iterations that must
+			   be performed before training can end
+
+	Max_Iterations  -  The maximum number of training iterations that will 
+			   be performed regardless of the network error
+
+
+These variables can be changed at any point in a NeuDL program's
+execution.  When the BP_Train instruction is executed, the current
+values of these system variables are used as training parameters.
+If these variables are not initialized by the user, default values are
+assigned to them.  Using system variables as training parameters
+reduces the number of parameters for the BP_Train instruction and
+allows the use of default values.  The following code segment
+illustrates the use of the BP_Train instruction:
+
+	Load_Data(TRAINING,"test.trn");   // Load Training Data Set from file
+	Load_Data(TESTING,"test.tst");    // Load Testing Data Set from file
+
+	Create_Network(Data_Inputs[TRAINING],  // Create Network in memory
+		       (Data_Inputs[TRAINING]+Data_Outputs[TRAINING])/2),
+		       Data_Outputs[TRAINING]);
+
+	Fully_Connect;				// Fully Conect Network
+
+	Tolerance=0.25;				 // Change default error 
+						 // tolerance
+
+	BP_Train("test.net",TRAINING,TESTING);   // Use generic training 
+						 // instruction
+
+
+
+
+Power and Flexibility of NeuDL
+
+
+	The above examples of NeuDL code are simple examples that do
+little more than the generic neural network implementations.  However,
+the instructions introduced above can be used to implement more complex
+network architectures and training methods.  
+
+
+	Suppose that a user wants to connect a network so that each
+input node has only three connections.  These connections are arranged
+so that a middle layer node only receives input from neighboring input
+nodes.  This architecture or a similar one may be desired when it is
+known that certain inputs do not influence others.  A complete NeuDL
+program is shown below to illustrate this network design:
+
+	
+program
+	{
+	Load_Data(TRAINING,"test.trn");  // Load Training Data Set
+	Load_Data(TESTING,"test.tst");   // Load Testing Data Set
+
+	Create_Network(Data_Inputs[TRAINING],     // Create network with
+		       Data_Inputs[TRAINING]-2,   // middle layer containing
+		       Data_Outputs[TRAINING]);	  // two less nodes than the 
+						  // input layer
+
+	int i,j;       // declare loop control variables
+
+					       // Connect Input to Middle 
+        for (i=0; i<layer[Input_Layer+1]; i++) // for each node in middle layer
+	   for (j=i; j<=i+2; j++)	       // for each subset of inputs
+		Connect_Weight(Input_Layer,j,
+			       Input_Layer+1,i);
+
+						// Connect Middle to Output
+	for (i=0; i<layer[Input_Layer+1]; i++)  // for each node in middle
+		for (j=0; j<layer[Output_Layer]; j++)  // for each output node
+		    Connect_Weight(Input_Layer+1,i,
+				   Output_Layer,j);
+
+	BP_Train("test.net",TRAINING,TESTING);
+	}
+
+
+	NeuDL will also allow the network to be altered during
+training.  Suppose that a user wants to use the following training
+method:
+	
+		1) Create a fully connected network
+		2) Train 100 iterations
+		3) Remove the lowest weighted connection in the network
+		4) Repeat steps 2-3 29 more times
+		5) Train final 100 iterations
+
+The following code is a complete NeuDL program to illustrate this
+training scenario:
+
+program
+	{
+	Load_Data(TRAINING,"litho.trn");  // Load Training Data Set
+	Load_Data(TESTING,"litho.tst");   // Load Testing Data Set
+
+	Create_Network(Data_Inputs[TRAINING],       // Create network with
+		       (Data_Inputs[TRAINING]+
+		       Data_Outputs[TRAINING])/2.0, // two middle layers,
+		       (Data_Inputs[TRAINING]+
+		       Data_Outputs[TRAINING])/2.0, // the first middle layer
+		       Data_Outputs[TRAINING]);	    // has 60% the number of 
+						    // nodes as the input
+						    // layer, and the second
+						    // has 60%
+
+	Partially_Connect;	// Fully_Connect Network - each node is
+			        // connected to each node in each succeeding
+				// layer
+
+	int round;
+	int i;
+	int j;	// Declare loop control variables
+
+	float low_weight; // Variables to store lowest weight value and posit
+	float from_layer;
+	float from_node;
+	float to_layer;
+	float to_node;
+
+	float value;   // Variables to hold current weight value and position
+	int f_l;
+	int f_n;
+	int t_l;
+	int t_n;
+	
+	Min_Iterations=100;   // Change Training Parameters from default so 
+	Max_Iterations=100;   // BP_Train will train exactly 50 iterations
+
+	float High_In[Data_Inputs[TRAINING]];  // Storage for high/low info
+	float Low_In[Data_Inputs[TRAINING]];
+	float High_Out[Data_Outputs[TRAINING]];
+	float Low_Out[Data_Outputs[TRAINING]];
+
+	Find_High_Low(TRAINING,High_In,Low_In,High_Out,Low_Out);  
+	Normalize_Data(TRAINING,High_In,Low_In,High_Out,Low_Out);
+	Normalize_Data(TESTING,High_In,Low_In,High_Out,Low_Out);
+
+	for (round=0; round<30; round++) 
+		{
+		BP_Train("litho.net",TRAINING,TESTING);  // Train 5 iterations
+
+		Reset_Current_Weight; // Go through weights and find lowest one
+
+		Get_Current_Weight(from_layer,from_node,  // first weight
+				   to_layer,to_node,low_weight);
+		if (low_weight<0) low_weight*=-1;
+	
+		for (j=1; j<Weight_Count; j++)    // Weight_Count is a system 
+			{			  // variable
+			
+			Get_Current_Weight(f_l,f_n,t_l,t_n,value);
+			if (value<0) value*=-1;   // Absolute Value
+			
+			if (value<low_weight)  
+				{		
+				low_weight=value; 
+				from_layer=f_l;
+				from_node=f_n;
+				to_layer=t_l;
+				to_node=t_n;
+				}
+			Next_Weight;	// Advance to next weight
+			}
+		Remove_Weight(from_layer,from_node,   // Remove lowest weight
+			      to_layer,to_node);
+		print("Removing Weight: (",from_layer,",",from_node,")->(",
+			to_layer,",",to_node,")   value: ",low_weight);
+		newline;
+		}	
+
+
+	BP_Train("litho.net",TRAINING,TESTING);  // Train final 10 times
+	}
+
+
+
+
+
+	Another training method might include the removal of all
+network weights below a predefined threshold.  The following code
+segment illustrates this method:
+
+	Min_Iterations=100;   // Change Training Parameters from default so 
+	Max_Iterations=100;   // BP_Train will train exactly 100 iterations
+	
+	Threshold=0.005;
+
+	for (round=0; round<10; round++) 
+		{
+		BP_Train("test.net",TRAINING,TESTING);  // Train 100 iterations
+
+		Reset_Current_Weight; // Set Current weight to first one
+
+		for (j=0; j<Weight_Count; j++)     // Go through each weight
+			{
+			Get_Current_Weight(from_layer,from_node,
+					   to_layer,to_node,value);
+
+			if (value<0) value*=-1;    // Absolute value
+
+			if (value<Threshold)    // Remove if below threshold
+				Remove_Weight(from_layer,from_node, 
+			     		      to_layer,to_node);
+			Next_Weight;
+			}
+		}
+
+	BP_Train("test.net",TRAINING,TESTING);  // Train final 100 iterations
+
+
+
+	NeuDL's power and flexibility are not limited to neural
+network architectures and training methods.  NeuDL's programming
+language interface is capable of handling a wide array of input data
+preprocessing and ouput data postprocessing.  While instructions exist
+to gather certain statistical information about data sets, like
+Find_High_Low, the user is not limited to these functions; he or she
+can simply code a new procedure to perform whatever task is needed for
+the specific problem.  This ability eliminates the need to have
+separate programs handle preprocessing and postprocessing of data
+channeled to and from the neural network.
+
+
+	Also, NeuDL programs can very easily be made very generic.
+For example, file names and other training parameters can be queried
+within the NeuDL code or they can be provided on the command line when
+the interpreter is executed, thus, eliminating the need to change the
+NeuDL code each time it is run on a different set of data.
+
+
+NeuDL Implementation
+
+
+	The NeuDL interpreter is an object oriented design implemented
+with C++.  Each NeuDL instruction is a class derived from a base
+instruction class which allows new instructions to be easily added to
+the language.  The interpreter uses a simple parsing algorithm to
+convert NeuDL instructions into an object format.  Once converted, the
+instruction objects can be executed.
+
+	The neural network operations in NeuDL are part of a
+backpropagation neural network class which is derived from a base
+neural network class.  The base class provides the operations to build
+a network and perform a forward pass; the derived backpropagation
+class provides the operations to train the network with the
+backpropagation training algorithm.  The backpropagation neural
+network class is a client of the interpreter's state and is accessible
+by all of the NeuDL instruction classes.  The state is also an object
+which maintains all program variables as well as the neural network
+and can be modified by any executing instruction.
+
+	All data set operations are provided by another class which is
+also a client of the state object and the backpropagation object.  The
+data class and the backpropagation neural network class together can
+function independently of the interpreter.  This independence allows
+the interpreter another feature which translates NeuDL code into C++
+code.  Translated code can be compiled with a C++ compiler and then
+linked with the data and backpropagation objects to produce executable
+object code.  The translate feature is not needed to execute the NeuDL
+code since the interpreter itself can directly execute the code;
+however, if the overhead of the interpreter needs to be removed, a
+NeuDL program can be translated, compiled, and then executed.
+Translated programs suffer many of the same problems as C++, such as
+no range checking.  However, if the NeuDL programs are first tested
+with the interpreter, errors can more easily be eliminated.  Also,
+instructions like BP_Train execute at object speed, not interpreted
+speed, since they are merely calls to the already compiled object.
+Therefore, compilation of translated code may not improve the
+interpreter's performance by a great deal.  On the other hand,
+compiling the code eliminates the interpreter freeing up a great deal
+of memory that can be used for storing larger networks or more data in
+memory.
+
+
+Future Plans
+
+	NeuDL is a very flexible and powerful tool with its current
+instruction set.  However, there is room for improvement.  Most
+notably, the support for other network architectures is needed, such
+as recurrent backpropagation and Kohonen self-organizing neural
+networks.  The object oriented design of the NeuDL interpreter will
+easily allow such additions. 
+
+	Also, NeuDL is not restricted to a C-like grammar.  Since the
+parser converts the NeuDL code into an object form, it could take a
+variety of language grammars as input.  Loops, conditions, assignment,
+and variable declarations are all abstract instructions; the parser
+instantiates the instruction objects with basic information unrelated
+to syntax.  They are not specific to a C-like language; they could
+just as easily be Pascal, Ada, or FORTRAN.  If users do not like C, a
+Pascal-like version of NeuDL could easily be put together simply by
+modifying the parser.
+
+	Graphical displays are not currently supported by NeuDL;
+however, the object oriented design would allow graphics instructions
+to be added.  Graphical instruction objects could be used to design
+the network, plot training statistics, and evaluate the network's
+architecture.  Even the addition of graphic primitives, like
+draw_line, to NeuDL's grammar would allow the user to produce
+graphical representations of the network, its weight strengths, etc.
+
+	NeuDL is a new approach to neural network design that attempts
+to bridge the gap between inflexible tools and coding a network from
+scratch.  NeuDL is much simpler to use than C, but it also provides
+much of the power and flexibility a programming language can give to
+the design process.  Since most of NeuDL's instructions are primitive
+instructions for the creation and operation of neural networks, the
+user is not overwhelmed by the complexities of a programming language.
+Nevertheless, NeuDL also provides more powerful commands to facilitate
+operations like network creation and training.  Hence, the user can be
+as involved as he or she desires in the network design and training.
+This ability is not possible with most tools and programming languages
+making NeuDL's new approach to network design and training an
+interesting addition to the science of neurocomputing.
+
+	
+
+References
+
+
+[1]  Robert Hecht-Nielsen.  Neurocomputing.  Addison-Wesley, Reading, MA, 1992.
+
+[2]  Ehud D. Karnin.  "A Simple Procedure for Pruning Back-Propagation Trained
+     Neural Networks," in IEEE Transactions on Neural Networks, vol.1, no. 2,
+     pp. 239-242.
+
+[3]  Eduardo D. Sontag. "On the Recognition Capabilities of Feedforward
+     Nets," Technical report, SYCON Center, Rutgers University, 1990.
+
+[4]  Don Tveter. "Getting a fast break with Backprop," AI Expert, July
+     1991, pp. 36-43.
+
+[5]  Neural Network Resource Guide.  AI Expert, February 1993,  pp. 48-55.
+
+[6]  Timothy Masters.  Practical Neural Network Recipes in C++.  Harcourt
+     Brace Jovanovic, Boston, 1993.
+
+[7]  Edmond Mesrobian and Josef Skrzypek.  "A Software Environment for 
+     Studying Computation al Neural Systems"  IEEE an Software Engineering, 
+     vol. 18, no. 7, July 1992, pp. 575-589.
+
+[8]  David Rumelhart, James McClelland, and the PDP Research Group.  
+     Parallel Distributed Processing.  MIT Press, Cambridge, MA., 1986.
+
+
+
+
+
+
+
+

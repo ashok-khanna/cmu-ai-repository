@@ -1,0 +1,667 @@
+From Informatik.Uni-Dortmund.DE!Germany.EU.net!mcsun!uunet!sparky!kent Thu Mar 25 12:51:55 1993
+Article: 991 of comp.sources.misc
+Newsgroups: comp.sources.misc
+Path: Informatik.Uni-Dortmund.DE!Germany.EU.net!mcsun!uunet!sparky!kent
+From: heitkoet@lusty.informatik.uni-dortmund.de (Joerg Heitkoetter)
+Subject: v36i034:  hodge-c - An implementation of Gerhard & Schuster's hodge-podge machine, Part00/33
+Message-ID: <csm-v36i034=hodge-c.000505@sparky.IMD.Sterling.COM>
+Followup-To: comp.sources.d
+X-Md4-Signature: 98ef044e5fe3d95f4c3ae2301bfe41b4
+Sender: kent@sparky.imd.sterling.com (Kent Landfield)
+Organization: Sterling Software
+Date: Tue, 23 Mar 1993 06:07:05 GMT
+Approved: kent@sparky.imd.sterling.com
+Lines: 650
+
+Submitted-by: heitkoet@lusty.informatik.uni-dortmund.de (Joerg Heitkoetter)
+Posting-number: Volume 36, Issue 34
+Archive-name: hodge-c/part00
+Environment: ImageMagick, KHOROS
+
+HODGE-C:
+--------
+
+HODGE-C is a (`mostly ANSI') C language implemenatation of
+Gerhard & Schuster's hodge-podge machine. It implements a class
+of cellular automata, that resemble very closely autocatalytic
+chemical reactions, like for example, the Belousov-Zhabotinskii (BZ)
+reaction.
+
+For an introductory article on hodge-podge see:
+A.K.Dewdney's Computer Recreations column, in Scientific American,
+August 1988.
+
+HODGE-C is distributed free of charge and the other terms of the GPL, ie.
+the GNU General Public License.
+
+HODGE-C v0.98j is available via ftp from lumpi.informatik.uni-dortmund.de
+(129.217.36.140).  Log on with user name "ftp" and give your full e-mail
+address as password.  The file hodge-c-0.98j.tar.Z in directory /pub/CA/src
+contains the complete software and documentation.
+
+For more information contact:
+
+	Joerg Heitkoetter
+	(joke@ls11.informatik.uni-dortmunde.de)
+
+    c/o Systems Analysis Group, LSXI
+	Department of Computer Science             ////
+	University of Dortmund                UNI DO// 
+	P.O. Box 500 500                     ___ ////
+	4600 Dortmund 50                     \*\\///
+	Germany                               \\\\/
+
+		      ,,,
+		     (o o)
+*----------------oOO--(_)--OOo---------------------------------------------*
+| Joerg Heitkoetter		| joke@ls11.informatik.uni-dortmund.de     |
+|								      ___  |
+| University of Dortmund	| Tel.: +49 231 755 5138	     ////  |
+| Dept. of Computer Science 	| Fax.: +49 231 755 2450	UNI DO//   |
+| Chair of Systems Analysis	|			       ___ ////	   |
+| P.O. Box 500 500		| "This space for rent!"       \*\\///	   |
+| 4600 Dortmund 50, Germany	|				\\\\/	   |
+*--------------------------------------------------------------------------*
+		     |/ \|	  Computer Scientist, n.:
+		    (_) (_)	   A device that turns coffee into programs.
+
+---- save the following to a file and say: more/less file ----------------
+
+HODGE-C(1)               USER COMMANDS                 HODGE-C(1)
+
+
+
+NAME
+     hodge - an implementation of  Gerhard  &  Schuster's  hodge-
+     podge machine
+
+
+SYNOPSIS
+     hodge [ options ]
+
+             [-A, --animation-file-name <name>]
+
+             [-C, --color-map-file-name <name>]
+
+             [-D, --dump-data-file-name <name>]
+
+             [-F, --number-of-frames <number>]
+
+             [-G, --groth-rate <number>]
+
+             [-J, --ill-cells-denominator <number>]
+
+             [-K, --infected-cells-denominator <number>]
+
+             [-M, --monitor-process <process>]
+
+             [-N, --number-of-cell-states <number>]
+
+             [-P, --plot-file-name <name>]
+
+             [-S, --size-of-grid <size>]
+
+             [-T, --time-steps <number>]
+
+             [-X, --start-of-film <timestep>]
+
+             [-Y, --skip-between-takes <number>]
+
+             [-b, --batch]
+
+             [-d, --no-dump]
+
+             [-f, --number-of-dumps <number>]
+
+             [-g, --gnuplot-data-format]
+
+             [-h, --help]
+
+             [-i, --idl-data-format]
+
+             [-m, --moore-neighbourhood]
+
+             [-n, --no-film]
+
+             [-o, --on-line-visualization]
+
+             [-s, --seed-for-random <seedvalue>]
+
+             [-t, --torus]
+
+             [-v, --version]
+
+             [-w, --warranty]
+
+             [-x, --start-of-dump <timestep>]
+
+             [-y, --skip-between-dumps <number>]
+
+
+DESCRIPTION
+     hodge implements a class of cellular automata (CA), that are
+     also  known  as hodge-podge machines. They have caught great
+     attention when being discussed in A.K. Dewdney's  ``Computer
+     Recreations''  column  in Scientific American. hodge, resem-
+     bles the currently closest  to  reality  simulation  of  the
+     Belousov-Zhabotinskii  (BZ) reaction, the most complex anor-
+     ganic, oscillating reaction; but hasn't  been  invented  for
+     this  special purpose though (refer to the BIBLIOGRAPHY sec-
+     tion below).
+
+     hodge's input and output streams, and all  of  it's  default
+     parameters  may  be  changed  using various options (see the
+     OPTIONS section below).
+
+     By default hodge generates 3 types of data files:
+
+     +  a single plot file, containing  a  per  line  statistical
+        shapshot of the CA's internal state
+
+     +  one or more dump file(s), each containing a  snapshot  of
+        all  cell  values  of  the  CA,  in either Gnuplot (line-
+        oriented) or IDL (block-oriented) format, and
+
+     +  one or more animation data  file(s),  each  containing  a
+        snapshot  of  all cell values of the CA, written in port-
+        able pixmap format, using as much  colors,  as  specified
+        with the `--number-of-cell-states' option.
+
+     Please, refer to the FORMATS section below.
+
+
+ANIMATION
+     hodge's main purpose is to generate the previously mentioned
+     shapshot files for `making movies'.  All you need is, eg. E.
+     I. du Pont de Nemours & Company's  ImageMagick  PD  software
+     (available  via  anonymous  ftp  from export.lcs.mit.edu, as
+     file `contrib/ImageMagick.tar.Z.') using the package's  ani-
+     mate(1)  command  you'll  soon  see BZ waves move across the
+     grid.  An example for  this  is  given  in  the  hodge/movie
+     folder of the HODGE-C distribution.
+
+     A different approach is to use IDL  from  Research  Systems,
+     Inc.  Boulder, CO, USA. An example for this purpose is given
+     in the hodge/idl folder of the HODGE-C distribution.
+
+     An animation companion to pixmon(1)  called  playmate(1)  is
+     also  in  the making, and will be distributed in near future
+     (refer to the AVAILABILITY section below).  Its  application
+     is  rather simple: all there is to do is to include a ``tee-
+     log'' in the `--monitor-process' eg.:
+
+     --monitor-process 'tee >pmdata.pix | pixmon ...'
+
+     to  collect  pixmon(1)  data,  that  is  later  turned  into
+     animated pixmaps by playmate(1).
+
+     A final, powerful and low cost solution for animation is  to
+     install  the KHOROS visualization package on your system. It
+     comes for free from the University of  New  Mexico,  and  is
+     better  than most commercial products.  KHOROS also features
+     an easy to use graphical programming interface  called  CAN-
+     TATA  and  is very easy to learn for beginners in scientific
+     visualization. KHOROS features a bunch of converters to it's
+     internal  VIFF(5)  format,  that  is  easily  generated from
+     hodge's dump (eg. asc2viff(1)) and animation data files (eg.
+     pbm2viff(1), rast2viff, raw2viff(1), etc.)
+
+
+OPTIONS
+     -A, --animation-file-name filename
+          Set the animation data file name pattern. (Defaults  to
+          hodge-%0003d.ppm.)
+
+     -C, --color-map-file-name filename
+          Set the color map file name. (Defaults to hodge.map.)
+
+     -D, --dump-data-file-name filename
+          Set the data file name  pattern.  (Defaults  to  hodge-
+          %0003d.dmp.)
+
+     -F, --number-of-frames number
+          Set the number of frames, ie. the number  of  animation
+          data files to write.
+
+     -G, --groth-rate number
+          The rate the  value  of  an  infected  cell  increases;
+          described  as  parameter  g  in  A.K. Dewdney's article
+          (defaults to 25).
+
+     -J, --ill-cells-denominator number
+          This parameter is used in the  equation  A/k1  +  B/k2,
+          where  A  is the count of all ILL neighbour cells and B
+          is a counter of all INFECTED neighbour cells;  this  is
+          parameter  k1  (k2) in A.K. Dewdney's article (defaults
+          to 2).
+
+     -K, --infected-cells-denominator number
+          This parameter is used in the  equation  A/k1  +  B/k2,
+          where  A  is the count of all ILL neighbour cells and B
+          is a counter of all INFECTED neighbour cells;  this  is
+          parameter  k2  (k1) in A.K. Dewdney's article (defaults
+          to 3).
+
+     -M, --monitor-process process
+          Set a monitor process; hodge opens a pipe to the  given
+          process  and  writes  it's  CA's contents to this pipe,
+          enabling the process to visualize  the  incoming  data.
+          Defining  a  monitor  process,  implies the `--on-line-
+          visualization' option. (See the OPTION SUMMARY for  the
+          process default.)
+
+     -N, --number-of-cell-states number
+          Set the number of states a SANE cell has to go through,
+          being  INFECTED to finally become an ILL cell (defaults
+          to 100).
+
+     -P, --plot-file filename
+          Plot data will go to filename (defaults to hodge.plt).
+
+     -S, --size-of-grid size
+          Set the CA's grid size, ie. the grid's x and  y  dimen-
+          sions (x=y).
+
+     -T, --time-steps number
+          Run the simulation for number of timesteps.
+
+     -X, --start-of-film timestep
+          Set the time step,  when  to  start  writing  animation
+          data.
+
+     -Y, --skip-between-takes number
+          Set the amount of timesteps to pass between  successive
+          animation data takes.
+
+     -b, --batch
+          Run hodge in batch mode, ie. don't prompt the user  for
+          any input; and don't produce any user notification out-
+          put.
+
+     -d, --no-dump
+          Don't write any dump files.
+
+     -f, --number-of-dumps number
+          Set the number of dump files to write.
+
+     -g, --gnuplot-data-format
+          Set the dump file format to Gnuplot (default).
+
+     -h, --help
+          Print a usage message containing all options.
+
+     -i, --idl-data-format
+          Set the dump file format to IDL.
+
+     -m, --moore-neighbourhood
+          Use a Moore neighbourhood, during  computation  of  the
+          CA's next state, by default a Von-Neumann neighbourhood
+          is used, ie. to North, East,  South  and  West,  North-
+          East,  South-East, South-West and North-West are added,
+          when using this flag.
+
+     -n, --no-film
+          Don't write any animation data files.
+
+     -o, --on-line-visualization
+          Start the process given  with  the  `--monitor-process'
+          option,  and  display  the  CA's  contents on each time
+          step.  (Note: you need either the  pixmon(1)  facility,
+          or an appropriate double.)
+
+     -s, --seed-for-random seed value
+          Set the random number generator's seed with the integer
+          seed value.
+
+     -t, --torus
+          Make the 2D space of the CA grid borderless, ie. the 2D
+          grid is folded to a 3D torus.
+
+     -v, --version
+          Print a version and copyright message.
+
+     -w, --warranty
+          Print a warranty information message.
+
+     -x, --start-of-dump timestep
+          Set the time step, when to start dumping.
+
+     -y, --skip-between-dumps number
+          Set the amount of timesteps to pass between  successive
+          dumps.
+
+
+OPTION SUMMARY
+     To give no option  at  all  is  the  same  as  to  give  the
+     following options:
+
+hodge.map'
+     --monitor-process        'pixmon -dx 128 -dy 128 -
+          scale  5  -cmap
+
+     --animation-file-name    hodge-%0003d.ppm
+
+     --color-map-file-name    hodge.map
+
+     --number-of-frames  1
+
+     --start-of-film          1
+
+     --skip-between-takes     1
+
+     --dump-data-file-name    hodge-%0003d.dmp
+
+     --gnuplot-data-format
+
+     --start-of-dump          1
+
+     --skip-between-dumps     1
+
+     --time-steps        1000
+
+     --grid-size         128
+
+     --number-of-cell-states  100
+
+     --ill-cells-denominator  2
+
+     --infected-cells-denominator  3
+
+     --groth-rate        25
+
+     --plot-file-name         hodge.plt
+
+     --seed-for-random   12345678
+
+
+FORMATS
+     The only INPUT FORMAT hodge acknowledges,  is  a  color  map
+     file, using 256 colors with the following RGB format:
+
+          #    File:          demo.map
+          #    Creator:  joke
+          # <- this is a comment line: '#' in the 1st column
+          <red intensity 0>   <green intensity 0> <blue intensity 0>
+          <red intensity 1>   <green intensity 1> <blue intensity 1>
+          <red intensity 2>   <green intensity 2> <blue intensity 2>
+                         ...
+          <red intensity 255> <green intensity 255>    <blue intensity 255>
+
+     Thus a non-commented color map file  consist  of  256  lines
+     each  one  containing such a color description. Eg. to get a
+     greyscale `color' map, simply use the same  intensities  for
+     all colors.
+
+     The OUTPUT FORMATS are as follows:
+
+     +  The plot file format is precisely specified as:
+
+          <timestep 0> <# sane> <# infected> <# ill> <percentage of infected cells>
+          <timestep 1> <# sane> <# infected> <# ill> <percentage of infected cells>
+          <timestep 2> <# sane> <# infected> <# ill> <percentage of infected cells>
+                              ...
+          <timestep n> <# sane> <# infected> <# ill> <percentage of infected cells>
+
+     on a per line base, with <timestep 0> running from 1  to  n,
+     the latter being specified by the `--time-steps' option.
+
+     +  The dump file format depends on whether the Gnuplot  data
+        file format, or the IDL data file format has been chosen,
+        with  the  first  being  the  default,  when   no   user-
+        specification via run-time option has taken place.
+
+        +  The Gnuplot (line-oriented) data file format:
+
+             <xcell index 0> <ycell index 0> <xycell value 0,0>
+             <xcell index 1> <ycell index 0> <xycell value 1,0>
+             <xcell index 2> <ycell index 0> <xycell value 2,0>
+                       ...
+             <xcell index n> <ycell index 0> <xycell value n,0>
+
+             <xcell index 0> <ycell index 1> <xycell value 0,0>
+             <xcell index 1> <ycell index 1> <xycell value 1,1>
+             <xcell index 2> <ycell index 1> <xycell value 2,1>
+                       ...
+             <xcell index n> <ycell index 1> <xycell value n,1>
+
+                       ...
+             <xcell index n> <ycell index n> <xycell value n,n>
+
+        +  The IDL (block-oriented) data file format:
+
+             <xcell-index 0>
+             <xcell-index 1>
+             <xcell-index 2>
+             ...
+
+             <ycell-index 0>
+             <ycell-index 1>
+             <ycell-index 2>
+             ...
+
+             <xycell value 0,0>
+             <xycell value 1,0>
+             <xycell value n,0>
+             ...
+             <xycell value n,n>
+
+     +  The animation file format is the portable pixmap  format,
+        as  defined  by  Jeff Poskanzer for his bitmap conversion
+        collection pbmplus. I  thus  direct  the  reader  to  the
+        appropriate   manual   page(s)   of   that  package,  ie.
+        pbmplus(1), and ppm(5).
+
+
+EXAMPLES
+     The following are two examples displaying the dumps of a 2x2
+     grid:
+
+     The Gnuplot data file format:
+
+          1    1    0
+          1    2    10
+
+          2    1    37
+          2    2    100
+
+     The IDL data file format:
+
+          1
+          2
+          1
+          2
+
+          1
+          2
+          1
+          2
+
+          0
+          10
+          37
+          100
+
+
+FILES
+     Unless specified otherwise hodge reads  in  the  first,  and
+     writes the following files at run-time:
+
+     hodge.map      default color map
+     hodge.plt      plot data file
+     hodge-xyz.ppm  animation data file(s) in ppm format
+     hodge-xyz.dmp  dump data file(s) in either Gnuplot or IDL format
+
+     The distribution of  HODGE-C  contains,  besides  the  usual
+     source and makefiles, the following files:
+
+     INSTALL        hints for installation of hodge on your system
+     configure      C shell script to configure hodge for your system
+     config/*.cf    various system's configuration files
+
+     contrib/infekt2.c        Martin Gerhard's original source
+
+     cmaps/*.map     various color maps
+
+     khoros/README   hints for making movies with KHOROS
+     khoros/movie    C shell script to run hodge
+     khoros/bz-*.vif demo animation data
+
+     magick/README  hints for making movies with IMAGEMAGICK
+     magick/movie    C shell script to run hodge
+     magick/bz-*.gif demo animation data
+     magick/gif2vif  shell script converting GIF to VIFF files
+
+     idl/README      hints for making movies with IDL
+     idl/idemo       C shell script to run hodge
+     idl/iload       shell script that uncompresses and loads idata.Z
+     idl/idata.Z     demo animation data
+
+     typ?            demo C shell script to produce type #? (1-4) plot files
+     typ?.gnu        gnuplot(1) command file to produce 2D and 3D plots
+
+
+BUGS
+     hodge has even more options than ls.
+
+     The pseudo code given in  the  Scientific  American  article
+     contains a subtle bug: Dewdney confused the meaning of A and
+     B, ie. he says ``A counts the infected neighbours and B  the
+     ill   ones,''   but  it's  the  other  way  round.  For  the
+     interested, Martin Gerhard's original ATART  ST  version  of
+     the hodge-podge machine is included in this distribution.
+
+
+ALGORITHM
+     Due to this confusion I give here the correct algorithm core
+     in pseudo code:
+
+          foreach cell do
+               A := count of ill neighbour cells            // range: [0..8]
+               B := count of infected neighbour cells       // range: [0..8]
+               S := value of all neighbour cells + value of cell // range: [0..8*n]
+               case state(cell) of
+                    SANE:
+                         begin
+                              newval := A/k1 + B/k2
+                         end
+
+                    INFECTED:
+                         begin
+                              B := B + 1          // count self (sic!)
+                              newval := S/B + g   // ...else B could be zero
+                         end
+
+                    ILL:
+                         begin
+                              newval := 0         // 0 means SANE
+                         end
+               esac
+
+               if newval > MAXVALUE               // number-of-cell-states option (=n)
+                    value(cell) := 0
+               else
+                    value(cell) := newval
+          od
+
+
+BIBLIOGRAPHY
+     BZ specific publications:
+
+     A.K. Dewdney,  Computer  Recreations,  Scientific  American,
+     August, 1988.
+
+     Stefan C. Mueller, Theo Plesser and Benno Hess,  The  Struc-
+     ture  of  the  Core  of  the  Spiral  Wave  in the Belousov-
+     Zhabotinskii Reaction, Science, 230(4726), November, 1985.
+
+     Stefan C. Mueller,  Theo  Plesser  and  Benno  Hess,  Three-
+     dimensional  Representation of Chemical Gradients, Biophysi-
+     cal Chemistry, February, 1987.
+
+     Cellular automata theory and practice:
+
+     D. Farmer, T. Toffoli and  S.  Wolfram,  Cellular  Automata,
+     North-Holland, Amsterdam, 1984.
+
+     S. Wolfram, Theory and Applications  of  Cellular  Automata,
+     World Scientific Publishing, Singapore, 1986.
+
+     Christopher G.  Langton,  Artificial  Life,  Addison-Wesley,
+     Redwood  City, CA, 1989.  (The Proceedings of an Interdisci-
+     plinary Workshop on the Synthesis and Simulation  of  Living
+     Systems held September, 1987 in Los Alamos, New Mexico.)
+     Christopher G.  Langton,  et  al.,  Artificial  Life  II,  A
+     proceedings  volume in the Santa Fe Institute Studies in the
+     Science of Complexity, Addison-Wesley,  Reading,  MA,  1990.
+     (Proceedings  of the Workshop on Artificial Life held Febru-
+     ary, 1990 in Santa Fe, New Mexico.)
+
+     Introductory books:
+
+     Paul Davies, Cosmic Blueprint, Heinemann, London, UK, 1988.
+
+     John Briggs and F. David Peat, An Illustrated Guide to Chaos
+     Theory and the Science of Wholeness, Harper & Row, New York,
+     NY 1989.
+
+
+SEE ALSO
+     gnuplot(1),  imagemagick(1),  khoros(1),  pbmplus(1),   pix-
+     mon(1), playmate(1), xv(1), ppm(5)
+
+
+AUTHOR
+     Copyright (C) 1993 by Joerg Heitkoetter
+     Systems Analysis Group, University of Dortmund, Germany.
+     Send bugs, comments, etc., to (joke@ls11.informatik.uni-dortmund.de).
+
+
+CREDITS
+     I'd like to thank Joachim Sprave, of  the  Systems  Analysis
+     Group  for lending and extending his pixmon(1) visualization
+     package, to suit my needs; moreover  Uli  Hermes  and  Frank
+     Kursawe  for help with IDL. I am also greatfully indepted to
+     Heike Schuster and Martin Gerhard for their  enthusiasm  and
+     friendly  explanations,  when  we  met at the Biomathematics
+     Research  Group,  at  the  former  Max-Planck-Institute  for
+     Nutrition Physiology, in 1988, which has been renamed to MPI
+     for Molecular Physiology, in February 1993.  More thanks  go
+     to Jenna W. Dea, currently at UCSC, for lots of questions on
+     CAs, and giving me an opportunity; to once  again  spend  my
+     time on things, I do not have time for.
+
+
+AVAILABILITY
+     This work is protected by the terms of the GNU General  Pub-
+     lic  License.  Please refer to the LICENSE file accompanying
+     the sources of this software package for a lengthy,  boring,
+     but absolute complete description.
+
+     The sources come from MAGPIE -- The European  Free  Software
+     Factory  Project.  For more information on MAGPIE send email
+     to (joke@ls11.informatik.uni-dortmund.de).
+
+     HODGE-C is available via  anonymous  ftp  from  the  group's
+     server lumpi.informatik.uni-dortmunde.de (129.217.36.140) as
+     file `hodge-c-0.98j.tar.Z' in /pub/CA/src.
+
+
+WARRANTY
+     This program is  free  software;  you  can  redistribute  it
+     and/or  modify  it under the terms of the GNU General Public
+     License as published by the Free Software Foundation; either
+     version 2 of the License, or (at your option) any later ver-
+     sion.
+
+     This program is distributed in the hope that it will be use-
+     ful, but WITHOUT ANY WARRANTY; without even the implied war-
+     ranty of MERCHANTABILITY or FITNESS FOR  A  PARTICULAR  PUR-
+     POSE. See the GNU General Public License for more details.
+
+     You should have received a copy of the  GNU  General  Public
+     License  along  with this program; if not, write to the Free
+     Software Foundation,  Inc.,  675  Mass  Ave,  Cambridge,  MA
+     02139, USA.
+exit 0 # Just in case...
+
+

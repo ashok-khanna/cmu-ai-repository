@@ -1,0 +1,598 @@
+;;; Tue Jul 12 00:46:15 1994 by Mark Kantrowitz <mkant@SKEEZER.OZ.CS.CMU.EDU>
+;;; ptf.cl -- 21074 bytes
+
+;;; ****************************************************************
+;;; PTF Code: Keys, Cat, Ask, All **********************************
+;;; ****************************************************************
+;;;
+;;; This file defines KEYS, CAT, ASK, and ALL programs for Common Lisp
+;;; users of the PTF Freeware for AI CD-ROM.
+;;;
+;;; Copyright (c) 1994 by Mark Kantrowitz.
+;;; Use, copying, and distribution for non-commercial purposes permitted.
+;;;
+;;;
+
+;;; To run the KEYS program:
+;;;   1. Initialize the program by evaluating
+;;;        (init-keys "a2z/lists/")
+;;;      where a2z/lists/ should be the directory containing the files 
+;;;      ki.txt and pl.txt (the ASCII keyword index and package list, 
+;;;      respectively).
+;;;
+;;;   2. Run the program by executing
+;;;         (keys)
+;;;      and then type keywords at the PTF-AI% prompt. For example, if you 
+;;;      want to find all the FAQ postings written by Mark Kantrowitz, you'd
+;;;      type
+;;;         PTF-AI% kantrowitz faq
+;;;      If you want to find either the CMU Loop Macro or the MIT Loop 
+;;;      Macro, you'd type
+;;;         PTF-AI% CMU Loop Macro or MIT Loop Macro
+;;;      (The default operator is an AND, with higher precedence than OR.)
+;;;
+;;;   3. You can change the change the sort order from keyword index 
+;;;      number (:ki) to alphabetical by keyword (:alpha) via
+;;;         (keys :sorted :alpha)
+;;;      and the matching from :subseq to :exact via
+;;;         (keys :match :exact)
+;;;
+;;;   4. You can invoke the CAT, ASK, and ALL programs from KEYS via 
+;;;      commands like
+;;;         PTF-AI% :ask areas/reasonng/atp/problems/tptp/
+;;;
+;;;   5. To exit the program, hit the return key on a blank line.
+
+;;; To run the CAT program:
+;;;   1. Type (cat "filename") where "filename" is the pathname of the 
+;;;      file you wish to see.
+
+;;; To run the ASK and ALL programs:
+;;;   1. Type (ask "directory") or (all "directory") where "directory"
+;;;      is the relative pathname of the package you wish to inspect.
+;;;      If directory isn't specified, it is relative to the current
+;;;      working directory. (Use the implementation-specific commands
+;;;      in your Lisp to change the working directory.)
+
+;;; Line Termination Note:
+;;;
+;;;   Line termination conventions are different in different operating
+;;;   systems. In Unix uses a line feed (LF), Macintosh a CR, and DOS a
+;;;   combination CRLF. The ANSI Common Lisp standard is LF, but not all
+;;;   Lisp implementations conform to the standard. If your Lisp 
+;;;   implementation is a non-conforming Lisp, simply change the value of the 
+;;;   *DEFAULT-EOL-STYLE* parameter below.
+;;;
+;;; MORE (paging control) note:
+;;;
+;;;   If you specify the keyword argument :MORE :ON, it will turn on
+;;;   more (page control) processing for the output of all the functions. 
+;;;   You can turn this on by default by setting the *MORE-DEFAULT* 
+;;;   parameter, and you can set the number of lines in output by setting 
+;;;   the *MORE-DEPTH* parameter.
+
+;;; ********************************
+;;; To Do **************************
+;;; ********************************
+
+;;; TODO - KEYS:
+;;;   -  improve the output formatting.
+
+;;; ********************************
+;;; User-Settable Parameters *******
+;;; ********************************
+(defparameter *more-depth* 20
+  "Maximum number of lines in output when MORE mode is on.")
+
+(defparameter *more-default* :off
+  "Specifies whether MORE mode is on or off by default.")
+
+(defparameter *default-eol-style* :default
+  "Specifies the default end of line marker. May be :DEFAULT (uses built-in
+   READ-LINE function), :LF (:Unix style), :CR (:mac style), or :CRLF (:dos
+   style).")
+
+(defparameter *ptf-directory* "" ; "/afs/cs/project/ai-repository/ai/"
+  "Specifies the current working directory for Lisps without a working 
+   directory.") 
+
+;;; ********************************
+;;; Support Code *******************
+;;; ********************************
+
+(defun read-line-eol (&optional (stream *standard-input*) 
+				(eof-errorp t) eof-value recursive-p
+				(eol-style *default-eol-style*))
+  "Returns a line of text read from the Stream as a string, discarding the
+   end of line character. Allows the user to specify the eol-terminator
+   as :DEFAULT, :LF, :CR, or :CRLF. "
+  ;; unix LF, mac :cr, dos :crlf
+  (if (eq eol-style :default)
+      (read-line stream eof-errorp eof-value recursive-p)
+    (let ((res (make-string 80))
+	  (len 80)
+	  (index 0))
+      (do ((ch (read-char stream eof-errorp eof-value recursive-p)
+	       (read-char stream eof-errorp eof-value recursive-p)))
+	  ((eq ch eof-value)
+	   eof-value)
+	(cond ((and (char= ch #\linefeed) (or (eq eol-style :lf)
+					      (eq eol-style :unix)))
+	       (return (values (subseq res 0 index) nil)))
+	      ((and (char= ch #\return) (or (eq eol-style :cr)
+					    (eq eol-style :mac)))
+	       (return (values (subseq res 0 index) nil)))
+	      ((and (char= ch #\return) (or (eq eol-style :crlf)
+					    (eq eol-style :dos)))
+	       (when (char= (peek-char nil stream nil nil nil) #\linefeed)
+		 (read-char stream eof-errorp eof-value recursive-p)
+		 (return (values (subseq res 0 index) nil)))))
+
+	(when (= index len)
+	  (setq len (* len 2))
+	  (let ((new (make-string len)))
+	    (replace new res)
+	    (setq res new)))
+
+	(setf (schar res index) ch)
+	(incf index))
+      )))
+
+(defun split-string (delimiter string)
+  "Splits a string into two strings around the first occurrence of DELIMITER."
+  (let ((position (position delimiter string)))
+    (if position
+	(values (subseq string 0 position)
+		(subseq string (1+ position)))
+	(values nil string))))
+
+(defun split* (string &optional (delimiter #\,))
+  "Splits a string into substrings around the delimiter."
+  (let ((pos (position delimiter string)))
+    (cond (pos
+           (cons (string-trim " " (subseq string 0 pos))
+                 (split* (subseq string (1+ pos)) delimiter)))
+          (t
+           (list (string-trim " " string))))))
+
+(defun string-replace (old new sequence)
+  "Replaces OLD with NEW in SEQUENCE."
+  (do* ((start2 0)
+	(new-length (length new))
+	(old-length (length old))
+	(pos (search old sequence :start2 start2)
+	     (search old sequence :start2 start2)))
+      ((null pos)
+       sequence)
+    (setq start2 (+ pos new-length))
+    (setq sequence
+	  (concatenate 'string 
+		       (subseq sequence 0 pos)
+		       new
+		       (subseq sequence (+ pos old-length))))))
+
+(defun dict-alpha-lessp (x y)
+  (let ((x1 (car x)) (y1 (car y)))
+    (cond ((and (null x) (null y))
+	   t)
+	  ((and x1 (null y1))
+	   nil)
+	  ((and y1 (null x1))
+	   t)
+	  ((and (null x1) (null y1))
+	   (dict-alpha-lessp (cdr x) (cdr y)))
+	  ((string-equal x1 y1)
+	   (dict-alpha-lessp (cdr x) (cdr y)))
+	  ((string< x1 y1)
+	   t)
+	  (t nil))))
+
+;;; ********************************
+;;; CAT and CAT-UNTIL **************
+;;; ********************************
+
+(defun cat (file &key (more *more-default*) (eol-style *default-eol-style*))
+  "Types a file to *STANDARD-OUTPUT*. The user can specify whether
+   :more mode is :on or :off and the :eol-style."
+  (with-open-file (stream file :direction :input)
+     (do ((line (read-line-eol stream nil :eof nil eol-style)
+		(read-line-eol stream nil :eof nil eol-style))
+	  (count 0))
+	 ((eq line :eof)
+	  (values))
+       (incf count)
+       (when (= count *more-depth*)
+	 (setq count 0)
+	 (when (eq more :on)
+	   (format t "~%--More--")
+	   (let ((result (read-char *query-io*)))
+	     (when (char-equal result #\q)
+	       (return)))))
+       (format t "~%~A" line))))
+
+(defun cat-until (file keyword &key (more *more-default*) 
+		       (eol-style *default-eol-style*))
+  "Types a file to *STANDARD-OUTPUT*. The user can specify whether
+   :more mode is :on or :off and the :eol-style."
+  (with-open-file (stream file :direction :input)
+     (do ((line (read-line-eol stream nil :eof nil eol-style)
+		(read-line-eol stream nil :eof nil eol-style))
+	  (count 0)
+	  (terminate nil))
+	 ((eq line :eof)
+	  (values))
+       (incf count)
+      (multiple-value-bind (key rest) (split-string #\: line)
+	(declare (ignore rest))
+	(when key
+	  (cond ((string-equal keyword key)
+		 (setq terminate t))
+		(terminate
+		 (return (values))))))
+       (when (= count *more-depth*)
+	 (setq count 0)
+	 (when (eq more :on)
+	   (format t "~%--More--")
+	   (let ((result (read-char *query-io*)))
+	     (when (char-equal result #\q)
+	       (return)))))
+       (format t "~%~A" line))))
+
+;;; ********************************
+;;; Initializing the KEYS Program **
+;;; ********************************
+
+(defun init-keys (&optional (directory "") 
+		  &key (eol-style *default-eol-style*))
+  "Given the directory of the ki.txt and pl.txt files, properly initializes
+   the keys program."
+  (unless (or (zerop (length directory)) 
+	      (char= (char directory (1- (length directory))) #\/))
+    (setq directory (concatenate 'string directory "/")))
+  (format t "~%Loading pl.txt~%")
+  (load-pl (concatenate 'string directory "pl.txt") :eol-style eol-style)
+  (format t "~%Loading ki.txt~%")
+  (load-ki (concatenate 'string directory "ki.txt") 
+	   :clear t
+	   :eol-style eol-style))
+
+;;; ********************************
+;;; Reading the Package List *******
+;;; ********************************
+
+#|
+;;; example package list entry
+lang/lisp/bookcode/dst/                 4 A
+     Code from David S. Touretzky's book
+     295 KB
+|#
+
+(defstruct package-list-entry
+  directory
+  disk
+  index
+  description)
+
+(defparameter *index-limit* 2000 
+  "Maximimum index handled by this program.")
+
+(defparameter *package-list* (make-array *index-limit*))
+(defun get-package-entry (index)
+  (aref *package-list* index))
+(defsetf get-package-entry (index) (value)
+  `(setf (aref *package-list* ,index) ,value))
+
+(defun load-pl (file &key (eol-style *default-eol-style*))
+  "Loads a Package List from ASCII file."
+  (with-open-file (stream file :direction :input)
+    (do ((line (read-line-eol stream nil :eof nil eol-style)
+               (read-line-eol stream nil :eof nil eol-style))
+         (package-entry nil)
+         (count 0))
+        ((eq line :eof)
+         (setf (package-list-entry-description package-entry)
+               (nreverse (package-list-entry-description package-entry)))
+         (setf (get-package-entry (package-list-entry-index package-entry)) 
+               package-entry)
+	 (values))
+      (cond ((char= (char line 0) #\space)
+             ;; we're a description line
+             (push (string-trim " " line)
+                   (package-list-entry-description package-entry)))
+            (t
+             (incf count)
+             (princ ".")
+             (when (= count 78)
+               (setq count 0)
+               (terpri))
+             ;; we're a first line
+             ;; first save the previous description
+             (when package-entry
+               (setf (package-list-entry-description package-entry)
+                     (nreverse (package-list-entry-description package-entry)))
+               (setf (get-package-entry (package-list-entry-index
+					 package-entry)) 
+                     package-entry))
+             ;; create and save a new entry
+             (setq line (string-trim " " line))
+             (let ((space-pos (or (position #\space line)
+                                  (1+ (position #\/ line :from-end t))))
+                   (disk-pos (position #\space line :from-end t)))
+               (setq package-entry
+                     (make-package-list-entry
+                      :directory (subseq line 0 space-pos)
+                      :disk      (string-trim " " (subseq line disk-pos))
+                      :index     (parse-integer 
+				  (string-trim " " (subseq line
+							   space-pos
+							   disk-pos)))))))))))
+
+;;; ********************************
+;;; Reading the Keyword Index ******
+;;; ********************************
+
+#|
+;;; example keyword index entry
+8-Queens, 262, 370, 371, 372, 395
+|#
+
+(defparameter *keyword-index* (make-hash-table :test #'equal))
+(defun get-keyword-indices (key) (gethash key *keyword-index*))
+
+(defun load-ki (file &key clear (eol-style *default-eol-style*))
+  (when clear (clrhash *keyword-index*))
+  (with-open-file (stream file :direction :input)
+    (do ((line (read-line-eol stream nil :eof nil eol-style)
+               (read-line-eol stream nil :eof nil eol-style))
+         (count 0))
+        ((eq line :eof)
+         (values))
+      (incf count)
+      (princ ".")
+      (when (= count 78)
+        (setq count 0)
+        (terpri))
+      (destructuring-bind (key . indices) (split* line)
+        (setf (gethash key *keyword-index*)
+              (mapcar #'parse-integer indices))))))
+
+;;; ********************************
+;;; Keys Program *******************
+;;; ********************************
+
+(defun key-match (keyword string &optional (match :subseq))
+  ;; Currently using the built-in SEARCH function. Perhaps extend it
+  ;; to use regular expressions?
+  (case match
+    (:subseq (search keyword string :test #'string-equal))
+    (:exact (string-equal keyword string))))
+
+(defun key-intersection (x y)
+  ;; Computes the intersection of x and y, but merges the associated
+  ;; keywords.
+  (let ((intersects nil))
+    (dolist (x-elt x)
+      (let ((y-elt (find (car x-elt) y :key #'car :test #'=)))
+	(when y-elt
+	  (push (cons (car x-elt) (union (cdr x-elt) (cdr y-elt)
+					 :test #'string-equal))
+		intersects))))
+    intersects))
+
+(defun line-to-keys (line)
+  (let ((words (split* line #\space))
+	(result nil)
+	(conjunct nil))
+    (dolist (word words)
+      (cond ((or (string-equal word "or")
+		 (string-equal word "-o"))
+	     ;; We see an or --> new conjunct.
+	     (push (nreverse conjunct) result)
+	     (setq conjunct nil))
+	    ((string-equal word "and")
+	     ;; Do nothing
+	     nil)
+	    (t 
+	     ;; Same conjunct
+	     (push (string-replace "," " " word) conjunct))))
+    ;; Finish last conjunct
+    (push (nreverse conjunct) result)
+    (nreverse result)))
+
+(defparameter *ptf-prompt* "PTF-AI%")
+
+(defun KEYS (&key (sorted :ki) (match :subseq) (more *more-default*))
+  ;; Sorted can be :ki (in order of keyword index number) or :alpha
+  ;; (for alphabetical dictionary sort by keyword).
+  ;; Match is :exact or :subseq.
+  ;; The primary interface to the program. Provides a REP loop.
+  (clear-input *query-io*)
+  (case sorted
+    (:ki    (format t "~&Sorting matches by index number. ~
+                         Change by typing \":sorted :alpha\"."))
+    (:alpha (format t "~&Sorting matches by keyword. ~
+                         Change by typing \":sorted :ki\".")))
+  (case match
+    (:exact (format t "~&Sorting matches is exact (whole word). ~
+                         Change by typing \":match :subseq\"."))
+    (:subseq (format t "~&Sorting matches is subsequence. ~
+                         Change by typing \":match :exact\".")))
+  (format t "~&~A " *ptf-prompt*)
+  (do ((line (read-line *query-io* nil :eof nil)
+	     (read-line *query-io* nil :eof nil)))
+      ((or (eq line :eof)
+	   (string-equal (string-trim " " line) ""))
+       (values))
+    (setq line (string-trim " " line))
+    (cond ((string= line "")
+	   nil)
+	  ((string-equal line ":sorted :ki")
+	   (format t "~&Sorting now by index number. ~
+                         Change by typing \":sorted :alpha\".")
+	   (setq sorted :ki))
+	  ((string-equal line ":sorted :alpha")
+	   (format t "~&Sorting now by keyword. ~
+                         Change by typing \":sorted :ki\".")
+	   (setq sorted :alpha))
+	  ((string-equal line ":match :exact")
+	   (format t "~&Match now by exact (whole word). ~
+                         Change by typing \":match :subseq\".")
+	   (setq match :exact))
+	  ((string-equal line ":match :subseq")
+	   (format t "~&Match now by subsequence. ~
+                         Change by typing \":match :exact\".")
+	   (setq match :subseq))
+	  ((string-equal line ":cat" :end1 (min 4 (length line)))
+	   (multiple-value-bind (key arg) (split-string #\space line)
+	     (declare (ignore key))
+	     (cat arg)))
+	  ((string-equal line ":ask" :end1 (min 4 (length line)))
+	   (multiple-value-bind (key arg) (split-string #\space line)
+	     (declare (ignore key))
+	     (ask arg)))
+	  ((string-equal line ":all" :end1 (min 4 (length line)))
+	   (multiple-value-bind (key arg) (split-string #\space line)
+	     (declare (ignore key))
+	     (all arg)))
+	  (t
+	   (keys-i (line-to-keys line) sorted match more)
+	   (terpri)))
+    (format t "~2&~A " *ptf-prompt*)))
+
+(defun keys-i (keys &optional (sorted :ki) (match :subseq) 
+		    (more *more-default*))
+  ;; The core of the program.
+  ;; Input is a list of lists, representing a disjunction of conjunctions.
+  ;; We'll store the indices of the matches in the search keys itself.
+  (let ((vals (mapcar #'(lambda (l)
+                          (mapcar #'(lambda (k)
+                                      (list k))
+                                  l))
+                      keys)))
+    ;; Find all the matches.
+    (maphash #'(lambda (k vs) 
+                 (dolist (disjunct vals)
+                   (dolist (conjunct disjunct)
+		     ;; When we have a match...
+                     (when (key-match (car conjunct) k match)
+                       ;; save the matching keywords with the indices
+		       (dolist (v vs)
+			 (let ((old (find v (cdr conjunct)
+					  :key #'car :test #'=)))
+			   (cond (old
+				  (unless (find k (cdr old) 
+						:test #'string-equal)
+				    (push k (cdr old))))
+				 (t
+				  (push (list v k) (cdr conjunct)))))))))) 
+             *keyword-index*)
+    (let ((first-seen nil)
+	  (count 0))
+      (block outer
+	(dolist (disjunct vals)
+	  (if first-seen
+	      (progn (format t "~2%") (incf count))
+	    (setq first-seen t))
+	  ;; Take their intersection
+	  (let ((intersects (reduce #'key-intersection
+				    (mapcar #'cdr disjunct)))
+		(old-keys nil) (keys nil))
+	    (dolist (intersect (ecase sorted
+				 (:ki
+				  (sort intersects #'< :key #'car))
+				 (:alpha 
+				  (sort intersects #'dict-alpha-lessp
+					:key #'(lambda (x) 
+						 (sort (copy-list (cdr x))
+						       #'string<))))))
+	      ;; intersect of the form (index . keys)
+	      ;; Print the matching keywords only when they are different.
+	      ;; This groups related matches together.
+	      ;; *** NOTE: There's a thinko here -- we must sort the 
+	      ;;           intersects for the matches to be really grouped.
+	      (setq old-keys keys)
+	      (setq keys (sort (copy-list (cdr intersect))
+			       #'string<))
+	      (when (not (equal old-keys keys))
+		(when old-keys 
+		  (format t "~2%")
+		  (incf count))
+		;; Check for MORE after every group of packages
+		(when (>= count *more-depth*)
+		  (setq count 0)
+		  (when (eq more :on)
+		    (format t "~%--More--")
+		    (let ((result (read-line *query-io*)))
+		      (when (string-equal result "q")
+			(return-from outer)))))
+		(format t "~{~&> ~A~}" keys)
+		(incf count (length keys)))
+	      (let ((p (get-package-entry (car intersect)))) ;was index
+		(when p
+		  (format t "~&  ~A~40T~D ~A~{~&     ~A~}"
+			  (package-list-entry-directory p)
+			  (package-list-entry-disk p)
+			  (package-list-entry-index p)
+			  (package-list-entry-description p))
+		  (incf count 
+			(1+ (length (package-list-entry-description p))))
+		  ;; Check for MORE after package
+		  (when (>= count *more-depth*)
+		    (setq count 0)
+		    (when (eq more :on)
+		      (format t "~%--More--")
+		      (let ((result (read-line *query-io*)))
+			(when (string-equal result "q")
+			  (return-from outer))))))))
+	    ;; Check for MORE after every conjunct
+	    (when (>= count *more-depth*)
+	      (setq count 0)
+	      (when (eq more :on)
+		(format t "~%--More--")
+		(let ((result (read-line *query-io*)))
+		  (when (string-equal result "q")
+		    (return-from outer)))))))))))
+
+;;; ********************************
+;;; Ask and All ********************
+;;; ********************************
+
+(defun ask (&optional (directory ""))
+  "DIRECTORY is the relative pathname of the directory containing the
+   package you're interested in."
+  (unless (or (zerop (length directory)) 
+	      (char= (char directory (1- (length directory))) #\/))
+    (setq directory (concatenate 'string directory "/")))
+  (let ((root (if (and (not (zerop (length directory)))
+		       (or (char= (char directory 0) #\/)
+			   (char= (char directory 0) #\~)))
+		  ;; absolute directory
+		  ""
+		*ptf-directory*)))
+    (cat-until (concatenate 'string root directory "0.doc") 
+	       "Description")))
+
+(defun all (&optional (directory ""))
+  "DIRECTORY is the relative pathname of the directory containing the
+   package you're interested in."
+  (unless (or (zerop (length directory)) 
+	      (char= (char directory (1- (length directory))) #\/))
+    (setq directory (concatenate 'string directory "/")))
+  (let ((root (if (and (not (zerop (length directory)))
+		       (or (char= (char directory 0) #\/)
+			   (char= (char directory 0) #\~)))
+		  ;; absolute directory
+		  ""
+		 *ptf-directory*)))
+    (cat (concatenate 'string root directory "0.doc"))))
+
+;;; ********************************
+;;; Testing/Dead Code **************
+;;; ********************************
+
+#|
+(cat-until "/afs/cs.cmu.edu/project/ai-repository/ai/areas/0.doc" 
+	   "Description")
+|#
+
+;;; *EOF*

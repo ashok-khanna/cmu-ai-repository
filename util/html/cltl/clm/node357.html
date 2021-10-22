@@ -1,0 +1,120 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node357.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:32:31 GMT -->
+<HEAD>
+<TITLE>A.3.1. Basic Restrictions</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Basic Restrictions">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html6166 HREF="node358.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html6164 HREF="node356.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html6158 HREF="node356.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html6168 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html6169 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html6167 HREF="node358.html"> Constraint Cycles</A>
+<B>Up:</B> <A NAME=tex2html6165 HREF="node356.html"> Optimization</A>
+<B> Previous:</B> <A NAME=tex2html6159 HREF="node356.html"> Optimization</A>
+<HR> <P>
+<H2><A NAME=SECTION003431000000000000000>A.3.1. Basic Restrictions</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+The transformation of series expressions into loops is required to occur at
+some time before compiled code is actually run.  Optimization may or may
+not be applied to interpreted code.  If any of the restrictions described
+below are violated, optimization is not possible.  In this situation, a
+warning message is issued at the time optimization is attempted and the
+code is left unoptimized.  This is not a fatal error and does not prevent
+the correct results from being computed.  However, given the large
+improvements in efficiency to be gained, it is well worth fixing any
+violations that occur.  This is usually easy to do.
+<P>
+<BR><b>[Variable]</b><BR>
+<tt>*suppress-series-warnings*</tt><P>If this variable is set (or bound) to anything other than its default
+value of <tt>nil</tt>, warnings about conditions that block the optimization
+of series expressions are suppressed.
+<P>
+Before the restrictions on series expressions are discussed, it will be useful to
+define precisely what is meant by the term <i>series expression</i>.  This
+term is semantic rather than syntactic in nature. Imagine a program
+converted from Lisp code into a data flow graph.  In a data flow graph,
+functions are represented as boxes, and both control flow and data flow are
+represented as arrows between the boxes.  Constructs such as <tt>let</tt> and
+<tt>setq</tt> are converted into patterns of data flow arcs.  Control
+constructs such as <tt>if</tt> and <tt>loop</tt> are converted into patterns of
+control flow arcs.  Suppose further that all loops have been converted
+into tail recursions so that the graph is acyclic.
+<P>
+A series expression is a subgraph of the data flow graph for a program that
+contains a group of interacting series functions.  More specifically, given
+a call <i>f</i> on a series function, the series expression <i>E</i> containing it is
+defined as follows.  <i>E</i> contains <i>f</i>.  Every function using a series
+created by a function in <i>E</i> is in <i>E</i>.  Every function computing a series
+used by a function in <i>E</i> is in <i>E</i>.  Finally, suppose that two functions
+<i>g</i> and <i>h</i> are in <i>E</i> and that there is a data flow path consisting of
+series and/or non-series data flow arcs from <i>g</i> to <i>h</i>.  Every function
+touched by this path (be it a series function or not) is in <i>E</i>.
+<P>
+<b>For optimization to be possible, series expressions have to be
+statically analyzable</b>.  As with most other optimization processes, a
+series expression cannot be transformed into a loop at compile time, unless
+it can be determined at compile time exactly what computation is being
+performed.  This places a number of relatively minor limits on what can be
+written.  For example, for optimization to be possible the type arguments
+to higher-order functions such as <tt>map-fn</tt> and <tt>collecting-fn</tt> have
+to be quoted constants.  Similarly, the numeric arguments to <tt>chunk</tt>
+have to be constants.  In addition, if <tt>funcall</tt> is used to call a
+series function, the function called has to be of the
+form <tt>(function ...)</tt>.
+<P>
+<b>For optimization to be possible, every series created within a series
+expression must be used solely inside the expression</b>.  If a series is
+transmitted outside of the expression that creates it, it has to be
+physically represented as a whole.  This is incompatible with the
+transformations required to pipeline the creating expression. To avoid this
+problem, a series must not be returned as a result of a series expression
+as a whole, assigned to a free variable, assigned to a special variable, or
+stored in a data structure.  A corollary of the last point is that when
+defining new optimizable series functions, series cannot be passed into
+<tt>&amp;rest</tt> arguments.  Further, optimization is blocked if a series is
+passed as an argument to an ordinary Lisp function.  Series can be
+passed only to the series functions in section <A HREF="node349.html#SERIESFSECTION">A.2</A> and to new series
+functions defined using the declaration <tt>optimizable-series-function</tt>.
+<P>
+<b>For optimization to be possible, series expressions must correspond to
+straight-line computations</b>.  That is to say, the data flow graph
+corresponding to a series expression cannot contain any conditional
+branches.  (Complex control flow is incompatible with pipelining.)
+Optimization is possible in the presence of standard straight-line forms
+such as <tt>progn</tt>, <tt>funcall</tt>, <tt>setq</tt>, <tt>lambda</tt>, <tt>let</tt>,
+<tt>let*</tt>, and <tt>multiple-value-bind</tt> as long
+as none of the variables bound are special.  There is also no problem with
+macros as long as they expand into series functions and straight-line forms.
+However, optimization is blocked by forms that specify complex control flow
+(i.e., conditionals <tt>if</tt>, <tt>cond</tt>, etc., looping constructs <tt>loop</tt>,
+<tt>do</tt>, etc., or branching constructs <tt>tagbody</tt>, <tt>go</tt>, <tt>catch</tt>,
+etc.).
+<P>
+In the first example below, optimization is blocked, because the <tt>if</tt>
+form is inside the series expression.  In the second example, however,
+optimization is possible, because although the <tt>if</tt> feeds data to the
+series expression, it is not inside the corresponding subgraph.  Both of
+the expressions below produce the same value, but the second one is
+much more efficient.
+<P><pre>
+(collect (if flag (scan x) (scan y)))  ;Warning message issued 
+(collect (scan (if flag x y)))
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html6166 HREF="node358.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html6164 HREF="node356.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html6158 HREF="node356.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html6168 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html6169 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html6167 HREF="node358.html"> Constraint Cycles</A>
+<B>Up:</B> <A NAME=tex2html6165 HREF="node356.html"> Optimization</A>
+<B> Previous:</B> <A NAME=tex2html6159 HREF="node356.html"> Optimization</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

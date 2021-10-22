@@ -1,0 +1,61 @@
+From hoehle@inf-wiss.uni-konstanz.de Wed Aug 10 19:21:56 EDT 1994
+Article: 13909 of comp.lang.lisp
+Path: cantaloupe.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!godot.cc.duq.edu!ddsw1!news.kei.com!yeshua.marcam.com!usc!math.ohio-state.edu!jussieu.fr!univ-lyon1.fr!swidir.switch.ch!scsing.switch.ch!news.dfn.de!news.belwue.de!hermes.uni-konstanz.de!hoehle
+From: hoehle@inf-wiss.uni-konstanz.de (Joerg-Cyril Hoehle)
+Newsgroups: comp.lang.lisp
+Subject: solved: loading two object files into CMU
+Date: 5 Aug 1994 16:59:59 GMT
+Organization: Information Science, Univ. of Konstanz.
+Lines: 44
+Message-ID: <31tr6f$604@hermes.uni-konstanz.de>
+NNTP-Posting-Host: stetten.inf-wiss.ivp.uni-konstanz.de
+Summary: bug in CMU source code/foreign.lisp
+Keywords: Sun, load-foreign, CMU
+X-Newsreader: TIN [version 1.2 PL2]
+
+Hi,
+
+we've been using GINA for some time now and began to merge different
+things when we hit a bug that made it impossible on a Sun to
+LOAD-FOREIGN two object files simultaneously.
+
+The Sun manpages say about ld with -A option:
+
+          the  argument  list.  One or both of the -T options may
+          be used as well, and will be taken  to  mean  that  the
+          newly linked segment will commence at the corresponding
+          addresses (which must be a multiple of the page  size).
+          The default value is the old value of _end.
+
+The problem is that sys::*foreign-segment-free-pointer* isn't reset
+to a page boundary after a load-foreign.
+
+Here is my patch to code/foreign.lisp:
+
+(defun allocate-space-in-foreign-segment (bytes)
+  (let* ((pagesize-1 (1- (get-page-size)))
+	 (memory-needed (logandc2 (+ bytes pagesize-1) pagesize-1))
+	 (addr (int-sap *foreign-segment-free-pointer*))
+	 (new-ptr (+ *foreign-segment-free-pointer* bytes)))
+    (when (> new-ptr (+ foreign-segment-start foreign-segment-size))
+      (error "Not enough memory left."))
+    (setf *foreign-segment-free-pointer* #-sparc new-ptr
+	  ;; on a Sun, ld with -T must be a multiple of the page size,
+	  ;;I don't know about others:
+	  #+sparc (+ *foreign-segment-free-pointer* memory-needed))
+    (allocate-system-memory-at addr memory-needed)
+    addr))
+
+Thanks for CMUCL, and thanks for the source!
+
+For those that cannot or don't want to patch the source, here's what
+you can do after a call to load-foreign (and before the next call!):
+
+(setq sys::*foreign-segment-free-pointer*
+      (let ((pagesize-1 (1- (sys::get-page-size))))
+	(logandc2 (+ sys::*foreign-segment-free-pointer* pagesize-1) pagesize-1)))
+
+ 	Joerg Hoehle.
+hoehle@inf-wiss.uni-konstanz.de
+
+

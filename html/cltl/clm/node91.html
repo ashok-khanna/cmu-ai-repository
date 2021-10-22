@@ -1,0 +1,278 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node91.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:47:28 GMT -->
+<HEAD>
+<TITLE>7.8.5. The ``Program Feature''</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" The ``Program Feature''">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2659 HREF="node92.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2657 HREF="node86.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2653 HREF="node90.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2661 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2662 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2660 HREF="node92.html"> Structure Traversal and </A>
+<B>Up:</B> <A NAME=tex2html2658 HREF="node86.html"> Iteration</A>
+<B> Previous:</B> <A NAME=tex2html2654 HREF="node90.html"> Mapping</A>
+<HR> <P>
+<H2><A NAME=SECTION001185000000000000000>7.8.5. The ``Program Feature''</A></H2>
+<P>
+Lisp implementations since Lisp 1.5 have had what was originally
+called ``the program feature,'' as if it were impossible to write
+programs without it!  The <tt>prog</tt> construct allows one to
+write in an Algol-like or Fortran-like statement-oriented
+style, using <tt>go</tt> statements that can refer to tags in the
+body of the <tt>prog</tt>.  Modern Lisp programming style tends to use
+<tt>prog</tt> rather infrequently.  The various iteration constructs,
+such as <tt>do</tt>, have bodies with the characteristics of a <tt>prog</tt>.
+(However, the ability to use <tt>go</tt> statements within iteration
+constructs is very seldom called upon in practice.)
+<P>
+Three distinct operations are performed by <tt>prog</tt>: it binds local variables,
+it permits use of the <tt>return</tt> statement, and it permits use of the <tt>go</tt>
+statement.
+In Common Lisp, these three operations have been separated into three
+distinct constructs: <tt>let</tt>, <tt>block</tt>, and <tt>tagbody</tt>.
+These three constructs may be used independently as building blocks
+for other types of constructs.
+<P>
+<BR><b>[Special Form]</b><BR>
+<tt>tagbody</tt> <tt>{<i>tag</i></tt> <tt>|</tt> <tt><i>statement</i>}*</tt><P>The part of a <tt>tagbody</tt> after the variable list is called the <i>body</i>.
+An item in the body may be a symbol or an integer, in which case it is called a
+<i>tag</i>, or an item in the body may be a list, in which case it is called a 
+<i>statement</i>.
+<P>
+Each element of the body is processed from left to right.
+A <i>tag</i> is ignored; a <i>statement</i>
+is evaluated, and its results are discarded.  If the end of the body
+is reached, the <tt>tagbody</tt> returns <tt>nil</tt>.
+<P>
+If <tt>(go <i>tag</i>)</tt> is evaluated, control jumps to the part of the body
+labelled with the <i>tag</i>.
+<P>
+<hr>
+<b>Compatibility note:</b> The ``computed <tt>go</tt>'' feature of MacLisp is not
+supported.  The syntax of a computed <tt>go</tt> is idiosyncratic,
+and the feature is not supported by Lisp Machine Lisp, NIL (New Implementation of Lisp), or Interlisp.
+The computed <tt>go</tt> has been infrequently used in MacLisp anyway
+and is easily simulated with no loss of
+efficiency by using a <tt>case</tt> statement each of whose
+clauses performs a (non-computed) <tt>go</tt>.
+<hr>
+<P>
+The scope of the tags established by a <tt>tagbody</tt> is lexical,
+and the extent is dynamic.  Once a <tt>tagbody</tt> construct has
+been exited, it is no longer legal to <tt>go</tt> to a <i>tag</i> in its body.
+It is permissible for a <tt>go</tt> to jump to a <tt>tagbody</tt> that is not
+the innermost <tt>tagbody</tt> construct containing that <tt>go</tt>;
+the tags established by a <tt>tagbody</tt> will only shadow other tags
+of like name.
+<P>
+The lexical scoping of the <tt>go</tt> targets named by tags is
+fully general and has consequences that may be surprising
+to users and implementors of other Lisp systems.
+For example, the <tt>go</tt> in the following example actually does
+work in Common Lisp as one might expect:
+<P><pre>
+(tagbody 
+   (catch 'stuff 
+      (mapcar #'(lambda (x) (if (numberp x) 
+                                (hairyfun x) 
+                                (go lose))) 
+              items)) 
+   (return) 
+ lose 
+   (error &quot;I lost big!&quot;))
+</pre><P>
+Depending on the situation, a <tt>go</tt> in Common Lisp does not necessarily
+correspond to a simple machine ``jump'' instruction.
+A <tt>go</tt> can break up catchers if necessary to get
+to the target.  It is possible for a ``closure'' created by <tt>function</tt> for
+a lambda-expression to refer to a <tt>go</tt> target as long as the tag
+is lexically apparent.  See chapter <A HREF="node43.html#SCOPE">3</A> for an elaborate
+example of this.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+There are some holes in this specification (and that of <tt>go</tt>) that
+leave some room for interpretation.  For example, there is no explicit
+prohibition against the same tag appearing more than once in the same
+<tt>tagbody</tt> body.  Every implementation I know of will complain
+in the compiler, if not in the interpreter, if there is a <tt>go</tt> to
+such a duplicated tag; but some implementors take the position
+that duplicate tags are permitted provided there is no <tt>go</tt> to
+such a tag.  (``If a tree falls in the forest, and there is no one
+there to hear it, then no one needs to yell `Timber!''')
+Also, some implementations allow objects other than symbols, integers,
+and lists in the body and typically ignore them.
+Consequently,
+some programmers use redundant tags such as <tt>-</tt> for formatting purposes,
+and strings as comments:
+<P><pre>
+(defun dining-philosopher (j) 
+  (tagbody - 
+   think   (unless (hungry) (go think)) 
+           - 
+           &quot;Can't eat without chopsticks.&quot; 
+           (snatch (chopstick j)) 
+           (snatch (chopstick (mod (+ j 1) 5))) 
+           - 
+   eat     (when (hungry) 
+             (mapc #'gobble-down 
+                   '(twice-cooked-pork kung-pao-chi-ding 
+                     wu-dip-har orange-flavor-beef 
+                     two-side-yellow-noodles twinkies)) 
+             (go eat)) 
+           - 
+           &quot;Can't think with my neighbors' stomachs rumbling.&quot; 
+           (relinquish (chopstick j)) 
+           (relinquish (chopstick (mod (+ j 1) 5))) 
+           - 
+           (if (happy) (go think) 
+               (become insurance-salesman))))
+</pre><P>
+In certain implementations of Common Lisp they get away with it.
+Others abhor what they view as an abuse of unintended ambiguity
+in the language specification.  For maximum portability, I advise
+users to steer clear of these issues.  Similarly, it is best
+to avoid using <tt>nil</tt> as a tag, even though it is a symbol, because
+a few implementations treat <tt>nil</tt> as a list to be executed.
+To be extra careful, avoid calling from within a <tt>tagbody</tt>
+a macro whose expansion might not be a non-<tt>nil</tt> list; wrap such a 
+call in <tt>(progn ...)</tt>, or rewrite the macro to return <tt>(progn ...)</tt>
+if possible.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Macro]</b><BR>
+<pre>
+prog ({<i>var</i> | (<i>var</i> [<i>init</i>])}*) {<i>declaration</i>}* {<i>tag</i> | <i>statement</i>}* 
+prog* ({<i>var</i> | (<i>var</i> [<i>init</i>])}*) {<i>declaration</i>}* {<i>tag</i> | <i>statement</i>}*
+</pre>
+<P>The <tt>prog</tt> construct is a synthesis of <tt>let</tt>, <tt>block</tt>,
+and <tt>tagbody</tt>, allowing bound variables and the use of <tt>return</tt> and <tt>go</tt>
+within a single construct.  A typical <tt>prog</tt> construct looks like this:
+<P><pre>
+(prog (<i>var1</i> <i>var2</i> (<i>var3</i> <i>init3</i>) <i>var4</i> (<i>var5</i> <i>init5</i>)) 
+      {<i>declaration</i>}*
+      <i>statement1</i> 
+ <i>tag1</i> 
+      <i>statement2</i> 
+      <i>statement3</i> 
+      <i>statement4</i> 
+ <i>tag2</i> 
+      <i>statement5</i> 
+      ... 
+      )
+</pre><P>
+The list after the keyword <tt>prog</tt> is a set of specifications for binding
+<i>var1</i>, <i>var2</i>, etc.,
+which are temporary variables bound locally to the <tt>prog</tt>.
+This list is processed exactly as the list in a <tt>let</tt> statement:
+first all the <i>init</i> forms are evaluated from left to right
+(where <tt>nil</tt> is used for
+any omitted <i>init</i> form), and then the variables are all bound in
+parallel to the respective results.
+Any <i>declaration</i> appearing in the <tt>prog</tt> is used as if appearing
+at the top of the <tt>let</tt> body.
+<P>
+The body of the <tt>prog</tt> is executed as if it were a <tt>tagbody</tt>
+construct; the <tt>go</tt> statement may be used to transfer control
+to a <i>tag</i>.
+<P>
+A <tt>prog</tt> implicitly establishes a <tt>block</tt> named <tt>nil</tt> around
+the entire <tt>prog</tt> construct, so that <tt>return</tt> may be used
+at any time to exit from the <tt>prog</tt> construct.
+<P>
+Here is a fine example of what can be done with <tt>prog</tt>:
+<P><pre>
+(defun king-of-confusion (w) 
+  &quot;Take a cons of two lists and make a list of conses. 
+   Think of this function as being like a zipper.&quot; 
+  (prog (x y z)     ;Initialize <tt>x</tt>, <tt>y</tt>, <tt>z</tt> to <tt>nil</tt> 
+        (setq y (car w) z (cdr w)) 
+   loop 
+        (cond ((null y) (return x)) 
+              ((null z) (go err))) 
+   rejoin 
+        (setq x (cons (cons (car y) (car z)) x)) 
+        (setq y (cdr y) z (cdr z)) 
+        (go loop) 
+   err 
+        (cerror &quot;Will self-pair extraneous items&quot; 
+                &quot;Mismatch - gleep!   S&quot; y) 
+        (setq z y) 
+        (go rejoin)))
+</pre><P>
+which is accomplished somewhat more perspicuously by
+<P><pre>
+(defun prince-of-clarity (w) 
+  &quot;Take a cons of two lists and make a list of conses. 
+   Think of this function as being like a zipper.&quot; 
+  (do ((y (car w) (cdr y)) 
+       (z (cdr w) (cdr z)) 
+       (x '<tt>()</tt> (cons (cons (car y) (car z)) x))) 
+      ((null y) x) 
+    (when (null z) 
+      (cerror &quot;Will self-pair extraneous items&quot; 
+              &quot;Mismatch - gleep!   S&quot; y) 
+      (setq z y))))
+</pre><P>
+<P>
+The <tt>prog</tt> construct may be explained in terms of the simpler
+constructs <tt>block</tt>, <tt>let</tt>, and <tt>tagbody</tt> as
+follows:
+<P><pre>
+(prog <i>variable-list</i> {<i>declaration</i>}* . <i>body</i>) 
+   == (block nil (let <i>variable-list</i> {<i>declaration</i>}* (tagbody . <i>body</i>)))
+</pre><P>
+<P>
+The <tt>prog*</tt> special form is almost the same as <tt>prog</tt>.  The only
+difference is that the binding and initialization of the temporary
+variables is done <i>sequentially</i>, so that the <i>init</i> form for each
+one can use the values of previous ones.
+Therefore <tt>prog*</tt> is to <tt>prog</tt> as <tt>let*</tt> is to <tt>let</tt>.
+For example,
+<P><pre>
+(prog* ((y z) (x (car y))) 
+       (return x))
+</pre><P>
+returns the <i>car</i> of the value of <tt>z</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+I haven't seen <tt>prog</tt> used very much in the last several years.
+Apparently splitting it into functional constituents
+(<tt>let</tt>, <tt>block</tt>, <tt>tagbody</tt>) has been a success.  Common Lisp
+programmers now tend to use whichever specific construct is appropriate.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Special Form]</b><BR>
+<tt>go</tt> <tt><i>tag</i></tt><P>The <tt>(go <i>tag</i>)</tt> special form is used to do a ``go to'' within
+a <tt>tagbody</tt> construct.  The <i>tag</i> must be a symbol or an integer;
+the <i>tag</i> is not evaluated.
+<tt>go</tt> transfers control to the point in the body labelled by a
+tag <tt>eql</tt> to the one given.  If there is no such tag in the body, the
+bodies of lexically containing <tt>tagbody</tt> constructs
+(if any) are examined as well.
+It is an error if there is no matching tag lexically visible
+to the point of the <tt>go</tt>.
+<P>
+The <tt>go</tt> form does not ever return a value.
+<P>
+As a matter of style, it is recommended that the user think twice before
+using a <tt>go</tt>.  Most purposes of <tt>go</tt> can be accomplished with one of
+the iteration primitives, nested conditional forms, or
+<tt>return-from</tt>.  If the use of <tt>go</tt> seems to be unavoidable,
+perhaps the control structure implemented by <tt>go</tt> should be packaged
+as a macro definition.
+<P>
+<BR> <HR><A NAME=tex2html2659 HREF="node92.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2657 HREF="node86.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2653 HREF="node90.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2661 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2662 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2660 HREF="node92.html"> Structure Traversal and </A>
+<B>Up:</B> <A NAME=tex2html2658 HREF="node86.html"> Iteration</A>
+<B> Previous:</B> <A NAME=tex2html2654 HREF="node90.html"> Mapping</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

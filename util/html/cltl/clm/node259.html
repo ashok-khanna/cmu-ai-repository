@@ -1,0 +1,211 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node259.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:32:03 GMT -->
+<HEAD>
+<TITLE>27.6. Pretty Printing Dispatch Tables</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Pretty Printing Dispatch Tables">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4798 HREF="node260.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4796 HREF="node253.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4792 HREF="node258.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4800 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4801 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4799 HREF="node260.html"> Common Lisp Object </A>
+<B>Up:</B> <A NAME=tex2html4797 HREF="node253.html"> Pretty Printing</A>
+<B> Previous:</B> <A NAME=tex2html4793 HREF="node258.html"> Compiling Format Control </A>
+<HR> <P>
+<H1><A NAME=SECTION003160000000000000000>27.6. Pretty Printing Dispatch Tables</A></H1>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+When <tt>*print-pretty*</tt> is not <tt>nil</tt>, the pprint dispatch table in the variable
+<tt>*print-pprint-dispatch*</tt> controls how objects are printed.  The information
+in this table takes precedence over all other mechanisms for specifying how
+to print objects.  In particular, it overrides user-defined <tt>print-object</tt>
+methods and print functions for structures.  However, if there is no
+specification for how to pretty print a particular kind of object, it is then
+printed using the standard mechanisms as if <tt>*print-pretty*</tt> were <tt>nil</tt>.
+<P>
+A pprint dispatch table is a mapping from keys to pairs of values.  The keys
+are type specifiers.  The values are functions and numerical priorities.
+Basic insertion and retrieval is done based on the keys with the equality
+of keys being tested by <tt>equal</tt>.  The function to use when pretty printing an
+object is chosen by finding the highest priority function in
+<tt>*print-pprint-dispatch*</tt> that is associated with a type specifier that
+matches the object.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>copy-pprint-dispatch &amp;optional <i>table</i></tt><P>A copy is made of <i>table</i>, which defaults to the current pprint dispatch
+table.  If <i>table</i> is <tt>nil</tt>, a copy is returned of the initial value of
+<tt>*print-pprint-dispatch*</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>pprint-dispatch <i>object</i> &amp;optional <i>table</i></tt><P>This retrieves the highest priority function from a pprint table that is
+associated with a type specifier in the table that matches <i>object</i>.
+The function is chosen by finding all the type specifiers in <i>table</i>
+that match the object and selecting the highest priority function
+associated with any of these type specifiers.  If there is more than one
+highest priority function, an arbitrary choice is made.  If no type
+specifiers match the object, a function is returned that prints object with
+<tt>*print-pretty*</tt> bound to <tt>nil</tt>.
+<P>
+As a second return value, <tt>pprint-dispatch</tt> returns a flag that is <tt>t</tt> if a
+matching type specifier was found in <i>table</i> and <tt>nil</tt> if not.
+<P>
+<i>Table</i> (which defaults to <tt>*print-pprint-dispatch*</tt>) must be a
+pprint dispatch table.  <i>Table</i> can be <tt>nil</tt>, in which case
+retrieval is done in the initial value of <tt>*print-pprint-dispatch*</tt>.
+<P>
+When <tt>*print-pretty*</tt> is <tt>t</tt>, <tt>(write object :stream s)</tt> is equivalent to
+<tt>(funcall (pprint-dispatch object) s object)</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>set-pprint-dispatch <i>type</i> <i>function</i> &amp;optional <i>priority</i> <i>table</i></tt><P>This puts an entry into a pprint dispatch table and returns <tt>nil</tt>.  The <i>type</i> must be a valid type specifier and is the key of the entry.
+The first action of <tt>set-pprint-dispatch</tt> is to remove any pre-existing
+entry associated with <i>type</i>.  This guarantees that there
+will never be two entries associated with the same type specifier in a
+given pprint dispatch table.  Equality of type specifiers is tested by
+<tt>equal</tt>.
+<P>
+Two values are associated with each type specifier in a pprint dispatch
+table: a function and a priority.  The <i>function</i> must accept two
+arguments:  the stream to send output to and the object to be printed.
+The <i>function</i> should pretty print the object on the stream.  The <i>function</i> can assume that object satisfies <i>type</i>.  The <i>function</i>
+should obey <tt>*print-readably*</tt>.  Any values returned by the <i>function</i>
+are ignored.
+<P>
+The <i>priority</i> (which defaults to 0) must be a non-complex number.
+This number is used as a
+priority to resolve conflicts when an object matches more than one entry.  An error
+is signaled if priority fails to be a non-complex number.
+<P>
+The <i>table</i> (which defaults to the value of <tt>*print-pprint-dispatch*</tt>) must be a pprint
+dispatch table.  The specified entry is placed in this table.
+<P>
+It is permissible for <i>function</i> to be <tt>nil</tt>.  In this situation,
+there will be no <i>type</i> entry in <i>table</i> after
+<tt>set-pprint-dispatch</tt> is evaluated.
+<P>
+To facilitate the use of pprint dispatch tables for controlling the pretty
+printing of Lisp code, the <i>type-specifier</i> argument of the function
+<tt>set-pprint-dispatch</tt> is allowed to contain the form <tt>(cons</tt> <i>car-type cdr-type</i><tt>)</tt>.  This form indicates that the corresponding object must be
+a cons whose <i>car</i> satisfies the type specifier <i>car-type</i> and whose
+<i>cdr</i> satisfies
+the type specifier <i>cdr-type</i>.  The <i>cdr-type</i> can be omitted, in which case
+it defaults to <tt>t</tt>.
+<P>
+The initial value of <tt>*print-pprint-dispatch*</tt> is implementation-dependent.
+However, the initial entries all use a special class of priorities that
+are less than every priority that can be
+specified using <tt>set-pprint-dispatch</tt>.  This guarantees that pretty printing
+functions specified by users will override everything in the initial value of
+<tt>*print-pprint-dispatch*</tt>.
+<P>
+Consider the following examples.  The first form restores
+<tt>*print-pprint-dispatch*</tt> to its initial value.
+The next two forms then specify a special way of pretty printing ratios.  Note that the more specific type
+specifier has to be associated with a higher priority.
+<P><pre>
+(setq *print-pprint-dispatch* 
+      (copy-pprint-dispatch nil)) 
+
+(defun div-print (s r colon? atsign?) 
+  (declare (ignore colon? atsign?)) 
+  (format s &quot;(/ ~D ~D)&quot; (numerator (abs r)) (denominator r))) 
+
+(set-pprint-dispatch 'ratio (formatter &quot;#.~/div-print/&quot;)) 
+
+(set-pprint-dispatch '(and ratio (satisfies minusp)) 
+  (formatter &quot;#.(- ~/div-print/)&quot;) 
+  5) 
+
+(pprint '(1/3 -2/3)) prints: (#.(/ 1 3) #.(- (/ 2 3)))
+</pre><P>
+<P>
+The following two forms illustrate the specification of pretty printing
+functions for particular types of Lisp code.  The first form illustrates how to
+specify the traditional method for printing quoted objects using ``<tt>'</tt>''
+syntax.  Note the care taken to ensure that data lists that happen to begin
+with <tt>quote</tt> will be printed readably.  The second form specifies that lists
+beginning with the symbol <tt>my-let</tt> should print the same way that lists
+beginning with <tt>let</tt> print when the initial pprint dispatch table is in effect.
+<P><pre>
+(set-pprint-dispatch '(cons (member quote)) 
+  #'(lambda (s list) 
+      (if (and (consp (cdr list)) (null (cddr list))) 
+          (funcall (formatter &quot;'~W&quot;) s (cadr list)) 
+          (pprint-fill s list))))) 
+
+(set-pprint-dispatch '(cons (member my-let)) 
+  (pprint-dispatch '(let) nil)) 
+</pre><P>
+<P>
+The next example specifies a default method for printing lists that do not
+correspond to function calls.  Note that, as shown in the definition of
+<tt>pprint-tabular</tt> above, <tt>pprint-linear</tt>, <tt>pprint-fill</tt>, and
+<tt>pprint-tabular</tt> are defined with optional colon and atsign arguments so that
+they can be used as pprint dispatch functions as well as <tt>~/.../</tt> functions.
+<P><pre>
+(set-pprint-dispatch 
+  '(cons (not (and symbol (satisfies fboundp)))) 
+  #'pprint-fill 
+  -5)
+</pre><P>
+With a line length of 9, <tt>(pprint '(0 b c d e f g h i j k))</tt> prints:
+<P><pre>
+(0 b c d 
+ e f g h 
+ i j k)
+</pre><P>
+<P>
+This final example shows how to define a pretty printing function for a
+user defined data structure.
+<P><pre>
+(defstruct family mom kids) 
+
+(set-pprint-dispatch 'family 
+  #'(lambda (s f) 
+      (format s &quot;~@&lt;#&lt;~;~W and ~2I~_~/pprint-fill/~;&gt;~:&gt;&quot; 
+              (family-mom f) (family-kids f))))
+</pre><P>
+<P>
+The pretty printing function for the structure <tt>family</tt> specifies how to
+adjust the layout of the output so that it can fit aesthetically into a
+variety of line widths.  In addition, it obeys the printer control
+variables <tt>*print-level*</tt>, <tt>*print-length*</tt>, <tt>*print-lines*</tt>,
+<tt>*print-circle*</tt>, <tt>*print-shared*</tt>, and <tt>*print-escape*</tt>, and can tolerate
+several different kinds of malformity in the data structure.  The output below
+shows what is printed out with a right margin of 25, <tt>*print-pretty*</tt>
+<tt>t</tt>, <tt>*print-escape* nil</tt>, and a malformed <tt>kids</tt> list.
+<P><pre>
+(write (list 'principal-family 
+             (make-family :mom &quot;Lucy&quot; 
+                          :kids '(&quot;Mark&quot; &quot;Bob&quot; . &quot;Dan&quot;))) 
+       :right-margin 25 :pretty T :escape nil :miser-width nil) 
+
+(PRINCIPAL-FAMILY 
+ #&lt;Lucy and 
+     Mark Bob . Dan&gt;)
+</pre><P>
+<P>
+Note that a pretty printing function for a structure is different from the
+structure's print function.  While print functions are permanently
+associated with a structure, pretty printing functions are stored in pprint
+dispatch tables and can be rapidly changed to reflect different printing
+needs.  If there is no pretty printing function for a structure in the
+current print dispatch table, the print function (if any) is used instead.
+<P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html4798 HREF="node260.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4796 HREF="node253.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4792 HREF="node258.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4800 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4801 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4799 HREF="node260.html"> Common Lisp Object </A>
+<B>Up:</B> <A NAME=tex2html4797 HREF="node253.html"> Pretty Printing</A>
+<B> Previous:</B> <A NAME=tex2html4793 HREF="node258.html"> Compiling Format Control </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

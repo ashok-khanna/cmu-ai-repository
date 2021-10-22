@@ -1,0 +1,467 @@
+---------------------- 
+|                    | 
+|  C  O  G  E  N  T  | 
+|                    | 
+|                    | 
+|  the programmer's  | 
+|                    | 
+|  P  R  O  L  O  G  | 
+|                    | 
+---------------------- 
+ 
+ 
+Prolog is a non-proprietary, rule-based language, based on logic, that
+is ideally suited for implementing rule-based application components
+such as
+ 
+	problem diagnosis & resolution,
+	configuration & tuning,  
+	intelligent advice & help,  
+	language parsing & understanding, and  
+	planning & evaluation. 
+
+While Cogent Prolog is a powerful stand-alone Prolog for implementing
+these types of applications, today's increasingly complex applications
+have a greater need for embedded components that provide these
+services.
+
+For this reason, Cogent Prolog 3.0 is designed to be easily integrated
+with Windows and DOS applications, offering plug-in, rule-based 
+services for C, C++, Visual Basic, PowerBuilder, Access and many  
+other development tools. (Other platforms are available as well.)
+ 
+The integration is achieved through the Logic Server API that lets  
+you access a LogicBase of rules as easily as you access a database  
+today.  The result is a manageable, well-behaved and predictable  
+interface that makes it possible to utilize rule-based programming  
+everywhere it is needed. 
+ 
+The Logic Server API also lets you mold Cogent Prolog to your  
+applications--accessing your data, calling your code and linking to  
+other libraries and interfaces. 
+ 
+Prolog components are written, tested and debugged using the Windows- 
+based Interactive Development Environment (IDE). 
+ 
+The Windows IDE and Logic Server API make Cogent Prolog a powerful  
+addition to any programmer's tool kit. 
+ 
+ 
+Embedding Prolog Services 
+------------------------- 
+ 
+The Logic Server API is implemented like a database API.  It gives you  
+the ability to load, query and update a Prolog LogicBase of rules and  
+data from C or C++ on any supported platform, and, under Windows, from  
+any tool that can call a DLL, such as Visual Basic, Access, and  
+PowerBuilder.  
+ 
+The boxes below illustrate a simple rule-based system that asks the user  
+for a sound, from which it identifies a pet.  While a trivial example,
+this same idea can be used to identify problems based on symptoms,
+tuning parameters based on system configuration, help based on user
+needs, and so on. 
+ 
+The API has 50+ functions that provide both high-level and detailed  
+access to Prolog rules, terms and data.  
+ 
+The high-level functions use intuitive string-mapping functions that  
+simulate a Prolog listener (see code boxes).  
+ 
+The detailed functions let you construct and/or decompose arbitrarily  
+complex Prolog terms and lists.  For example, this C code pops all of  
+the elements from a Prolog list and prints them: 
+ 
+     while (cpPopList(Eng,&tList,cSTR,s)==OK) 
+	     printf("Popped %s\n", s); 
+ 
+----------------------------------------- 
+|                                       | 
+|  PETS.PRO                             | 
+|                                       | 
+|  % Three Prolog rules for identifying | 
+|  % pets based on their sound          | 
+|                                       |
+|  pet(dog) :- sound(woof).             | 
+|  pet(cat) :- sound(meow).             | 
+|  pet(duck) :- sound(quack).           | 
+|                                       | 
+----------------------------------------- 
+
+-----------------------------------
+|                                 |
+|  Using the Pets example from a  |
+|  Prolog Listener                |
+|                                 |
+|  ?- consult(pets).              |
+|  yes                            |
+|                                 |
+|  ?- assert(sound(woof)).        |
+|  yes                            |
+|                                 |
+|  ?- pet(X).                     |
+|  X = dog                        |
+|  yes                            |
+|                                 |
+-----------------------------------
+ 
+----------------------------------------------------------------------- 
+|                                                                     | 
+|  Calling the Logic Server from C                                    | 
+|                                                                     | 
+|  ...                                                                | 
+|  /* initialize the Prolog engine */                                 | 
+|  cpInit(&Eng, "");                                                  | 
+|                                                                     |
+|  /* load the pet rules */                                           | 
+|  cpLoad(Eng, "pets");	                                              | 
+|                                                                     | 
+|  puts("What sound does the pet make? ");                            | 
+|  gets(sSound);                                                      | 
+|                                                                     | 
+|  /* assert a Prolog fact with user sound */                         | 
+|  cpvAssertaStr(Eng, "sound(%s)", sSound);                           | 
+|                                                                     | 
+|  /* query the Prolog logic database */                              | 
+|  cpvCallStr(Eng, &term, "pet(X)");                                  | 
+|                                                                     | 
+|  /* map Prolog answer back to C */                                  | 
+|  cpvScanTerm(Eng, term, "pet(%s)", sPet);                           | 
+|  printf("The pet is a %s\n", sPet);                                 | 
+|                                                                     | 
+|  /* close Prolog engine, freeing all memory and resources used */   | 
+|  cpClose(Eng);                                                      | 
+|                                                                     | 
+----------------------------------------------------------------------- 
+ 
+----------------------------------------------------------------------- 
+|                                                                     | 
+|  Calling the Logic Server from Visual Basic                         | 
+|                                                                     | 
+|  ...                                                                | 
+|  %  initialize the Prolog engine                                    | 
+|  rc = cpInit(Eng, Chr$(0))                                          | 
+|  % load the pet rules                                               | 
+|  rc = cpLoad(Eng, "pets" + Chr$(0))                                 | 
+|                                                                     | 
+|  sSound = InputBox$("What sound does the pet make?")                | 
+|                                                                     | 
+|  % assert sound fact                                                | 
+|  rc = cpAssertaStr(Eng, "sound("+sSound+")"+Chr$(0))                | 
+|                                                                     | 
+|  % query the Prolog logic database                                  | 
+|  tf = cpCallStr(Eng, Term, "pet(X)"+Chr$(0))                        | 
+|                                                                     | 
+|  % make room for the returned string                                | 
+|  sPet = Space$(80)                                                  | 
+|                                                                     | 
+|  % map Prolog answer back to VB                                     | 
+|  rc = cpGetArg(Eng, Term, 1, bSTR, byval sPet)                      | 
+|  MsgBox "The pet is a " + sPet                                      | 
+|                                                                     | 
+|  % close Prolog engine, freeing all memory and resources used       | 
+|  rc = cpClose(Eng)                                                  | 
+|                                                                     | 
+----------------------------------------------------------------------- 
+ 
+ 
+ 
+Prolog to C/C++ 
+--------------- 
+ 
+The API also makes it easy to build links from Prolog back to C/C++,  
+giving the Prolog code access to any library, GUI or API that can be  
+accessed from C/C++. 
+ 
+For example, a Windows tuning application might have its user interface  
+implemented in Visual C++, which loads and calls tuning rules written in  
+Prolog.  Those rules make their decisions based on the state of the  
+machine which is determined by C functions that are called directly by  
+the Prolog program. 
+ 
+Or, you might want your Prolog code to access an SQL database, or
+graphics functions, or any other specialized library.  You can use
+the Logic Server API to let Prolog directly access the particular API. 
+ 
+ 
+Object Oriented Programming 
+--------------------------- 
+ 
+The C++ wrapper lets the C++ programmer encapsulate a Prolog program as  
+an object in a larger application, thus shielding its implementation  
+from the rest of the code.   
+ 
+For example, the pet identification code could be encapsulated as a  
+class whose interface is defined by member functions that call Prolog as  
+shown in the box below.  The class is derived from the C++ class
+definition for the Logic Server.
+ 
+----------------------------------------------------------------------- 
+|                                                                     | 
+|  Encapsulating a Prolog LogicBase as a C++ Object                   | 
+|                                                                     | 
+|  // derive a class from the Prolog engine                           | 
+|  // that can be used to identify pets based on                      |
+|  // input sound                                                     |
+|  class CPets: public CPEngine                                       |
+|  {                                                                  | 
+|  public:                                                            | 
+|     CPets();                                                        | 
+|     ~CPets();                                                       | 
+|     void id(char *, char *);                                        |
+|  };                                                                 | 
+|                                                                     | 
+|  // constructor initializes engine and loads rules                  | 
+|  CPets::CPets                                                       |
+|  {                                                                  | 
+|     Init("");                                                       | 
+|     Load("pets");                                                   |
+|  }                                                                  |
+|                                                                     | 
+|  // destructor frees Prolog resources                               | 
+|  CPets::~CPets                                                      |
+|  {                                                                  |
+|     Close();                                                        |
+|  }                                                                  | 
+|                                                                     | 
+|  // member function asserts input sSound, and                       | 
+|  // then, queries Prolog and retrieve sPet                          | 
+|  void CPets::id(char* sSound, char* sPet)                           |
+|  {                                                                  | 
+|     char  sBuf[40];                                                 | 
+|     TERM  term;                                                     | 
+|                                                                     | 
+|     sprintf(sBuf, "sound(%s)", sSound);                             | 
+|     AssertaStr(sBuf);                                               | 
+|     CallStr(&term, "pet(X)");                                       | 
+|     GetArg(term, 1, cStr, sPet);                                    |
+|  }                                                                  |
+|                                                                     | 
+|  // sample code to use CPets object                                 | 
+|  ...                                                                | 
+|  CPets    aPetAdvisor;                                                   | 
+|  cout<<"what sound does the pet make?";                             | 
+|  cin >> sSound;                                                     | 
+|  aPetAdvisor.id(sSound, sPet);                                           | 
+|  cout<<"The pet is a "<<sPet;                                       | 
+|  ...                                                                | 
+|                                                                     | 
+----------------------------------------------------------------------- 
+ 
+ 
+Performance 
+----------- 
+ 
+Performance is key in any application. Cogent Prolog is a compiled  
+Prolog, so the LogicBase you access will usually be compiled.  
+ 
+But, Cogent is flexible as well, so you can intermix dynamically  
+asserted (interpreted) code with the compiled code.  In the PETS example  
+the rules are compiled and the sounds are asserted dynamically. 
+ 
+ 
+Open Architecture 
+----------------- 
+ 
+All Amzi!-written extensions to Prolog are implemented using the Logic  
+Server API.  You can use the API to design and write your own extensions  
+just as easily. You can add your own Prolog-GUI, Prolog-graphics,  
+Prolog-database, Prolog-communications, etc. 
+ 
+Another way to view this is to imagine the Logic Server as an expansion  
+card that can plug into many development environments, with sockets to  
+plug in your own functions and libraries; all this powered by the Cogent  
+Prolog engine. 
+ 
+ 
+Memory Utilization 
+------------------ 
+ 
+To work as a component, Prolog must be both compact and well-behaved.   
+The runtime code is only 160kb.  To allow it to work well within other  
+programming environments, Cogent does its own memory management within  
+larger chunks which are allocated and deallocated as you start and end  
+the Prolog engine. 
+ 
+ 
+Error Handling 
+-------------- 
+ 
+Any professional application requires robust error recovery.  Cogent is  
+designed to recognize and come down gracefully in the case of errors.   
+The host program can check for errors at API calls, or use the C  
+setjmp/longjmp features to capture all errors and respond accordingly.   
+The API provides function calls that allow the host programmer to  
+determine the error and display appropriate error messages to the users. 
+ 
+ 
+Ease of Development 
+------------------- 
+
+Cogent lets you build your applications a module at a time because  
+compiled and interpreted code can be intermixed in the same application.  
+ 
+In fact, compiled and interpreted modules are 100% source compatible and  
+require no changes to move from one to the other.  This makes it easy to  
+work on large multi-modules applications, with working code compiled and  
+code still under development interpreted. 
+ 
+Cogent also includes sample code to get you started quickly, and  
+TechNotes that expand on various topics. 
+ 
+----------------------------------------------------------------------- 
+|                                                                     | 
+|  Cogent Prolog is Built with C, C++ and Prolog                      | 
+|                                                                     | 
+|  Cogent Prolog itself illustrates its designer's ideas of           | 
+|  integrating C, for what C does best, and Prolog for what Prolog    | 
+|  does best.                                                         |   
+|                                                                     | 
+|  The core Prolog engine is written in ANSI C; the compiler,         | 
+|  interpreter and debugger are written in Cogent Prolog; and the     | 
+|  extended predicates are written half in C and half in Prolog.      | 
+|                                                                     | 
+|  The Windows IDE is written in Visual C++, and uses the Logic       | 
+|  Server API to access the compiler, listener and debugger, which    | 
+|  are embedded Prolog components.  The IDE also uses the Logic       | 
+|  Server API to extend Prolog for the Windows environment.           | 
+|                                                                     | 
+----------------------------------------------------------------------- 
+ 
+ 
+Development Tools 
+----------------- 
+ 
+Cogent provides the classic Prolog command line tools for all supported  
+environments, and a full Interactive Development Environment under  
+Windows that integrates a code editor, listener, debugger, compiler,  
+linker and runtime engine in one intuitive GUI environment. (See list  
+below.) 
+ 
+----------------------------------------------------------------------- 
+|                                                                     | 
+|  Cogent Prolog Tools                                                | 
+|                                                                     | 
+|  - Windows-based Interactive Development Environment (IDE).         | 
+|                                                                     | 
+|  - Standard ?- Listener extended to run both compiled and           | 
+|    interpreted code.                                                | 
+|                                                                     | 
+|  - Compiler, Linker and EXE Generator.                              | 
+|                                                                     | 
+|  - Box-Model Debugger (as defined by Clocksin & Mellish).           | 
+|                                                                     | 
+|  - Definite Clause Grammar (DCG) Support.                           | 
+|                                                                     | 
+|  - Dynamic (DLL format) and Static Logic Server API Libraries       | 
+|    (only 150kb code size).                                          | 
+|                                                                     | 
+----------------------------------------------------------------------- 
+ 
+----------------------------------------------------------------------- 
+|                                                                     | 
+|  Technical Specs                                                    | 
+|                                                                     | 
+|  - 'Module' capability for reusable code and 'hidden' predicates to | 
+|    prevent name collisions across files.                            | 
+|                                                                     | 
+|  - String, floating point, stream i/o and random access binary      |  
+|    file support.                                                    | 
+|                                                                     | 
+|  - Full control over the sizes of all heaps, stacks and various     |  
+|    other dynamically allocated items.                               | 
+|                                                                     | 
+|  - User-extensible error handling.                                  | 
+|                                                                     | 
+|  - Database references for quicker access to terms.                 | 
+|                                                                     | 
+|  - Last call optimization (a more general form of 'tail recursion'  |  
+|    elimination).                                                    | 
+|                                                                     | 
+|  - First argument indexing for more efficient predicate access.     | 
+|                                                                     | 
+|  - Automatic and on-demand garbage collection of heaps, stacks and  | 
+|    string space for more efficient use of memory.                   | 
+|                                                                     | 
+----------------------------------------------------------------------- 
+ 
+ 
+Portability 
+----------- 
+ 
+Prolog source and object code developed on one platform will run on any  
+other runtime or API platform . 
+ 
+ 
+Environments 
+------------ 
+ 
+Cogent Prolog currently runs under Windows 16 & 32-bit, DOS, Extended  
+32-bit DOS, OSF/1 64-bit and OpenVMS. (Contact us for availability on  
+other platforms). 
+ 
+OSF/1 and OpenVMS are supported on the DEC Alpha and the Logic Server  
+API can be used from any language that can call a library. 
+ 
+ 
+Product Requirements 
+-------------------- 
+ 
+The PC version requires DOS 3.0 or later and Windows 3.1 or later. The  
+Logic Server API supports any development tool that can call a
+Windows DLL.  In addition, static link libraries are provided for:
+ 
+     Visual C++
+     Watcom C/C++
+     Borland C/C++
+     DEC C/C++ 
+ 
+ 
+Packaging 
+--------- 
+ 
+Because we feel Prolog should be part of every programmer's toolkit,  
+Cogent Prolog is priced like other C/C++ libraries. 
+ 
+For students, the Interpreter-Only is available for learning and  
+experimentation. Researchers may prefer the Compiler & Interpreter-Only.  
+Neither subset includes the Logic Server API or distributable runtimes. 
+ 
+An interactive Prolog tutorial, and a tutorial on building rule-based  
+systems (with working, source-code prototypes) are available separately.   
+ 
+ 
+Distribution 
+------------ 
+ 
+Cogent Prolog is royalty free. 
+ 
+ 
+"I've been looking for a Prolog with this kind of API for years..." 
+ 
+Jonas Beckman, MU Data 
+ 
+ 
+"I am thrilled to have finally found a reasonably priced Edinburgh  
+Prolog compiler for the PC. All of the programs I’ve ported to Cogent  
+Prolog have run without changes. This is truly a credit to your  
+compiler." 
+ 
+Robert Ryan, Programmer 
+ 
+ 
+Amzi! inc. 
+40 Samuel Prescott Drive 
+Stow, MA 01775    U.S.A. 
+ 
+tel 508/897-7332 
+fax 508/897-2784 
+ 
+internet amzi@world.std.com 
+ 
+ 
+* Cogent Prolog, Active Prolog Tutor, Logic Server API are trademarks of  
+Amzi! inc.  Windows, Visual C++, Visual Basic and Access are trademarks  
+of Microsoft.  Borland, Watcom and DEC are trademarks of their  
+respective companies. 
+

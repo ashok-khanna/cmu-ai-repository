@@ -1,0 +1,1080 @@
+;;;  This is my source code for the ELIZA program.  It was written as an
+;;;  assignment for an NLP class in 1985.  I would write it differently today,
+;;;  but it works as is.
+
+;;;  To run it, start up Common Lisp and enter (load "eliza") at the > prompt.
+;;;  This assumes that you have named this file eliza.lsp.
+;;
+;;;  If the load succeeds, you should see a number of functions being defined,
+;;;  followed by another Lisp prompt.
+
+;;;  To start eliza after loading, type the function call: (top-level)
+;;;  You will get a short intro description of what your input should look
+;;;  like, and an eliza prompt: input>
+
+;;;  To exit eliza, just type "goodbye" at the prompt.
+
+;;;  I hope you enjoy talking to the program.  It has been tested with the
+;;;  sample script given in Weizenbaum's original paper.
+
+;;;  To those who have requested a copy of that paper, I must apologize that
+;;;  press of work has prevented my mailing it out.  Have patience & it shall
+;;;  come to you.
+
+;;;  Bob Gattis,  Univ of Colorado at Colorado Springs   3/20/91
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;     Beginning of ELIZA code
+;;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;     File: aux.lsp
+;;;
+
+;;;             Function to handle special cases of Decomp
+;;;             rules.
+;;;
+
+(DEFUN AUX-DECOMP (PATT DLIST)
+        (SETQ VAR (CAR DLIST))
+        (SETQ MLIST (EVAL (CADR DLIST)))
+        (SETQ MWORD (AUX-MATCH PATT MLIST))
+        (COND ((NULL MWORD) NIL)
+              (T (SET (ATOMVAR VAR) (LIST MWORD))
+                 (SUBST VAR 'TAG PATT))))
+
+;
+
+(DEFUN AUX-MATCH (PATT MLIST)
+        (COND ((NULL MLIST) NIL)
+              (T (SETQ PATT (SUBST (CAR MLIST) 'TAG PATT))
+                 (COND ((MATCH PATT *SENTENCE*)
+                        (CAR MLIST))
+                       (T (SETQ PATT (SUBST 'TAG (CAR MLIST) PATT))
+                          (AUX-MATCH PATT (CDR MLIST)))))))
+
+;;;
+;       MATCH - Given a pattern and a sentence, find if there
+;               is match. The pattern may contain wild cards
+;
+(DEFUN MATCH (PATTERN SENTENCE)
+        (COND ((AND (NULL SENTENCE) (NULL PATTERN)) T)
+              ((NULL PATTERN) NIL)
+              ((NULL SENTENCE)
+               (COND ((AND (= (LENGTH PATTERN) 1)
+                           (EQUAL (ATOMLAST (CAR PATTERN)) '*))
+                       T )))
+              ((EQUAL SENTENCE PATTERN) T)
+              ((EQUAL (CAR PATTERN) (CAR SENTENCE))
+                      (MATCH (CDR PATTERN) (CDR SENTENCE)))
+              ((EQUAL (ATOMLAST (CAR PATTERN)) '*)
+                      (COND
+                ;; Test for:
+                ;;  1. VAR* matches NIL (rest of pattern matches
+                ;;                       entire sentence)
+                ;;  2. VAR* matches only one atom (rest of pattern
+                ;;                       matches rest of sentence
+                ;;  3. VAR* matches rest of sentence (pattern matches
+                ;;                       rest of sentence)
+                ;;
+                          ((MATCH (CDR PATTERN) SENTENCE)       ; #1
+                           (SET (ATOMVAR (CAR PATTERN)) NIL)
+                           T)
+                          ((MATCH (CDR PATTERN) (CDR SENTENCE)) ; #2
+                             (SET (ATOMVAR (CAR PATTERN))
+                                     (LIST (CAR SENTENCE)))
+                              T)
+                          ((MATCH PATTERN (CDR SENTENCE))       ; #3
+                             (SET (ATOMVAR (CAR PATTERN))
+                             (CONS (CAR SENTENCE)
+                                (EVAL (ATOMVAR (CAR PATTERN)))))
+                             T )))))
+
+;
+(DEFUN BUT-LAST (LIST)
+        (REVERSE (CDR (REVERSE LIST))))
+
+;
+;
+;
+;       ATOMCAR : Get the first letter of an atom
+;
+(DEFUN ATOMCAR (X) (CAR (EXPLODE X)))
+;
+;       ATOMCDR : Get the rest of the letters of an atom
+;
+(DEFUN ATOMCDR (X) (IMPLODE (CDR (EXPLODE X))))
+;
+;
+;       EXPLODE : Return the letters of an atom as a list
+;
+(DEFUN EXPLODE (SEXPR &REST OPTIONS)
+        (MAP 'LIST
+             #'(LAMBDA (C) (INTERN (STRING C)))
+             (APPLY #'WRITE-TO-STRING SEXPR OPTIONS)))
+;
+;       IMPLODE : Return as a string the chars of an atom
+;
+(DEFUN IMPLODE (LIST &REST OPTIONS)
+        (APPLY #'READ-FROM-STRING
+          (MAP 'STRING
+               #'(LAMBDA (S) (CHAR (STRING S) 0))
+               LIST)
+       OPTIONS))
+;
+;
+;
+;       ATOMLAST: Returns the last letter of an atom
+;
+(DEFUN ATOMLAST (X) (CAR (REVERSE (EXPLODE X))))
+
+;
+;       ATOMVAR: Returns all but the last letter of atom
+;
+
+(DEFUN ATOMVAR (X)
+        (IMPLODE (REVERSE (CDR (REVERSE (EXPLODE X))))))
+
+;;;             Function to put the position of a binding var
+;;;             in the list of atoms called PATTERN
+;;;             onto the property list of that symbol
+;;;
+
+(DEFUN PUT-POSITION (PATTERN POSN)
+        (COND ((NULL PATTERN))
+              ((EQUAL (ATOMLAST (CAR PATTERN)) '*)
+               (SETF (GET 'PAT-NUMB (ATOMVAR (CAR PATTERN))) POSN)
+               (PUT-POSITION (CDR PATTERN) (+ POSN 1)))
+              (T (PUT-POSITION (CDR PATTERN) (+ POSN 1)))))
+
+;;;
+;;;     File: getstring.lsp
+;;;
+
+
+;       Reads in a Character string, converts it to a LIST,
+;       then converts the LIST into a STRING
+;
+(DEFUN GET-STRING ()
+        (format t "~%Enter some words > ")
+          (let ((whatever-they-say (reaD-Line)))        ; read in string
+            (setf stuff-in-list                 ; make into a list
+                (make-list-from-string whatever-they-say))
+
+            (setf xstring "")                   ; clear xstring,
+                                                ; unique results ob-
+                                                ; tained if you don't.
+                                                ;
+            (format t "~%~a" whatever-they-say) ; write out what the
+                                                ; READLINE got in
+                ; call the functions
+            (format t "~%~a" (make-list-from-string whatever-they-say))
+            (format t "~%~a" (make-string-from-list stuff-in-list))
+
+                (get-string)))
+;
+; Make a LIST out of a STRING
+;
+(defun make-list-from-string (string)   ; function will return
+                                                ; a list when called.
+
+        (with-input-from-string (stream string) ; define the READ
+                                                ; stream
+        (DO ((WORD-IN-STRING                    ; defin temp var
+           (READ STREAM NIL 'END-OF-STRING)     ; read 1 word
+           (READ STREAM NIL 'END-OF-STRING))    ; update string pntr
+                 (STRING-LIST))
+
+         ((EQ WORD-IN-STRING 'END-OF-STRING)    ; test for end-of-strng
+                (NREVERSE STRING-LIST))         ; reverse the order
+                (PUSH WORD-IN-STRING            ; push the word into
+                        STRING-LIST))))         ; string list
+;
+; Make a STRING out of a LIST
+;
+(DEFUN MAKE-STRING-FROM-LIST (A-LIST)
+        (IF (NULL A-LIST) NIL
+          (SETF XSTRING (CONCATENATE 'STRING XSTRING
+            (CONCATENATE 'STRING (STRING (CAR A-LIST)) " ")
+             (MAKE-STRING-FROM-LIST (CDR A-LIST))))))
+;
+
+
+(DEFUN GET-INPUT ()
+        (FORMAT T "~%input>")
+        (LET ((INPUT (READ-LINE)))      ; Read in string
+        (MAKE-LIST-FROM-STRING INPUT)))
+
+
+
+
+;;;
+;;;     File: defstr6.lsp
+
+
+(DEFSTRUCT DECOMP PAT REASSY)
+(DEFSTRUCT KEYWD NUMB-DECOMPS MEMKEY D1 D2 D3 D4 D5 D6 D7 D8)
+
+;
+
+(SETQ D1R  '((TELL ME MORE ABOUT YOUR FAMILY)
+ (WHO ELSE IN YOUR FAMILY 5) (YOUR 4) (WHAT ELSE COMES TO MIND WHEN
+ YOU THINK OF YOUR 4)))
+
+(SETQ D2R  '((YOUR 3) (WHY DO YOU SAY YOUR 3)
+(DOES THAT SUGGEST ANYTHING ELSE THAT BELONGS TO YOU) (IS IT
+IMPORTANT TO YOU THAT YOUR 3)))
+
+(SETQ D1 (MAKE-DECOMP :PAT '(V1* YOUR V2* (V3* FAMILY) V4*)
+ :REASSY D1R))
+
+(SETQ D2 (MAKE-DECOMP :PAT '(V1* YOUR V2*)
+ :REASSY D2R))
+
+;; YOUR
+
+(SETQ YOUR (MAKE-KEYWD :NUMB-DECOMPS 2 :D1 D1 :D2 D2))
+
+(SETQ D3R '((IN WHAT WAY) (WHAT RESEMBLANCE DO YOU SEE) (WHAT DOES
+ THAT SIMILARITY SUGGEST TO YOU) (WHAT OTHER CONNECTIONS DO YOU
+  SEE) (WHAT DO YOU SUPPOSE THAT RESEMBLANCE MEANS) (WHAT IS THE
+CONNECTION DO YOU SUPPOSE) (COULD THERE REALLY BE SOME CONNECTION)
+ (HOW)))
+
+(SETQ D3 (MAKE-DECOMP :PAT '(V1*) :REASSY D3R))
+
+;; DIT
+
+(SETQ DIT (MAKE-KEYWD :NUMB-DECOMPS 1 :D1 D3))
+
+(SETQ D4R '((WHAT WOULD IT MEAN TO YOU IF YOU GOT 4)
+ (WHY DO YOU WANT 4) (SUPPOSE YOU GOT 4 SOON) (WHAT IF YOU
+ NEVER GOT 4) (WHAT WOULD GETTING 4 MEAN TO YOU)
+ (WHAT DOES WANTING 4 HAVE TO DO WITH THIS DISCUSSION)))
+
+(SETQ D5R '((I AM SORRY TO HEAR YOU ARE 5) (DO YOU THINK
+ COMING HERE WILL HELP YOU NOT TO BE 5) (IM SURE ITS NOT
+PLEASANT TO BE 5) (CAN YOU EXPLAIN WHAT MADE YOU 5)))
+
+(SETQ D4 (MAKE-DECOMP :PAT '(V1* YOU (V2* WANTS) V3*)
+:REASSY D4R))
+
+(SETQ D5 (MAKE-DECOMP :PAT '(V1* YOU ARE V2* (V3* SAD) V4*)
+  :REASSY D5R))
+
+;; YOU
+
+(SETQ YOU (MAKE-KEYWD :NUMB-DECOMPS 2 :D1 D4 :D2 D5))
+
+(SETQ D6R '((DO YOU BELIEVE YOU ARE 4) (WOULD YOU WANT
+TO BE 4) (YOU WISH I WOULD TELL YOU YOU ARE 4) (WHAT
+WOULD IT MEAN IF YOU WERE 4) (= WHAT)))
+
+(SETQ D7R '((WHY ARE YOU INTERESTED IN WHETHER I AM 4 OR
+NOT) (WOULD YOU PREFER IF I WERENT 4) (PERHAPS I AM 4 IN
+YOUR FANTASIES) (DO YOU SOMETIMES THINK I AM 4) (= WHAT)))
+
+(SETQ D8R '((DID YOU THINK THEY MIGHT NOT BE 3) (WOULD YOU
+LIKE IT IF THEY WERE NOT 3) (WHAT IF THEY WERE NOT 3)
+(POSSIBLY THEY ARE 3)))
+
+(SETQ D6 (MAKE-DECOMP :PAT '(V1* ARE YOU V2*) :REASSY D6R))
+
+(SETQ D7 (MAKE-DECOMP :PAT '(V1* ARE I V2*) :REASSY D7R))
+
+(SETQ D8 (MAKE-DECOMP :PAT '(V1* ARE V2*) :REASSY D8R))
+
+;; ARE
+
+(SETQ ARE (MAKE-KEYWD :NUMB-DECOMPS 3 :D1 D6 :D2 D7 :D3 D8))
+
+(SETQ D9R '((= DIT)))
+
+(SETQ D10R '((WHAT MAKES YOU THINK I AM 4) (DOES IT PLEASE
+YOU TO BELIEVE I AM 4) (DO YOU SOMETIMES WISH YOU WERE 4)
+(PERHAPS YOU WOULD LIKE TO BE 4)))
+
+(SETQ D11R '((WHY DO YOU THINK I 3 YOU) (YOU LIKE TO THINK I
+3 YOU - DONT YOU) (WHAT MAKES YOU THINK I 3 YOU)
+ (REALLY I 3 YOU) (DO YOU WISH TO BELIEVE I 3 YOU)
+ (SUPPOSE I DID 3 YOU - WHAT WOULD IT MEAN) (DOES SOMEONE
+ELSE BELIEVE I 3 YOU)))
+
+(SETQ D12R '((WE WERE DISCUSSING YOU - NOT ME) (OH I 3)
+(YOURE NOT REALLY TALKING ABOUT ME - ARE YOU) (WHAT ARE
+YOUR FEELINGS NOW)))
+
+(SETQ D9 (MAKE-DECOMP :PAT '(V1* I REMIND YOU OF V2*)
+:REASSY D9R))
+
+(SETQ D10 (MAKE-DECOMP :PAT '(V1* I ARE V2*) :REASSY D10R))
+
+(SETQ D11 (MAKE-DECOMP :PAT '(V1* I V2* YOU) :REASSY D11R))
+
+(SETQ D12 (MAKE-DECOMP :PAT '(V1* I V2*) :REASSY D12R))
+
+;; I
+
+(SETQ I (MAKE-KEYWD :NUMB-DECOMPS 4 :D1 D9 :D2 D10 :D3 D11
+ :D4 D12))
+
+(SETQ D13R '((I AM NOT SURE I UNDERSTAND YOU FULLY)
+(PLEASE GO ON) (WHAT DOES THAT SUGGEST TO YOU) (DO YOU
+FEEL STRONGLY ABOUT DISCUSSING SUCH THINGS)))
+
+(SETQ D13 (MAKE-DECOMP :PAT '(V1*) :REASSY D13R))
+
+;; NONE
+
+(SETQ NONE (MAKE-KEYWD :NUMB-DECOMPS 1 :D1 D13))
+
+(SETQ D14R '((CAN YOU THINK OF A SPECIFIC EXAMPLE) (WHEN)
+(WHAT INCIDENT ARE YOU THINKING OF) (REALLY ALWAYS)))
+
+(SETQ D14 (MAKE-DECOMP :PAT '(V1*) :REASSY D14R))
+
+;; ALWAYS
+
+(SETQ ALWAYS (MAKE-KEYWD :NUMB-DECOMPS 1 :D1 D14))
+
+(SETQ D15R '((DO YOU REALLY MEAN 2) (SURELY NOT 2)
+(CAN YOU THINK OF ANYONE IN PARTICULAR)
+ (WHO FOR EXAMPLE) (YOU ARE THINKING OF A VERY SPECIAL PERSON)
+(WHO MAY I ASK) (SOMEONE SPECIAL PERHAPS) (YOU HAVE A
+PARTICULAR PERSON IN MIND DONT YOU) (WHO DO YOU THINK YOU ARE
+TALKING ABOUT)))
+
+(SETQ D15 (MAKE-DECOMP :PAT '(V1* (V2* ALL) V3*) :REASSY D15R))
+
+;; EVERYONE
+
+(SETQ EVERYONE (MAKE-KEYWD :NUMB-DECOMPS 1 :D1 D15))
+
+(SETQ D16R '((= DIT)))
+
+(SETQ D17R '((NEWKEY)))
+
+(SETQ D16 (MAKE-DECOMP :PAT '(V1* (V2* TOBE) V3* LIKE V4*)
+:REASSY D16R))
+
+(SETQ D17 (MAKE-DECOMP :PAT '(V1*) :REASSY D17R))
+
+;; LIKE
+
+(SETQ LIKE (MAKE-KEYWD :NUMB-DECOMPS 2 :D1 D16 :D2 D17))
+
+(SETQ D18R '((PRE (YOU ARE 3) (= YOU))))
+
+(SETQ D18 (MAKE-DECOMP :PAT '(V1* YOURE V2*) :REASSY D18R))
+
+;; YOURE
+
+(SETQ YOURE (MAKE-KEYWD :NUMB-DECOMPS 1 :D1 D18))
+
+
+(SETQ D19R '((WHY DO YOU ASK) (DOES THAT QUESTION INTEREST YOU)
+(WHAT IS IT YOU REALLY WANT TO KNOW) (ARE SUCH QUESTIONS MUCH ON
+YOUR MIND) (WHAT ANSWER WOULD PLEASE YOU MOST) (WHAT DO YOU THINK)
+ (WHAT COMES TO YOUR MIND WHEN YOU ASK THAT) (HAVE YOU ASKED SUCH
+QUESTIONS BEFORE) (HAVE YOU ASKED ANYONE ELSE)))
+
+(SETQ D19 (MAKE-DECOMP :PAT '(V1*) :REASSY D19R))
+
+;; WHAT
+
+(SETQ WHAT (MAKE-KEYWD :NUMB-DECOMPS 1 :D1 D19))
+
+;
+
+(SETQ D20R '((DOES THAT HAVE ANYTHING TO DO WITH THE FACT THAT
+YOUR 3) (LETS DISCUSS FURTHER WHY YOUR 3) (EARLIER YOU SAID
+YOUR 3) (BUT YOUR 3)))
+
+(SETQ D20 (MAKE-DECOMP :PAT '(V1* YOUR V2*) :REASSY D20R))
+
+;; MEMORY
+
+(SETQ MEMORY (MAKE-KEYWD :NUMB-DECOMPS 1 :MEMKEY '(YOUR) :D1 D20))
+
+;;  Added keywords for the rest of the ELIZA script:
+;;;
+
+(SETQ D21R '((PLEASE DONT APOLOGIZE) (APOLOGIES ARE NOT NECESSARY)
+      (WHAT FEELINGS DO YOU HAVE WHEN YOU APOLOGIZE)
+      (IVE TOLD YOU THAT APOLOGIES ARE NOT REQUIRED)))
+
+(SETQ D21 (MAKE-DECOMP :PAT '(V1*) :REASSY D21R))
+
+;; SORRY
+
+(SETQ SORRY (MAKE-KEYWD :NUMB-DECOMPS 1 :D1 D21))
+
+(SETQ D22R '((DO YOU OFTEN THINK OF 4) (DOES THINKING OF 4 BRING ANYTHING
+                                             ELSE TO MIND)
+             (WHAT ELSE DO YOU REMEMBER) (WHY DO YOU REMEMBER 4 JUST NOW)
+             (WHAT IN THE PRESENT SITUATION REMINDS YOU OF 4) (WHAT IS
+              THE CONNECTION BETWEEN ME AND 4)))
+
+(SETQ D23R '((DID YOU THINK I WOULD FORGET 5) (WHY DO YOU THINK I SHOULD
+              RECALL 5 NOW) (WHAT ABOUT 5) (= WHAT) (YOU MENTIONED 5)))
+
+(SETQ D24R '((NEWKEY)))
+
+(SETQ D22 (MAKE-DECOMP :PAT '(V1* I REMEMBER V4*) :REASSY D22R))
+
+(SETQ D23 (MAKE-DECOMP :PAT '(V1* DO YOU REMEMBER V5*) :REASSY D23R))
+
+(SETQ D24 (MAKE-DECOMP :PAT '(V1*) :REASSY D24R))
+
+;; REMEMBER
+
+(SETQ REMEMBER (MAKE-KEYWD :NUMB-DECOMPS 3 :D1 D22 :D2 D23 :D3 D24))
+
+
+(SETQ D25R '((DO YOU REALLY THINK IT IS LIKELY THAT 3)
+             (DO YOU WISH THAT 3) (WHAT DO YOU THINK ABOUT 3)
+             (REALLY 2 3)))
+
+(SETQ D25 (MAKE-DECOMP :PAT '(V1* IF V3*) :REASSY D25R))
+
+;; IF
+
+(SETQ IF (MAKE-KEYWD :NUMB-DECOMPS 1 :D1 D25))
+
+(SETQ D26R '((REALLY 4 ?) (HAVE YOU EVER FANTASIED 4 WHILE YOU WERE AWAKE?)
+             (HAVE YOU DREAMT 4 BEFORE?) (= DREAM) (NEWKEY)))
+
+(SETQ D26 (MAKE-DECOMP :PAT '(V1* I DREAMT V4*) :REASSY D26R))
+
+;; DREAMT
+
+(SETQ DREAMT (MAKE-KEYWD :NUMB-DECOMPS 1 :D1 D26))
+
+(SETQ D27R '((WHAT DOES THAT DREAM SUGGEST TO YOU?) (DO YOU DREAM OFTEN?)
+             (WHAT PERSONS APPEAR IN YOUR DREAMS?) (DONT YOU BELIEVE THAT
+              DREAM HAS SOMETHING TO DO WITH YOUR PROBLEM?) (NEWKEY)))
+
+(SETQ D27 (MAKE-DECOMP :PAT '(V1*) :REASSY D27R))
+
+;; DREAM
+
+(SETQ DREAM (MAKE-KEYWD :NUMB-DECOMPS 1 :D1 D27))
+
+
+(SETQ D28R '((DO COMPUTERS WORRY YOU) (WHY DO YOU MENTION COMPUTERS?)
+             (WHAT DO YOU THINK MACHINES HAVE TO DO WITH YOUR PROBLEM?)
+             (DONT YOU THINK COMPUTERS CAN HELP PEOPLE?)
+             (WHAT ABOUT ABOUT MACHINES WORRIES YOU?)
+             (WHAT DO YOU THINK ABOUT MACHINES?)))
+
+
+(SETQ D28 (MAKE-DECOMP :PAT '(V1*) :REASSY D28R))
+
+;; COMPUTER
+
+(SETQ COMPUTER (MAKE-KEYWD :NUMB-DECOMPS 1 :D1 D28))
+
+(SETQ D29R '((YOU DONT SEEM QUITE CERTAIN) (WHY THE UNCERTAIN TONE)
+             (CANT YOU BE MORE POSITIVE?) (YOU ARENT SURE)
+             (DONT YOU KNOW)))
+
+(SETQ D29 (MAKE-DECOMP :PAT '(V1*) :REASSY D29R))
+
+;; PERHAPS
+
+(SETQ PERHAPS (MAKE-KEYWD :NUMB-DECOMPS 1 :D1 D29))
+
+(SETQ D30R '((I AM NOT INTERESTED IN NAMES)
+             (I TOLD YOU BEFORE I DONT CARE ABOUT NAMES)
+             (PLEASE CONTINUE)))
+
+(SETQ D30 (MAKE-DECOMP :PAT '(V1*) :REASSY D30R))
+
+;; NAME
+
+(SETQ NAME (MAKE-KEYWD :NUMB-DECOMPS 1 :D1 D30))
+
+(SETQ D31R '((WHY ARE YOU CONCERNED OVER MY 3)
+             (WHAT ABOUT YOUR OWN 3)
+             (ARE YOU WORRIED ABOUT SOMEONE ELSES 3)
+             (REALLY MY 3)))
+
+(SETQ D31 (MAKE-DECOMP :PAT '(V1* MY V3*) :REASSY D31R))
+
+;; MY
+
+(SETQ MY (MAKE-KEYWD :NUMB-DECOMPS 1 :D1 D31))
+
+(SETQ D32R '((WHAT IF YOU WERE 4) (DO YOU THINK YOU ARE 4)
+             (WERE YOU 4) (WHAT WOULD IT MEAN IF YOU WERE 4)
+             (WHAT DOES " 4 " SUGGEST TO YOU) (= WHAT)))
+
+(SETQ D33R '((WERE YOU REALLY) (WHY DO YOU TELL ME YOU WERE 4 NOW)
+             (PERHAPS I ALREADY KNEW YOU WERE 4)))
+
+(SETQ D34R '((WOULD YOU LIKE TO BELIEVE THAT I WAS 4)
+             (WHAT SUGGESTS THAT I WAS 4)
+             (WHAT DO YOU THINK)
+             (PERHAPS I WAS 4)
+             (WHAT IF I HAD BEEN 4)))
+
+(SETQ D35R '((NEWKEY)))
+
+(SETQ D32 (MAKE-DECOMP :PAT '(V1* WAS YOU V4*) :REASSY D32R))
+
+(SETQ D33 (MAKE-DECOMP :PAT '(V1* YOU WAS V4*) :REASSY D33R))
+
+(SETQ D34 (MAKE-DECOMP :PAT '(V1* WAS I V4*) :REASSY D34R))
+
+(SETQ D35 (MAKE-DECOMP :PAT '(V1*) :REASSY D35R))
+
+;; WAS
+
+(SETQ WAS (MAKE-KEYWD :NUMB-DECOMPS 4 :D1 D32 :D2 D33 :D3 D34 :D4 D35))
+
+(SETQ D36R '((PRE (I ARE 3) (= YOU))))
+
+(SETQ D36 (MAKE-DECOMP :PAT '(V1* IM V3*) :REASSY D36R))
+
+;; IM
+
+(SETQ IM (MAKE-KEYWD :NUMB-DECOMPS 1 :D1 D36))
+
+(SETQ D37R '((YOU SEEM QUITE POSITIVE)
+             (YOU ARE SURE) (I SEE) (I UNDERSTAND)))
+
+(SETQ D37 (MAKE-DECOMP :PAT '(V1*) :REASSY D37R))
+
+;; YES
+
+(SETQ YES (MAKE-KEYWD :NUMB-DECOMPS 1 :D1 D37))
+
+(SETQ D38R '((ARE YOU SAYING "NO" JUST TO BE NEGATIVE)
+            (YOU ARE BEING A BIT NEGATIVE)
+            (WHY NOT) (WHY "NO")))
+
+(SETQ D38 (MAKE-DECOMP :PAT '(V1*) :REASSY D38R))
+
+;; NO
+
+(SETQ NO (MAKE-KEYWD :NUMB-DECOMPS 1 :D1 D38))
+
+(SETQ D39R '((YOU BELIEVE I CAN 4 DONT YOU) (= WHAT)
+             (YOU WANT ME TO BE ABLE TO 4)
+             (PERHAPS YOU WOULD LIKE TO BE ABLE TO 4 YOURSELF)))
+
+(SETQ D40R '((WHETHER OR NOT YOU CAN 4 DEPENDS ON YOU MORE THAN ON ME)
+             (DO YOU WANT TO BE ABLE TO 4)
+             (PERHAPS YOU DONT WANT TO BE 4) (= WHAT)))
+
+(SETQ D39 (MAKE-DECOMP :PAT '(V1* CAN I V4*) :REASSY D39R))
+
+(SETQ D40 (MAKE-DECOMP :PAT '(V1* CAN YOU V4*) :REASSY D40R))
+
+;; CAN
+
+(SETQ CAN (MAKE-KEYWD :NUMB-DECOMPS 2 :D1 D39 :D2 D40))
+
+(SETQ D41R '((IS THAT THE REAL REASON)
+             (DONT ANY OTHER REASONS COME TO MIND)
+             (DOES THAT REASON SEEM TO EXPLAIN ANYTHING ELSE)
+             (WHAT OTHER REASONS MIGHT THERE BE)))
+
+(SETQ D41 (MAKE-DECOMP :PAT '(V1*) :REASSY D41R))
+
+;; BECAUSE
+
+(SETQ BECAUSE (MAKE-KEYWD :NUMB-DECOMPS 1 :D1 D41))
+
+(SETQ D42R '((DO YOU BELIEVE I DONT 5) (PERHAPS I WILL 5 IN GOOD TIME)
+             (SHOULD YOU 5 YOURSELF) (YOU WANT ME TO 5) (= WHAT)))
+
+(SETQ D43R '((DO YOU THINK YOU SHOULD BE ABLE TO 5)
+             (DO YOU WANT TO BE ABLE TO 5)
+             (DO YOU BELIEVE THIS WILL HELP YOU TO 5)
+             (HAVE YOU ANY IDEA WHY YOU CANT 5)
+             (= WHAT)))
+
+(SETQ D42 (MAKE-DECOMP :PAT '(V1* WHY DONT I V5*) :REASSY D42R))
+
+(SETQ D43 (MAKE-DECOMP :PAT '(V1* WHY CANT YOU V5*) :REASSY D43R))
+
+;; WHY
+
+(SETQ WHY (MAKE-KEYWD :NUMB-DECOMPS 2 :D1 D42 :D2 D43))
+
+
+
+
+;;
+;;              Set up lists for multiple word matches:
+;;
+(SETQ FAMILY '(MOTHER MOM FATHER DAD SISTER BROTHER WIFE CHILDREN))
+
+(SETQ WANTS '(WANT NEED))
+
+(SETQ SAD '(SAD UNHAPPY DEPRESSED SICK))
+
+(SETQ ALL '(EVERYONE EVERYBODY NOBODY NOONE))
+
+(SETQ TOBE '(AM IS ARE WAS))
+
+(SETQ BELIEF '(FEEL THINK BELIEVE WISH))
+
+
+
+
+;;;     File: e1.lsp
+;;;
+;;;     This file contains sentence scanning functions for
+;;;     ELIZA.
+;;;
+;;;
+;;;             SCAN-SENTENCE compares the words of the input
+;;;             sentence to the words in the KEY-LIST. A list is
+;;;             returned with the matched keywords and their ranks
+;;;             sorted into highest to lowest order:
+;;;
+;;;             ( (keyword1 rank1) (keyword2 rank2) ... (keywordn rankn))
+;;;             rank1 => rank2 => ... rankn
+;;;
+
+(DEFUN SCAN-SENTENCE (INPUT KEY-LIST)
+        (REVERSE (SORT (AUX-SCAN INPUT KEY-LIST () )
+                       #'< :KEY #'CADR)))
+
+
+(DEFUN MATCH-KEYWORDS (WORD WORD-LIST)
+        (COND ((NULL WORD-LIST) NIL)
+              ((EQUAL WORD (CAAR WORD-LIST))
+                (CAR WORD-LIST))
+              (T (MATCH-KEYWORDS WORD (CDR WORD-LIST)))))
+
+;;;
+;;;
+
+(DEFUN AUX-SCAN (SENTENCE KEYWORDS OUT-LIST)
+        (COND ((NULL SENTENCE) OUT-LIST)
+              (T (SETQ MATCH-WORD (MATCH-KEYWORDS (CAR SENTENCE)
+                                                  KEYWORDS))
+                 (COND ((NULL MATCH-WORD)
+                        (AUX-SCAN (CDR SENTENCE) KEYWORDS
+                                  OUT-LIST))
+                       (T (AUX-SCAN (CDR SENTENCE) KEYWORDS
+                                    (CONS MATCH-WORD OUT-LIST)))))))
+
+;;;
+;;;             Set up Keyword list:
+;;;
+(SETQ KEYWORDS '(       (ARE 0) (LIKE 10)
+                        (EVERYBODY 2 EVERYONE)  (MY 2 YOUR)
+                        (YOU 0 I) (AM 0 ARE) (I 0 YOU)
+                        (IM 0 YOURE) (ME 0 YOU)
+                        (NONE 0)
+                        (ALWAYS 1) (ALIKE 10 DIT)
+                        (SORRY 0) (REMEMBER 5) (IF 3)
+                        (DREAMT 4) (DREAMED 4 DREAMT)
+                        (DREAM 3) (HOW 0 WHAT)
+                        (WHEN 0 WHAT) (SAME 0 DIT)
+                        (CERTAINLY 0 YES)
+                        (MACHINE 50 COMPUTER)
+                        (MACHINES 50 COMPUTER)
+                        (COMPUTERS 50 COMPUTER)
+                        (PERHAPS 0) (NAME 15)
+                        (HELLO 0) (YOUR 0 MY)
+                        (WAS 2) (WERE 0 WAS)
+                        (YOURE 0 IM) (MYSELF 0 YOURSELF)
+                        (YOURSELF 0 MYSELF) (YES 0)
+                        (NO 0) (CAN 0) (WHAT 0)
+                        (BECAUSE 0) (WHY 0) ))
+
+
+;;;             SUBSTITUTE function replaces the words in the
+;;;             input sentence with their associated subs from
+;;;             the match-word list returned from SCAN-SENTENCE.
+;;;
+
+(DEFUN SW (SENTENCE MATCHED-WORDS)
+  (COND ((NULL MATCHED-WORDS) SENTENCE)
+            ;; Check if sub word reqd
+            ;;
+        (T (COND ((NULL (CDDAR MATCHED-WORDS))
+                      ;;
+                      ;; No sub reqd, check rest of matches
+                      ;;
+                  (SW SENTENCE (CDR MATCHED-WORDS)))
+                      ;;
+                      ;; Sub reqd, replace word & call for
+                      ;; another check with rest of matches
+                      ;;
+                 (T (SW (SUBST (CADDAR MATCHED-WORDS)
+                               (CAAR MATCHED-WORDS)
+                               SENTENCE)
+                        (CDR MATCHED-WORDS)))))))
+
+;;;             Function to get input sentence, scan it for
+;;;             keywords, substitute thier replacements, and
+;;;             return the mod'd sentence and the list of
+;;;             matched keywords
+;;;
+
+(DEFUN GET-INPUT-&-MATCH (KEY-LIST)
+        (SETQ *SENTENCE* (GET-INPUT))
+        (SETQ *MATCHED-WORDS* (SCAN-SENTENCE *SENTENCE* KEY-LIST))
+        (SETQ *SENTENCE* (SW *SENTENCE* *MATCHED-WORDS*))
+        (SETQ *MATCHED-WORDS* (SWITCH *MATCHED-WORDS* () ))
+        *SENTENCE* )
+
+;;;             FLATTEN returns its input list as a list of the
+;;;     atoms in that list, without any parentheses.
+;;;
+
+(DEFUN FLATTEN (L)
+  (COND ((NULL L) NIL)
+        ((ATOM L) (LIST L))
+        (T (APPLY 'APPEND (MAPCAR 'FLATTEN L)))))
+
+;;;
+;
+
+(DEFUN SWITCH (LIST-IN LIST-OUT)
+        (COND ((NULL LIST-IN) (REVERSE LIST-OUT))
+               (T (COND ((NULL (CDDAR LIST-IN))
+                         (SETQ LIST-OUT (CONS (LIST (CAAR LIST-IN)) LIST-OUT)))
+                        (T (SETQ LIST-OUT (CONS (CDDAR LIST-IN) LIST-OUT))))
+                (SWITCH (CDR LIST-IN) LIST-OUT))))
+
+;;;
+;;;     File: newdecomp.lsp
+;;;
+;;;             Top Level Function to get input sentence, match it
+;;;             with the keyword list, match decomp rules for all
+;;;             keywords on the stack, and output the reconstructed
+;;;             sentence to the user. Continues with this sequence
+;;;             until user types "goodbye".
+
+(DEFUN TOP-LEVEL ()
+        ;; Define Global Variables:
+        ;;
+        (DEFVAR *SENTENCE*)
+        (DEFVAR *MATCHED-WORDS*)
+        (DEFVAR *OUTPUT* NIL)
+        (DEFVAR *MEM-STACK* NIL)
+        (DEFVAR *FIRST-TIME* T)
+        ;;
+        (IF *FIRST-TIME* (PRINT-INSTRUCTIONS))
+        (SETQ *SENTENCE* (GET-INPUT-&-MATCH KEYWORDS))
+        (COND ((EQUAL *SENTENCE* '(GOODBYE))
+               (FORMAT T "~%Thanks for the talk..~%"))
+              (T (SETQ *OUTPUT* (TRY-KEYS *MATCHED-WORDS*))
+                 (COND ((NULL *OUTPUT*)
+                        (COND ((NOT (NULL *MEM-STACK*))
+                               (SETQ *OUTPUT*
+                                     (GET-FROM-MEM)))
+                              (T (SETQ *OUTPUT* (TRY-KEYS
+                                                 '((NONE))) )))))
+                       (PRINT-OUTPUT *OUTPUT*)
+                        (TERPRI)
+                          (TOP-LEVEL))))
+
+;;;
+;;;             This function prints instructions to the user
+;;;             of Eliza.
+;;;
+
+(DEFUN PRINT-INSTRUCTIONS ()
+        (SETQ *FIRST-TIME* NIL)         ; Turn off instructions flag
+        (FORMAT T "~%~5TWelcome to the ELIZA program. The following")
+        (FORMAT T "~%~5Tguidelines should help your conversation along:")
+        (FORMAT T "~%~%~8T1: Punctuation should not be used. Periods, commas, apostrophes, and")
+        (FORMAT T "~%~11Tquestion marks only confuse ELIZA now.")
+        (FORMAT T "~%~%~8T2: ELIZA understands simple declarative sentences and questions best.")
+        (FORMAT T "~%~%~8T3: When you are done, simply type `goodbye' at the `input>' prompt")
+        (FORMAT T "~%~11Tand ELIZA will know you want to stop.")
+        (FORMAT T "~%~%~8T4: Enjoy!~%~%"))
+
+
+;;;             Function to try to match the input sentence with
+;;;             decomp rules for the matched keywords
+;;;
+
+(DEFUN TRY-KEYS (KEY-STACK)
+(DEFVAR *KEY-STACK*)
+(DEFVAR *TRY-NEXT-KEY* NIL)
+(SETQ *KEY-STACK* KEY-STACK)
+        (COND ((NULL KEY-STACK) NIL)
+               (T (SETQ KEY-WORD (CAAR *KEY-STACK*))
+                  ;; Test the top matched keyword to see if it
+                  ;; is a MEMORY keyword. If it is, put a trans-
+                  ;; formed sentence on the MEM-STACK.
+                  (COND ((EQUAL (KEYWD-MEMKEY MEMORY)
+                         (CAR *KEY-STACK*))
+                         (SETQ *MEM-STACK* (CONS (MATCH-DECOMP MEMORY)
+                                                 *MEM-STACK*))))
+                   ;;
+                  (SETQ *KEY-STACK* (CDR *KEY-STACK*))
+                  (COND ((MATCH-DECOMP (EVAL KEY-WORD)))
+                         ;; If MATCH-DECOMP returns non-nil, it
+                         ;; is the transformed output sentence, so
+                         ;; return it as result.
+                         ;; Otherwise, do TRY-KEYS with
+                         ;; the rest of the *KEY-STACK*.
+                         (T (TRY-KEYS *KEY-STACK*))))))
+
+;;;             Function to pop the top of the MEM-STACK and
+;;;             return the sentence there.
+;;;
+
+(DEFUN GET-FROM-MEM ()
+        (SETQ TOP (CAR (REVERSE *MEM-STACK*)))
+        (SETQ *MEM-STACK* (BUT-LAST *MEM-STACK*))
+        TOP)
+;;;
+;;;             Function to print the output sentence to the
+;;;             terminal.
+;;;
+
+(DEFUN PRINT-OUTPUT (LIST)
+        (SETF XSTRING "")
+        (FORMAT T "~%~A" (MAKE-STRING-FROM-LIST LIST)))
+
+;;;
+;;;             Function to match decomposition rules against
+;;;             the input sentence. Tries each decomp rule of
+;;;             KEY up to the total number of decomp rules for
+;;;             the KEY. Returns the transformed output sentence
+;;;             derived from the reassembly rule for the decomp
+;;;             rule that matched the input sentence.
+;;;
+
+(DEFUN MATCH-DECOMP (KEY)
+        (DO ((RULE-#  1  (+ 1 RULE-#))
+             (MAX-NUMB  (KEYWD-NUMB-DECOMPS KEY)))
+
+             (( > RULE-# MAX-NUMB) NIL) ; End Test
+
+             (SETQ PATT (GET-PATTERN RULE-# KEY))
+             (SETQ NEWPATT (NONSTD PATT () ))
+             (COND ((NOT (EQUAL PATT NEWPATT))
+                    (SETQ SPEC-PATT (AUX-DECOMP NEWPATT
+                                                *DLIST*))
+                    ;; SPEC-PATT is NIL if no match found by
+                    ;; AUX-DECOMP
+                    (COND ((NOT (NULL SPEC-PATT))
+                           (PUT-POSITION SPEC-PATT 1)
+                           (RETURN (GRO RULE-# KEY)))))
+                   (T (COND ((MATCH PATT *SENTENCE*)
+                             (PUT-POSITION PATT 1)
+                             (RETURN (GRO RULE-# KEY)))
+                   )))))
+
+;;;             Function performs the task of fetching the next
+;;;             available reassy rule from the list and checking it
+;;;             for special handling. Returns the transformed out-
+;;;             put for printing. Cycles the reassy rules after
+;;;             selecting one.
+
+(DEFUN GRO (DRULE KEY)
+        (SETQ REASSY-RULE (CAR *RULES*))
+        (COND ((EQUAL REASSY-RULE '(NEWKEY))
+               (ROTATE-RULES DRULE KEY)
+                NIL)            ; Force TRY-KEYS to use next key
+              ((EQUAL (CAR REASSY-RULE) '=)
+               (ROTATE-RULES DRULE KEY)
+               (GET-PATTERN DRULE (EVAL (CADR REASSY-RULE)))
+               (GRO 1 (EVAL (CADR REASSY-RULE))))
+              ((EQUAL (CAR REASSY-RULE) 'PRE)
+               (SETQ *SENTENCE* (REASSY-OUTPUT (CADR REASSY-RULE)))
+               (SETQ *KEY-STACK* (CONS (LIST (CADR(CADDR REASSY-RULE)))
+                                       *KEY-STACK*))
+               (SETQ *TRY-NEXT-KEY* T)
+               NIL)
+              (T (ROTATE-RULES DRULE KEY)
+                 (REASSY-OUTPUT REASSY-RULE))))
+
+
+;;;             Function substitutes the bound variable values
+;;;             for the number in the reassy rule, if a number
+;;;             exists. Returns the transformed sentence ready
+;;;             for output as a list.
+;;;
+
+(DEFUN REASSY-OUTPUT (OUT-LIST)
+  (SETQ ATOM-NUMBER (NUMBER-IN-LIST OUT-LIST))
+  (COND ((NULL ATOM-NUMBER) OUT-LIST)
+        (T (COND ((= ATOM-NUMBER (GET 'PAT-NUMB 'V1))
+                  (FLATTEN (SUBST V1 ATOM-NUMBER OUT-LIST)))
+                 ((= ATOM-NUMBER (GET 'PAT-NUMB 'V2))
+                  (FLATTEN (SUBST V2 ATOM-NUMBER OUT-LIST)))
+                 ((= ATOM-NUMBER (GET 'PAT-NUMB 'V3))
+                  (FLATTEN (SUBST V3 ATOM-NUMBER OUT-LIST)))
+                 ((= ATOM-NUMBER (GET 'PAT-NUMB 'V4))
+                  (FLATTEN (SUBST V4 ATOM-NUMBER OUT-LIST)))
+                 (T (FORMAT T
+                            "~%ERROR: No var matches atom number"))))))
+
+;;;
+;;;             This function finds the position of the numeric
+;;;             atom in a reassy rule and returns the atom's value.
+;;;
+
+(DEFUN NUMBER-IN-LIST (LIST)
+        (COND ((NULL LIST) NIL)
+              ((NUMBERP (CAR LIST)) (CAR LIST))
+              (T (NUMBER-IN-LIST (CDR LIST)))))
+
+;;;
+;;;
+
+(DEFUN CYCLE (RULES)
+        (REVERSE (CONS (CAR RULES) (REVERSE (CDR RULES)))))
+
+;;;             Function to get the pattern for the decomp
+;;;             rule in use.
+;;;
+
+(DEFUN GET-PATTERN (DRULE KEY)
+        (COND ((= DRULE 1)
+               (SETQ *RULES* (DECOMP-REASSY (KEYWD-D1 KEY)))
+               (DECOMP-PAT (KEYWD-D1 KEY)))
+              ((= DRULE 2)
+               (SETQ *RULES* (DECOMP-REASSY (KEYWD-D2 KEY)))
+               (DECOMP-PAT (KEYWD-D2 KEY)))
+              ((= DRULE 3)
+               (SETQ *RULES* (DECOMP-REASSY (KEYWD-D3 KEY)))
+               (DECOMP-PAT (KEYWD-D3 KEY)))
+              ((= DRULE 4)
+               (SETQ *RULES* (DECOMP-REASSY (KEYWD-D4 KEY)))
+               (DECOMP-PAT (KEYWD-D4 KEY)))
+              ((= DRULE 5)
+               (SETQ *RULES* (DECOMP-REASSY (KEYWD-D5 KEY)))
+               (DECOMP-PAT (KEYWD-D5 KEY)))
+              ((= DRULE 6)
+               (SETQ *RULES* (DECOMP-REASSY (KEYWD-D6 KEY)))
+               (DECOMP-PAT (KEYWD-D6 KEY)))
+              ((= DRULE 7)
+               (SETQ *RULES* (DECOMP-REASSY (KEYWD-D7 KEY)))
+               (DECOMP-PAT (KEYWD-D7 KEY)))
+              ((= DRULE 8)
+               (SETQ *RULES* (DECOMP-REASSY (KEYWD-D8 KEY)))
+               (DECOMP-PAT (KEYWD-D8 KEY)))))
+
+;;;
+;;;             Function to select the next reassy rule to be used
+;;;             and to cycle the reassy rules after the selection.
+;;;
+
+(DEFUN ROTATE-RULES (DRULE KEY)
+        (COND ((= DRULE 1)
+               (SETF (DECOMP-REASSY (KEYWD-D1 KEY))
+                     (CYCLE *RULES*)))
+              ((= DRULE 2)
+               (SETF (DECOMP-REASSY (KEYWD-D2 KEY))
+                     (CYCLE *RULES*)))
+              ((= DRULE 3)
+               (SETF (DECOMP-REASSY (KEYWD-D3 KEY))
+                     (CYCLE *RULES*)))
+              ((= DRULE 4)
+               (SETF (DECOMP-REASSY (KEYWD-D4 KEY))
+                     (CYCLE *RULES*)))
+              ((= DRULE 5)
+               (SETF (DECOMP-REASSY (KEYWD-D5 KEY))
+                     (CYCLE *RULES*)))
+              ((= DRULE 6)
+               (SETF (DECOMP-REASSY (KEYWD-D6 KEY))
+                     (CYCLE *RULES*)))
+              ((= DRULE 7)
+               (SETF (DECOMP-REASSY (KEYWD-D7 KEY))
+                     (CYCLE *RULES*)))
+              ((= DRULE 8)
+               (SETF (DECOMP-REASSY (KEYWD-D8 KEY))
+                     (CYCLE *RULES*)))))
+
+;;;
+;;;     File: nonstd.lsp
+;;;
+;;;
+;;;             Function checks if the decomp pattern is
+;;;             non-standard, i.e., if there is an embedded
+;;;             list instead of just atoms. Returns the input
+;;;             pattern if it is all atoms, and a revised
+;;;             list with the atom TAG replacing the list
+;;;             in the pattern. The global var *DLIST* is
+;;;             set to the list in the pattern for later use.
+;;;
+(DEFUN NONSTD (PATT OUT-LIST)
+        (COND ((NULL PATT) (REVERSE OUT-LIST))
+              (T (COND ((LISTP (CAR PATT))
+                        (SETQ *DLIST* (CAR PATT))
+                        (SETQ OUT-LIST (CONS 'TAG OUT-LIST))
+                        (NONSTD (CDR PATT) OUT-LIST))
+                       (T (SETQ OUT-LIST (CONS (CAR PATT) OUT-LIST))
+                          (NONSTD (CDR PATT) OUT-LIST))))))
+
+
+;;;
+;;;     File: util.lsp
+;;;
+;       This is a general purpose utility file
+;       It includes a pretty printer, and several list
+;       and string conversion functions
+;
+(DEFUN PFUN (FUNC)
+(PPRINT-DEFINITION FUNC))
+;
+;       Reads in a Character string, converts it to a LIST,
+;       then converts the LIST into a STRING
+;
+(DEFUN GET-STRING ()
+        (format t "~%Enter some words > ")
+          (let ((whatever-they-say (read-Line)))        ; read in string
+            (setf stuff-in-list                 ; make into a list
+                (make-list-from-string whatever-they-say))
+
+            (setf xstring "")                   ; clear xstring,
+                                                ; unique results ob-
+                                                ; tained if you don't.
+                                                ;
+            (format t "~%~a" whatever-they-say) ; write out what the
+                                                ; READLINE got in
+                ; call the functions
+            (format t "~%~a" (make-list-from-string whatever-they-say))
+            (format t "~%~a" (make-string-from-list stuff-in-list))
+
+                (get-string)))
+;
+; Make a LIST out of a STRING
+;
+(defun make-list-from-string (string)   ; function will return
+                                                ; a list when called.
+
+        (with-input-from-string (stream string) ; define the READ
+                                                ; stream
+        (DO ((WORD-IN-STRING                    ; defin temp var
+           (READ STREAM NIL 'END-OF-STRING)     ; read 1 word
+           (READ STREAM NIL 'END-OF-STRING))    ; update string pntr
+                 (STRING-LIST))
+
+         ((EQ WORD-IN-STRING 'END-OF-STRING)    ; test for end-of-strng
+                (NREVERSE STRING-LIST))         ; reverse the order
+                (PUSH WORD-IN-STRING            ; push the word into
+                        STRING-LIST))))         ; string list
+;
+; Make a STRING out of a LIST
+;
+(DEFUN MAKE-STRING-FROM-LIST (A-LIST)
+        (IF (NULL A-LIST) NIL
+          (SETF XSTRING (CONCATENATE 'STRING XSTRING
+            (CONCATENATE 'STRING (STRING (CAR A-LIST)) " ")
+             (MAKE-STRING-FROM-LIST (CDR A-LIST))))))
+;
+
+
+(DEFUN GET-INPUT ()
+        (FORMAT T "~%input>")
+        (LET ((INPUT (READ-LINE)))      ; Read in string
+        (MAKE-LIST-FROM-STRING INPUT)))
+
+;;;
+

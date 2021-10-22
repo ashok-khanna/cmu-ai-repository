@@ -1,0 +1,199 @@
+From: kend@data.UUCP (Ken Dickey)
+Subject: Numerical gotcha's
+Keywords: Interval-Arithmetic Bignums Rationals
+Message-ID: <431@data.UUCP>
+Date: 21 Nov 90 17:10:40 GMT
+Organization: Microcosm, Beaverton, OR
+Lines: 54
+ 
+ 
+I heard an interesting talk recently on interval arithmetic.  One of
+the messages was about getting bogus answers due to numeric
+instabilities but not knowing the numbers were bogus.  I am interested
+in knowing what results are obtained for the following on various
+Scheme & Lisp implementations.  Please indicate machine, OS, and what
+numerics are available {floats, bignums, rationals}.  I will post a
+summary [kend@data.uucp].
+ 
+f(x,y) = 333.75 y^6 + x^2 (11 x^2 y^2 - y^6 - 121 y^4 - 2) +
+        5.5 y^8 + x / (2 y).
+ 
+for x = 77617 and y = 33096
+ 
+The Scheme code for the above follows...
+;;=====================================================================
+ 
+;; from talk on interval arithmetic by G. W. Walster, 1990 Nov 19.
+ 
+(define (f x y)
+  (+ (* (/ 1335 4) (expt y 6))
+     (* (expt x 2)
+        (- (* 11 (expt x 2) (expt y 2))
+           (expt y 6)
+           (* 121 (expt y 4))
+           2)
+     )
+     (* (/ 11 2) (expt y 8))
+     (/ x (* 2 y))
+) )
+ 
+(define (tryit) (f 77617 33096))
+ 
+ 
+ 
+;; with flonums is {IBM FORTRAN note wrong sign!}
+;; f = 1.17260...               single precision
+;; f = 1.1726039400531...       double precision
+;; f = 1.172603940053178...     extended precision
+ 
+;; PC Scheme: f = 1.17260394005318   [Intel 386] {bignums, but not rationals}
+ 
+;; ELK 1.1: f = 1.18059162071741e+21 [Sun3]     ??? {floats only}
+ 
+ 
+;; THE CORRECT ANSWER IS:
+;;
+;;  (tryit) ->  -54767/66192    {Gambit 1.4; sun3; rationals+bignums}
+;;
+;; flonum approx of (- (/ 54767 66192)) is -0.827396059946821  {ELK 1.1}
+;;
+ 
+;                       ---- e o f ----
+;; Thanks,
+;; Ken Dickey                           kend@data.uucp
+
+From: kend@data.UUCP (Ken Dickey)
+Newsgroups: comp.lang.scheme,comp.lang.lisp
+Subject: Numerical gotcha's
+Keywords: Interval Arithmetic, Rationals, Floats, Bignums
+Message-ID: <432@data.UUCP>
+Date: 26 Nov 90 23:59:43 GMT
+Posted: Mon Nov 26 18:59:43 1990
+Organization: Microcosm, Beaverton, OR
+Lines: 67
+
+Thanks to all who responded to my call for numerical results.  They
+came in pretty much as expected.  Implementations without rationals
+(even with bignums) lost.  This includes all those based on C.  All
+implementations with rationals apparently also have bignums (not much
+of a suprise).  CL (Common Lisp) implementations are required to have
+both rationals and bignums.  Barry Margolin's Symbolics numbers were
+especially interesting!
+
+It seems that not many numerical analysts are into interval
+arithmetic.  I have not yet heard of a reals implementation based on
+rationals, despite the advantage of getting error bounds.  I have
+heard that Ray Moore's group at Ohio is getting super-linear
+performance with some convergence algorithms using interval arithmetic
+[3+ times speedup upon doubling the number of processors].  
+
+Gosh, computers are fun!  [I do all my floats on Halloween to frighten
+the adults 8^].
+
+Thanks again,
+-Ken					kend@data.uucp
+
+
+Implementation	result				system
+==============  ======                 		======
+Scheme->C	-1.180591620717411e+21 		Sun4/110 SunOS 4.03 	
+C-Scheme 7.0	 1.18059162071741e+21
+XScheme		 1.18059162071741e+21
+ELK 1.1		 1.18059162071741e+21		Sun3
+ELK 1.2		 1.18059162071741e+21		SPARCstation 1
+MacScheme 2.0   -1.805916207174113e21
+T 3.0	 approx -1.1806e21 (w reals instead of rationals) Encore Multimax
+
+Chez Scheme	  -54767/66192			SPARC
+Chez Scheme 3.9g  -54767/66192			SPARCstation 1+ SunOS 4.0.3
+AllegroCL 3.1.12  -54767/66192			DEC 3100/Ultrix
+Mac Allegro CL	  -54767/66192			Mac IIci
+T		  -54767/66192			SPARCstation 1
+T 3.0		  -54767/66192			Encore Multimax
+T 3.1		  -54767/66192			Sun3 SunOS 4.1
+Lucid CL	  -54767/66192			SPARCstation 1
+Lucid CL	  -54767/66192			HP 9000/835
+Utah CL		  -54767/66192			HP 300  BSD 4.3
+
+==================
+Here are various results on a Symbolics 3600 running Genera 8.0.  The "d"
+is the double-precision exponent indicator, and "e" is the single-precision
+exponent indicator.
+
+(f 77617d0 33096d0)	-1.1805916207174113d21
+(f 77617e0 33096e0)	 6.338253e29
+(f 77617   33096)	-54767/66192
+(f 77617   33096e0)	 6.338253e29
+(f 77617e0 33096)	-6.338253e29
+(f 77617d0 33096)	-2.3611832414348226d21
+(f 77617d0 33096e0)	 1.022335026998684d30
+(f 77617e0 33096d0)	-2.0895373854550075d29
+
+
+===================
+Gambit 1.5: (digits from Marc Feeley)
+
+(floor (* (tryit) (expt 10 100))) ->
+
+-8273960599468213681411650954798162919990331157843848199178148416727096930142615421803239062122310854
+
+;;			     --- E O F ---
+
+
+From: kend@data.UUCP (Ken Dickey)
+Newsgroups: comp.lang.lisp,comp.lang.scheme
+Subject: Numerical Gotcha's ...addendum
+Keywords: Interval Arithmetic, Bignums, Rationals, FLonums
+Message-ID: <433@data.UUCP>
+Date: 27 Nov 90 20:22:19 GMT
+Posted: Tue Nov 27 15:22:19 1990
+Organization: Microcosm, Beaverton, OR
+Lines: 46
+
+Numerical Results addendum...
+
+===================
+Vax Lisp 2.2 under Ultrix:
+
+(f 77617   33096)	 -54767/66192
+(f 77617e0 33096)	 -6.338253e29
+(f 77617   33096e0) ... floating overflow on (expt 33096.0 8)
+(f 77617d0 33096)	  1.172603940053179d0
+(f 77617   33096d0)	 -1.180591620717411d21
+(f 77617l0 33096l0)	  1.17260394005317863185883490452018L0
+
+===================
+MIT C-Scheme running under HP-UX
+  Microcode 11.56
+  Runtime 14.104
+
+on an HP 9000s350 (Motorola MC68020 with MC68881 co-processor).
+
+(f 77617  33096) 	 -54767/66192
+(f 77617. 33096)	 -2.1002051317907482e20
+(f 77617. 33096.)	 -1.390612063527742e21
+(f 77617  33096.)	 -1.390612063527742e21
+
+===================
+Again (for comparison) Symbolics 3600 running Genera 8.0.  
+"d"->double-precision; "e"->single-precision exponent
+
+(f 77617d0 33096d0)	-1.1805916207174113d21
+(f 77617e0 33096e0)	 6.338253e29
+(f 77617   33096)	-54767/66192
+(f 77617   33096e0)	 6.338253e29
+(f 77617e0 33096)	-6.338253e29
+(f 77617d0 33096)	-2.3611832414348226d21
+(f 77617d0 33096e0)	 1.022335026998684d30
+(f 77617e0 33096d0)	-2.0895373854550075d29
+
+===================
+In sending my original summary, I remarked that all implementations based 
+on C lost.  After that, Guillermo J. Rozas (a.k.a. Bill, JINX) sent me the
+new C-Scheme results.  My apologies.  The purpose of this exercise is to
+promote better implementations.  My comment was not meant as a flame.
+
+This was fun!  Let's do it again some time!
+-Ken						kend@data.uucp
+
+

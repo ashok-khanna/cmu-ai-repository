@@ -1,0 +1,517 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node195.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:31:47 GMT -->
+<HEAD>
+<TITLE>22.2.1. Input from Character Streams</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Input from Character Streams">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3975 HREF="node196.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3973 HREF="node194.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3967 HREF="node194.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3977 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3978 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3976 HREF="node196.html"> Input from Binary </A>
+<B>Up:</B> <A NAME=tex2html3974 HREF="node194.html"> Input Functions</A>
+<B> Previous:</B> <A NAME=tex2html3968 HREF="node194.html"> Input Functions</A>
+<HR> <P>
+<H2><A NAME=SECTION002621000000000000000>22.2.1. Input from Character Streams</A></H2>
+<P>
+<A NAME=CHARACTERINPUTSECTION>Many</A>
+character
+input functions take optional arguments called <i>input-stream</i>,
+<i>eof-error-p</i>, and <i>eof-value</i>.  The <i>input-stream</i> argument is the
+stream from
+which to obtain input; if unsupplied or <tt>nil</tt> it defaults to the value of
+the special variable <tt>*standard-input*</tt>.  One may also specify <tt>t</tt>
+as a stream, meaning the value of the special variable
+<tt>*terminal-io*</tt>.
+<P>
+The <i>eof-error-p</i> argument
+controls what happens if input is from a file (or any other
+input source that has a definite end) and the end of the file is reached.
+If <i>eof-error-p</i> is true (the default), an error will be signaled
+at end of file.  If it is false, then no error is signaled, and instead
+the function returns <i>eof-value</i>.
+<p>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(ARGUMENTS-UNDERSPECIFIED) <A NAME=22837>&#160;</A> 
+to clarify that an <i>eof-value</i> argument
+may be any Lisp datum whatsoever.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+Functions such as <tt>read</tt> that read the representation
+of an object rather than a single
+character will always signal an error, regardless of <i>eof-error-p</i>, if
+the file ends in the middle of an object representation.
+For example, if a file does
+not contain enough right parentheses to balance the left parentheses in
+it, <tt>read</tt> will complain.  If a file ends in a symbol or a number
+immediately followed by end-of-file, <tt>read</tt> will read the symbol or
+number successfully and when called again will see the end-of-file and
+only then act according to <i>eof-error-p</i>.
+Similarly, the function <tt>read-line</tt>
+will successfully read the last line of a file even if that line
+is terminated by end-of-file rather than the newline character.
+If a file contains ignorable text at the end, such
+as blank lines and comments, <tt>read</tt> will not consider it to end in the
+middle of an object.
+Thus an <i>eof-error-p</i> argument controls what happens
+when the file ends <i>between</i> objects.
+<P>
+Many input functions also take an argument called <i>recursive-p</i>.
+If specified and not <tt>nil</tt>, this argument specifies that
+this call is not a ``top-level'' call to <tt>read</tt> but an imbedded call,
+typically from the function for a macro character.
+It is important to distinguish such recursive calls for three reasons.
+<P>
+First, a top-level call establishes the context within which the
+<tt>#<i>n</i>=</tt> and <tt>#<i>n</i>#</tt> syntax is scoped.  Consider, for example,
+the expression
+<P><pre>
+(cons '#3=(p q r) '(x y . #3#))
+</pre><P>
+If the single-quote macro character were defined in this way:
+<P><pre>
+(set-macro-character #\' 
+                     #'(lambda (stream char) 
+                         (declare (ignore char)) 
+                         (list 'quote (read stream))))
+</pre><P>
+then the expression could not be read properly, because there would be no way
+to know when <tt>read</tt> is called recursively by the first
+occurrence of <tt>'</tt> that the label <tt>#3=</tt> would be referred to
+later in the containing expression.
+There would be no way to know because <tt>read</tt>
+could not determine that it was called by a macro-character function
+rather than from ``top level.''  The correct way to define the single quote
+macro character uses the <i>recursive-p</i> argument:
+<P><pre>
+(set-macro-character #\' 
+                     #'(lambda (stream char) 
+                         (declare (ignore char)) 
+                         (list 'quote (read stream t nil t))))
+</pre><P>
+<P>
+Second, a recursive call does not alter whether the reading process
+is to preserve whitespace or not (as determined by whether the
+top-level call was to <tt>read</tt> or <tt>read-preserving-whitespace</tt>).
+Suppose again that the single quote had the first, incorrect, macro-character
+definition shown above.  Then a call to <tt>read-preserving-whitespace</tt>
+that read the expression <tt>'foo </tt> would fail to preserve the space
+character following the symbol <tt>foo</tt> because the single-quote
+macro-character function calls <tt>read</tt>, not <tt>read-preserving-whitespace</tt>,
+to read the following expression (in this case <tt>foo</tt>).
+The correct definition, which passes the value <tt>t</tt> for the <i>recursive-p</i>
+argument to <tt>read</tt>, allows the top-level call to determine
+whether whitespace is preserved.
+<P>
+Third, when end-of-file is encountered and the <i>eof-error-p</i> argument
+is not <tt>nil</tt>, the kind of error that is signaled may depend on the value
+of <i>recursive-p</i>.  If <i>recursive-p</i> is not <tt>nil</tt>, then the end-of-file
+is deemed to have occurred within the middle of a printed representation;
+if <i>recursive-p</i> is <tt>nil</tt>, then the end-of-file may be deemed to have
+occurred between objects rather than within the middle of one.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>read &amp;optional <i>input-stream</i> <i>eof-error-p</i> <i>eof-value</i> <i>recursive-p</i></tt><P><tt>read</tt> reads in the printed representation of a Lisp object
+from <i>input-stream</i>, builds a corresponding Lisp object, and returns
+the object.
+<P>
+Note that when the variable <tt>*read-suppress*</tt> is not <tt>nil</tt>,
+then <tt>read</tt> reads in a printed representation as best it can,
+but most of the work of interpreting the representation is avoided
+(the intent being that the result is to be discarded anyway).
+For example, all extended tokens produce the result <tt>nil</tt> regardless
+of their syntax.
+<P>
+<BR><b>[Variable]</b><BR>
+<tt>*read-default-float-format*</tt><P>The value of this variable must be a type specifier symbol for
+a specific floating-point format; these include
+<tt>short-float</tt>, <tt>single-float</tt>,
+<tt>double-float</tt>, and <tt>long-float</tt> and may include implementation-specific
+types as well.  The default value is <tt>single-float</tt>.
+<P>
+<tt>*read-default-float-format*</tt>
+indicates the floating-point format to be used
+for reading floating-point numbers that have no exponent marker or have
+<tt>e</tt> or <tt>E</tt> for an exponent marker.  (Other exponent markers
+explicitly prescribe the floating-point format to be used.)
+The printer also uses this variable to guide the choice of exponent
+markers when printing floating-point numbers.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>read-preserving-whitespace &amp;optional <i>in-stream</i> <i>eof-error-p</i> <i>eof-value</i> <i>recursive-p</i> </tt><P>Certain printed representations given to <tt>read</tt>, notably those of symbols
+and numbers, require a delimiting character after them.  (Lists do not, because
+the close parenthesis marks the end of the list.)
+Normally <tt>read</tt> will throw away the delimiting character if it is a
+whitespace character;
+but <tt>read</tt> will preserve the character (using <tt>unread-char</tt>) if it is
+syntactically meaningful, because it may be the start of the next expression.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(PEEK-CHAR-READ-CHAR-ECHO) <A NAME=22909>&#160;</A> 
+to clarify the interaction of <tt>unread-char</tt>
+with echo streams.  These changes indirectly affect the echoing behavior
+of <tt>read-preserving-whitespace</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+The function <tt>read-preserving-whitespace</tt> is provided for some specialized
+situations where it is desirable to determine precisely what character
+terminated the extended token.
+<P>
+As an example, consider this macro-character definition:
+<P><pre>
+(defun slash-reader (stream char) 
+  (declare (ignore char)) 
+  (do ((path (list (read-preserving-whitespace stream)) 
+             (cons (progn (read-char stream nil nil t) 
+                          (read-preserving-whitespace 
+                             stream)) 
+                   path))) 
+      ((not (char= (peek-char nil stream nil nil t) #\/)) 
+       (cons 'path (nreverse path))))) 
+(set-macro-character #\/ #'slash-reader)
+</pre><P>
+(This is actually a rather dangerous definition to make because
+expressions such as <tt>(/ x 3)</tt> will no longer be read properly.
+The ability to reprogram the reader syntax is very powerful and
+must be used with caution.  This redefinition of <tt>/</tt> is shown
+here purely for the sake of example.)
+<P>
+Consider now calling <tt>read</tt> on this expression:
+<P><pre>
+(zyedh /usr/games/zork /usr/games/boggle)
+</pre><P>
+The <tt>/</tt> macro reads objects separated by more <tt>/</tt> characters;
+thus <tt>/usr/games/zork</tt> is intended to be read as <tt>(path usr games zork)</tt>.
+The entire example expression should therefore be read as
+<P><pre>
+(zyedh (path usr games zork) (path usr games boggle))
+</pre><P>
+However, if <tt>read</tt> had been used instead of
+<tt>read-preserving-whitespace</tt>, then after the reading of the symbol
+<tt>zork</tt>, the following space would be discarded; the next call
+to <tt>peek-char</tt> would see the following <tt>/</tt>, and the loop would
+continue, producing this interpretation:
+<P><pre>
+(zyedh (path usr games zork usr games boggle))
+</pre><P>
+On the other hand, there are times when whitespace <i>should</i> be discarded.
+If a command interpreter takes single-character commands,
+but occasionally reads a Lisp object, then if the whitespace
+after a symbol is not discarded it might be interpreted as a command
+some time later after the symbol had been read.
+<P>
+Note that <tt>read-preserving-whitespace</tt> behaves <i>exactly</i> like <tt>read</tt>
+when the <i>recursive-p</i> argument is not <tt>nil</tt>.  The distinction is established
+only by calls with <i>recursive-p</i> equal to <tt>nil</tt> or omitted.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>read-delimited-list <i>char</i> &amp;optional <i>input-stream</i> <i>recursive-p</i></tt><P>This reads objects from <i>stream</i> until the next character after an object's
+representation (ignoring whitespace characters and comments) is <i>char</i>.
+(The <i>char</i> should not have whitespace syntax in the current
+readtable.)
+A list of the objects read is returned.
+<P>
+To be more precise, <tt>read-delimited-list</tt> looks ahead at each step
+for the next non-whitespace character and peeks at it
+as if with <tt>peek-char</tt>.  If it is <i>char</i>, then the
+character is consumed and the list of objects is returned.
+If it is a constituent or escape character, then <tt>read</tt> is used
+to read an object, which is added to the end of the list.
+If it is a macro character, the associated macro function
+is called; if the function returns a value, that value is added
+to the list.  The peek-ahead process is then repeated.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(PEEK-CHAR-READ-CHAR-ECHO) <A NAME=22954>&#160;</A> 
+to clarify the interaction of <tt>peek-char</tt>
+with echo streams.  These changes indirectly affect the echoing behavior
+of the function <tt>read-delimited-list</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+This function is particularly useful for defining new macro characters.
+Usually it is desirable for the terminating character <i>char</i> to be a
+terminating macro character so that it may be used to delimit tokens;
+however, <tt>read-delimited-list</tt> makes no attempt to alter the syntax
+specified for <i>char</i> by the current readtable.  The user must make any
+necessary changes to the readtable syntax explicitly.  The following
+example illustrates this.
+<P>
+Suppose you wanted <tt>#{<i>a</i> <i>b</i> <i>c</i> ... <i>z</i>}</tt>
+to be read as a list of all pairs of the elements <i>a</i>, <i>b</i>, <i>c</i>, <tt>...</tt>,
+<i>z</i>; for example:
+<P><pre>
+#{p q z a}  reads as  ((p q) (p z) (p a) (q z) (q a) (z a))
+</pre><P>
+This can be done by specifying a macro-character definition for <tt>#{</tt>
+that does two things: read in all the items up to the <tt>}</tt>,
+and construct the pairs.  <tt>read-delimited-list</tt> performs
+the first task.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+Note that <tt>mapcon</tt> allows the mapped function to examine
+the items of the list after the current one, and that
+<tt>mapcon</tt> uses <tt>nconc</tt>, which is all right because <tt>mapcar</tt>
+will produce fresh lists.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+
+<P>
+<P><pre>
+(defun |#{-reader| (stream char arg) 
+  (declare (ignore char arg)) 
+  (mapcon #'(lambda (x) 
+              (mapcar #'(lambda (y) (list (car x) y)) (cdr x))) 
+          (read-delimited-list #\} stream t))) 
+
+(set-dispatch-macro-character #\# #\{ #'|#{-reader|) 
+
+(set-macro-character #\} (get-macro-character #\) <tt>nil</tt>))
+</pre><P>
+(Note that <tt>t</tt> is specified for the <i>recursive-p</i> argument.)
+<P>
+It is necessary here to give a definition to the character <tt>}</tt> as
+well to prevent it from being a constituent.
+If the line
+<P><pre>
+(set-macro-character #\} (get-macro-character #\) <tt>nil</tt>))
+</pre><P>
+shown above were not included, then the <tt>}</tt> in
+<P><pre>
+#{p q z a}
+</pre><P>
+would be considered a constituent character, part of the symbol named
+<tt>a}</tt>.  One could correct for this by putting a space before
+the <tt>}</tt>, but it is better simply to use the call to
+<tt>set-macro-character</tt>.
+<P>
+Giving <tt>}</tt> the same
+definition as the standard definition of the character <tt>)</tt> has the
+twin benefit of making it terminate tokens for use with <tt>read-delimited-list</tt>
+and also making it illegal for use in any other context (that is, attempting to
+read a stray <tt>}</tt> will signal an error).
+<P>
+Note that <tt>read-delimited-list</tt> does not take an <i>eof-error-p</i>
+(or <i>eof-value</i>)
+argument.  The reason is that it is always an error
+to hit end-of-file during the operation of <tt>read-delimited-list</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>read-line &amp;optional <i>input-stream</i> <i>eof-error-p</i> <i>eof-value</i> <i>recursive-p</i> </tt><P><tt>read-line</tt> reads in a line of text terminated by a newline.
+It returns the line as a character string (<i>without</i> the newline character).
+This function is usually used to get a line of input from the user.
+A second returned value is a flag that is false if the line was
+terminated normally, or true if end-of-file terminated the (non-empty) line.
+If end-of-file is encountered immediately (that is, appears to terminate
+an empty line), then end-of-file processing is controlled in the
+usual way by the <i>eof-error-p</i>, <i>eof-value</i>, and <i>recursive-p</i> arguments.
+<P>
+The corresponding output function is <tt>write-line</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>read-char &amp;optional <i>input-stream</i> <i>eof-error-p</i> <i>eof-value</i> <i>recursive-p</i></tt><P><tt>read-char</tt> inputs one character from <i>input-stream</i> and returns it
+as a character object.
+<P>
+The corresponding output function is <tt>write-char</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(PEEK-CHAR-READ-CHAR-ECHO) <A NAME=23038>&#160;</A> 
+to clarify the interaction of <tt>read-char</tt> with echo streams
+(as created by <tt>make-echo-stream</tt>).  A character is echoed from the input stream
+to the associated output stream the first time it is seen.
+If a character is read again because of an intervening <tt>unread-char</tt> operation,
+the character is not echoed again when read for the second time or any subsequent time.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>unread-char <i>character</i> &amp;optional <i>input-stream</i></tt><P><tt>unread-char</tt> puts the <i>character</i> onto the front of <i>input-stream</i>.
+The <i>character</i> must be the same character that was most recently read
+from the <i>input-stream</i>.  The <i>input-stream</i> ``backs up'' over this
+character; when a character is next read from <i>input-stream</i>, it will
+be the specified character followed by the previous contents of
+<i>input-stream</i>.  <tt>unread-char</tt> returns <tt>nil</tt>.
+<P>
+One may apply <tt>unread-char</tt> only to the character most recently
+read from <i>input-stream</i>.  Moreover, one may not invoke <tt>unread-char</tt>
+twice consecutively without an intervening <tt>read-char</tt>
+operation.  The result is that one may back up only by one character,
+and one may not insert any characters into the input stream that were not already there.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(UNREAD-CHAR-AFTER-PEEK-CHAR) <A NAME=23060>&#160;</A> 
+to clarify that one also may not invoke
+<tt>unread-char</tt> after invoking <tt>peek-char</tt> without an intervening
+<tt>read-char</tt> operation.  This is consistent with the notion that
+<tt>peek-char</tt> behaves much like <tt>read-char</tt> followed by <tt>unread-char</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<hr>
+<b>Rationale:</b> This is not intended to be a general mechanism, but rather
+an efficient mechanism for allowing the Lisp reader and other parsers
+to perform one-character lookahead in the input stream.
+This protocol admits a wide variety of efficient implementations,
+such as simply decrementing a buffer pointer.
+To have to specify the character in the call to <tt>unread-char</tt> is
+admittedly redundant, since at any given time there is only one character
+that may be legally specified.  The redundancy is intentional,
+again to give the implementation latitude.
+<hr>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(PEEK-CHAR-READ-CHAR-ECHO) <A NAME=23072>&#160;</A> 
+to clarify the interaction of <tt>unread-char</tt> with echo streams
+(as created by <tt>make-echo-stream</tt>).  When a character is ``unread'' from an echo
+stream, no attempt is made to ``unecho'' the character.  However, a character
+placed back into an echo stream by <tt>unread-char</tt> will not be re-echoed
+when it is subsequently re-read by <tt>read-char</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>peek-char &amp;optional <i>peek-type</i> <i>input-stream</i> <i>eof-error-p</i> <i>eof-value</i> <i>recursive-p</i> </tt><P>What <tt>peek-char</tt> does depends on the <i>peek-type</i>, which
+defaults to <tt>nil</tt>.  With a <i>peek-type</i> of <tt>nil</tt>,
+<tt>peek-char</tt> returns the next character to be read from 
+<i>input-stream</i>, without actually removing it from the input stream.
+The next time input is done from <i>input-stream</i>, the character will still
+be there.  It is as if one had called <tt>read-char</tt> and then <tt>unread-char</tt>
+in succession.
+<P>
+If <i>peek-type</i> is <tt>t</tt>, then <tt>peek-char</tt> skips over whitespace
+characters (but not comments)
+and then performs the peeking operation on the next
+character.
+This is useful for finding the (possible) beginning
+of the next printed representation of a Lisp object.
+The last character examined (the one that starts an object)
+is not removed from the input stream.
+<P>
+If <i>peek-type</i> is a character object, then <tt>peek-char</tt> skips
+over input characters until a character that
+is <tt>char=</tt> to that object is found;
+that character is left in the input stream.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(PEEK-CHAR-READ-CHAR-ECHO) <A NAME=23097>&#160;</A> 
+to clarify the interaction of <tt>peek-char</tt> with echo streams
+(as created by <tt>make-echo-stream</tt>).  When a character from an echo
+stream is only peeked at, it is not echoed at that time.  The character remains in
+the input stream and may be echoed when read by <tt>read-char</tt> at a later time.
+Note, however, that if the <i>peek-type</i> is not <tt>nil</tt>, then characters
+skipped over (and therefore consumed) by <tt>peek-char</tt> are treated as if they had been read
+by <tt>read-char</tt>, and will be echoed if <tt>read-char</tt> would have echoed them.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>listen &amp;optional <i>input-stream</i></tt><P>The predicate <tt>listen</tt> is true if there is a character
+immediately available from <i>input-stream</i>, and is false if not.
+This is particularly useful when the stream obtains characters
+from an interactive device such as a keyboard.  A call to <tt>read-char</tt>
+would simply wait until a character was available, but <tt>listen</tt> can
+sense whether or not input is available and allow the program to
+decide whether or not to attempt input.  On a non-interactive stream,
+the general rule is that <tt>listen</tt> is true except when at
+end-of-file.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>read-char-no-hang &amp;optional <i>input-stream</i> <i>eof-error-p</i> <i>eof-value</i> <i>recursive-p</i></tt><P>This function is exactly like <tt>read-char</tt>, except
+that if it would be necessary to wait in order to get a character (as
+from a keyboard), <tt>nil</tt> is immediately returned without waiting.  This
+allows one to efficiently check for input availability and get the
+input if it is available.
+This is different from the <tt>listen</tt> operation in
+two ways.  First, <tt>read-char-no-hang</tt> potentially reads a character,
+whereas <tt>listen</tt> never inputs a character.  Second,
+<tt>listen</tt> does not distinguish between end-of-file and no input being
+available, whereas <tt>read-char-no-hang</tt> does make that distinction, returning
+<i>eof-value</i> at end-of-file (or signaling an error if no <i>eof-error-p</i>
+is true) but always returning <tt>nil</tt> if no input
+is available.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>clear-input &amp;optional <i>input-stream</i></tt><P>This clears any buffered input associated with <i>input-stream</i>.
+It is primarily useful for clearing type-ahead from keyboards when
+some kind of asynchronous error has occurred.  If this operation
+doesn't make sense for the stream involved, then <tt>clear-input</tt>
+does nothing.  <tt>clear-input</tt> returns <tt>nil</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>read-from-string <i>string</i> &amp;optional <i>eof-error-p</i> <i>eof-value</i> &amp;key :start :end :preserve-whitespace</tt><P>The characters of <i>string</i> are given successively to the Lisp reader,
+and the Lisp object built by the reader is returned.  Macro characters
+and so on will all take effect.
+<P>
+The arguments <tt>:start</tt> and <tt>:end</tt> delimit a substring of <i>string</i>
+beginning at the character indexed by <tt>:start</tt> and up to but not
+including the character indexed by <tt>:end</tt>.  By default <tt>:start</tt> is <tt>0</tt>
+(the beginning of the string) and <tt>:end</tt> is <tt>(length <i>string</i>)</tt>.
+This is the same as for other string functions.
+<P>
+The flag <tt>:preserve-whitespace</tt>, if provided and not <tt>nil</tt>, indicates
+that the operation should preserve whitespace as
+for <tt>read-preserving-whitespace</tt>.  It defaults to <tt>nil</tt>.
+<P>
+As with other reading functions,
+the arguments <i>eof-error-p</i> and <i>eof-value</i> control the action
+if the end of the (sub)string is reached
+before the operation is completed;
+reaching the end of the string is treated as any other end-of-file event.
+<P>
+<tt>read-from-string</tt> returns two values: the first is the object read,
+and the second is the index of the first character in the string not
+read.  If the entire string was read, the second result
+will be either the length of
+the string or one greater than the length of the string.  The parameter
+<tt>:preserve-whitespace</tt> may affect this second value.
+<P>
+<P><pre>
+(read-from-string &quot;(a b c)&quot;) => (a b c) and 7
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>parse-integer <i>string</i> &amp;key :start :end :radix :junk-allowed</tt><P>This function examines the substring of <i>string</i> delimited by <tt>:start</tt>
+and <tt>:end</tt> (which default to the beginning and end of the string).
+It skips over whitespace characters and then attempts to
+parse an integer.  The <tt>:radix</tt> parameter defaults to <tt>10</tt>
+and must be an integer between 2 and 36.
+<P>
+If <tt>:junk-allowed</tt> is not <tt>nil</tt>, then the first value
+returned is the value of the number parsed
+as an integer or <tt>nil</tt> if no syntactically correct integer
+was seen.
+<P>
+If <tt>:junk-allowed</tt> is <tt>nil</tt> (the default), then the entire substring is scanned.
+The returned value is the value of the number parsed as an integer.
+An error is signaled if the substring does not consist entirely of
+the representation of an integer, possibly surrounded on either side by
+whitespace characters.
+<P>
+In either case, the second value is the index into the string of the delimiter
+that terminated the parse, or it is the index beyond the substring if the
+parse terminated at the end of the substring (as will always be the case if
+<tt>:junk-allowed</tt> is false).
+<P>
+Note that <tt>parse-integer</tt> does not recognize the syntactic radix-specifier
+prefixes <tt>#O</tt>, <tt>#B</tt>, <tt>#X</tt>, and <tt>#<i>n</i>R</tt>, nor does it recognize
+a trailing decimal point.  It permits only an optional sign
+(<tt>+</tt> or <tt>-</tt>) followed
+by a non-empty sequence of digits in the specified radix.
+<P>
+<BR> <HR><A NAME=tex2html3975 HREF="node196.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3973 HREF="node194.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3967 HREF="node194.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3977 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3978 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3976 HREF="node196.html"> Input from Binary </A>
+<B>Up:</B> <A NAME=tex2html3974 HREF="node194.html"> Input Functions</A>
+<B> Previous:</B> <A NAME=tex2html3968 HREF="node194.html"> Input Functions</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

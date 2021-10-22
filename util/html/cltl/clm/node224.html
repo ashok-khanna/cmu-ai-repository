@@ -1,0 +1,452 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node224.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:32:02 GMT -->
+<HEAD>
+<TITLE>25.1. The Compiler</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" The Compiler">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4358 HREF="node225.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4356 HREF="node223.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4350 HREF="node223.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4360 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4361 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4359 HREF="node225.html"> Compiler Diagnostics</A>
+<B>Up:</B> <A NAME=tex2html4357 HREF="node223.html"> Miscellaneous Features</A>
+<B> Previous:</B> <A NAME=tex2html4351 HREF="node223.html"> Miscellaneous Features</A>
+<HR> <P>
+<H1><A NAME=SECTION002910000000000000000>25.1. The Compiler</A></H1>
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<A NAME=COMPILERSECTION>The</A>
+compiler is a program that may make code run faster by translating
+programs into an implementation-dependent form that can
+be executed more efficiently by the computer.  Most of the time
+you can write programs without worrying about the compiler;
+compiling a file of code should produce an equivalent but more
+efficient program.  When doing more esoteric things, you may need to
+think carefully about what happens at ``compile time'' and what happens
+at ``load time.''  Then the difference between the syntaxes <tt>#.</tt>
+and <tt>#,</tt> becomes important, and the <tt>eval-when</tt> construct
+becomes particularly useful.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(SHARP-COMMA-CONFUSION) <A NAME=28273>&#160;</A>  to remove <tt>#,</tt> from the language.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+
+Most declarations are not used by the Common Lisp interpreter;
+they may be used to give advice to the compiler.  The compiler may attempt
+to check your advice and warn you if it is inconsistent.
+<P>
+Unlike most other Lisp dialects, Common Lisp recognizes <tt>special</tt>
+declarations in interpreted code as well as compiled code.
+This potential source of incompatibility between interpreted and compiled
+code is thereby <i>eliminated</i> in Common Lisp.
+<P>
+The internal workings of a compiler will of course be highly
+implementation-dependent.  The following functions provide a standard
+interface to the compiler, however.
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<BR><b>[Function]</b><BR>
+<tt>compile <i>name</i> &amp;optional <i>definition</i></tt><P>If <i>definition</i> is supplied, it should be a lambda-expression,
+the interpreted function to be compiled.  If it is not supplied,
+then <i>name</i> should be a symbol with a definition that is a
+lambda-expression; that definition is compiled
+and the resulting compiled code is put back into the symbol
+as its function definition.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in October 1988 (COMPILE-ARGUMENT-PROBLEMS) <A NAME=28285>&#160;</A> 
+to restate the preceding paragraph more precisely and to extend the
+capabilities of <tt>compile</tt>.
+If the optional <i>definition</i> argument is supplied,
+it may be either a lambda-expression (which is coerced to a function)
+or a function to be compiled; if no <i>definition</i> is supplied,
+the <tt>symbol-function</tt> of the symbol is extracted and compiled.
+It is permissible for the symbol to have a macro definition rather than
+a function definition; both macros and functions may be compiled.
+<P>
+It is an error if the function to be compiled was defined interpretively
+in a non-null lexical environment.  (An implementation is free to extend
+the behavior of <tt>compile</tt> to compile such functions properly, but
+portable programs may not depend on this capability.)  The consequences
+of calling <tt>compile</tt> on a function that is already compiled
+are unspecified.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+The definition is compiled and a compiled-function object produced.
+If <i>name</i> is a non-<tt>nil</tt>
+symbol, then the compiled-function object is installed as the
+global function definition of the symbol and the symbol is returned.
+If <i>name</i> is <tt>nil</tt>, then the compiled-function object itself is returned.
+For example:
+<P><pre>
+
+(defun foo ...) => foo        &#175;;A function definition 
+(compile 'foo) => foo		;Compile it 
+;Now <tt>foo</tt> runs faster (maybe) 
+
+(compile <tt>nil</tt> 
+         '(lambda (a b c) (- (* b b) (* 4 a c)))) 
+   => a compiled function of three arguments that computes <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43137.gif">
+</pre><P>
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (COMPILER-DIAGNOSTICS) <A NAME=28309>&#160;</A>  to specify that
+<tt>compile</tt> returns two additional values
+indicating whether the compiler issued any diagnostics
+(see section <A HREF="node225.html#COMPILERDIAGNOSTICSSECTION">25.1.1</A>).
+<P>
+X3J13 voted in March 1989 (FUNCTION-NAME) <A NAME=28314>&#160;</A>  to extend <tt>compile</tt>
+to accept as a <i>name</i> any function-name (a symbol or a list
+whose car is <tt>setf</tt>-see section <A HREF="node77.html#FUNCTIONNAMESECTION">7.1</A>).
+One may write <tt>(compile '(setf cadr))</tt> to compile the <tt>setf</tt>
+expansion function for <tt>cadr</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<BR><b>[Function]</b><BR>
+<tt>compile-file <i>input-pathname</i> &amp;key :output-file</tt><P>The <i>input-pathname</i> must be a valid file specifier, such as a pathname.
+The defaults for <i>input-filename</i> are taken from the variable
+<tt>*default-pathname-defaults*</tt>.
+The file should be a Lisp source file;
+its contents are compiled and written as a binary object file.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (COMPILER-VERBOSITY) <A NAME=28332>&#160;</A>  to add two new
+keyword arguments <tt>:verbose</tt> and <tt>:print</tt>
+to <tt>compile-file</tt> by analogy with <tt>load</tt>.
+The new function definition is as follows.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>compile-file <i>input-pathname</i> &amp;key :output-file :verbose :print</tt><P>The <tt>:verbose</tt> argument (which defaults to the value of
+<tt>*compile-verbose*</tt>), if true, permits <tt>compile-file</tt> to print a message
+in the form of a comment to <tt>*standard-output*</tt> indicating what file is
+being compiled and other useful information.
+<P>
+The <tt>:print</tt> argument (which defaults to the value of <tt>*compile-print*</tt>),
+if true, causes information about top-level forms in the file being
+compiled to be printed to <tt>*standard-output*</tt>.  Exactly what is printed
+is implementation-dependent; nevertheless something will be printed.
+<P>
+X3J13 voted in March 1988
+(PATHNAME-STREAM) <A NAME=28348>&#160;</A> 
+to specify exactly which streams may be used as pathnames
+(see section <A HREF="node214.html#PATHNAMEFUNCTIONS">23.1.6</A>).
+<P>
+X3J13 voted in June 1989 (PATHNAME-WILD) <A NAME=28352>&#160;</A> 
+to clarify that supplying a wild pathname
+as the <i>input-pathname</i> argument to <tt>compile-file</tt> has implementation-dependent consequences;
+<tt>compile-file</tt> might signal an error, for example,
+or might compile all files that match the wild pathname.
+<P>
+X3J13 voted in June 1989 (PATHNAME-LOGICAL) <A NAME=28358>&#160;</A>  to require <tt>compile-file</tt>
+to accept logical pathnames (see section <A HREF="node208.html#LOGICALPATHNAMESSECTION">23.1.5</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+The <tt>:output-file</tt> argument may be used to specify an output pathname;
+it defaults in a manner
+appropriate to the implementation's file system conventions.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (COMPILER-DIAGNOSTICS) <A NAME=28364>&#160;</A>  to specify that
+<tt>compile-file</tt> returns three values: the <tt>truename</tt> of the output
+file (or <tt>nil</tt> if the file could not be created) and two values
+indicating whether the compiler issued any diagnostics
+(see section <A HREF="node225.html#COMPILERDIAGNOSTICSSECTION">25.1.1</A>).
+<P>
+X3J13 voted in October 1988 (COMPILE-FILE-PACKAGE) <A NAME=28371>&#160;</A>  to specify that
+<tt>compile-file</tt>, like <tt>load</tt>, rebinds <tt>*package*</tt> to its current value.  If
+some form in the file changes the value of <tt>*package*</tt>,
+the old value will be restored when compilation is completed.
+<P>
+X3J13 voted in June 1989 (COMPILE-FILE-SYMBOL-HANDLING) <A NAME=28378>&#160;</A>  to specify
+restrictions on conforming programs to ensure consistent handling of symbols
+and packages.
+<P>
+  In order to guarantee that compiled files can be loaded correctly,
+  the user must ensure that the packages referenced in the file are defined
+  consistently at compile and load time.  Conforming Common Lisp programs
+  must satisfy the following requirements.
+<UL><LI> The value of <tt>*package*</tt> when a top-level form in the file is processed
+      by <tt>compile-file</tt> must be the same as the value of <tt>*package*</tt> when the
+      code corresponding to that top-level form in the compiled file is
+      executed by the loader.  In particular,
+      any top-level form in a file that alters the value of <tt>*package*</tt>
+          must change it to a package of the same name at both compile and
+          load time; moreover, if the first non-atomic top-level form
+          in the file is not a call to
+          <tt>in-package</tt>, then the value of <tt>*package*</tt> at the time <tt>load</tt> is
+          called must be a package with the same name as the package that
+          was the value of <tt>*package*</tt> at the time <tt>compile-file</tt> was called.
+<P>
+<LI> For every symbol appearing lexically within a top-level form that
+      was accessible in the package that was the value of <tt>*package*</tt>
+      during processing of that top-level form at compile time, but
+      whose home package was another package, at load time there must
+      be a symbol with the same name that is accessible in both the
+      load-time <tt>*package*</tt> and in the package with the same name as the
+      compile-time home package.
+<P>
+<LI> For every symbol in the compiled file that was an external symbol in
+      its home package at compile time, there must be a symbol with the
+      same name that is an external symbol in the package with the same name
+      at load time.
+</UL>
+  If any of these conditions do not hold, the package in which <tt>load</tt> looks
+  for the affected symbols is unspecified.  Implementations are permitted 
+  to signal an error or otherwise define this behavior.
+<P>
+    These requirements are merely an explicit statement of the status quo,
+    namely that users cannot depend on any particular behavior if the
+    package environment at load time is inconsistent with what existed
+    at compile time.
+<P>
+X3J13 voted in March 1989 (IN-SYNTAX) <A NAME=28395>&#160;</A> 
+to specify that <tt>compile-file</tt> must bind <tt>*readtable*</tt> to its current value
+at the time <tt>compile-file</tt> is called; the dynamic extent of the binding
+should encompass all of the file-loading activity.
+This allows a portable program to include forms such as
+<P><pre>
+(in-package &quot;FOO&quot;) 
+
+(eval-when (:execute :load-toplevel :compile-toplevel) 
+  (setq *readtable* foo:my-readtable))
+</pre><P>
+without performing a net global side effect on the loading environment.
+Such statements allow the remainder of such a file to be read either as
+interpreted code or by <tt>compile-file</tt> in a syntax determined by
+an alternative readtable.
+<P>
+X3J13 voted in June 1989 (LOAD-TRUENAME) <A NAME=28404>&#160;</A> 
+to require that <tt>compile-file</tt> bind two new variables
+<tt>*compile-file-pathname*</tt> and <tt>*compile-file-truename*</tt>; the dynamic extent of the bindings
+should encompass all of the file-compiling activity.
+<P>
+<BR><b>[Variable]</b><BR>
+<tt>*compile-verbose*</tt><P>X3J13 voted in March 1989 (COMPILER-VERBOSITY) <A NAME=28411>&#160;</A> 
+to add <tt>*compile-verbose*</tt>.
+This variable provides the default for the <tt>:verbose</tt> argument
+to <tt>compile-file</tt>.  Its initial value is implementation-dependent.
+<P>
+A proposal was submitted to X3J13 in October 1989
+to rename this <tt>*compile-file-verbose*</tt> for consistency.
+<P>
+<BR><b>[Variable]</b><BR>
+<tt>*compile-print*</tt><P>X3J13 voted in March 1989 (COMPILER-VERBOSITY) <A NAME=28425>&#160;</A> 
+to add <tt>*compile-print*</tt>.
+This variable provides the default for the <tt>:print</tt> argument
+to <tt>compile-file</tt>.  Its initial value is implementation-dependent.
+<P>
+A proposal was submitted to X3J13 in October 1989
+to rename this  <tt>*compile-file-print*</tt> for consistency.
+<P>
+<BR><b>[Variable]</b><BR>
+<tt>*compile-file-pathname*</tt><P>X3J13 voted in June 1989 (LOAD-TRUENAME) <A NAME=28439>&#160;</A>  to introduce <tt>*compile-file-pathname*</tt>;
+it is initially <tt>nil</tt> but <tt>compile-file</tt> binds it to a pathname that
+represents the file name given as the first argument to <tt>compile-file</tt> merged
+with the defaults (see <tt>merge-pathname</tt>).
+<P>
+<BR><b>[Variable]</b><BR>
+<tt>*compile-file-truename*</tt><P>X3J13 voted in June 1989 (LOAD-TRUENAME) <A NAME=28447>&#160;</A>  to introduce <tt>*compile-file-truename*</tt>;
+it is initially <tt>nil</tt> but <tt>compile-file</tt> binds it to the ``true name'' of
+the pathname of the file being compiled.  See <tt>truename</tt>.
+<P>
+<BR><b>[Special Form]</b><BR>
+<tt>load-time-value <i>form</i> [<i>read-only-p</i>]</tt><P>X3J13 voted in March 1989 (LOAD-TIME-EVAL) <A NAME=28456>&#160;</A>  to add
+   a mechanism for delaying evaluation of a <i>form</i>
+   until it can be done in the run-time environment.
+<P>
+   If a <tt>load-time-value</tt> expression is seen by <tt>compile-file</tt>, the compiler
+   performs its normal semantic processing (such as macro expansion and
+   translation into machine code) on the form, but arranges for the
+   execution of the <i>form</i> to occur at load time in a null
+   lexical environment, with the result of this evaluation then being
+   treated as an immediate quantity (that is, as if originally quoted)
+   at run time.  It is guaranteed that 
+   the evaluation of the <i>form</i> will take place only once when the file is 
+   loaded, but the order of evaluation with respect to the execution
+   of top-level forms in the file is unspecified.
+<P>
+   If a <tt>load-time-value</tt> expression appears within a function compiled
+   with <tt>compile</tt>, the <i>form</i> is evaluated at compile time in a null lexical
+   environment.  The result of this compile-time evaluation is treated as 
+   an immediate quantity in the compiled code.
+<P>
+   In interpreted code, <i>form</i> is evaluated (by <tt>eval</tt>) in a null
+   lexical environment and one value is returned.  Implementations that
+   implicitly compile (or partially compile) expressions passed to
+   <tt>eval</tt> may evaluate the <i>form</i> only once, at the time this
+   compilation is performed.  This is intentionally similar to the
+   freedom that implementations are given for the time of expanding
+   macros in interpreted code.
+<P>
+  If the same (as determined by <tt>eq</tt>) list <tt>(load-time-value <i>form</i>)</tt> is
+  evaluated or compiled more than once, it is unspecified whether the <i>form</i>
+  is evaluated only once or is evaluated more than once.  This can
+  happen both when an expression being evaluated or compiled shares
+  substructure and when the same expression is passed to <tt>eval</tt> or to
+  <tt>compile</tt> multiple times.  Since a <tt>load-time-value</tt> expression may be
+  referenced in more than one place and may be evaluated multiple times
+  by the interpreter, it is unspecified whether each execution returns
+  a ``fresh'' object or returns the same object as some other execution.
+  Users must use caution when destructively modifying the resulting
+  object.
+<P>
+  If two lists <tt>(load-time-value <i>form</i>)</tt> are <tt>equal</tt> but not <tt>eq</tt>, their
+  values always come from distinct evaluations of <i>form</i>.  Coalescing
+  of these forms is not permitted.
+<P>
+   The optional <i>read-only-p</i> argument designates whether the result
+   may be considered a
+   read-only constant. If <tt>nil</tt> (the default), the result must be considered
+   ordinary, modifiable data. If <tt>t</tt>, the result is a read-only quantity
+   that may, as appropriate, be copied into read-only space and may,
+   as appropriate, be shared
+   with other programs.  The <i>read-only-p</i> argument is
+   not evaluated and only the literal symbols <tt>t</tt> and <tt>nil</tt> are permitted.
+<P>
+   This new feature addresses the same set of needs as the now-defunct
+   <tt>#,</tt> reader syntax but in a cleaner and more general manner.
+   Note that <tt>#,</tt> syntax was reliably useful only inside quoted structure
+   (though this was not explicitly mentioned in the first edition),
+   whereas a <tt>load-time-value</tt> form must appear outside quoted structure in a
+   for-evaluation position.
+<P>
+   See <tt>make-load-form</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>disassemble <i>name-or-compiled-function</i></tt><P>The argument should be a function object, a lambda-expression, or
+a symbol with a function definition.  If the relevant function is not a
+compiled function, it is first compiled.  In any case, the compiled code
+is then ``reverse-assembled'' and printed out in a symbolic format.  This
+is primarily useful for debugging the compiler, but also often of use to
+the novice who wishes to understand the workings of compiled code.
+<P>
+<hr>
+<b>Implementation note:</b> Implementors are encouraged to make the output
+readable, preferably with helpful comments.
+<hr>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988 (DISASSEMBLE-SIDE-EFFECT) <A NAME=28496>&#160;</A> 
+to clarify that when <tt>disassemble</tt> compiles a function, it never
+installs the resulting compiled-function object in the
+<tt>symbol-function</tt> of a symbol.
+<P>
+X3J13 voted in March 1989 (FUNCTION-NAME) <A NAME=28501>&#160;</A>  to extend <tt>disassemble</tt>
+to accept as a <i>name</i> any function-name (a symbol or a list
+whose car is <tt>setf</tt> - see section <A HREF="node77.html#FUNCTIONNAMESECTION">7.1</A>).
+Thus one may write <tt>(disassemble '(setf cadr))</tt> to disassemble the <tt>setf</tt>
+expansion function for <tt>cadr</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>function-lambda-expression <i>fn</i></tt><P>X3J13 voted in January 1989
+(FUNCTION-DEFINITION) <A NAME=28513>&#160;</A> 
+to add a new function to allow the
+source code for a defined function to be recovered.
+(The committee noted that the first edition provided no
+portable way to recover a lambda-expression once it had
+been compiled or evaluated to produce a function.)
+<P>
+This function takes one argument, which must be a function, and returns
+three values.
+<P>
+The first value is the defining lambda-expression for the
+function, or <tt>nil</tt> if that information is not available.
+The lambda-expression may have been preprocessed in some ways
+but should nevertheless be of a form suitable as an argument
+to the function <tt>compile</tt> or for use in the <tt>function</tt> special form.
+<P>
+The second value is <tt>nil</tt> if the function was definitely
+produced by closing
+a lambda-expression in the null lexical environment; it is some
+non-<tt>nil</tt> value if the function might have been closed in some
+non-null lexical environment.
+<P>
+The third value is the ``name'' of the function; this is <tt>nil</tt> if the
+name is not available or if the function had no name.
+The name is intended for debugging purposes only and may be
+any Lisp object (not necessarily one that would be valid for use as a name
+in a <tt>defun</tt> or <tt>function</tt> special form, for example).
+<P>
+<hr>
+<b>Implementation note:</b> An implementation is always free to return the values
+<tt>nil</tt>, <tt>t</tt>, <tt>nil</tt> from this function but is encouraged to
+make more useful information available as appropriate.
+For example, it may not be desirable for files of compiled code
+to retain the source lambda-expressions for use after the file is loaded,
+but it is probably desirable for
+functions produced by ``in-core'' calls to <tt>eval</tt>,
+<tt>compile</tt>, or <tt>defun</tt> to retain the defining lambda-expression
+for debugging purposes.  The function <tt>function-lambda-expression</tt>
+makes this information, if retained, accessible in a standard and portable
+manner.
+<hr>
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>with-compilation-unit ({<i>option-name</i> <i>option-value</i>}*) {<i>form</i>}*</tt><P>X3J13 voted in March 1989 (WITH-COMPILATION-UNIT) <A NAME=28537>&#160;</A> 
+to add <tt>with-compilation-unit</tt>, which
+   executes the body forms as an implicit <tt>progn</tt>. Within the dynamic context
+   of this form, warnings deferred by the compiler until ``the end of
+   compilation'' will be deferred until the end of the outermost call
+   to <tt>with-compilation-unit</tt>. The results are the same as those of
+   the last of the forms (or <tt>nil</tt> if there is no <i>form</i>).
+<P>
+   Each <i>option-name</i> is an unevaluated keyword; each <i>option-value</i>
+   is evaluated. The set of keywords permitted may be extended by the
+   implementation, but the only standard option keyword is <tt>:override</tt>;
+   the default value for this option is <tt>nil</tt>.
+   If <tt>with-compilation-unit</tt> forms are nested dynamically, only the outermost
+   such call has any effect unless the <tt>:override</tt> value of an
+   inner call is true.
+<P>
+  The function <tt>compile-file</tt> should
+  provide the effect of
+  <P><pre>
+  (with-compilation-unit (:override nil) ...)
+</pre><P>
+  around its code.
+<P>
+  Any implementation-dependent extensions to this behavior may be provided only
+  as the result of an explicit programmer request by use of 
+  an implementation-dependent keyword.  It is forbidden for an implementation
+  to attach additional meaning to a conforming use of this
+  macro.
+<P>
+  Note that not all compiler warnings are deferred. In some implementations,
+  it may be that none are deferred. This macro only creates an
+  interface to the capability where it exists, it does not require the
+  creation of the capability. An implementation that does not 
+  defer any compiler warnings may correctly implement this macro
+  as an expansion into a simple <tt>progn</tt>.
+<P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<HR>
+<UL> 
+<LI> <A NAME=tex2html4362 HREF="node225.html#SECTION002911000000000000000"> Compiler Diagnostics</A>
+<LI> <A NAME=tex2html4363 HREF="node226.html#SECTION002912000000000000000"> Compiled Functions</A>
+<LI> <A NAME=tex2html4364 HREF="node227.html#SECTION002913000000000000000"> Compilation Environment</A>
+<LI> <A NAME=tex2html4365 HREF="node228.html#SECTION002914000000000000000"> Similarity of Constants</A>
+</UL>
+<BR> <HR><A NAME=tex2html4358 HREF="node225.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4356 HREF="node223.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4350 HREF="node223.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4360 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4361 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4359 HREF="node225.html"> Compiler Diagnostics</A>
+<B>Up:</B> <A NAME=tex2html4357 HREF="node223.html"> Miscellaneous Features</A>
+<B> Previous:</B> <A NAME=tex2html4351 HREF="node223.html"> Miscellaneous Features</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

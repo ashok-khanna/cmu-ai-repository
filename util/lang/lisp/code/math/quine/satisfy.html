@@ -1,0 +1,1394 @@
+(in-package "USER")
+(proclaim '(optimize (safety 0) (speed  3) (space 0)))
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;; Formal Notice: This satisfiability program may be used by anyone,
+;;; anywhere, anywhen, for any reasonably good purposes; you may charge
+;;; money for it, or not, as you like.  It is not gauranteed to be bug
+;;; free, of course.
+;;; Signed, Dan Pehoushek.
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+;; The entry function is ACCEPT-P
+;; The program either returns an assignment (when input is a conjunction),
+;; or proves that none exists.
+;; The input should be a conjunction of "small", but arbitrary, disjunctive
+;; formulas.  e.g. (accept-p '(AND A (OR C B) (OR (NOT A) (AND C B)))).
+;; While the program is optimized for large conjunctions of small disjunctions,
+;; it should accept any boolean formula.
+
+;; Caveats: There is little commenting.  The important pieces of code and data structure
+;; are the zero-commx functions and the comm structures.  If their is any novelty in the
+;; algorithm, that's where it is.  The rest is bureaucratic overhead.
+;; (setf *verbosity* nil) for less verbosity while the program is running.
+;;
+;; If the program breaks on your problem, then send me the input expression, and I'll fix it.
+;; The parser is probably the most fragile, and it is unnecessarily complicated.
+
+;; For test purposes, try: (accept-p *test*)
+;; *test* is defvared at the end of the program.
+
+(defvar *version* "distrib0")
+(defvar *N* 0)
+
+(defstruct assump
+  (2comm-zeroes 0)
+  save-p
+  mark
+  prev
+  comm
+  zeroes
+  num-vars
+  change-comms
+  
+  taut-vars
+  (taut-count 0)
+  weight
+  next
+  cnt
+  temp)
+
+(defstruct comm
+  size 
+  vars 
+  sub-vector
+  sup-list
+  table
+  assump 
+  done
+  (other-table 0)
+  mark
+  (stack-height 0 :type fixnum)
+  stack ;;  vector used to reduce consing.  might add small penalty.
+  ;; the "stack" can be at most 2^comm-size in height, because
+  ;; the comm-table can only be "touched" that many times.
+  )
+
+;; macroes for reduced type-checking.
+;;(defmacro %svref (a i) `(lucid::%svref ,a ,i))
+
+(defmacro mod& (x y) `(mod ,x ,y)) ;; `(lucid::mod& ,x ,y)
+(defmacro logior& (x y) `(logior ,x ,y))
+(defmacro =& (&rest rest) `(= ,@rest)) ;; `(lucid::=& ,@rest)
+(defmacro +& (&rest rest) `(+ ,@rest)) ;; `(lucid::+& ,@rest)
+(defmacro -& (&rest rest) `(- ,@rest)) ;; `(lucid::-& ,@rest)
+(defmacro incf& (&rest rest) `(incf ,@rest)) ;; `(lucid::incf& ,@rest)
+(defmacro decf& (&rest rest) `(decf ,@rest)) ;; `(lucid::decf& ,@rest)
+(defmacro ash& (&rest rest) `(ash ,@rest)) ;; `(lucid::ash& ,@rest))
+(defmacro logcount& (x) `(logcount ,x)) ;; `(lucid::logcount& ,x))
+(defmacro lgbitp (i x) `(logbitp ,i ,x)) ;; `(lucid::logbitp& ,i ,x))
+(defmacro ash1 (i) `(ash& 1 ,i)) 
+
+
+(defmacro stack-comm (p assump)
+  `(when (not (eq (comm-assump ,p) ,assump))
+    (let ((stack (comm-stack ,p))
+	  (h (comm-stack-height ,p)))
+      (setf (svref stack h) (comm-assump ,p))
+      (setf (svref stack (+& 1 h)) (comm-table ,p))
+      (setf (comm-stack-height ,p) (+& 2 h)))
+    (push ,p (assump-change-comms ,assump))
+    (setf (comm-assump ,p) ,assump)))
+
+(defmacro unstack-comm (p assump)
+  ;;(when (eq ,assump (comm-assump ,p)));; should be no test.
+    `(let ((h (decf& (comm-stack-height ,p) 2))
+	  (stack (comm-stack ,p)))
+      (setf (comm-assump ,p) (svref stack h))
+      (if (eq (assump-save-p ,assump) 'PLUS)
+	  (progn
+	    (setf (comm-other-table ,p) (comm-table ,p))
+	    (setf (comm-mark ,p) (assump-mark ,assump)))
+	  (if (eq (comm-mark ,p) (assump-mark ,assump))
+	      (setf (comm-other-table ,p) (logior& (comm-table ,p) (comm-other-table ,p)))))
+      (setf (comm-table ,p) (svref stack (+& 1 h)))
+      (setf (comm-done ,p) nil)))
+
+;; Since the input to accept-p is really just a list of disjunctions, we don't
+;; particularly need the bn heirarchy. Divide-conquer-unite left-overs.
+(defstruct bn ;; boolean neighborhood
+  lits        ;; all lits occurring within this bn neighborhood, including boundary.  Should eliminate this.
+  subexp
+  connective  ;; AND or OR, or ATOM or NEGATOM
+  int
+  ext
+  all-vars-map ;; a map from all symbols in the subtree to var-numbers.
+  expression)
+
+(defstruct info
+  assump
+  n ;; Initial number of vars, indexed from 0..(1- n)
+  single ;; a simple vector of single-var comm structures.
+  htable
+  )
+
+(defvar *ksat* 5)
+(defvar *generated-atoms* 5)
+(defvar *plus-minus-counter* 0)
+(defvar *verbosity* T)
+(defvar *initial-assump* nil)
+(defvar *num-lits* 0)
+(defvar *expression* nil)
+(defvar *exp* nil)
+(defvar *logn* nil)
+(defvar *NUM-BACKTRACKS* 0)
+(defvar *info* nil)
+(defvar *all-map* nil)
+(defvar *zero-comm-counter* 0)
+(defvar *investigate-comm-counter* 0)
+(defvar *array-zero-comm-counter* (make-array (1+ *ksat*)))
+(defvar *mark* 0)
+(defvar *best* 0)
+(defvar *best-local* 0)
+(defvar *min-num-left* *N*)
+(defvar *assigns* nil)
+(defvar *print-symbols* nil)
+
+(defvar *min-num-left-other*)
+(defvar *clause-num* 0)
+(defvar *RESULT*)
+(defvar *ELAPSED*)
+(defvar *TOTAL*)
+(defvar *USER* )
+(defvar *SYSTEM* )
+
+(defmacro ptr (a) `(ash ,a 1))
+(defmacro false (a) `(ptr ,a))
+(defmacro true (a) `(1+ (ptr ,a)))
+(defmacro vref (v i) `(sbit ,v ,i))  ;; could make these small integers instead of bit vectors. Microhack.
+
+(defmacro acceptable (comm i) `(lgbitp ,i (comm-table ,comm)))
+(defmacro acc (table i) `(lgbitp ,i ,table))
+
+(defmacro do-acceptable ((i comm) &rest rest) `(dotimes (,i (ash1 (comm-size ,comm))) (when (acceptable ,comm ,i) ,@rest)))
+(defmacro do-unacceptable ((i comm) &rest rest) `(dotimes (,i (ash1 (comm-size ,comm))) (unless (acceptable ,comm ,i) ,@rest)))
+(defmacro remove-bit (pos i) `(+& (ash& (ash& ,i (-& (+& 1 ,pos))) ,pos) (mod& ,i (ash1 ,pos))))
+(defmacro insert-pos (pos i) `(+& (mod& ,i (ash1 ,pos)) (ash& (ash& ,i (-& ,pos)) (+& 1 ,pos))))
+(defmacro complement-bit (pos i) `(if (lgbitp ,pos ,i) (-& ,i (ash1 ,pos)) (+& ,i (ash1 ,pos))))
+(defmacro extract-bit (pos i) `(if (lgbitp ,pos ,i) 1 0))
+
+(defmacro acceptable-bignum (comm i) `(logbitp ,i (comm-table ,comm)))
+(defmacro acc-bignum (table i) `(logbitp ,i ,table))
+
+(defmacro do-acceptable-bignum
+    ((i comm) &rest rest) `(dotimes (,i (ash 1 (comm-size ,comm))) (when (acceptable-bignum ,comm ,i) ,@rest)))
+(defmacro do-unacceptable-bignum
+    ((i comm) &rest rest) `(dotimes (,i (ash 1 (comm-size ,comm))) (unless (acceptable-bignum ,comm ,i) ,@rest)))
+(defmacro remove-bit-bignum (pos i) `(+ (ash (ash ,i (- (+ 1 ,pos))) ,pos) (mod ,i (ash 1 ,pos))))
+(defmacro insert-pos-bignum (pos i) `(+ (mod ,i (ash 1 ,pos)) (ash (ash ,i (- ,pos)) (+ 1 ,pos))))
+(defmacro complement-bit-bignum (pos i) `(if (logbitp ,pos ,i) (- ,i (ash 1 ,pos)) (+ ,i (ash1 ,pos))))
+(defmacro extract-bit-bignum (pos i) `(if (logbitp ,pos ,i) 1 0))
+
+(defmacro find-single (x) `(svref (info-single *info*) ,x))
+(defmacro tautp (comm) `(let ((c ,comm)) (= (comm-table c) (1- (ash1 (ash1 (comm-size c)))))))
+(defmacro sub-comm (comm i) `(svref (comm-sub-vector ,comm) ,i))
+
+;; When some zero of comm is not "subsumed" return nil.
+(defmacro subsumed-p (comm)
+  `(let ((c ,comm))
+    (or (tautp c)
+     (dotimes (i (ash1 (comm-size c)) T)
+       (unless (acceptable c i)
+	 (unless (dotimes (k (comm-size c) nil) (when (not (acceptable c (complement-bit k i))) (return t)))
+	   (return nil)))))))
+
+;; hfind-comm is only called during initilization
+(defun hfind-comm (vars assump)
+  (or (cond
+	((eq (length vars) 1) (find-single (car vars)))
+	(T (gethash vars (info-htable *info*))))
+      (let* ((size (length vars))
+	     (comm (make-comm :size size :vars vars 
+			      :table (1- (ash1 (ash1 size)))
+			      :sup-list nil
+			      :stack-height 0
+			      :stack (make-array (ash1 (1+ size)))
+			      :assump assump)))
+	(setf (gethash (comm-vars comm) (info-htable *info*)) comm)
+	(cond
+	  ((eq (length vars) 1) (setf (find-single (car vars)) comm)))
+	;; could do > size 0 ...
+	(when (> (comm-size comm) 1)
+	  (let ((a (make-array size)))
+	    ;; watch out for done comms. Bug.
+	    (dotimes (i size) (setf (svref a i) (hfind-comm (remove-ith i (comm-vars comm)) assump)))
+	    (setf (comm-sub-vector comm) a)
+	    (when (> size 1) (dotimes (i size) (push (cons comm i) (comm-sup-list (sub-comm comm i)))))
+	    ;; when creating a comm, init all relevant local assumps with respect to comm.
+	    (when (> size 1)
+	      (dotimes (i size)
+		(let* ((sub (sub-comm comm i)))
+		  (do-unacceptable (j sub)
+		    (zero-comm comm (insert-pos i j) assump nil)
+		    (zero-comm comm (+ (insert-pos i j) (ash1 i)) assump nil)))))))
+	comm)))
+
+(defun lit-symbol (i) (svref *print-symbols* i))
+(defun remove-ith (i l) (if (<= i 0) (cdr l) (cons (car l) (remove-ith (1- i) (cdr l)))))
+
+(defun donify (c assump)
+  (unless (comm-done c)
+    (stack-comm c assump)
+    (setf (comm-done c) t)
+    (when (=& (comm-size c) 2)
+      (decf& (assump-2comm-zeroes assump) (-& 4 (logcount& (comm-table c)))))
+    (when (=& (comm-size c) 1) (decf& (assump-num-vars assump)))
+    (dolist (s (comm-sup-list c)) (donify (car s) assump))
+    ;; Used to handle taut-vars here. It's Ok to do so, or not.
+    (unless (or (=& (comm-size c) 1) (> (comm-size c) 4))
+      (dotimes (i (comm-size c))
+	(let ((sub (svref (comm-sub-vector c) i)))
+	  (unless (comm-done sub)
+	    (when (=& (comm-table sub) (1- (ash1 (ash1 (comm-size sub)))))
+	      (unless (dolist (s (comm-sup-list sub))
+			(unless (comm-done (car s)) (return t)))
+		(when (=& (comm-size sub) 1)
+		  ;;(decf (assump-num-vars assump))
+		  (incf (assump-taut-count assump))
+		  (push sub (assump-taut-vars assump)))
+		(donify sub assump)))))))))
+
+(defmacro zc-dispatch (comm zero assump)
+  `(cond ((= (comm-size ,comm) 1) (incf *investigate-comm-counter*) (zero-comm1 ,comm ,zero ,assump))
+    ((= (comm-size ,comm) 2) (zero-comm2 ,comm ,zero ,assump))
+    ((= (comm-size ,comm) 3) (zero-comm3 ,comm ,zero ,assump))
+    (T (zero-commk ,comm ,zero ,assump))))
+
+(defvar *done-singles* nil)
+(defvar *zc* 0)
+(proclaim '(fixnum *zc*))
+(defun zero-comm (comm zero assump donify-flag)
+  (setf *zc* 0)
+  (setf *done-singles* nil)
+  (when (and (not (comm-done comm)) (acceptable-bignum comm zero)) (zc-dispatch comm zero assump))
+  (when donify-flag
+    (loop
+     (do ()
+	 ((null *done-singles*))
+       (let ((single (pop *done-singles*)))
+	 (donify single assump)))
+     (unless (or *done-singles*) (return nil))))
+  (incf *zero-comm-counter* *zc*))
+
+;; comm-size=1
+(defun zero-comm1 (comm zero assump)
+  (declare (fixnum zero))
+  (stack-comm comm assump)
+  (incf& *zc*)
+  ;; This is the only piece of code that zeroes out a comm element, or throws to empty.
+  (when (=& 0 (decf& (comm-table comm) (ash1 zero)))
+    (incf *zero-comm-counter* *zc*)
+    (throw 'empty-ttable nil))
+  ;;(decf& (assump-num-vars assump))
+  (push comm *done-singles*)
+  ;; Msgs to sup-comm; definitely insure two zero elts in each supcomm.
+  (dolist (sup (comm-sup-list comm))
+    (unless (comm-done (car sup))
+      (let ((pos (insert-pos (cdr sup) zero)))
+	(declare (fixnum pos))
+	(when (acceptable (car sup) pos) (zero-comm2 (car sup) pos assump))
+	(setf pos (+& (ash1 (cdr sup)) pos))
+	(when (acceptable (car sup) pos) (zero-comm2 (car sup) pos assump))))))
+;; comm-size=2
+(defun zero-comm2 (comm zero assump)
+  (declare (fixnum zero))
+  (stack-comm comm assump)
+  (incf& *zc*)
+  (incf& (assump-2comm-zeroes assump))
+  ;; This is the only piece of code that zeroes out a comm element, or throws to empty.
+  (let ((table (comm-table comm)))
+    (when (=& 0 (setf (comm-table comm) (decf& table (ash1 zero))))
+      (incf *zero-comm-counter* *zc*)
+      (throw 'empty-ttable nil))
+    ;; Msgs to sub-comm
+    (unless (acc table (complement-bit 0 zero))
+      (let ((c (sub-comm comm 0))
+	    (z (remove-bit 0 zero)))
+	(declare (fixnum z))
+	(when (acceptable c z) (zero-comm1 c z assump))))
+    (unless (acc table (complement-bit 1 zero))
+      (let ((c (sub-comm comm 1))
+	    (z (remove-bit 1 zero)))
+	(declare (fixnum z))
+	(when (acceptable c z) (zero-comm1 c z assump)))))
+  ;; Msgs to sup-comm; definitely insure two zero elts in each supcomm.
+  (dolist (sup (comm-sup-list comm))
+    (unless (comm-done (car sup))
+      (let ((pos (insert-pos (cdr sup) zero)))
+	(declare (fixnum pos))
+	(when (acceptable (car sup) pos) (zero-comm3 (car sup) pos assump))
+	(setf pos (+& (ash1 (cdr sup)) pos))
+	(when (acceptable (car sup) pos) (zero-comm3 (car sup) pos assump)))))
+  ;;(when nil (if (and rename-flag (or (= (comm-table comm) 6) (= (comm-table comm) 9)))(push comm rename-vars)))
+  )
+;; size=3
+(defun zero-comm3 (comm zero assump)
+  (declare (fixnum zero))
+  (stack-comm comm assump)
+  (incf& *zc*)
+  ;; This is the only piece of code that zeroes out a comm element, or throws to empty.
+  (let ((table (comm-table comm)))
+    (when (=& 0 (setf (comm-table comm) (decf& table (ash1 zero))))
+      (incf *zero-comm-counter* *zc*)
+      (throw 'empty-ttable nil))
+    ;; Msgs to sub-comm
+    ;; possibly, zero a bit in a sub comm.
+    (unless (acc table (complement-bit 0 zero))
+      (let ((c (sub-comm comm 0))
+	    (z (remove-bit 0 zero)))
+	(declare (fixnum z))
+	(when (acceptable c z) (zero-comm2 c z assump))))
+    (unless (acc table (complement-bit 1 zero))
+      (let ((c (sub-comm comm 1))
+	    (z (remove-bit 1 zero)))
+	(declare (fixnum z))
+	(when (acceptable c z) (zero-comm2 c z assump))))
+    (unless (acc table (complement-bit 2 zero))
+      (let ((c (sub-comm comm 2))
+	    (z (remove-bit 2 zero)))
+	(declare (fixnum z))
+	(when (acceptable c z) (zero-comm2 c z assump)))))
+  ;; Msgs to sup-comm; definitely insure two zero elts in each supcomm.
+  (dolist (sup (comm-sup-list comm))
+    (unless (comm-done (car sup))
+      (let ((pos (insert-pos (cdr sup) zero)))
+	(declare (fixnum pos))
+	(when (acceptable (car sup) pos) (zero-commk (car sup) pos assump))
+	(setf pos (+& (ash1 (cdr sup)) pos))
+	(when (acceptable (car sup) pos) (zero-commk (car sup) pos assump))))))
+;; size>= 4
+(defun zero-commk (comm zero assump)
+  (declare (fixnum zero))
+  (stack-comm comm assump)
+  (incf& *zc*)
+  ;; This is the only piece of code that zeroes out a comm element, or throws to empty.
+  (when (=& 0 (decf& (comm-table comm) (ash1 zero)))
+    (incf *zero-comm-counter* *zc*)
+    (throw 'empty-ttable nil))
+  ;; Msgs to sub-comm
+  (dotimes (i (comm-size comm))
+    ;; possibly, zero a bit in a sub comm.
+    (unless (acceptable comm (complement-bit i zero))
+      (let ((c (sub-comm comm i))
+	    (z (remove-bit i zero)))
+	(declare (fixnum z))
+	(when (acceptable c z)
+	  (if (=& (comm-size c) 3)
+	      (zero-comm3 c z assump)
+	      (zero-commk c z assump))))))
+  ;; Msgs to sup-comm; definitely insure two zero elts in each supcomm.
+  (dolist (sup (comm-sup-list comm))
+    (unless (comm-done (car sup))
+      (let ((pos (insert-pos (cdr sup) zero)))
+	(declare (fixnum pos))
+	(when (acceptable (car sup) pos) (zero-commk (car sup) pos assump))
+	(setf pos (+& (ash1 (cdr sup)) pos))
+	(when (acceptable (car sup) pos) (zero-commk (car sup) pos assump))))))
+
+;; should get rid of global vars here.
+(defvar *best-other-local*)
+'(defun investigate-single-comms (assump)
+  (setf *best-local* nil)
+  (setf *best-other-local* nil)
+  (setf *min-num-left* 0)
+  (setf *min-num-left-other* 0)
+  (do ((comm-index 0 (mod (1+ comm-index) *N*))
+       (num-no-change 0))
+      ((>= num-no-change (assump-num-vars assump)))
+    (when (= comm-index 0) (when *verbosity* (format t "S ")))
+    (let ((comm (find-single comm-index))
+	  (before (assump-num-vars assump)))
+      (when (not (comm-done-single comm))
+	(investigate-comm comm assump)
+	(if (> before (assump-num-vars assump))
+	    (progn
+	      (setf num-no-change 0)
+	      (setf *best-local* nil)
+	      (setf *best-other-local* nil)
+	      (setf *min-num-left* 0)
+	      (setf *min-num-left-other* 0))
+	    (incf num-no-change)))))
+  (format t " Wt: ~3,4F ~3,4F" (float *min-num-left*) (float *min-num-left-other*)))
+
+(defun investigate-single-comms (assump)
+  (setf *best-local* nil)
+  (setf *best-other-local* nil)
+  (setf *min-num-left* 0)
+  (setf *min-num-left-other* 0)
+  (do ((comm-index 0 (+ 1 comm-index)))	;(mod (1+ comm-index) *N*)
+      ((if (>= comm-index *n*)
+	   (if (not *best-local* )
+	       t
+	       (if (comm-done (assump-comm *best-local*))
+		   (progn
+		     (setf *best-local* nil)
+		     (setf *best-other-local* nil)
+		     (setf *min-num-left* 0)
+		     (setf *min-num-left-other* 0) (setf comm-index 0) nil)
+		   t))
+	   nil))			;(>= num-no-change (assump-num-vars assump))
+    (when (= comm-index 0) (when *verbosity* (format t "S")))
+    (let ((comm (find-single comm-index)))
+      (when (not (comm-done comm))
+	(investigate-comm comm assump))))
+  (when *verbosity* (format t " Wt: ~3,4F ~3,4F" (float *min-num-left*) (float *min-num-left-other*))))
+
+(defun investigate-comm (comm assump)
+  (let ((assump-T (make-assump 
+		   :prev assump
+		   :comm comm
+		   :2comm-zeroes (assump-2comm-zeroes assump)
+		   :zeroes 0
+		   :num-vars (assump-num-vars assump)
+		   :save-p 'PLUS
+		   :mark (incf *mark*)))
+	(assump-nil (make-assump 
+		     :prev assump
+		     :comm comm
+		     :2comm-zeroes (assump-2comm-zeroes assump)
+		     :zeroes 1
+		     :num-vars (assump-num-vars assump)
+		     :save-p 'MINUS
+		     :mark *mark*)))
+    (unless (simple-try-assump assump-t)
+      (unless (simple-try-assump assump-nil)
+	(if
+	 (or (not *best-local*)
+	     (> (min (assump-weight assump-t) (assump-weight assump-nil))
+		*min-num-left*)
+	     (and (= (min (assump-weight assump-t) (assump-weight assump-nil))
+		     *min-num-left*)
+		  (> (max (assump-weight assump-t) (assump-weight assump-nil))
+			 *min-num-left-other*)))
+	 (progn
+	   (setf *min-num-left-other* (max (assump-weight assump-t) (assump-weight assump-nil)))
+	   (setf *min-num-left* (min (assump-weight assump-t) (assump-weight assump-nil)))
+	   (if (< (assump-weight assump-t) (assump-weight assump-nil))
+	       (setf *best-local* assump-t *best-other-local* assump-nil)
+	       (setf *best-local* assump-nil  *best-other-local* assump-t))))))))
+
+(defun simple-try-assump (a)
+  (let* ((comm (assump-comm a)))
+    (unless
+	(catch 'empty-ttable
+	  (zero-comm comm (assump-zeroes a) a T)
+	  (progn
+	    (when (zerop (assump-num-vars a))
+	      (setf *best-local* a)
+	      (restore a)
+	      (format T "~& ACCEPTABLE")
+	      (throw 'done a))
+	    (restore a))
+	  (setf (assump-weight a) (+ (/ (float (assump-2comm-zeroes a))
+					(float (assump-num-vars a)))
+				     (/ *zc* (* *n* *n* *n*))))
+	  t)
+      (restore a)
+      (zero-comm comm (-& 1 (assump-zeroes a)) (assump-prev a) T)
+      T)))
+
+(defun restore (cur-assump)
+  (let* ((prev-assump (assump-prev cur-assump)))
+    (dolist (p (assump-change-comms cur-assump)) (unstack-comm p cur-assump))
+    (when (eq (assump-save-p cur-assump) 'MINUS)
+      (dolist (p (assump-change-comms cur-assump))
+	(when (eq (comm-mark p) (assump-mark cur-assump))
+	  ;; THEN, BOTH neg and pos assumps touched comm, so hack it...
+	  (unless (comm-done p)
+	    (if (> (comm-size p) 4)
+		(do-acceptable-bignum (i p)
+		  (unless (logbitp i (comm-other-table p))
+		    (zero-comm p i prev-assump T)))
+	    
+		(do-acceptable (i p)
+		  (unless (lgbitp i (comm-other-table p))
+		    (zero-comm p i prev-assump T))))))))))
+
+(defun simplify (assump)
+  (if (zerop (assump-num-vars assump))
+      (setf (assump-next assump) nil)
+      (progn
+	(catch 'DONE
+	  (investigate-single-comms assump))
+	(setf (assump-next assump) (cons (assump-comm *best-local*) (assump-zeroes *best-local*))))))
+
+(defstruct subspace
+  leaf-assump
+  root-assump
+
+  id
+  counter
+  done
+  work-left-before-switch
+  work
+  loop-count
+  loop-depth-sum
+  )
+
+;; presumes *info* is in the state described by subspace c,
+;; leaves *info* in *initial-assump* state.
+(defun unbuild-subspace (c)
+  (do ((a (subspace-leaf-assump c) (assump-prev a)))
+      ((null a))
+    (let ((l nil))
+      (dolist (p (assump-change-comms a))
+	(push (cons (comm-table p) (comm-done p)) l)
+	(unstack-comm p a))
+      (setf (assump-temp a) (reverse l)))))
+
+;; presumes *info* is in *initial-assump* state.
+(defun rebuild-subspace (c)
+  (let ((assump-list nil))
+    (do ((a (subspace-leaf-assump c) (assump-prev a)))
+	((null a))
+      (format t "a")
+      (push a assump-list))
+    (let ((y nil))
+      (dolist (a assump-list)
+	(let ((x (assump-next a)))
+	  (when (member (car (comm-vars (car x))) Y) (break "var already in"))
+	  (push (car (comm-vars (car x))) Y)
+	  (format t " ~A ~A "
+		  (if (eq (cdr x) 0) '+ '-)
+		  (mapcar #'lit-symbol (comm-vars (car x)))))
+	(mapc #'(lambda (p table.done)
+		  (let ((stack (comm-stack p))
+			(h (comm-stack-height p)))
+		    (setf (svref stack h) (comm-assump p))
+		    (setf (svref stack (+& 1 h)) (comm-table p))
+		    (setf (comm-stack-height p) (+& 2 h)))
+		  (setf (comm-assump p) a)
+		  (setf (comm-table p) (car table.done))
+		  (setf (comm-done p) (cdr table.done)))
+	      (assump-change-comms a)
+	      (assump-temp a))))))
+
+(defvar *subspace-number* 0)
+
+(defun bifurcate-subspace (c)
+  (let* ((new (make-subspace
+	       :loop-count 1
+	       :loop-depth-sum 1.0
+	       :work 1
+	       :id (1+ (* (subspace-id c) 2))))
+	 (oldrootc (subspace-root-assump c))
+	 (newrootc (do ((a (subspace-leaf-assump c) (assump-prev a)))
+		       ((eq (assump-prev a) oldrootc) a)))
+	 (rootnew (make-assump
+		   :prev (assump-prev newrootc)
+		   :comm (assump-comm newrootc)
+		   :2comm-zeroes (assump-2comm-zeroes newrootc)
+		   :zeroes (assump-zeroes newrootc)
+		   :num-vars (assump-num-vars newrootc)
+		   :mark (incf *mark*)
+		   ;; Here's the real difference: try other case of root's new assump var.
+		   :next (cons (car (assump-next newrootc)) (- 1 (cdr (assump-next newrootc))))
+		   :save-p NIL
+		   :cnt 0
+		   :taut-vars (assump-taut-vars newrootc)
+		   :taut-count (assump-taut-count newrootc)
+		   :change-comms (assump-change-comms newrootc)
+		   :temp (assump-temp newrootc)
+		   )))
+    (setf (subspace-root-assump new) rootnew)
+    (setf (subspace-leaf-assump new) rootnew)
+    (setf (subspace-root-assump c) newrootc)
+    (setf (subspace-id c) (* (subspace-id c) 2))
+    new))
+
+
+(defun measure (s1)
+  (/ (subspace-loop-depth-sum s1)  (subspace-loop-count s1)))
+  
+
+(defun search-control ()
+  (when (= (assump-num-vars *initial-assump*) 0) (return-from search-control T))
+  (let ((list-of-subspaces (list (make-subspace
+				 :work 1
+				 ;; start with non-zero to avoid division by zero
+				 :loop-count 1
+				 :loop-depth-sum 1.0
+				 :id 1
+				 :root-assump nil
+				 :leaf-assump *initial-assump*))))
+    (loop
+     (when (null list-of-subspaces) (return nil))
+     (setf list-of-subspaces (sort list-of-subspaces #'(lambda (s1 s2)
+							 (> (measure s1)
+							    (measure s2)))))
+     
+     ;; when room for bifurcation, after one round of searching.
+     ;; only bif smallest avg depth?
+     (let  ((l list-of-subspaces))
+       ;; cut out multiple subspaces.
+       (when nil
+	 (dolist (subspace l)
+	   (when (> (length list-of-subspaces) *n*) (return nil))
+	   (push (bifurcate-subspace subspace) list-of-subspaces)
+	   (return nil))))
+     (let ((x 1) (num (integer-length (length list-of-subspaces))))
+       (dolist (subspace list-of-subspaces)
+	 (rebuild-subspace subspace)
+	 ;; work-before-switch: small for testing.
+	 (setf (subspace-work-left-before-switch subspace)
+	       (max 2 (- num (integer-length x))))
+	 (subspace-search subspace)
+	 (when (zerop (assump-num-vars (info-assump *info*))) (return-from search-control T))
+	 (return-from search-control nil)
+	 (unbuild-subspace subspace)
+	 (when (eq (subspace-leaf-assump subspace) (subspace-root-assump subspace))
+	   (when *verbosity*
+	     (format  t "~% Subspace ~A done. ~A" (subspace-id subspace) (measure subspace)))
+	   (setf list-of-subspaces (remove subspace list-of-subspaces)))
+	 (incf x))))))
+
+
+(defun subspace-search (subspace)
+  (let ((depth 0)
+	(assump (subspace-leaf-assump subspace))
+	(base *zero-comm-counter*))
+    (do ((a (assump-prev assump) (assump-prev a)))
+	((null a))
+      (incf depth))
+    
+    (when *verbosity*
+      (format t " ~%~% Subspace: ~A Depth: ~A Nvars: ~A M: ~A"
+	      (subspace-id subspace) depth (assump-num-vars assump) (measure subspace)))
+    (loop
+     (incf (subspace-loop-count subspace))
+     (incf (subspace-loop-depth-sum subspace) depth)
+     (when (zerop (assump-num-vars assump))
+       (setf (info-assump *info*) assump)
+       (do ()
+	   ((null assump))
+	 (when *verbosity* (format t "~& EXIT: D: ~A ~A " depth (- *zero-comm-counter* (assump-cnt assump))))
+	 (decf depth)
+	 (setf assump (assump-prev assump)))
+       (incf (subspace-work subspace) (- *zero-comm-counter* base))
+       (return t))
+     ;; Upon entry or beginning of the loop, assump-next contains a description
+     ;; of the assump we are going to try next.  
+     (let* ((a (assump-next assump)))
+       (when (null a) (error "Probably Done, but Numvars is wrong"))
+       (when *verbosity* (format t "~% Try Assumption: ~A ~A "
+				 (if (eq (cdr a) 0) '+ '-)
+				 (mapcar #'lit-symbol (comm-vars (car a)))))
+       (if (catch 'EMPTY-TTABLE
+	     (setf assump
+		   (make-assump 
+		    :prev assump
+		    :comm (car a)
+		    :2comm-zeroes (assump-2comm-zeroes assump)
+		    :zeroes (cdr a)
+		    :num-vars (assump-num-vars assump)
+		    :mark (incf *mark*)
+		    :save-p NIL))
+	     (incf depth)
+	     (zero-comm (assump-comm assump) (assump-zeroes assump) assump T)
+	     (simplify assump)
+	     t)
+	   (progn (setf (assump-cnt assump) (+ (- *zero-comm-counter* base) (subspace-work subspace)))
+		  (when *verbosity*
+		    (format t
+			    " ~% DEPTH: ~A Nvars: ~A " depth (assump-num-vars assump))))
+	   (progn
+	     (loop
+	      (incf *num-backtracks*)
+	      (decf depth)
+	      (restore assump);;  Assump failed. So, negate it. 
+	      (setf assump (assump-prev assump))
+	      (decf (subspace-work-left-before-switch subspace))
+	      (when (eq assump (subspace-root-assump subspace))
+		(incf (subspace-work subspace) (- *zero-comm-counter* base))
+		(return-from subspace-search nil))
+	      (when *verbosity* (format t "~% Negating: ~A "
+					(mapcar #'lit-symbol (comm-vars (car (assump-next assump))))))
+	      (unless
+		  (unless
+		      (catch 'empty-ttable
+			(zero-comm (car (assump-next assump)) (- 1 (cdr (assump-next assump))) assump T)
+			(simplify assump)
+			(unless (zerop (assump-num-vars assump))
+			  ;; Safe to switch subspaces here.
+			  ;; When more than X backtracks, and assump-next is
+			  ;; set up, exit from subspace-search. 
+			  (when nil (<= (subspace-work-left-before-switch subspace) 0)
+			    (setf (subspace-leaf-assump subspace) assump)
+			    (incf (subspace-work subspace) (- *zero-comm-counter* base))
+			    (when *verbosity*
+			      (format t "~% Exit Subspace: Current-work: ~A  Total-work: ~A M: ~A"
+				      (- *zero-comm-counter* base)
+				      (subspace-work subspace)
+				      (measure subspace)))
+			    (return-from subspace-search nil))
+			  )
+			T)
+		    (when *verbosity*
+		      (format t "~& EXIT: D: ~A ~A " depth (- (+ (- *zero-comm-counter* base) (subspace-work subspace))
+							      (assump-cnt assump))))
+		    T)
+		;; return from inner loop.
+		(return t)))))))))
+
+
+
+;; FIX.  For instance, bn is a tree, when it could be a flat-list of disjunctions.
+(defun ttables-of-tt (bn)
+  (setf *N* (length *all-map*))
+  (setf *print-symbols* (make-array *n*))
+  (dolist (x *all-map*) (setf (svref *print-symbols* (cdr x)) (car x)))
+  (setf *initial-assump* (make-assump
+			  :prev nil
+			  :num-vars *N*
+			  :mark (incf *mark*)
+			  :cnt 0
+			  :2comm-zeroes 0))
+  (setf *info* (make-info
+		:assump *initial-assump*
+		:single (make-array *n*)
+		:htable (make-hash-table :test #'equal :size (truncate (+ (* 4/3 *num-lits*)  *n* *n*)))
+		:n *n*))
+  (dotimes (i *n*) (setf (svref (info-single *info*) i) (hfind-comm (list i) *initial-assump*)))
+  (catch 'EMPTY-TTABLE
+    (setf  *clause-num* 0)
+    (dotimes (i (length  *array-zero-comm-counter*))
+      (setf (svref *array-zero-comm-counter* i) 0))
+    (gen-ttables bn)
+    (dotimes (i *n*)
+      (let ((c (find-single i)))
+	(when (not (comm-done c))
+	  (when (< (comm-table c) 3) (donify c *initial-assump*)))))
+    (simplify *initial-assump*)
+    t))
+
+(defun output-formula (file)
+  (with-open-file (str file :direction :output :if-exists :overwrite :if-does-not-exist :create)
+    (format str "(AND ")
+    (labels
+	((clause (key comm)
+	   (declare (ignore key))
+	   (do-unacceptable (i comm)
+	     (let ((e nil))
+	       (dotimes (k (comm-size comm))
+		 (if (logbitp k i)
+		     (push (list 'NOT  (svref *print-symbols* (car (nthcdr k (comm-vars comm))))) e)
+		     (push (svref *print-symbols* (car (nthcdr k (comm-vars comm)))) e)))
+	       (format str "~% ~A" (cons 'OR e))))))
+      (maphash #'clause (info-htable *info*))
+      (format str ")"))))
+
+(defun accept-p (classical-logic-expression &optional (print-p nil)(trans-p t))
+  (when (atom classical-logic-expression) (return-from accept-p classical-logic-expression))
+  (setf *zero-comm-counter* 0)
+  (setf *subspace-number* 0)
+  (setf *plus-minus-counter* 0)
+  (setf *investigate-comm-counter* 0)
+  (setf *mark* 0)
+  (setf *num-lits* 0)
+  (setf *num-backtracks* 0)
+  (setf *exp* classical-logic-expression)
+  (setf *generated-atoms* nil)
+  (when nil print-p (pprint *exp*) (terpri))
+  (setf *expression* (if trans-p (parse classical-logic-expression) *exp*))
+  (when nil print-p (pprint *expression*)(terpri))
+  ;; If top-level is OR, then we can call accept-p on sub-expressions
+  (if (eq (car classical-logic-expression) 'OR)
+      (dolist (e (cdr classical-logic-expression)) (when (accept-p e) (return-from accept-p t)))
+      (progn
+	(let* ((bn (parse-lform *expression*)))
+	  ;; The total number of occurrences of all lits is a measure of the size of problem.
+	  (setf *logn* (integer-length *num-lits*))
+	  (when *verbosity* (format t "~% Number of literal occurrences (the size of the expression): ~A" *num-lits*))
+	  (let ((bn (do-bn bn)))
+	    (time
+	     (progn
+	       (multiple-value-setq (*elapsed* *total* *user* *system*)
+		 (time ;;use time1 in lucid common lisp, use time1 to get numbers for times.
+		  (setf *result*
+			(if (catch 'ACCEPTABLE
+			      (and (ttables-of-tt bn)
+				   (progn
+				     (search-control)
+				     (zerop (assump-num-vars (info-assump *info*))))))
+			    (progn
+			      (format t
+				      "~%ACCEPTABLE. Counter: ~A BACKTRKS: ~A"
+				      *zero-comm-counter* *num-backtracks* )
+			      (format t
+				      "~% Investigate-comm-counter: ~A : ~A deducts per investigation"
+				      *investigate-comm-counter*
+				      (truncate
+				       (/ *zero-comm-counter*
+					  *investigate-comm-counter*)))
+			      (compute-assign))
+			    (progn (when (zerop (assump-num-vars (info-assump *info*)))
+				     (incf (assump-num-vars (info-assump *info*))))
+				   (format t
+					   "~%UNACCEPTABLE. Counter: ~A  BACKTRKS: ~A"
+					   *zero-comm-counter*  *num-backtracks*)
+				   nil)))))
+	       *result*)))))))
+
+
+
+(defun save-data (name &optional (if-exists :append))
+  (with-open-file (str (string-append "/u/pehoushe/boole/data/" name) :direction :output :if-exists if-exists
+		       :if-does-not-exist :create)
+    (terpri str)
+    (prin1 (list :version *version*) str) (terpri str)
+    (prin1 (list :BACKTRACKS *num-backtracks*) str) (terpri str)
+    (prin1 (list :COUNTER *zero-comm-counter*) str) (terpri str)
+    (prin1 (list :time-milliseconds (truncate (* *user* 1000))) str) (terpri str)
+    (prin1 (list :assign (when (zerop (assump-num-vars (info-assump *info*))) (compute-assign))) str) (terpri str)
+    (prin1 (list :expression *expression*) str) (terpri str)))
+
+(defun truth-table (And-or-not-formula)
+  (cond ((null and-or-not-formula) (error "NIL appears in formula"))
+	((atom and-or-not-formula)
+	 (values (list (get and-or-not-formula :num)) #*01));; True, single-var.
+	((eq (car and-or-not-formula) 'NOT)
+	 (multiple-value-bind (vars bits);; the vars don't change.
+	     (truth-table (cadr and-or-not-formula))
+	   (values vars (bit-not bits))))
+	((eq (car and-or-not-formula) 'AND);; one side could have vars that the other doesn't.
+	 ;; they need to merge.
+	 (cond ((eq (length (cdr and-or-not-formula)) 0)
+		(error "Empty And."));; could return () #*1, empty taut...
+	       ((eq (length (cdr and-or-not-formula)) 1)
+		(truth-table (cadr and-or-not-formula)))
+	       (T
+		(multiple-value-bind (vars1 bits1)
+		    (truth-table (cadr and-or-not-formula))
+		  (multiple-value-bind (vars2 bits2)
+		      (truth-table (cons 'AND (cddr and-or-not-formula)))
+		    ;; merge vars1 vars2, ...
+		    (and-bits vars1 bits1 vars2 bits2)
+		    )))))
+	((eq (car and-or-not-formula) 'OR);; one side could have vars that the other doesn't.
+	 ;; they need to merge.
+	 (cond ((eq (length (cdr and-or-not-formula)) 0)
+		(error "Empty OR."));; could return () #*1, empty taut...
+	       ((eq (length (cdr and-or-not-formula)) 1)
+		(truth-table (cadr and-or-not-formula)))
+	       (T
+		(multiple-value-bind (vars1 bits1)
+		    (truth-table (cadr and-or-not-formula))
+		  (multiple-value-bind (vars2 bits2)
+		      (truth-table (cons 'OR (cddr and-or-not-formula)))
+		    (or-bits vars1 bits1 vars2 bits2))))))))
+		    
+(defun and-bits (x1 b1 x2 b2)
+  (let* ((x3 (sort (union (copy-list x1) (copy-list x2)) #'<))
+	 (b3 (make-array (ash1 (length x3)) :element-type 'BIT :initial-element 0)))
+    (labels
+	((bit-gen (x1 a1 b1 x2 a2 b2 x3 a3)
+	   (declare (fixnum a1 a2 a3))
+	   (macrolet
+	       ((v- (l) `(cdr ,l))
+		(internal ()
+		  `(let* ((len (length x1))(o1 (ash a1 len))(o2 (ash a2 len)))
+		    (declare (fixnum o1 o2))
+		    (dotimes (i (ash1 len))
+		      (when (and (> (vref b1 (+ o1 i)) 0)
+				 (> (vref b2 (+ o2 i)) 0))
+			(setf (vref b3 a3) 1) (return)))))
+		(tail (num x1 a1 b1);; x1=x3
+		  `(when (> ,num 0)
+		    (let* ((len (length ,x1))(o1 (ash ,a1 len))(o3 (ash a3 len)))
+		      (declare (fixnum o1 o3))
+		      (dotimes (i (ash1 len))
+			(when (>  (vref ,b1 (+ o1 i)) 0)
+			  (setf (vref b3  (+ o3 i)) 1)))))))
+	     (cond
+	       ((null x3) (internal))
+	       ((null x1) (tail (vref b1 a1) x2 a2 b2))
+	       ((null x2) (tail (vref b2 a2) x1 a1 b1))
+	       ((= (car x1) (car x2))
+		(cond
+		  ((= (car x1) (car x3))
+		   (bit-gen (v- x1) (false a1) b1 (v- x2) (false a2) b2 (v- x3) (false a3) )
+		   (bit-gen (v- x1) (true a1) b1 (v- x2) (true a2) b2 (v- x3) (true a3) ))
+		  (T (error "In and-bits"))))
+	       ((< (car x1) (car x2))
+		(cond
+		  ((= (car x1) (car x3))
+		   (bit-gen (v- x1) (false a1) b1 x2 a2 b2 (v- x3) (false a3) )
+		   (bit-gen (v- x1) (true a1) b1 x2 a2 b2 (v- x3) (true a3) ))
+		  (T (error "In and-bits"))))
+	       (T;;(< (car x2) (car x1))
+		(cond
+		  ((= (car x2) (car x3))
+		   (bit-gen x1 a1 b1 (v- x2) (false a2) b2 (v- x3) (false a3) )
+		   (bit-gen x1 a1 b1 (v- x2) (true a2) b2 (v- x3) (true a3) ))
+		  (T (error "In and-bits"))))))))
+      (bit-gen x1 0 b1 x2 0 b2 x3 0)
+      (values x3 b3))))
+
+(defun or-bits (x1 b1 x2 b2)
+  (let* ((x3 (sort (union (copy-list x1) (copy-list x2)) #'<))
+	 (b3 (make-array (ash1 (length x3)) :element-type 'BIT :initial-element 0)))
+  (labels
+	((bit-gen (x1 a1 b1 x2 a2 b2 x3 a3)
+	   (declare (fixnum a1 a2 a3))
+	   (macrolet
+	       ((v- (l) `(cdr ,l))
+		(internal ()
+		  `(let* ((len (length x1))(o1 (ash a1 len))(o2 (ash a2 len)))
+		    (declare (fixnum o1 o2))
+		    (dotimes (i (ash1 len))
+		      (when (or (> (vref b1 (+ o1 i)) 0)
+				(> (vref b2 (+ o2 i)) 0))
+			(setf (vref b3 a3) 1) (return)))))
+		(tail (num x1 a1 b1);; x1=x3
+		  `(let* ((len (length ,x1))(o1 (ash ,a1 len))(o3 (ash a3 len)))
+		    (declare (fixnum o1 o3))
+		    (dotimes (i (ash1 len))
+		      (when (or (> ,num 0) (>  (vref ,b1 (+ o1 i)) 0))
+			(setf (vref b3  (+ o3 i)) 1))))))
+	     (cond
+	       ((null x3) (internal))
+	       ((null x1) (tail (vref b1 a1) x2 a2 b2))
+	       ((null x2) (tail (vref b2 a2) x1 a1 b1))
+	       ((= (car x1) (car x2))
+		(cond
+		  ((= (car x1) (car x3))
+		   (bit-gen (v- x1) (false a1) b1 (v- x2) (false a2) b2 (v- x3) (false a3) )
+		   (bit-gen (v- x1) (true a1) b1 (v- x2) (true a2) b2 (v- x3) (true a3) ))
+		  (T (error "In or-bits"))))
+	       ((< (car x1) (car x2))
+		(cond
+		  ((= (car x1) (car x3))
+		   (bit-gen (v- x1) (false a1) b1 x2 a2 b2 (v- x3) (false a3) )
+		   (bit-gen (v- x1) (true a1) b1 x2 a2 b2 (v- x3) (true a3) ))
+		  (T (error "In or-bits"))))
+	       (T;;(< (car x2) (car x1))
+		(cond
+		  ((= (car x2) (car x3))
+		   (bit-gen x1 a1 b1 (v- x2) (false a2) b2 (v- x3) (false a3) )
+		   (bit-gen x1 a1 b1 (v- x2) (true a2) b2 (v- x3) (true a3) ))
+		  (T (error "In or-bits"))))))))
+      (bit-gen x1 0 b1 x2 0 b2 x3 0)
+      (values x3 b3))))
+
+(defun extract-ttable (t1)
+  (multiple-value-bind (v a)
+      (truth-table (BN-expression t1))
+    (let ((comm (hfind-comm (reverse v) *initial-assump*)))
+      
+      (dotimes (i (ash1 (comm-size comm)))
+	(when (= 0 (sbit a i)) (zero-comm comm i *initial-assump* nil)))
+      (incf *clause-num*)
+      comm)))
+
+(defun gen-ttables (bn)
+  (cond
+    ((or (null (bn-subexp bn)) (member (bn-connective bn) '(or atom negatom))) (extract-ttable bn))
+    (t (gen-ttables  (car (bn-subexp bn)))
+       (gen-ttables  (cadr (bn-subexp bn))))))
+
+(defun parse (f)
+  (cond ((atom f) f)
+	((eq (car f) 'not) 
+	 (let ((form (parse (cadr f))))
+	   (cond ((atom form) `(not ,form))
+		 ((eq (car form) 'AND) (parse (cons 'OR (mapcar #'(lambda (f) (list 'NOT f)) (cdr form)))))
+		 ((eq (car form) 'OR)  (parse (cons 'AND (mapcar #'(lambda (f) (list 'NOT f)) (cdr form))))))))
+	((eq (car f) 'and) (cons 'AND (mapcar #'parse (cdr f))))
+	((eq (car f) 'or)
+	 ;; flat-list f,
+	 ;; if any sub-exps of OR are ANDs, use a gensym.
+	 (cond ((> (length (cdr f)) *ksat*)
+		(let* ((k (length (cdr f)))
+		       (g (gensym))
+		       (fhalf (butlast (cdr f) (ash k -1)))
+		       (shalf (nthcdr (- k (ash k -1)) (cdr f))))
+		  (push g *generated-atoms*)
+		  (parse `(AND (OR ,g ,@fhalf)  (OR (NOT ,g) ,@shalf)))))
+	       (T (let ((e1 (cons 'OR (mapcar #'parse (cdr f)))))
+		      ;; replace ANDs with gensyms.
+		      (let ((e2  nil)
+			    (ands nil))
+			(dolist (e-sub (cdr e1))
+			  (if (and (not (atom e-sub)) (eq (car e-sub) 'AND))
+			      (let ((g (gensym)))
+				(push g *generated-atoms*)
+				(push g e2)
+				(push `(AND ,@(mapcar #'(lambda (x) `(OR ,x (NOT ,g))) (cdr e-sub)))
+				      ands))
+			      (push e-sub e2)))
+			(if e2
+			    (if ands (parse `(AND ,@ands (OR ,@e2))) e1)
+			    (parse `(AND ,@ands))))))))
+	(T (error "in parse"))))
+
+(defun parse-lform (lform)
+  (labels
+      ((parse (f)
+	 (cond ((atom f) (construct-atom f))
+	       ((eq (car f) 'not) 
+		(let ((form (cadr f)))
+		  (cond ((atom form) (construct-neg-atom  form))
+			((eq (car form) 'not) (parse (cadr form)))
+			((eq (car form) 'AND) (parse (cons 'OR (mapcar #'(lambda (f) (list 'NOT f)) (cdr form)))))
+			((eq (car form) 'OR) (parse (cons 'AND (mapcar #'(lambda (f) (list 'NOT f)) (cdr form))))))))
+	       ((eq (car f) 'and) (construct-and (mapcar #'parse (cdr f))))
+	       ((eq (car f) 'or)
+		(cond ((> (length (cdr f)) *ksat*)
+		       (let ((g (gensym)))
+			 (push g *generated-atoms*)
+			 (parse `(AND (OR ,(cadr f) ,(caddr f) ,g) (OR (NOT ,g) ,@(cdddr f))))))
+		      (T (construct-or (mapcar #'parse (cdr f))))))
+	       (T (error "in parse"))))
+       (construct-atom (at) (incf *num-lits*) (make-bn :lits (list at) :connective 'ATOM :expression at))
+       (construct-neg-atom (at) (incf *num-lits*) (make-bn :lits (list at) :connective 'NEGATOM :expression (list 'NOT at)))
+       (construct-and (bns)
+	 (cond ((= (length bns) 1) (car bns))
+	       ((> (length bns) 1)
+		(do ((old-bns bns (cddr old-bns)) (new-bns nil))
+		    ((null old-bns) (construct-and new-bns))
+		  (if (null (cdr old-bns)) (push (car old-bns) new-bns)
+		      (push (make-bn :lits  (union (bn-lits (car old-bns))
+						   (bn-lits (cadr old-bns)))
+				     :connective 'AND :subexp (list (car old-bns) (cadr old-bns))
+				     :expression (list 'AND (bn-expression (car old-bns)) (bn-expression (cadr old-bns))))
+			    new-bns))))))
+       (construct-or (bns)
+	 (cond ((= (length bns) 1) (car bns))
+	       (T ;; =2 or 3
+		(do ((old-bns bns (cddr old-bns)) (new-bns nil))
+		    ((null old-bns) (construct-or new-bns))
+		  (if (null (cdr old-bns)) (push (car old-bns) new-bns)
+		      (push (make-bn :lits (union (bn-lits (car old-bns))
+						  (bn-lits (cadr old-bns)))
+				     :connective 'or :subexp (list (car old-bns) (cadr old-bns))
+				     :expression (list 'OR (bn-expression (car old-bns)) (bn-expression (cadr old-bns))))
+			    new-bns)))))))
+    (parse lform)))
+
+
+(defun do-bn (bn)
+  (sort-out-boundary bn nil)
+  (number-boundary bn (setf (bn-all-vars-map bn)
+			    (setf *all-map* (mapcar #'(lambda (symbol) (cons symbol nil)) (bn-lits bn)))))
+  (prog1
+      bn ;(do-tt bn 1 (eq (bn-connective bn) 'AND) (bn-all-vars-map bn) nil)
+    (dolist  (a *all-map*) (setf (get (car a) :num) (cdr a)))))
+
+;; This sort-out-boundary/number-boundary is all (now) unecessarily complicated.
+;; Left overs from divide-conquer-unite.
+(defun sort-out-boundary (bn ext)
+  (setf (bn-ext bn) ext)
+  (cond ((null (bn-subexp bn))
+	 )
+	((= (length (bn-subexp bn)) 2)
+	 (let* ((tree1 (car (bn-subexp bn)))
+		(tree2 (cadr (bn-subexp bn)))
+		(int (intersection (bn-lits tree1) (bn-lits tree2)))
+		(set-diff (set-difference int ext)))
+	   ;; good spot to number all of the variables
+	   (setf (bn-int bn) set-diff);; elements of set-diff will be numbered from n to n+|set-diff|
+	   (sort-out-boundary tree1 (union int (intersection ext (bn-lits tree1))))
+	   (sort-out-boundary tree2 (union int (intersection ext (bn-lits tree2))))))))
+
+; Want smallest numbers to go to deepest internal left-hand vars that also occur on the right.
+(defun number-boundary (bn all-vars-map)
+  (labels
+      ;; number vars from n down to n-|list|.
+      ((sub-number (n list bn)
+	 ;; if bn has subexp
+	 ;; then for all list members that occur
+	 ;;  in both subexp, l1, call sub-number on n, l1 and left tree.
+	 ;;  And for all list members that occur only in left tree,
+	 ;;  call sub-number on (- n |l1|) l2 left-tree.
+	 ;;  And call sub-number on (- n (+ |l1| |l2|)) remaining-list-members, l3
+	 (cond
+	   ((not list) nil)
+	   ((bn-subexp bn)
+	    (let*  ((C1 (CAR (bn-subexp bn)))
+		    (c2 (cadr (bn-subexp bn)))
+		    (l1 (intersection (intersection list (bn-ext c1)) (bn-ext c2)))
+		    (l2 (set-difference list (bn-ext c2)))
+		    (l3 (set-difference list (bn-ext c1))))
+	      (when l1 (sub-number (- n (+ (length l2) (length l3))) l1 c1))
+	      (when l2 (sub-number (- n (length  l3)) l2 c1))
+	      (when l3 (sub-number n l3 c2))))
+	   (t
+	    (mapc #'(lambda (at) (setf (cdr (assoc at all-vars-map)) (decf n))) list))))
+       (num-bound (bn n)
+	 (cond
+	   (bn
+	    (sub-number (incf N (length (bn-int bn))) (bn-int bn) bn)
+	    (setf N (num-bound (car (bn-subexp bn)) N))
+	    (num-bound (cadr (bn-subexp bn)) N))
+	   (t n))))
+    (let ((x (num-bound bn 0)))
+      (dolist (l all-vars-map)
+	(unless (cdr  l) (setf (cdr l) x) (setf (get (car l) :num) x) (incf x))))))
+
+(defun compute-assign ()
+  (let ((assigns (make-array *N*))
+	(renames (make-array *N*))
+	(others nil))
+    (setf *assigns* assigns)
+    (labels
+	((handle-renames (assump)
+	   ;(dolist (r (assump-rename-vars assump))(push r (svref renames (cadr (comm-vars r))))(push  (car (comm-vars r)) others))
+	   (when (assump-prev assump) (handle-renames (assump-prev assump))))
+	 (handle-tauts (assump)
+	   (dolist (r (assump-taut-vars assump))
+	     (add-to-assigns (car (comm-vars r)) NIL))
+	   (when (assump-prev assump) (handle-tauts (assump-prev assump))))
+	 (add-to-assigns (v val)
+	   (when (svref assigns v) (error "shouldnt happen"))
+	   (setf (svref assigns v) (list val))
+	   (dolist (r (svref renames v))
+	     (if (or (acceptable r 1) (acceptable r 2))
+		 (add-to-assigns (car (comm-vars r)) (not val))
+		 (if (or (acceptable r 0) (acceptable r 3))
+		     (add-to-assigns (car (comm-vars r)) val)
+		     (error "bad rename"))))))
+      (handle-renames (info-assump *info*))
+      (handle-tauts  (info-assump *info*))
+      (dotimes (i *N*)
+	(unless (member i others)
+	  (let ((comm (find-single i)))
+	    (when (< (comm-table comm) 3) (add-to-assigns i (acceptable comm 1)))))      )
+      (dolist (b *all-map*)
+	(setf (get (car b) :assign) (car (svref assigns (cdr b)))))
+      (if (ap-exp *expression*)
+	  (mapcan #'(lambda (b)
+		      (unless (member (car b) *generated-atoms*) (list (cons (car b) (car (svref assigns (cdr b))))))) *all-map*)
+	  (progn (dolist (e (cdr *expression*))
+		   (unless (ap-exp e) (format t " ~A" e)))
+		 (error "Something fishy."))))))
+
+(defun ap-exp (exp)
+  (cond ((atom exp) (get exp :assign))
+	((eq (car exp) 'and)
+	 (dolist (e (cdr exp) t)
+	   (unless (ap-exp e) (return nil))))
+	((eq (car exp) 'or)
+	 (dolist (e (cdr exp) nil)
+	   (when (ap-exp e) (return t))))
+	((eq (car exp) 'not) (NOT (ap-exp (cadr exp))))))
+
+
+(DEFVAR *TEST*
+        '(AND (OR X35 (NOT X65) (NOT X66)) (OR X77 (NOT X44) (NOT X18))
+          (OR X75 (NOT X28) (NOT X42)) (OR X85 X76 (NOT X98))
+          (OR X43 X15 (NOT X97)) (OR (NOT X10) (NOT X72) (NOT X89))
+          (OR X9 X18 (NOT X5)) (OR X39 X86 (NOT X95))
+          (OR (NOT X98) (NOT X62) (NOT X13))
+          (OR (NOT X50) (NOT X18) (NOT X69)) (OR X67 X46 (NOT X82))
+          (OR X1 (NOT X59) (NOT X83)) (OR X82 X3 (NOT X37))
+          (OR X13 X53 (NOT X25)) (OR X97 (NOT X18) (NOT X48))
+          (OR X64 (NOT X91) (NOT X36)) (OR X30 X53 (NOT X20))
+          (OR X6 X76 (NOT X17)) (OR X5 X70 (NOT X63))
+          (OR (NOT X46) (NOT X49) (NOT X24)) (OR X77 X68 X73) (OR X29 X33 X9)
+          (OR X34 (NOT X15) (NOT X73)) (OR X52 X85 X18)
+          (OR X15 (NOT X73) (NOT X90)) (OR X43 X85 (NOT X23))
+          (OR X12 (NOT X77) (NOT X69)) (OR X59 X90 (NOT X62))
+          (OR X61 X23 X39) (OR X91 X83 (NOT X95))
+          (OR (NOT X57) (NOT X10) (NOT X92)) (OR X22 X96 (NOT X18))
+          (OR X52 (NOT X75) (NOT X28)) (OR X44 X55 X18)
+          (OR (NOT X90) (NOT X52) (NOT X16)) (OR X44 X85 (NOT X20))
+          (OR (NOT X9) (NOT X98) (NOT X66)) (OR X48 X13 (NOT X31))
+          (OR X51 X28 (NOT X76)) (OR (NOT X15) (NOT X20) (NOT X66))
+          (OR X2 (NOT X93) (NOT X78)) (OR X69 X56 (NOT X27))
+          (OR X70 (NOT X76) (NOT X24)) (OR X98 X76 X65)
+          (OR X88 X91 (NOT X5)) (OR X5 (NOT X95) (NOT X88))
+          (OR X45 X70 (NOT X21)) (OR X4 (NOT X60) (NOT X1))
+          (OR X88 X48 (NOT X16)) (OR X90 (NOT X98) (NOT X97))
+          (OR X27 X74 (NOT X51)) (OR X5 X75 (NOT X33))
+          (OR X84 X64 (NOT X16)) (OR X69 (NOT X25) (NOT X43))
+          (OR X95 X7 (NOT X24)) (OR (NOT X30) (NOT X20) (NOT X22))
+          (OR X56 X94 (NOT X99)) (OR X27 X0 (NOT X64))
+          (OR (NOT X30) (NOT X65) (NOT X80)) (OR X5 X44 (NOT X96))
+          (OR X1 X55 (NOT X45)) (OR X96 (NOT X39) (NOT X86))
+          (OR X42 (NOT X14) (NOT X31)) (OR X5 X3 (NOT X59))
+          (OR X4 X50 (NOT X17)) (OR (NOT X90) (NOT X75) (NOT X24))
+          (OR X45 X25 (NOT X40)) (OR X30 (NOT X77) (NOT X38))
+          (OR X85 X26 (NOT X67)) (OR X32 X97 (NOT X5))
+          (OR (NOT X99) (NOT X96) (NOT X21)) (OR X17 X97 (NOT X6))
+          (OR X70 X73 (NOT X8)) (OR X91 (NOT X75) (NOT X17))
+          (OR X35 X27 (NOT X69)) (OR X79 X26 X44)
+          (OR X41 (NOT X9) (NOT X60)) (OR X56 (NOT X70) (NOT X94))
+          (OR X48 (NOT X88) (NOT X40)) (OR X87 X78 (NOT X54))
+          (OR X6 (NOT X14) (NOT X44)) (OR X16 (NOT X90) (NOT X48))
+          (OR X17 X47 X61) (OR X5 (NOT X65) (NOT X81))
+          (OR X83 (NOT X25) (NOT X72)) (OR X72 X23 (NOT X47))
+          (OR X66 (NOT X47) (NOT X30)) (OR X73 (NOT X57) (NOT X19))
+          (OR (NOT X32) (NOT X22) (NOT X23)) (OR X45 (NOT X0) (NOT X34))
+          (OR X43 X2 (NOT X22)) (OR X0 (NOT X3) (NOT X95))
+          (OR X74 (NOT X38) (NOT X8)) (OR (NOT X83) (NOT X40) (NOT X87))
+          (OR X37 X72 (NOT X4)) (OR X43 (NOT X70) (NOT X87))
+          (OR (NOT X13) (NOT X54) (NOT X45)) (OR X10 X15 (NOT X28))
+          (OR X62 (NOT X42) (NOT X94)) (OR X33 X32 (NOT X30))
+          (OR X57 (NOT X58) (NOT X25))
+          (OR (NOT X40) (NOT X21) (NOT X20)) (OR X5 X38 X77)
+          (OR X56 X68 (NOT X37)) (OR (NOT X60) (NOT X63) (NOT X81))
+          (OR X69 (NOT X22) (NOT X88)) (OR X96 (NOT X8) (NOT X94))
+          (OR X11 (NOT X57) (NOT X82)) (OR X0 (NOT X87) (NOT X95))
+          (OR X23 (NOT X4) (NOT X88)) (OR X24 (NOT X43) (NOT X52))
+          (OR X30 X7 (NOT X41)) (OR X45 X11 (NOT X44))
+          (OR X76 (NOT X26) (NOT X86))
+          (OR (NOT X63) (NOT X44) (NOT X91))
+          (OR (NOT X68) (NOT X53) (NOT X42)) (OR X16 (NOT X13) (NOT X52))
+          (OR X93 X51 (NOT X55)) (OR X26 X97 X38)
+          (OR X6 (NOT X61) (NOT X89)) (OR X88 (NOT X23) (NOT X54))
+          (OR X10 X32 X21) (OR X63 X83 (NOT X35)) (OR X94 X18 X20)
+          (OR X18 (NOT X72) (NOT X79)) (OR X87 X93 (NOT X90))
+          (OR (NOT X70) (NOT X67) (NOT X23)) (OR X34 (NOT X7) (NOT X55))
+          (OR X64 X21 (NOT X14)) (OR X31 X16 (NOT X62))
+          (OR X71 (NOT X97) (NOT X28)) (OR X65 X39 (NOT X94))
+          (OR X37 (NOT X90) (NOT X86)) (OR X43 X80 X58)
+          (OR X88 (NOT X32) (NOT X74)) (OR X28 (NOT X96) (NOT X78))
+          (OR X42 X69 (NOT X16)) (OR X31 (NOT X0) (NOT X3))
+          (OR (NOT X26) (NOT X99) (NOT X8)) (OR X53 X39 (NOT X66))
+          (OR X24 X64 (NOT X37)) (OR X95 X17 X55) (OR X80 X9 (NOT X27))
+          (OR X74 (NOT X62) (NOT X75)) (OR X43 (NOT X65) (NOT X14))
+          (OR X11 X0 (NOT X5)) (OR X72 X8 X93) (OR X28 X41 (NOT X74))
+          (OR X83 (NOT X4) (NOT X91)) (OR X7 X25 (NOT X40))
+          (OR X64 X76 (NOT X32)) (OR X81 X27 (NOT X51))
+          (OR X48 X27 (NOT X72)) (OR X10 X36 (NOT X82))
+          (OR X91 (NOT X3) (NOT X19)) (OR X23 (NOT X70) (NOT X87))
+          (OR X58 X86 (NOT X77)) (OR X90 (NOT X22) (NOT X56))
+          (OR X69 (NOT X21) (NOT X97)) (OR X85 (NOT X54) (NOT X55))
+          (OR X58 (NOT X88) (NOT X83)) (OR X39 X95 (NOT X69))
+          (OR X2 X86 X80) (OR (NOT X75) (NOT X70) (NOT X22))
+          (OR X41 X16 X32) (OR (NOT X56) (NOT X15) (NOT X28))
+          (OR X43 (NOT X71) (NOT X21)) (OR X98 X95 (NOT X83))
+          (OR X41 (NOT X94) (NOT X6)) (OR X77 (NOT X43) (NOT X67))
+          (OR X39 X80 (NOT X61)) (OR X29 (NOT X15) (NOT X63))
+          (OR X27 (NOT X72) (NOT X56)) (OR X22 X52 (NOT X19))
+          (OR X64 (NOT X85) (NOT X97))
+          (OR (NOT X64) (NOT X82) (NOT X26))
+          (OR (NOT X95) (NOT X68) (NOT X42)) (OR X52 X17 (NOT X69))
+          (OR X71 (NOT X18) (NOT X15)) (OR X30 X16 X76)
+          (OR (NOT X99) (NOT X25) (NOT X73)) (OR X32 (NOT X26) (NOT X88))
+          (OR X27 (NOT X26) (NOT X76)) (OR X67 (NOT X70) (NOT X52))
+          (OR X78 X10 X76) (OR X43 X78 (NOT X92))
+          (OR X85 (NOT X44) (NOT X37)) (OR X3 (NOT X15) (NOT X64))
+          (OR X55 (NOT X35) (NOT X98)) (OR X97 (NOT X95) (NOT X2))
+          (OR X93 (NOT X43) (NOT X6)) (OR X28 X26 (NOT X33))
+          (OR X0 (NOT X82) (NOT X78)) (OR X4 (NOT X64) (NOT X67))
+          (OR X53 X16 (NOT X83)) (OR X78 X94 (NOT X51))
+          (OR X61 (NOT X70) (NOT X36)) (OR X16 X77 (NOT X39))
+          (OR X64 X56 (NOT X35)) (OR X80 X90 (NOT X49))
+          (OR X1 (NOT X66) (NOT X76)) (OR X30 (NOT X91) (NOT X17))
+          (OR X0 X28 X88) (OR X74 (NOT X13) (NOT X52))
+          (OR X4 (NOT X29) (NOT X71)) (OR X75 X30 X86)
+          (OR (NOT X11) (NOT X25) (NOT X86)) (OR X14 X28 (NOT X90))
+          (OR X3 (NOT X70) (NOT X75)) (OR X47 X30 (NOT X76))
+          (OR X2 X68 X26) (OR X14 X17 X89)
+          (OR (NOT X12) (NOT X86) (NOT X62)) (OR X19 X27 (NOT X1))
+          (OR (NOT X31) (NOT X80) (NOT X39)) (OR X86 X49 (NOT X18))
+          (OR X2 X11 (NOT X25)) (OR X91 X15 (NOT X46))
+          (OR X29 (NOT X19) (NOT X28)) (OR X68 X63 (NOT X46))
+          (OR X57 (NOT X47) (NOT X40)) (OR X40 X61 (NOT X86))
+          (OR X81 (NOT X11) (NOT X36)) (OR X87 X11 (NOT X43))
+          (OR X81 X17 (NOT X99)) (OR X55 X54 X35) (OR X77 X54 X17)
+          (OR X43 X74 (NOT X18)) (OR (NOT X46) (NOT X85) (NOT X59))
+          (OR X84 X85 (NOT X37)) (OR X74 (NOT X31) (NOT X80))
+          (OR X85 (NOT X82) (NOT X41)) (OR (NOT X2) (NOT X94) (NOT X3))
+          (OR X11 X58 (NOT X61)) (OR X96 (NOT X88) (NOT X50))
+          (OR X60 X6 (NOT X86)) (OR X18 (NOT X27) (NOT X59))
+          (OR X91 (NOT X36) (NOT X9)) (OR X85 X2 (NOT X74))
+          (OR (NOT X24) (NOT X69) (NOT X84)) (OR X97 X25 (NOT X61))
+          (OR X94 (NOT X67) (NOT X11)) (OR X11 X25 (NOT X49))
+          (OR X76 (NOT X57) (NOT X37)) (OR X68 X82 (NOT X43))
+          (OR X84 X21 (NOT X34)) (OR (NOT X87) (NOT X41) (NOT X50))
+          (OR (NOT X64) (NOT X63) (NOT X77)) (OR X12 X73 (NOT X54))
+          (OR X83 (NOT X52) (NOT X79)) (OR X16 (NOT X43) (NOT X9))
+          (OR X33 X64 (NOT X34)) (OR X39 (NOT X85) (NOT X73))
+          (OR X57 (NOT X58) (NOT X54)) (OR X69 X77 (NOT X24))
+          (OR X98 X41 (NOT X51)) (OR X11 (NOT X56) (NOT X39))
+          (OR X26 (NOT X66) (NOT X27)) (OR X51 (NOT X38) (NOT X25))
+          (OR X31 X85 (NOT X47)) (OR X62 (NOT X87) (NOT X13))
+          (OR (NOT X78) (NOT X62) (NOT X83)) (OR X88 (NOT X20) (NOT X56))
+          (OR X52 (NOT X58) (NOT X31)) (OR X8 X93 (NOT X82))
+          (OR X33 X69 X52) (OR X64 (NOT X96) (NOT X49))
+          (OR X22 (NOT X31) (NOT X89)) (OR X91 (NOT X27) (NOT X42))
+          (OR X30 X69 (NOT X5)) (OR X47 X29 (NOT X14))
+          (OR (NOT X86) (NOT X18) (NOT X7)) (OR X21 (NOT X53) (NOT X35))
+          (OR X99 X28 X55) (OR X94 X47 (NOT X39))
+          (OR X53 (NOT X2) (NOT X35)) (OR X60 (NOT X71) (NOT X97))
+          (OR X95 X0 X7) (OR X6 (NOT X97) (NOT X67)) (OR X2 X75 (NOT X61))
+          (OR X5 (NOT X61) (NOT X65)) (OR (NOT X64) (NOT X75) (NOT X76))
+          (OR (NOT X0) (NOT X59) (NOT X81))
+          (OR (NOT X36) (NOT X68) (NOT X41)) (OR X76 X26 X0)
+          (OR X16 X10 X32) (OR X41 X36 (NOT X58))
+          (OR X32 (NOT X35) (NOT X34)) (OR X16 (NOT X51) (NOT X33))
+          (OR X40 X89 (NOT X79)) (OR X89 X59 (NOT X66))
+          (OR X23 (NOT X44) (NOT X71)) (OR X86 (NOT X33) (NOT X9))
+          (OR X25 X10 X75) (OR X70 (NOT X57) (NOT X43))
+          (OR X47 X99 (NOT X48)) (OR X35 (NOT X0) (NOT X16))
+          (OR X85 X26 (NOT X65)) (OR X95 (NOT X25) (NOT X90))
+          (OR X2 X96 (NOT X93)) (OR X96 X50 (NOT X33))
+          (OR X0 (NOT X72) (NOT X59)) (OR X58 X10 (NOT X51))
+          (OR (NOT X83) (NOT X71) (NOT X53)) (OR X2 (NOT X54) (NOT X97))
+          (OR X48 (NOT X2) (NOT X20)) (OR X33 X19 X67)
+          (OR X32 X44 (NOT X50)) (OR X45 X51 (NOT X49))
+          (OR X20 (NOT X76) (NOT X96))
+          (OR (NOT X53) (NOT X37) (NOT X98)) (OR X44 X91 (NOT X77))
+          (OR X13 X47 X54) (OR X29 (NOT X31) (NOT X78))
+          (OR (NOT X52) (NOT X26) (NOT X87)) (OR X92 X56 X85)
+          (OR X26 (NOT X81) (NOT X46)) (OR X30 (NOT X32) (NOT X33))
+          (OR X91 X92 (NOT X0)) (OR X53 X17 (NOT X72))
+          (OR X99 (NOT X65) (NOT X31)) (OR X92 (NOT X99) (NOT X28))
+          (OR X11 X25 (NOT X72)) (OR X28 X52 X22) (OR X61 X13 (NOT X29))
+          (OR X5 X61 X73) (OR X68 X31 X67) (OR X46 (NOT X3) (NOT X80))
+          (OR X70 (NOT X30) (NOT X65))
+          (OR (NOT X22) (NOT X38) (NOT X28)) (OR X24 X93 (NOT X87))
+          (OR X4 (NOT X48) (NOT X94)) (OR X12 (NOT X49) (NOT X42))
+          (OR X69 (NOT X83) (NOT X99)) (OR X53 X65 (NOT X35))
+          (OR X67 X80 (NOT X33)) (OR X81 (NOT X32) (NOT X68))
+          (OR X58 (NOT X11) (NOT X16)) (OR X81 (NOT X52) (NOT X29))
+          (OR (NOT X59) (NOT X34) (NOT X28)) (OR X87 (NOT X83) (NOT X37))
+          (OR X91 (NOT X68) (NOT X10)) (OR X65 X37 (NOT X88))
+          (OR X39 (NOT X95) (NOT X80)) (OR X39 (NOT X74) (NOT X72))
+          (OR X75 X31 X49) (OR X64 (NOT X67) (NOT X48))
+          (OR X16 (NOT X67) (NOT X7)) (OR X65 X15 (NOT X21))
+          (OR (NOT X98) (NOT X13) (NOT X70))
+          (OR (NOT X95) (NOT X35) (NOT X44)) (OR X76 X30 (NOT X70))
+          (OR X28 X41 (NOT X90)) (OR X33 X83 (NOT X87))
+          (OR X53 X33 (NOT X62)) (OR X29 (NOT X13) (NOT X79))
+          (OR X31 X91 (NOT X37)) (OR X18 (NOT X87) (NOT X57))
+          (OR X88 X26 X63) (OR X8 X11 (NOT X82)) (OR X70 X83 X77)
+          (OR (NOT X71) (NOT X59) (NOT X76)) (OR X15 (NOT X76) (NOT X22))
+          (OR X36 (NOT X14) (NOT X71)) (OR X71 (NOT X42) (NOT X47))
+          (OR X80 (NOT X12) (NOT X47)) (OR X10 X98 (NOT X42))
+          (OR X76 X48 (NOT X68)) (OR X18 X94 X40) (OR X67 X32 (NOT X20))
+          (OR X47 X55 (NOT X21)) (OR (NOT X15) (NOT X5) (NOT X6))
+          (OR X58 X3 X60) (OR X19 (NOT X79) (NOT X53)) (OR X76 X53 X39)
+          (OR X21 X51 (NOT X90)) (OR X87 (NOT X6) (NOT X69))
+          (OR X37 (NOT X69) (NOT X36)) (OR X48 X79 (NOT X59))
+          (OR X98 (NOT X97) (NOT X28)) (OR X37 X15 X85)
+          (OR X23 (NOT X40) (NOT X99)) (OR X81 X10 X17)
+          (OR (NOT X36) (NOT X94) (NOT X91)) (OR X23 (NOT X21) (NOT X80))
+          (OR X13 (NOT X76) (NOT X54)) (OR X89 (NOT X22) (NOT X40))
+          (OR X44 (NOT X93) (NOT X95)) (OR X92 X34 (NOT X87))
+          (OR X20 (NOT X41) (NOT X88)) (OR X10 (NOT X69) (NOT X49))
+          (OR X98 X21 X76) (OR X50 (NOT X98) (NOT X43))
+          (OR (NOT X31) (NOT X93) (NOT X46)) (OR X35 (NOT X60) (NOT X38))
+          (OR X30 X7 (NOT X15)) (OR X0 X98 (NOT X68))
+          (OR X44 (NOT X84) (NOT X74)) (OR X97 (NOT X57) (NOT X29))
+          (OR X14 X53 (NOT X59)) (OR X59 (NOT X94) (NOT X46))
+          (OR X29 X69 X94) (OR X91 X62 (NOT X64))
+          (OR X29 (NOT X36) (NOT X67)) (OR X19 X62 (NOT X99))
+          (OR X20 X22 (NOT X30)) (OR X65 X45 (NOT X75))
+          (OR X14 X6 (NOT X93)) (OR X43 (NOT X42) (NOT X56))
+          (OR X0 X47 (NOT X66)) (OR X98 X64 (NOT X49))
+          (OR X23 (NOT X68) (NOT X19)) (OR X1 X41 X61)
+          (OR X5 X77 (NOT X45)) (OR X1 (NOT X45) (NOT X30))
+          (OR X76 (NOT X73) (NOT X52)) (OR X64 (NOT X18) (NOT X70))
+          (OR X71 X41 (NOT X42)) (OR X68 X89 (NOT X73))
+          (OR X26 X4 (NOT X34)) (OR X73 X46 (NOT X25))
+          (OR X23 X68 (NOT X81)) (OR X29 (NOT X32) (NOT X2))
+          (OR X83 X59 X45) (OR X47 (NOT X48) (NOT X2))
+          (OR X23 (NOT X39) (NOT X85)) (OR X61 X76 (NOT X44))
+          (OR X31 (NOT X94) (NOT X83)) (OR X79 X32 (NOT X77))
+          (OR X90 (NOT X25) (NOT X43))))
+
+
+;;; *EOF*

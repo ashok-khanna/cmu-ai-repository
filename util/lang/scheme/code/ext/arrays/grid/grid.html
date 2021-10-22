@@ -1,0 +1,44 @@
+; From: thinman@netcom.com (Technically Sweet)
+; Subject: Another N-dim array package
+; Message-ID: <thinmanC47Ipr.L4p@netcom.com>
+; Organization: International Foundation for Internal Freedom
+; Date: Sat, 20 Mar 1993 21:37:02 GMT
+
+; In contrast to Alan Bawden's cool elegant array package,
+; here's my simple one:
+
+(define (make-grid start . dims)
+        (if (list? (car dims)) (set! dims (car dims)))
+        (let ((v (make-vector (car dims) start)))
+                (if (not (null? (cdr dims)))
+                        (do ((i 0 (+ i 1))) ((>= i (car dims)))
+                                (vector-set! v i
+                                        (make-grid start (cdr dims)))))
+                v))
+
+; grid n0 n1 n2 ...
+(define (grid-ref g . n)
+        (if (list? (car n)) (set! n (car n)))
+        (if (null? (cdr n))
+                (vector-ref g (car n))
+                (grid-ref (vector-ref g (car n)) (cdr n))))
+
+; grid value n0 n1 n2 ...
+(define (grid-set! g v . n)
+        (if (list? (car n)) (set! n (car n)))
+        (if (null? (cdr n))
+                (vector-set! g (car n) v)
+                (grid-set! (vector-ref g (car n)) v (cdr n))))
+
+; tests
+(define t (make-grid 0 '(4 5 6)))
+(display t)
+(grid-set! t 24 '(2 2 3))
+(display (grid-ref t '(2 2 3)))
+
+(define u (make-grid #f 2 2))
+(display t)
+(grid-set! t #t 1 0)
+(display (grid-ref t 1 0))
+
+;;; *EOF*

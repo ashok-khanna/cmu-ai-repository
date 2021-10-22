@@ -1,0 +1,383 @@
+From serrano@savigny.inria.fr Wed Mar  2 17:48:48 EST 1994
+Article: 8393 of comp.lang.scheme
+Xref: glinda.oz.cs.cmu.edu comp.lang.scheme:8393
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!news.mic.ucla.edu!library.ucla.edu!europa.eng.gtefsd.com!howland.reston.ans.net!pipex!warwick!zaphod.crihan.fr!jussieu.fr!univ-lyon1.fr!news-rocq.inria.fr!savigny.inria.fr!serrano
+From: serrano@savigny.inria.fr (Manuel Serrano)
+Newsgroups: comp.lang.scheme
+Subject: Bigloo
+Date: 2 Mar 1994 13:16:57 GMT
+Organization: INRIA * Rocquencourt BP 105 * F-78153 LE CHESNAY CEDEX* France
+Lines: 79
+Distribution: world
+Message-ID: <2l23k9$hki@news-rocq.inria.fr>
+NNTP-Posting-Host: savigny.inria.fr
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
+
+------------------------------------------------------------------------------
+Bigloo (v1.6)                                                            ,--^, 
+a `Scheme' compiler                                                _ ___/ /|/  
+Wed Mar 2 00:09:01 MET 1994                                    ,;'( )__, ) '   
+Manuel Serrano                                                ;;  //   L__.    
+email:                                                        '   \    /  '    
+Manuel.Serrano@inria.fr                                            ^   ^       
+------------------------------------------------------------------------------
+
+The new release (1.6) of Bigloo, a Scheme compiler and interpreter,
+is now available by ftp at the address
+
+     [192.93.2.54] `ftp.inria.fr:/INRIA/Projects/icsla/Implementations'
+
+
+This new release was successfully compiled on:
+
+	- SPARC (1, 2, 10) under Bsd and Solaris 2.xx
+	- SONY-NEWS (mips r3000)
+	- IRIS indigo (mips r3000)
+	- SUN 3/60
+	- DEC Station 3100 (mips r3000)
+	- HP-PA (730)
+	- PC-linux (i486)
+
+Major changes from the release 1.5 are:
+
+	- An `extension package system' has been added to Bigloo. It
+          offers a convenient way to extend the language compiled by Bigloo. 
+          Announces for the first two packages follow in subsequent mails.
+
+	- Full foreign interface: It is now possible to declare any C
+          type and use it in any C function or C variable
+          declaration. The foreign interface call protocol is the same 
+          as C (that means call by value, even for structures).
+
+	- Addition of a new kind of output-port: the `output-string-port'.
+
+	- Rgc, the lexical analyzer is now available both under the
+          interpreter and the compiler.
+
+	- Identifiers now support 8 bits characters.
+
+	- For compatibility reasons, the functions `rational?' and
+	  `complex?' have been added to the library (they always return #f).
+
+	- The function `string->number' has been added to the library.
+
+	- The `getenv' library function now returns `#f' if no variable
+          is bound under the name given as argument.
+
+	- Structure definitions now build another function which allows
+          after the instance allocation, the initialization of each slot
+          with a specific value.          
+
+	- The `.bigloorc' syntax has changed, it is now a regular 
+          Scheme file.
+
+	- Linking is now much more easy since it is possible to
+          invoke Bigloo on `.o' files.
+
+	- The library has been extended with some useful functions such
+          as (obj->string and string->obj) which convert any Scheme
+          object (even a circular one) to strings and conversely.
+
+
+--Manuel Serrano--
+
+ -----------------------------------------------------------------------------
+ Manuel SERRANO (equipe ICSLA, Bat 8)           _/_/   _/_/           _/_/_/_/
+ INRIA-Rocquencourt, BP 105, 78153             _/ _/ _/ _/          _/
+ Le Chesnay CEDEX, FRANCE                     _/   _/  _/            _/_/_/
+ tel: (work) 39-63-57-32                     _/       _/                  _/
+ email: Manuel.Serrano@inria.fr             _/       _/     _/   _/_/_/_/
+ -----------------------------------------------------------------------------
+
+
+
+ 
+
+
+Article 8397 of comp.lang.scheme:
+Xref: glinda.oz.cs.cmu.edu comp.lang.scheme:8397
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!news.mic.ucla.edu!library.ucla.edu!agate!howland.reston.ans.net!pipex!sunic!EU.net!julienas!news-rocq.inria.fr!savigny.inria.fr!serrano
+From: serrano@savigny.inria.fr (Manuel Serrano)
+Newsgroups: comp.lang.scheme
+Subject: An ML front end for Bigloo
+Date: 3 Mar 1994 11:13:00 GMT
+Organization: INRIA * Rocquencourt BP 105 * F-78153 LE CHESNAY CEDEX* France
+Lines: 193
+Distribution: world
+Message-ID: <2l4gns$6f0@news-rocq.inria.fr>
+NNTP-Posting-Host: savigny.inria.fr
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
+
+Ever heard of a compiler that compiles Scheme *and* ML, link them, run
+them in a smooth way ! Ever dreamt of a compiler with a complete foreign
+interface with C ! 
+
+             STOP dreaming, START NOW! using it.
+                  It's name is Bigloo 1.6
+
+Bigloo 1.6 compiles efficiently to C modules written in Scheme,
+modules written in Caml (a ML dialect), allows these modules to use C
+libraries and C macros, is able to merge them in a standalone
+application. Bigloo also offers numerous features: pattern matching,
+lexical analyzers generation, objects with Meroon V3. 
+
+Bigloo 1.6 is the Scheme compiler, Camloo is the customization above
+it that allows to also compile Caml modules. Both may be found on:
+        
+     [192.93.2.54] ftp.inria.fr:INRIA/Projects/icsla/Implementations
+
+
+
+Here is an example of a program which mix Scheme, ML and C:
+
+First, there is an Caml source file. It builds a list, prints it, reverses it
+and re-prints it:
+
+-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----
+(* build.ml: a ML source file *)
+#open "main";;
+
+let l = [1; 2; 3; 4];;
+
+let rec print_list = function [] -> ()
+                        | x :: l -> print_int x; print_list l;;
+
+print_string "l is: "; print_list l; print_newline();;
+print_string "l reversed is: "; print_list (nreverse l); print_newline();;
+-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----
+
+Of, course, it is not possible in ML to make physical modifications on
+lists. For this reason, the function `nreverse' is implemented in Scheme.
+In order to perform this, we need an Caml interface:
+
+-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----
+(* build.mli: an ML interface *)
+value nreverse : 'a list -> 'a list = 1 "nreverse"
+;;
+-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----
+
+The Scheme source file (a Bigloo module), defines and exports `nreverse'
+but to have fun, it also duplicate the ML list in a C structure. This
+C structure is the argument of a C function which will print it. It is
+to notice that the C structure is allocated from Scheme (in the Bigloo
+heap and so, can be reclaimed by the Bigloo's GC).
+
+-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----
+;; a Scheme source file
+(module __caml_main
+   (foreign (include "type.h")
+	    (type    el (struct ((int "value")
+				 (el* "next"))
+				"struct el"))
+	    (void    print-el-list (el*) "print_el_list")
+	    (export  int fib (int) "fib"))
+   (export  (c-nreverse x)
+	    (fib x)))
+
+(define (fib x)
+   (if (< x 2)
+       1
+       (+ (fib (- x 1)) (fib (- x 2)))))
+
+(define (c-nreverse l)
+   (make-c-list l)
+   (if (pair? l)
+       (let nr ((l l)
+		(r '()))
+          (if (null? (cdr l))
+              (begin
+                 (set-cdr! l r)
+                 l)
+	      (let ((cdrl (cdr l)))
+		 (nr cdrl
+		     (begin (set-cdr! l r) l)))))
+       l))
+
+(define (make-c-list l)
+   (let ((head (make-el)))
+      (let loop ((l l)
+		 (c head))
+	 (if (null? l)
+	     (begin
+		(print "ok, it is done, I print: ")
+		(print-el-list head))
+	     (let ((new (make-el)))
+		(el-value-set! c (car l))
+		(el-next-set! c new)
+		(loop (cdr l) new))))))
+-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----
+
+The C structure is given in a C include file:
+
+-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----
+/* type.h: a small C include */
+struct el {
+	int value;
+	struct el *next;
+};
+-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----
+
+At the end, the C source file. It traverses the structure, prints it and
+for fun invokes the Scheme function fib. Of course Scheme integers are not
+C integers, Bigloo has managed (when exporting fib) the coercion to make
+this C invocation correct.
+
+-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----
+/* el.c: a small stupid C source file */
+#include "type.h"
+
+void
+print_el_list( l )
+struct el *l;
+{
+	printf( "( ");
+	
+	while( l )
+	{
+		printf( "%d ", l->value );
+		l = l->next;
+	}
+	puts( ")\n" );
+	
+	printf( "Its finish for C, but for fun, I have computed fib: %d\n",
+		fib( 20 ) );
+}
+-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----
+
+Of course, we need a Makefile to compile and link all this files: 
+
+-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----
+# And of course a Makefile...
+BIGLOO=bigloo
+CC=cc
+
+all: el.o main.o build.o
+	$(BIGLOO) -o test el.o main.o build.o -extend caml
+
+clean:
+	\rm -f *.o *.zi test
+
+el.o: el.c
+	$(CC) -c el.c
+
+main.o: main.scm
+	$(BIGLOO) -A main.scm
+
+build.o: build.ml build.zi main.zi
+	$(BIGLOO) -A build.ml
+
+build.zi: build.mli
+	$(BIGLOO) build.mli
+
+main.zi: main.mli
+	$(BIGLOO) main.mli
+-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----|-----
+
+
+Ok, we launch the compilation:
+$ make
+cc -c el.c
+bigloo -A main.scm
+main.scm:
+bigloo build.mli
+build.mli:
+bigloo main.mli
+main.mli:
+bigloo -A build.ml
+build.ml:
+bigloo -o test el.o main.o build.o -extend caml
+
+And now, we are able to run the program:
+$ test
+l is: 1234
+ok, it is done, I print: 
+( 1 2 3 4 0 )
+
+Its finish for C, but for fun, I have computed fib: 10946
+l reversed is: 4321
+
+
+
+--Manuel Serrano & Pierre Weis-- 
+
+ 
+
+
+From serrano@savigny.inria.fr Tue Jan 24 18:02:42 EST 1995
+Article: 16456 of comp.lang.lisp
+Path: cantaloupe.srv.cs.cmu.edu!das-news2.harvard.edu!news2.near.net!howland.reston.ans.net!europa.eng.gtefsd.com!salliemae!uunet!fdn.fr!univ-lyon1.fr!jussieu.fr!news-rocq.inria.fr!savigny.inria.fr!serrano
+From: serrano@savigny.inria.fr (Manuel Serrano)
+Newsgroups: comp.lang.lisp
+Subject: Bigloo1.7
+Date: 23 Jan 1995 12:26:29 GMT
+Organization: INRIA * Rocquencourt BP 105 * F-78153 LE CHESNAY CEDEX* France
+Lines: 56
+Distribution: world
+Message-ID: <3g079l$o32@news-rocq.inria.fr>
+NNTP-Posting-Host: savigny.inria.fr
+Mime-Version: 1.0
+Content-Type: text/plain; charset=iso-8859-1
+Content-Transfer-Encoding: 8bit
+
+------------------------------------------------------------------------------
+Bigloo (v1.7)                                                            ,--^, 
+a `Scheme' compiler                                                _ ___/ /|/  
+Fri Jan 20 13:04:45 MET 1995                                   ,;'( )__, ) '   
+Manuel Serrano                                                ;;  //   L__.    
+email:                                                        '   \    /  '    
+Manuel.Serrano@inria.fr                                            ^   ^       
+------------------------------------------------------------------------------
+
+The new release (1.7) of Bigloo, a Scheme compiler and interpreter,
+is now available by ftp at the address
+
+     [192.93.2.54] `ftp.inria.fr:/INRIA/Projects/icsla/Implementations'
+
+
+This new release was successfully compiled on:
+
+	- SPARC 1, 2, 10 (under SunOS 4.xx and Solaris 2.xx)
+	- SONY-NEWS (mips r3000)
+	- DEC Station 3100 (mips r3000)
+	- HP-PA (730)
+	- PC-linux 1.1.61 (i486)
+	- DEC Station Alpha (OSF/1 V2.0)
+
+The compiler should run correctly (but has not been tested) on:
+
+	- NeXT 68k
+	- IBM RS-6000 (AIX)
+
+Major changes from the release 1.6 are:
+
+	- An `assertion' mechanism has been added.
+
+	- Improvement of the `repl' function.
+
+	- Addition of new optimizations (type bigloo -help).
+
+	- Utilization of the new Boehm's GC release (v 4.3)
+
+	- Port for 64 bits architecture.
+
+	- Rgc improvements.
+
+	- Redesign of the pretty-printer (Bigloo now, uses the Marc Feeley's
+          one).
+
+	- Addition of user's hash-tables.
+
+	- Addition of the function `open-input-string' which open an input
+          port on strings.
+
+ -----------------------------------------------------------------------------
+ Manuel SERRANO  (tel: +33 (1) 39-63-57-32   email: Manuel.Serrano@inria.fr)
+ INRIA-Rocquencourt, BP 105, 78153  Le Chesnay CEDEX, FRANCE                  
+ -----------------------------------------------------------------------------
+ 
+
+

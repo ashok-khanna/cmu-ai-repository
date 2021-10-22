@@ -1,0 +1,1041 @@
+
+ G E N E T I C   P R O G R A M M I N G   F A Q
+===============================================
+
+
+Table of contents:
+1.  What is Genetic Programming [GP]?
+2.  Why should I be interested in Genetic Programming?
+3.  THIS MAILING LIST IS BUGGING ME, HOW DO I GET OFF/ YOU'VE
+    GOT MY ADDRESS SCREWED UP/I'D LIKE TO SUBSCRIBE.
+    HOW DO I CHANGE THE STATUS QUO?
+4.  Where can I find out more about Genetic Progamming?
+5.  I'm new to Genetic Algorithms.  Can you point me to
+    some sources for more general information on GAs to put
+    this in perspective?
+6.  The GP implementation in the book is presented entirely in Lisp.
+    Do I need to use Lisp to have an implementation of GP?
+7.  I would like to use GP with C instead of LISP because C is
+    usually faster.  How does one use GP with C instead of LISP?
+    In LISP the parse tree is obvious - in C it is not.  How does
+    one eval C programs?
+8.  I don't want to have to type in the code in the appendices to
+    the book.  Can I get the source code on-line somewhere?
+9.  What's all this I hear about patents?
+10. I'm not a sophisticated Lisp user and don't understand why
+    so much apparent effort is spent in the Lisp code in the book
+    worrying about FAST-EVAL.  Can't I just get things to go faster
+    by compiling my population or some such.  This would avoid the
+    apparent recursion in the FAST-EVAL function.
+11. What specific areas are GPers working on right now?
+   11.1 JK and JR
+   11.2 Simon Handley
+   11.3 Graham Spencer
+   11.4 Craig Reynolds
+   11.5 Howard Oakley
+   11.6 William Archibald
+   11.7 Walter Tackett
+   11.8 Kim Kinnear
+   11.9 Peter Angeline
+12. Can I get the code that JK and JR run?
+13. Has GP been shown to be better than Random Search?
+   13.1 Peter Angeline's results.
+14. What is Symbolic Regression?
+15. I want to GP but I don't know what sort of machine to
+    run it on.  What should I get?
+
+99. Glossary
+100. Book order form.
+
+
+1.  What is Genetic Programming [GP]?
+    ---------------------------------
+
+To answer this question properly, we should probably first
+consider the question "what's a GENETIC ALGORITHM?"
+
+The Genetic Algorithm is a model of machine learning which
+derives its behaviour from a metaphor of the processes of
+evolution in nature.  This is done by the creation within
+a machine of a population of individals represented by
+chromosomes, in essence a set of character strings that
+are analogous to the base-4 chromosomes that we see in our
+own DNA.  The individals in the population then go through
+a process of evolution.
+
+We should note that evolution (in nature or anywhere
+else) is not a purposive or directed process.  That is,
+there is no evidence to support the assertion that the
+goal of evolution is to produce Mankind.  Indeed, the
+processes of nature seem to boil down to different
+individuals competing for resources in the environment.
+Some are better than others.  Those that are better are
+more likely to survive and propagate their genetic
+material.
+
+In nature, we see that the encoding for our genetic
+information (genome) is done in a way that admits sexual
+reproduction.  Asexual reproduction (such as by budding)
+typically results in offspring that are genetically
+identical to the parent.  Sexual reproduction allows the
+creation of genetically radically different offspring
+that are still of the same general flavour (species).
+
+At the molecular level what occurs (wild
+oversimplification alert) is that a pair of chromosomes
+bump into one another, exchange chunks of genetic
+information and drift apart.  This is the
+"RECOMBINATION" operation, which GA/GPers generally
+refer to as "CROSSOVER" because of the way that genetic
+material crosses over from one chromosome to another.
+
+The crossover operation happens in an environment where
+the selection of who gets to mate is a function of the
+"FITNESS" of the individual, i.e. how good the
+individual is at competing in its environment.  
+
+Some genetic algorithms use a simple function of the
+fitness measure to select individuals
+(probabilistically) to undergo genetic operations such
+as crossover or REPRODUCTION (the propagation of genetic
+material unaltered).  This is fitness-proportionate
+selection.  Other implementations use a model in which
+certain randomly selected individuals in a subgroup
+compete and the fittest is selected.  This is called
+tournament selection and is the form of selection we see
+in nature when stags rut to vie for the privilege of
+mating with a herd of hinds.  The two processes that
+most contribute to evolution are crossover and fitness
+based selection/reproduction.
+
+As it turns out, there are mathematical proofs that
+indicate that the process of fitness proportionate
+reproduction is, in fact, near optimal in some senses.
+
+Mutation also plays a role in this process, though it
+is not the dominant role that is popularly believed to
+be the process of evolution, i.e.  random mutation and
+survival of the fittest.  It cannot be stressed too
+strongly that the genetic algorithm (as a simulation of
+a genetic process) is not a "random search" for a
+solution to a problem (highly fit individual).  The
+genetic algorithm uses stochastic processes, but the
+result is distinctly non-random (better than random).
+
+Genetic algorithms are used for a number of different
+application areas.  An example of this would be
+multidimensional optimisation problems in which the
+character string of the chromosome can be used to encode
+the values for the different parameters being optimised.
+
+In practice, therfore, we can implement this genetic
+model of computation by having arrays of bits or
+characters to represent the chromosomes.  Simple bit
+manipulation operations allow the implementation of
+crossover, mutation and other operations.  Although a
+substantial amount of research has been performed on
+variable-length strings and other structures, the
+majority of work with genetic algorithms is focussed on
+fixed-length character strings.  We should focus on both
+this aspect of fixed-lengthness and the need to encode
+the representation of the solution being sought as a
+character string, since these are crucial aspects that
+distinguish Genetic Programming, which does not have a
+fixed length representation and there is typically no
+encoding of the problem.
+
+When the genetic algorithm is implemented it is usually
+done in a manner that involves the following cycle:
+Evaluate the fitness of all of the individuals in the
+population.  Create a new population by performing
+operations such as crossover, fitness-proportionate
+reproduction and mutation on the individuals whose
+fitness has just been measured.  Discard the old
+population and iterate using the new population.
+
+One iteration of this loop is refered to as a
+GENERATION.  There is no theoretical reason for this as
+an implementation model.  Indeed, we do not see this
+punctuated behaviour in populations in nature as a
+whole, but it is a convenient implementation model.
+
+The first generation (generation 0) of this process
+operates on a population of randomly generated
+individuals.  From there on, the genetic operations, in
+concert with the fitness measure, operate to improve the
+population.
+
+
+
+Genetic Programming is the extension of the genetic model
+of learning into the space of programs.  That is, the
+objects that constitute the population are not
+fixed-length character strings that encode possible
+solutions to the problem at hand, they are programs that,
+when executed, "are" the candidate solutions to the
+problem.  These programs are expressed in genetic
+programming as parse trees, rather than as lines of code.
+Thus, for example, the simple program "a + b * c" would be
+represented as:
+                     +
+                    / \
+                   a   *
+                      / \
+                     b   c
+
+or, to be precise, as suitable data structures linked
+together to achieve this effect.  Because this is a very
+simple thing to do in the programming language Lisp, many
+GPers tend to use Lisp.  However, this is simply an
+implementation detail.  There are straighforward methods
+to implement GP using a non-Lisp programming environment.
+
+The programs in the population are composed of elements
+from the FUNCTION SET and the TERMINAL SET, which are
+typically fixed sets of symbols selected to be
+appropriate to the solution of problems in the domain
+of interest.
+
+In GP the crossover operation is implemented by taking
+randomly selected subtrees in the individuals (selected
+according to fitness) and exchanging them.
+
+
+2.  Why should I be interested in Genetic Programming?
+    --------------------------------------------------
+Genetic programming is a machine learning model which, its adherents
+would claim, is the most general and flexible around.  It has already
+been applied to a wide variety of problem domains and may well have
+real-world utility.
+
+
+3.  This mailing list is bugging me, how do I get off/ You've
+    ---------------------------------------------------------
+    got my address screwed up/ I'd like to subscribe.  
+    -------------------------------------------------
+    How do I change the status quo?
+    -------------------------------
+
+Send mail to genetic-programming-REQUEST@cs.stanford.edu.
+                                ^^^^^^^^
+Please try to make it obvious what change you'd like to be
+made.  Try to include as much information as you can to
+make is possible to enter you correctly in the mailing
+list database.  The same detail is most helpful for
+unsubscription requests.  This is because the mailing list
+is contained in a database that allows no searching
+other than alphabetically by surname (some database!).  Thus,
+if your address is
+
+  Fred Foobar <ff@somewhere.edu>
+
+then asking to unsubscribe ff@somewhere.edu will make it
+very hard to remove your entry.  This whole indexing by
+surname is made more error prone by the names of people
+from countries/ethnic bacgrounds in which it is
+conventional to put the surname (family name) first and
+the given names last.  In the US, "given" names are
+usually refered to as "first" names(even if they come
+last), which makes it even more confusing.  To someone
+with an English speaking background, there is no ambiguity
+as to how to index the name "John Brown", but there may
+well be such ambiguity when indexing a name such as Fu
+Manchu.  Please try to help in this respect if you can.
+
+Changes are performed at the soonest available time and
+are typically confirmed in separate messages.  It
+typically takes a couple of hours for the database changes
+to propagate to the mailing list proper.
+
+Please try not to editorialise in messages to
+genetic-programming-REQUEST@cs.stanford.edu, since this
+makes it harder to find the relevant data in the heat of
+battle.  Noone will be offended if you don't want to read
+the list any more, so you don't need to justify your request.
+
+Please do NOT send un/subscribe messages to
+genetic-programming@cs.stanford.edu.  This is very
+iritating to readers, degrades the signal to noise ratio
+and makes it harder to batch up change requests.
+
+If you send an un/subscribe message to
+genetic-programming-REQUEST from an address other than
+your normal mailing address, please make it totally
+obvious which address you would like to have included in
+the mailing list.
+
+If you know a number of people at your site who share an
+interest in Genetic Programming, please consider making a
+local distribution list.  This will make un/subscription
+easier to administer at your end and will ease the burden
+on genetic-programming-REQUEST.
+
+If your address is (say)
+fred.foobar@my-machine.my-department.my-company.com, and
+the address fred.foobar@my-company.com, will work, please
+try to specify the shortest reliable address.  A common
+problem with giving the name of a local workstation as an
+address is that error messages result if your machine is
+offline for any reason.  You'll miss the mail too.
+Personal workstations are notoriously unreliable mail
+servers.  Specifying a reliable mail server is the best
+strategy.
+
+
+
+4.  Where can I find out more about Genetic Progamming?
+    ---------------------------------------------------
+Genetic Programming is a comparatively new field, so there
+isn't a large body of documentation on it.  [aside: is anyone
+prepared to keep an up to date, on-line GP bibliography?]
+A number of researchers are beginning to publish GP related papers.
+At least for a while, the best place to start is likely to be
+one of two sources:
+  a.  "Genetic Programming:  On the Programming of Computers by Means
+       of Natural Selection" - by John R. Koza, MIT Press 1992
+  b.  "Genetic Programming - The Movie"  - by John R. Koza and
+       James P. Rice, MIT Press 1992.
+The movie is probably the cheapest and easiest way to get a quick
+introduction into the sorts of things that have already been achieved
+by GP.  The book is probably the best way to go about becoming a
+GPer.  An order form for the book and movie can be found below.
+
+
+
+5.  I'm new to Genetic Algorithms.  Can you point me to
+    ---------------------------------------------------
+    some sources for more general information on GAs to put
+    -------------------------------------------------------
+    this in perspective?
+    --------------------
+
+  Goldberg, David E.  1989.  "Genetic Algorithms in Search,
+  Optimization, and Machine Learning."  Addison-Wesley. -
+  Mix of theory and practice
+
+  Davis, Lawrence.  1991.  "Handbook of Genetic Algorithms"
+  Van Nostrand Reinhold. - Mostly practical.
+
+  Holland, John H. 1992 "Adaptation in Natural and
+  Artificial Systems."  MIT Press - Very theoretical.
+
+  Michalewicz, Z.  1992.  "Genetic Algorithms + Data
+  Structures = Evolution Programs."  Springer-Verlag -
+  Practical
+
+  .....  suggestions anyone.... ?
+
+
+
+
+5.   I'm new on this mailing list.  Can I see an archive of the old messages?
+     ------------------------------------------------------------------------
+
+The mailing list is new at present, so there's nothing in
+the archive, but we are keeping one.  We will probably
+either make this available by FTP, or we will mail it out
+to new subscribers.
+
+
+
+6.  The GP implementation in the book is presented entirely in Lisp.
+    ----------------------------------------------------------------
+    Do I need to use Lisp to have an implementation of GP?
+    ------------------------------------------------------
+No, there is nothing about GP that requires Lisp, it's just a very
+convenient language to use.  It's also the easiest way to write a
+GP implementation that is small enough and simple enough to put into
+the appendices of a book.  At present, the most easily available
+implementation of GP is that shown in the book, so you would require
+a Common Lisp implementation to use it.
+
+However, William Archibald <billa@tdo.sps.mot.com> has written
+a C version.  This version is functionally similar to JK's
+version, but does not use discrete generations.  The code is
+public domain.
+
+
+
+7.  I would like to use GP with C instead of LISP because C is
+    ----------------------------------------------------------
+    usually faster.  How does one use GP with C instead of LISP?
+    ------------------------------------------------------------
+    In LISP the parse tree is obvious - in C it is not.  How does
+    -------------------------------------------------------------
+    one eval C programs?
+    --------------------
+
+Although it is by no means clear that C is faster in this
+context, GP can be implemented in C/Pascal/...  in a
+relatively straighforward manner.  Note that (given suitable
+type declarations) code generated by a good Lisp compiler is
+likely to be just as fast as that generated by a C compiler
+unless you are very careful.  Lisp, however, carries a
+larger price in working set and is less readily available.
+
+The big problem that you have to tackle in coding a C based
+version is that there is no garbage collection.  This means
+that for anything beyond trivial applications there is a big
+benefit associated with doing all of your storage allocation
+statically and doing careful storage management.  There are
+lots of ways that one could Cify GP, but here is a simple
+scheme:
+
+ a) Statically create arrays to represent the individual
+programs.  There should be one table representing the points
+in the tree.  This will require a enough bits of width to be
+able to represent (max (cardinality function-set)
+(cardinality terminal-set)).  You need a second table two
+bits wide of the same length to encode the four distinct
+types of things you bump into in the trees: functions,
+pseudo-macros, variable terminals and constant terminals.  A
+third table is needed with enough bits to encode (reduce #'max
+(mapcar #'length (mapcar #'arglist function-set))).  These
+tables should be sized for the worst-case size of an
+individual.  (500 points is probably enough to get along
+with).
+
+ b) If the function set is to be {AND OR NOT} with arg
+counts {2 2 1} and the terminal set is to be {D0 D1 D2 D3}
+then you need two bits of width in the first table and two
+bits for the third (you can strictly get away with 1 because
+this function set has no zero arg functions, but it probably
+isn't worth it if you're trying to make a general
+framework).  Now, you make a mapping table that maps {0->AND,
+1->OR, 2->NOT} and another that maps {0->D0, 1->D1, 2->D2,
+3->D3}.
+
+This all means that you can linearise the parse tree into
+the arrays in an efficient manner.  You can trivially write
+an interpreter which does something of the form:
+
+(defun interpret-program (program current-index)
+ (with-slots (points-of-tree type-of-current-point arg-count-table) program
+  (case (aref type-of-current-point current-index)
+   (function
+	(case (aref arg-count-table current-index)
+	 (0 .....)
+	 (1 (multiple-value-bind (value next-index)
+	      ;;; Evaluate single arg for this function.
+	      (interpret-program program (+ 1 current-index))
+	      (values (funcall (aref function-mapping-table
+			        (aref points-of-tree current-index))
+			value-of-arg)
+		      next-index)))
+	 (2.....)))
+   (variable-terminal ......)
+   (....))))
+
+i.e. you step along the program recursively evaluating the
+arguments to functions when necessary, always returning both
+the value of the subexpression and the index to the point
+after the subtree just evaluated.
+
+Obviously it's a bit more complex than this but the idea is
+pretty simple.  It gets a little harder when you want to
+have an arbitrary number of randomly generated constants,
+since this can spoil your coding efficiency if you're not
+careful.
+
+ c) Implement the crossover (and other) genetic operations
+so that rather than swapping subtrees it shuffles the values
+in the tables up and down and copy the crossed over subtrees
+(which are always contiguous in the linearised
+representation) from one to the other.
+
+ d) A simple resource architecture and a reference counting
+scheme that decides what operations are to be performed to
+which individuals in the population before any operations
+are performed allows you to deallocate all of the
+individuals that are not going to contribute to the next
+generation.  Using the reference counting scheme you can
+easily make it the case that you do not need to allocate
+enough memory to accomodate 2X the size of the population.
+You can always deallocate individuals before you are about
+to need to get new ones to put the newly created individuals
+into for the next generation.
+
+
+8.  I don't want to have to type in the code in the appendices to
+    -------------------------------------------------------------
+    the book.  Can I get the source code on-line somewhere?
+    -------------------------------------------------------
+
+At present, we have no FTP resource set up for GP, but the source
+code from the book will be mailed to this mailing list.  We are
+working on setting up an FTP resource.
+
+
+9.  What's all this I hear about patents?
+    -------------------------------------
+Process patents have been issued both for the bucket brigade
+algorithm in classifier systems (to John Holland) and for GP
+(to John Koza).  This FAQ does not attempt to provide legal
+advice.  However, use of the Lisp code in the book is freely
+licensed for academic use.  Although those wishing to make
+commercial use of any process should obviously consult any
+patent holders in question, it is pretty clear that it's not in
+anyone's best interests to stifle GA/GP research and/or
+development.  Commericial licenses much like those used for CAD
+software can presumably be obtained for the use of these
+processes where necessary.
+
+
+
+10. I'm not a sophisticated Lisp user and don't understand why
+    ----------------------------------------------------------
+    so much apparent effort is spent in the Lisp code in the book
+    -------------------------------------------------------------
+    worrying about FAST-EVAL.  Can't I just get things to go faster
+    ---------------------------------------------------------------
+    by compiling my population or some such.  This would avoid the
+    --------------------------------------------------------------
+    apparent recursion in the FAST-EVAL function.
+    ---------------------------------------------
+To have a real understanding of what's going on in terms
+of efficiency and what's best to do you'd need to know a
+fair bit about Lisp and its implementation and a fair bit
+about the application in question, but the argument
+breaks down something like this:
+
+ - When you do GP you have to execute a large number of
+randomly created and/or evolved programs, which are
+consequently not known at file-compile time.
+
+ - The number of times you execute ANY GIVEN individual
+program is (generally) the product of the number of
+fitness cases and the number of timesteps over which you
+need to simulate.  Thus, for a regression problem for a
+simple one dimensional space (page 237) you might have
+(say) 50 fitness cases, but no simulation and hence 50
+evaluations per individual.  For a robotics problem like
+the box-moving robot (p. 381) there might be 4 fitness
+cases and 350 timesteps so there are up to 1400
+evaluations per individual (note that individuals that
+quiesce are aborted earlier.)  The number of effective
+evaluations might be increased enormously by having
+operators in the function set that cause iteration or by
+the doing automatically defined function stuff (chapters
+20 and 21), which is not suported in the GP code in the
+book, but is not that hard to add.
+
+ - There are two obvious ways to execute a program;
+interpretting and compiling and funcalling.  There are
+costs associated with each of these.  Interpreting is
+slower, but you don't pay the up-front cost of
+compilation, which is huge relative to evaluating a
+simple expression.
+
+ - There are costs in fitness computation other than
+simply executing the program itself.  This is
+demonstrated excellently by problems like the
+pursuer-evader game (p423) or the broom balancing problem
+(p289), where part of the simulation happens after the
+evaluation of the individual, since the program delivers
+the value of the control variable, which is then used to
+perform the state transitions of the simulation.  Since
+these computations typically involve complicated uses of
+transcendental functions they can often be more expensive
+than the execution of the program itself.
+
+Thus, what you're trying to do when you do GP is to
+maximise the number of calls to the fitness function per
+second.  This might be optimised by compiling the
+individuals or by interpreting them, or by spending time
+on optimising the fitness function.  You can only really
+know for sure by metering the behaviour of the run and
+trying each (your intuition is almost sure to be wrong in
+our experience).  However, our experience tells us that
+interpreting is typically faster for the majority of
+problems, particularly those that novice users of the
+little GP code in the book are likely to be tackling to
+start with.  There are also operational issues associated
+with compiling the individuals, but we can neglect that
+for now.
+
+So, when we say that fast-eval is faster, we're not
+comparing it to compilation, we're comparing it to the
+interpreter that comes for free with Lisp (eval).  The
+reason it is typically faster than eval is that eval has
+to carry all of the baggage associated with being a
+complete Common-Lisp interpreter and fast-eval doesn't.
+This baggage includes things like lexical closures, local
+variables and functions and macros, none of which are
+needed by GP.
+
+In GP there are really only four classes of things that
+are processed: constants, like 3.5, variables, like X,
+functions, like +, and functions that control their own
+argument evaluation, which we call pseudo-macros, such as
+IFLTE.  All of the complicated implementation-specific
+hair in fast-eval is caused by the desire to discriminate
+between these classes rapidly at run-time.
+
+All Lisps have highly optimised means to execute things
+like consp and symbolp.  The only problem comes in trying
+to discriminate between the two classes of "internal
+points", i.e. functions and pseudo-macros.  CL doesn't
+provide a specific optimised hook for this and all
+implementations represent their functions somewhat
+differently, so we have to hunt around for the fastest
+way we can on any particular implementation.  Note that
+some implementations are rather fascist about what you
+can legally put in the function cell of a symbol, so this
+causes some of the reasons for the non-portability.
+Indeed, Lucid tightened up on things between release 4.0
+and 4.1 and broke the code in the book.  Maybe we'll be
+able to get a patch in if there's a second printing.
+
+As far as avoiding the recursion is concerned, this is
+not as trivial as it may sound (not necessarily as
+desirable as you might think either).  If your
+sexpression is (say)
+
+  (setq my-sexpr '(+ a (* b (- c 42))))
+
+then compiling this to give you
+
+  (setq my-compiled-sexpr (compile nil `(lamda () ,my-sexpr)))
+
+will deliver a function that in most implementations will
+have open coded the references to the functions +, * and
+-.  Note that you might want to put type delcarations
+into these functions, such as:
+
+  (compile `(lambda () (declare (type integer a b c)) ,my-sexpr))
+
+to get optimal code generation.
+
+However, if your sexpression was of the form:
+
+  (progn (move-left) (iflte (turn-right) 42 (move-forward) (move-backwards)))
+
+Then you are presented with two problems.
+
+  a) The bodies of the functions move-left etc. will probably
+     not get open coded into the compiled individual.  Functions like
+     move-left are likely to be trivially implemented, i.e. move-left
+     might consist of nothing more than (decf *x-coord* 1.0) Note that
+     what one is really trying to avoid is not recursion pre se, but
+     rather function-call overhead, which is highest for calls to non-
+     (self/mutually) tail-recursive functions.  Thus, failure to
+     open code functions like move-left results in compilation giving
+     almost no benefit (you'd like to get ~20X speedup from compilation
+     in general).  Open coding can usually be achieved by proclaiming
+     the functions in question to be inline, but this does not work
+     on every implementation and may be suboptimal.  You might have to
+     declare compiler-macros (compiler-optimizers) for the functions
+     in question to get the right open coding.
+
+  b) In the example above there is an instance of a pseudo-macro call
+     to IFLTE.  If it is the case that you always compile your individuals
+     then you can just define these as real macros.  Real macros, however
+     are incompatible with fast-eval, so you can't use real macros in
+     interpretted mode.  One of the main reasons for using pseudo-macros
+     and fast-eval is because macro-expansion is very expensive and
+     undesirable at GP run-time, especially when all you're using them
+     for is as functions that control their argument evaluation.  If you
+     want to have your cake and eat it, then you'll need to define
+     compiler macros for each pseudo-macro so that they get open coded
+     properly.  In the GP code that JK and I use we have a hairy and
+     complex chunk of code that automatically generates pseudo-macros
+     for our version of fast-eval as well as all of the necessary
+     compiler optimizer stuff in order to get around all of these
+     problems.
+
+As you will have spotted, this is not a trivial issue.  Any given
+problem will have its own specific usage/performance profile and
+you'll need to take things on a case by case basis.  The code in the
+book is intentionally supposed to be as simple as possible and yet
+show all of the fundamental principles of GP.  For this reason, there
+are no type declarations, even though these would doubtless increase
+performance.  Type declarations would have increased the size of the
+code by a fair chunk and would have clouded the issue too much, we
+feel.  Many compilers have a knob you can tweek that will get it
+to advise you of good places to put type declarations that will have
+the best effect (try fast-eval first, of course).
+
+
+11. What specific areas are GPers working on right now?
+    ---------------------------------------------------
+
+11.1 JK and JR are working on a better understanding of the automatic
+discovery of facilitating functions, and exotic fitness measures.
+
+11.2 Simon Handley is working on the prediction of protein
+characteristics from sequence data.
+
+11.3 Graham Spencer is learning how to control 6-legged robots.
+
+11.4 Craig Reynolds says:
+    Using a simple model of two dimensional mobile "critters"
+    (similar to Braitenburgs "vehicles") I have investigated
+    obstacle avoidance behavior and coordinated group motion.
+    The critters can get information about their world through
+    a primitive sort of vision.  They move through their world
+    at a constant rate.  The evolved control program "looks"
+    at the world and decides how to best "steer" the critter's
+    course.
+    
+    In one set of experiments I started the critter in the
+    middle of a maze-like set of "obstacles" (line segments).
+    A collision with an obstacle was fatal to a critter.  The
+    goal was to take a specified number of steps (300) without
+    a collision.  A controller's fitness was based on the
+    number of steps taken before a collision.
+    
+    After a few fits and starts (and a lot of helpful email
+    advice from John Koza and James Rice) I was able to evolve
+    a nimble critter that would zip through the obstacles with
+    nary a scratch.  But since it was "trained" using only a
+    single obstacle course, it was not a robust, general
+    purpose obstacle-avoider.  I tried the same experiment but
+    with fitness based on three runs with slight preturbations
+    of starting position and orientation.  That seemed to make
+    the problem much harder, and I haven't yet evolved a
+    successful critter for this problem.  I described this
+    work in a draft paper submitted to ALife III called "An
+    Evolved, Vision-Based Model of Obstacle Avoidance
+    Behavior".
+    
+    I also did some experiments with "coordinated group
+    motion", sort of a precursor to real herding.  In that
+    problem the world consisted of a group of critters, some
+    obstacles, and a predator.  To survive the critters had to
+    avoid collisions with the static obstacles, the other
+    moving critters, and the pursuing predator.  This work is
+    "in progress" in that the only success seen so far is that
+    the "quality of herding" metric for the population of
+    controller programs can be seen to increase over time.
+    But the resulting behavior is not even close to something
+    that could be caled coordinated group motion, let alone
+    herding.  Nonetheless (not for a moment deterred by the
+    lack of crisp results!) I wrote a progress report on the
+    experiments so far that was accepted by last month's
+    conference on Simulation of Adaptive Behavior.  The paper
+    is called: "An Evolved, Vision-Based Behavioral Model of
+    Coordinated Group Motion"
+
+
+11.5 Howard Oakley:
+    (a) curve-fitting physiological data (comparing statistics and GP)
+    (b) optimising stack and FIR filters for noisy (physiological) data
+        (comparing GA and GP)
+    (c) I hope to build polished applications to allow the non-programming
+        scientist to attempt (a) and (b) as well, over the coming 6
+        months or so, using MCL.
+
+11.6 William Archibald says that:
+       [...] two of us are working on:
+	 . image compression
+	 . a package that aids in the development of control systems
+	 . control of articulated figures for computer graphics
+	 . prediction of protein folding
+         [And I'm supposed to be working on VLSI design!]
+
+11.7 Walter Tackett says:
+	 Has recently completed a study using GP for the generation of
+	 classification trees for target/nontarget discrimination.  In
+	 doing so, I have added a multiobjective optimization feature
+	 to the GP system.  One significant feature of this research
+	 relative to the 2-class ``nested spirals'' problem in the GP
+	 text is that the data in question is noisy, not completely
+	 separable, and no ``true'' known solution surface exists.
+	 About 2000 data samples (each a 20-element vector) were used
+	 to train the system and 7500 were used in test.  The same
+	 database was used to train a modified backprop-trained
+	 network as well as a classical statistical ``binary tree''
+	 classifier.  GP performed significantly better than either
+	 backprop or btree.  In addition, the best tree create by GP
+	 required 1/8 the computation of the backprop network.  Papers
+	 forthcoming.
+	 
+	 In addition, I have in the works: (1) A plan generator
+	 (pending funds) and (2) An application of GP involving both
+	 Coevolution and Cooperative computation (this is my
+	 disstertation research).  As part of said research I am
+	 probably going to attempt a port of GP to the CM-5 platform.
+	 If anyone else has thoughts on the latter topic, write me at:
+	 tackett@ipld01.hac.com.
+
+
+11.8 Kim Kinnear (kim.kinnear@sun.com) says:
+	 I have been using GP to successfully evolve iterative and
+	 fully general sorting algorithms.  I am exploring various
+	 function and terminal sets and their relative difficulties,
+	 and using sorting as a laboratory to develop and test
+	 modifications to "standard" G.P such as Craig Reynolds
+	 Steady State GP (which really helped) and Peter Angeline's
+	 subroutines (which are neat, but haven't helped yet).  My
+	 long term interest is in appling GP to problems of
+	 significantly greater complexity and practical utility than
+	 sorting.  I am actively pursuing modifications and
+	 enhancements to GP that will improve its performance on such
+	 problems, as well as searching for practical problems that
+	 need solving and yet are within the capabilities of GP.
+
+11.9 Peter Angeline, Ohio State University (PHD Candidate)
+     pja@cis-ohio-state.edu says:
+
+	 I am currently working on several projects related
+	 specifically to genetic programming and what I call
+	 evolutionary algorithms as a whole.
+	 
+	 1) Co-Evolving High-Level Representations - This project
+	 concentrates on acquiring subroutines from developing
+	 programs while they are being evolved.  The Genetic Library
+	 Builder (GLiB) uses a novel form of mutation to compress
+	 subtrees of a developing genetic program into a subroutine
+	 which is added to the genetic library for future use.  Once
+	 a subroutine is created its name, generated as a random
+	 variable, becomes a new, high-level atom of the
+	 representation language for the programs.  Beneficial
+	 subroutines are automatically preserved by the normal
+	 evolutionary process.  This is similar to Prof.  Koza's
+	 Automatic Function Definition discussed in chapters 20 and
+	 21 of THE BOOK, albeit a bit more flexible.  Papers are
+	 available by request.
+	 
+	 2) Self-Competing Genetic Programs - In this project I am
+	 asking the question "What kind of teacher is best for
+	 evolving genetic programs?" I am especially interested in
+	 evolving programs to play games, such as Tic Tac Toe and
+	 hopefully more complicated games later.  One interesting
+	 method of training is to allow the members of the population
+	 to compete against each other to determine thier fitness
+	 value rather than against an "expert" programmed by the
+	 researcher.  So, fitness is computed by having members of
+	 the population play each other in a single elimination
+	 tournament fashion with the fitness of a population member
+	 being the number of games won in the tournament.  Notice
+	 this provides only a coarse ranking of the population and
+	 can be a very noisy source of feedback.  I have run
+	 experiments that demonstrate self-competive populations
+	 create more robust genetic programs for Tic Tac Toe than
+	 ones evolved using a random expert, a near expert and a
+	 perfect expert.
+	 
+	 3) A Taxonomy of Evolutionary Algorithms - I am also
+	 interested in understanding what makes all evolutionary
+	 algorithms work and how to apply them to problems.  This has
+	 lead to the development of a taxonomy of the major
+	 components of all evolutionary algorithms, including genetic
+	 programming, and an initial attempt at how the pieces work
+	 together to make the whole.
+
+
+
+
+
+.....   Anyone want to advertise research goals?......
+
+
+12.  Can I get the code that JK and JR run?
+    --------------------------------------
+
+No.  It only works on Explorers, is undocumented and would
+be a total nightmare for us to have to support outside
+users.  Our suggestion: take the little implementation in
+the book and enhance it (see Appendix D for suggestions).
+That way you'll understand you code.
+
+
+
+13. Has GP been shown to be better than Random Search?
+    --------------------------------------------------
+
+For a number of methodological reasons, a tightly defined
+answer to this question is too complex to include here.
+An expansive coverage is given in chapter 9 of the book.
+
+Having said this, the high order bit of the answer to this
+question is an absolute and emphatic "YES".  As examples
+of this superior to random behaviour are shown in the book
+and are well documented in the literature.  For example:
+
+13.1 Pete Angeline evolved solutions to the tic-tac-toe
+problem with only 200,000 individuals of effort
+(population size of 1000 run for 200 generations).  In
+trying 200,000 random individuals he observed nothing that
+even half way played the game.  The fitness of the best
+randomly generated program was 2.25 compared to a score of
+16.5 for the best evolved program.  See his paper for
+details on the scoring function.  This result is still
+unpublished and will appear in his dissertation.
+
+
+
+
+14. What is Symbolic Regression?
+    ----------------------------
+
+Symbolic regression (chapter 10 in the book) is the
+process of discovering both the functional form of a
+target function and all of its necessary coefficients, or
+at least an approximation to these.  This is distinct from
+other forms of regression such as polynomial regression in
+which you are merely trying to find the coefficients of a
+polynomial of a prespecified order.  In some senses, all
+GP problems are symbolic regression problems, but the term
+is usually used to apply to finding real-valued functions.
+
+
+15. I want to GP but I don't know what sort of machine to
+    -----------------------------------------------------
+    run it on.  What should I get?
+    ------------------------------
+
+This is very much a "how long is a piece of string"
+question.  However, GP is a very resource intensive
+process and it is probably a good idea to get the fastest
+machine that you can (no surprise).
+
+Howard Oakley <Howard@quercus.demon.co.uk> has done a set
+of benchmarks comparing different machines running the GP
+Lisp code in the book doing a simple problem.  Although
+performance will vary over problem domain and according to
+whether you choose to run in Lisp or in some other
+language, these figures give a reasonable idea of the
+relative performance of the machines.  Which machine you
+choose to use will clearly depend on local pricing for
+the platforms in question.
+
+Machine         Lisp           Test 1    Test 2
+                          (times in seconds, gross)
+
+Mac IIci        MCL	2.0        90.59     303.58
+Mac IIfx        MCL	2.0        81.18     214.96
+Mac IIci+Rocket MCL	2.0        34.17     100.77
+Mac Quadra 950  MCL	2.0        28.91     100.22
+
+Sun 10/20	Sparc Lucid	4.1      13.06       ???
+Sun 10/30	Sparc Lucid	4.1      11.10      29.81
+Sun 10/30	Sparc Franz Allegro   6.25      32.48
+Sun 4/470	Sparc Franz Allegro  17.19      68.53
+Sun IPC         Lucid	4.1      29.21       ???
+Sun IPC         Franz Allegro  14.85      80.86
+
+TI Explorer II  TICL	6.1       13.28     143.64
+SGI IndigoR3000 AKCL	6.15     259.09       ???
+SGI IndigoR3000 Franz Allegro  16.25      80.56
+
+(Franz Allegro CL was V 4.1)
+(note that all results are now consistent and correct, following the Lucid
+patch)
+(times above are gross, including all OS and GC overhead)
+
+More details on systems:
+Machine         CPU	  Clock speed   OS      RAM virtual RAM actual RAM used
+(if fixed)
+
+Mac IIci        68030     25      7.0.1      20     12             22
+Mac IIfx        68030     40      7.0.1      36      0             30
+Mac IIci+Rocket	68040     33      7.0.1      20      0             16
+Mac Quadra 950  68040     33      7.0.1      36      0             32
+Sun 10/20       Sparc             4.1.3      32    180
+Sun 10/30       Sparc             4.1.3      32    180
+Sun 4/470       Sparc     33      4.1.1      32
+Sun IPC                           4.1.3      32    400
+TI Explorer II                    6.1        16    128
+SGI IndigoR3000	MIPS 3000	33      IRIX 4.0.5	48    120
+
+The 'league table' of speed based on the second test is thus:
+1      Sun 10/30 & Lucid           1.0 (relative to fastest)
+2      Sun 10/30 & Franz Allegro   1.1
+3      Sun 4/470 & Franz Allegro   2.3
+4      SGI Indigo & Franz Allegro  2.7
+5      Sun IPC & Franz Allegro     2.7
+6      Macintosh Q950 & MCL        3.4
+7      Macintosh IIci+Rocket & MCL 3.4
+8      TI Explorer II              4.8
+9      Macintosh IIfx & MCL        7.2
+10     Macintosh IIci & MCL       10.2
+
+Please send any further results to Howard Oakley
+<Howard@quercus.demon.co.uk>.
+
+
+99.   Glossary
+      --------
+
+Genetic Algorithm (GA) - Model of machine learning that
+uses a genetic/evolutionary metaphor.  Implementations
+typically use fixed-length character strings to represent
+their genetic information.
+
+Genetic Programming (GP)- Genetic Algorithms applied to
+programs.  Genetic Programming is more expressive than
+fixed-length character string GAs, though GAs are likely
+to be more efficient for some classes of problems.
+
+Recombination - (see crossover)
+
+Crossover - The genetic process by which genetic material
+is exchanged between individuals in the population.
+
+Reproduction - The genetic operation which causes an
+exact copy of the genetic representation of an
+individual to be made in the population.
+
+Generation - An iteration of the measurement of fitness
+and the creation of a new population by means of
+genetic operations.
+
+Function set - the set of operators used in GP, these
+functions label the internal (non-leaf) points of the
+parse trees that represent the programs in the
+population.  An example function set might be {+, -, *}.
+
+Terminal set - the set of terminal (leaf) nodes in the
+parse trees representing the programs in the
+population.  A terminal might be a variable, such as X,
+a constant value, such as 42, or a function taking no
+arguments, such as (move-north).
+
+
+
+100.  Book order form
+      ---------------
+
+---------------------------ORDER FORM----------------------
+
+PHONE: 1-800-356-0343 TOLL-FREE or 617-625-8569
+MAIL:  The MIT Press, 55 Hayward Street, Cambridge, MA 02142
+FAX:  617-625-9080
+
+Please send
+____ copies of the book GENETIC PROGRAMMING: ON THE 
+PROGRAMMING OF COMPUTERS BY MEANS OF NATURAL SELECTION by 
+John R. Koza (KOZGII) (ISBN 0-262-11170-5) @ $55.00.
+____ copies of the one-hour videotape GENETIC PROGRAMMING: THE 
+MOVIE by John R. Koza and James P. Rice  in VHS NTSC format 
+(KOZGVV) (ISBN 0-262-61084-1) @$34.95  
+____ copies of the videotape in PAL format (KOZGPV) (ISBN 0-262-
+61087-6) @$44.95
+____ copies of the videotape in SECAM format (KOZGSV) (ISBN 0-
+262-61088-4) @44.95.
+
+Name __________________________________
+
+Address_________________________________
+
+City____________________________________
+
+State_________________Zip________________
+
+Country_________________________________
+
+Phone Number ___________________________
+
+$ _______ Total
+$ _______ Shipping and Handling ($3 per item. Outside U.S. and 
+Canada, add $6 per item for surface rate or $22 per item for airmail)
+$ _______ Canada - Add 7% GST
+$ _______ Total due MIT Press
+
+__ Payment attached (check payable to The MIT Press in U.S. funds)
+__ Please charge to my VISA or MASTERCARD credit card
+
+Number ________________________________
+Credit Card Expires _________________________________
+Signature  ________________________________

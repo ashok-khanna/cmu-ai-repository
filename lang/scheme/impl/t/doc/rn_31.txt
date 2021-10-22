@@ -1,0 +1,104 @@
+Release notes for T3.1
+
+Fixes:
+All reported bugs in T3.0 have been fixed.  In addition the longstanding bugs
+with shadowing in locales have been fixed.  The Scheme bugs have been fixed
+and the scheme environment is now more complete.  See the Scheme documentation
+for details.
+
+
+Removals:
+RECKLESSNESS no longer exists.  T now runs with the efficiency of better than
+recklessness high and the safety of recklessness low (almost).
+
+
+Changes in behavior:
+SET on global variables is no longer expensive.
+
+Because of a problem with interrupts and the GC, a keyboard interrupt may
+not be detected.  A second interrupt will cause an immediate break, but
+if a GC occurs while in the breakloop it will not be possible to continue
+the interrupted procedure.
+
+Generic arithmetic on fixnums is much faster.
+
+The object file extension has been changed to two characters.
+T3.0 object files will not run in T3.1
+
+Additions:
+(LOAD-OUT-OF-DATE-ACTION) is a switch that controls what the loader does
+with a filespec without an extension.  The options are: (default warn)
+
+binary    -- load the object file.
+source    -- load the source file.
+newer     -- load the most recent of object and source files.
+recompile -- recompile the file if the source is newer than the object file.
+warn      -- give a warning if the source is newer than the object file.
+query     -- offer to recompile if the source is newer than the object file.
+
+(ORBIT expression . locale) does expression at a time compilation, e.g.
+  (orbit '(define (f x) (+ x 1))) will cause the expression to be compiled
+and loaded into the (repl-env).
+
+(CL expression) prints out assembly code for expression.
+
+
+(TIME expression count) computes expression count times and prints the
+virtual time used.  The count argument is optional.
+
+LOAD-FOREIGN is now released for all systems except HP's.
+
+Before loading a T object file with a DEFINE-FOREIGN, use
+(LOAD-FOREIGN file.o) to install the Unix .o files needed.
+
+Suspending systems is now documented.
+
+A system is suspended as follows:
+
+% t -h 8000000 # as big as possible
+
+> ;; load stuff
+> (gc)
+> ((*value t-implementation-env 'system-suspend) filespec nil)
+> (exit)
+
+
+If a GC occurs during the suspend it will hang.  This means that the heap
+was not big enough.
+
+The binary distributions are a directory called tsystem.  In that directory
+are a bunch of files including a script called linkt which takes a .o file
+produced by suspend and creates an executable.
+
+% cd tsystem
+% linkt filespec.o newimage
+
+If the code to be loaded before suspending a system contains DEFINE-FOREIGN
+forms, files containing these forms should be loaded inside of:
+
+(bind (((*value t-implementation-env 'make-foreign-procedure)
+        (*value t-implementation-env 'make-foreign)))
+  (load file1)
+  ...)
+
+
+In this case the linkt script must be modified to include .o files that are
+referenced by DEFINE-FOREIGN expressions.
+
+
+
+System building:  
+
+It is possible to build a system from the sources.  The tsystem directory
+contains a file, i.e. sunbuild.t which explains how.
+
+Installation:
+
+As in T3.0 a shell variable TSYSTEM should be defined to be the tsystem
+directory.  If there are fixes to the T3.1 system, there will be a fix file
+in the same place as this one.  Send your email address to t-project@yale.arpa
+to receive fixes, updates, etc.
+
+Bugs: t-version-number doesn't work anymore.
+
+additional bugs to kranz@wheaties.ai.mit.edu

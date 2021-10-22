@@ -1,0 +1,784 @@
+
+
+                        THE SPECIALIZER SEMILUX
+
+                     (Version 0.0, November 1992)
+
+                          Sergei A.Romanenko
+
+               Keldysh Institute for Applied Mathematics
+                     Russia's Academy of Sciences
+               Miusskaya Sq.4, SU-125047, Moscow, Russia
+                (E-mail: sergei-romanenko@refal.msk.su)
+
+
+
+COPYRIGHT NOTICE
+================
+
+Permission to use, copy, modify, and distribute this software and its
+documentation for any personal or educational use without fee is hereby
+granted, provided that:
+
+  * This copyright notice is retained in both source code and
+    supporting documentation.
+
+  * Modified versions of this software cannot be redistributed unless
+    accompanied by a complete history (date, author, description) of
+    modifications made; the intension here is to give appropriate
+    credit to those involved, whilst simultaneously ensuring that any
+    recipient can determine the origin of the software.
+
+  * These same conditions will also be applied to any software system
+    derived either in full or in part from this system.
+
+The name `Semilux` is not a trademark, registered or otherwise, and you
+are free to mention this name in published material, public and private
+correspondence, and other documents without restriction or obligation.
+
+`Semilux` is provided `as is` without express or implied warranty.
+
+
+
+CREDITS
+=======
+
+Semilux is a partially rewritten version of the specializer Similix
+developed by Anders Bondorf and Olivier Danvy.
+
+The main goal of the author was to get Similix run under the TI Scheme
+3.03 on IBM PC XT/ATs, which was achieved by some restructuring of
+Semilux. Other changes are due to the desire to improve readability of
+the source programs.
+
+
+
+WHAT IS SEMILUX?
+================
+
+If a program has several input parameters, it can be "specialized"
+with respect to the values of some of the parameters, in which case
+we get a "residual" program with less input parameters than the original
+program.
+
+The parameters whose values are known at the time the program is being
+specialized are referred to as "static" parameters, whereas all other
+parameters are referred to as "dynamic" ones.
+
+Semilux is a system that specializes programs written in a subset of
+Scheme, and consists of two phases: "preprocessor" and "generator of
+residual programs" (which is also is referred to as "partial
+evaluator"). The specialization is done in two steps.
+
+At the first step, preprocessor takes a Scheme program and a descriptor
+of the program's input parameters. The program is a non-empty sequence
+of function definitions. The first function definition in the program is
+assumed to be the "main" function of the program. The descriptor is a
+string of letters "s" and "d", the length of the descriptor being equal
+to the number of the main function's parameters.
+
+The descriptor of the program's parameters classifies each parameter of
+the main function as either static or dynamic. If a parameter is static,
+the corresponding letter in the descriptor is "s", otherwise the letter
+is "d".
+
+Preprocessor takes as input a program and a descriptor and produces an
+"annotated" version of the original program, which contains some
+directions for the generator of residual programs.
+
+At the second step, the generator of residual programs takes as input
+an annotated program and a sequence of file names (separated by one or
+more spaces). The number of file names must be equal to the number of
+the program's static input parameters. Each of the files must contain
+zero, one, or more Scheme S-expressions to be used as values of the
+corresponding static parameters.
+
+
+
+THE STRUCTURE OF THE PREPROCESSOR
+=================================
+
+The preprocessing consists of several stages.
+
+  * First, the original program is "desugared", i.e. compiled from
+    Scheme to the Core Scheme, which is the internal language of the
+    specializer.
+
+  * Second, the program is globally analyzed, and all variables and
+    operations in the program are classified as either static,
+    closure-valued, or dynamic.
+
+  * Third, the information thus obtained is inserted into the program
+    to produce an annotated version of the original program.
+
+Annotated Scheme programs will be regarded as programs written in the
+Annotated Scheme, a version of the Core Scheme supplemented with
+additional constructs to express annotations.
+
+Annotations inserted into the program are used by the residual program
+generator (partial evaluator) in various ways: they tell whether a
+variable is bound to a first-order constant, to a closure, or to a
+residual expression, whether an operation should be performed at
+partial evaluation time, and whether calls and let-expressions should
+be unfolded.
+
+Semilux provides two different partial evaluators. The first one is
+written in the direct style (DS), whereas the second one is written in
+the continuation-passing style (CPS). (The partial evaluator in CPS is
+more powerful.)
+
+The way in which a program is preprocessed depends, to some extent, on
+the partial evaluator that is to be applied to the program. Thus, the
+preprocessor will ask the user about the desired style of the partial
+evaluator.
+
+
+
+THE STRUCTURE OF THE GENERATOR
+==============================
+
+The generator consists of "partial evaluator", which generates residual
+program by symbolically evaluating annotated Scheme expressions,
+and "postprocessor", which performs some additional transformations of
+the residual program and then translates the residual program in the
+Core Scheme to Scheme.
+
+
+
+THE STRUCTURE OF THE POSTPROCESSOR
+==================================
+
+The postprocessing comprises the following stages.
+
+  * Post-unfolding.
+  * Ensugaring, i.e. the compilation from the Core Scheme into Scheme.
+
+More information may be found in the source programs of Semilux.
+
+
+
+HOW TO RUN SEMILUX?
+===================
+
+The directory containing programs to be specialized must also contain 
+the file SCHEME.INI having the following contents:
+
+(define **semilux-path** SSSS)
+(define **external-editor-name** EEEE)
+(load (string-append **semilux-path** "semilux.fsl"))
+(semilux)
+
+where SSSS is the full path of the directory containing Semilux, and
+EEEE the full name (including the path) of a text editor to be called
+from the main menu of Semilux.
+
+For example, if Semilux resides in the directory E:\SEMILUX, and the
+external editor NE.EXE resides in the directory C:\NC, the file
+SCHEME.INI must contain the following lines:
+
+(define **semilux-path** "E:\\SEMILUX\\")
+(define **external-editor-name** "C:\\NC\\NE.EXE")
+(load (string-append **semilux-path** "semilux.fsl"))
+(semilux)
+
+If an external editor is not supposed to be used, the external editor
+name needn't be specified.
+
+To call Semilux, make sure that the directory containing programs to be
+specialized is the current one. Then enter one of the command:
+
+PCS
+PCSEXP
+PCSEXT
+
+The command PCS runs the version of the TI Scheme that makes use of
+neither expanded nor extended memory. The commands PCSEXP and PCSEXT
+run versions of the TI Scheme capable of making use of the expanded and
+extended memory, respectively.
+
+As a result, Semilux starts and displays a menu on the screen, which
+provides further information.
+
+
+
+THE INPUT LANGUAGE OF SEMILUX
+=============================
+
+A source program to be specialized is expressed by a set of user
+defined procedures and a set of user defined primitive operators.
+Semilux uses the textual definition of procedures. In contrast, an
+operator is treated as a primitive operation: the specializer never
+worries about how the operations are performed by primitive operators.
+It can do only two things with a primitive operation: either perform
+the operation or suspend it by generating residual code.
+
+The user defined primitive operators are defined in external files.
+These files are loaded by the LOAD and LOADT expressions.
+
+An expression (load F) loads a file F containing arbitrary Scheme
+expressions defining procedures and variables in the global user
+environment. The file F can be either in the source format or in the
+compiled (fast-load) format.
+
+An expression (loadt F) loads a file F containing declarations of
+primitive operators. These declarations are used by the preprocessor.
+
+User Defined Procedures
+-----------------------
+
+Here is the syntax of the subset of Scheme accepted by the specializer
+Semilux:
+
+Pr : Program, PD : ProcedureDefinition, F : FileName,
+E : Expression, C : Constant, V : Variable, P : ProcedureName,
+O : OperatorName, SC : SimpleConstant, Num : Number,
+Bool : Boolean, Str : String, Ch : Character, Sym : Symbol,
+Q : QuotedValue, Pa : Pair, Ve : Vector, M : MacroName
+
+Pr   ::=  (load F)*                ;; Load-file names
+          (loadt F)*               ;; Loadt-file names
+          PD+                      ;; Procedure definitions
+PD   ::=  (define (P V*) E+)       ;; Procedure definition
+E    ::=  C |                      ;; Constant
+          V |                      ;; Variable
+          (if E E E) |             ;; Conditional
+          (let ((V E)+) E+) |      ;; Local variable definition
+          (begin E+) |             ;; Sequence
+          (O E*) |                 ;; Primitive operation call
+          (error E*) |             ;; Error expression
+          (P E*) |                 ;; Procedure call
+          (lambda (V*) E+) |       ;; Lambda abstraction
+          (E E*) |                 ;; Application
+          (M Q*)                   ;; Macro call
+C    ::=  SC | (quote Q)
+SC   ::=  Num | Bool | Str | Ch
+Q    ::=  SC | Sym | Pa | Ve
+Pa   ::=  (Q . Q)
+Ve   ::=  #(Q*)
+
+Note that the TI Scheme implements such forms as LET*, OR, AND, COND
+and CASE by means of macros, so that they are accepted by Semilux in
+the programs to be specialized.
+
+Some useful macro definitions may be found in the file "x-match.s".
+File "x-synt.s" contains a definition of "extend-syntax", a powerful
+tool for defining macro extensions.
+
+User Define Primitive Operators
+-------------------------------
+
+User defined primitive operators must be declared in operator modules
+residing in separate files.
+
+The declaration of an operator can also serve as its definition, in
+which case the operator will be defined before the program is run or
+partially evaluated. Otherwise, the operator has to be defined
+somewhere else.
+
+An operator module has the following syntax:
+
+OM : OperatorModule, OD : OperatorDefinition,
+Oa : OperatorNameA, Ob : OperatorNameB,
+SE : SchemeExpression, SV : SchemeVariable
+
+OM   ::=  OD*
+OD   ::=  (Key Arity Oa) |
+          (Key (Oa V*)) |
+          (Key Arity Oa SV) |
+          (Key (Oa V*) SE) |
+          (Key * Ob) |
+          (Key (Ob . V)) |
+          (Key * Ob SV) |
+          (Key (Ob . V) SE)
+Key  ::=  defprim-transparent | defprim |
+          defprim-dynamic |
+          defprim-opaque
+Arity     ::=  0 | 1 | 2 | ...
+
+The keyword appearing in a declaration gives transparency information,
+which is used during partial evaluation.
+
+A transparent operation is evaluation order independent, and is to be
+reduced during partial evaluation, provided that all its arguments are
+static.
+
+A dynamic operation is evaluation order independent, and is to be
+suspended during partial evaluation to give rise to a residual
+primitive operation call.
+
+An opaque operation is evaluation order dependent, and is to be
+suspended in the same way as a dynamic operation.
+
+The keyword defprim is equivalent to the keyword defprim-transparent.
+
+A declaration (Key N Oa) means that the operator Oa has fixed arity N
+and is already defined elsewhere.
+
+A declaration (Key (Oa V1 ... VN)) is equivalent to (Key N Oa).
+
+A declaration (Key N Oa SV) means that the operator Oa has fixed arity
+N, and is to be defined as (define Oa SV).
+
+A declaration (Key (Oa V1 ... VN) SE) means that the operator Oa has
+fixed arity N and is to be defined as (define (Oa V1 ... VN) SE).
+
+A declaration (Key * Ob) means that the operator Ob has no fixed arity
+and is already defined elsewhere.
+
+A declaration (Key (Ob . V)) is equivalent to (Key * Ob).
+
+A declaration (Key * Ob SV) means that the operator Ob has no fixed
+arity and is to be defined as (define Ob SV).
+
+A declaration (Key (Ob . V) SE) means that the operator Ob has no fixed
+arity and is to be defined as (define (Ob . V) SE).
+
+Here are some examples of operator definitions:
+
+(defprim 1 car)
+(defprim (cons x y))
+(defprim 1 my-car car)
+(defprim-transparent (my-op x y) (cons x (cons x y)))
+(defprim * list)
+(defprim (+ . args))
+(defprim * my-list list)
+(defprim (my-list2 . x) x)
+(defprim-opaque 1 read)
+(defprim-dynamic (generalize x) x)
+
+A primitive operation is not allowed to return any higher order value
+which is not passed in as an argument. Thus, a primitive must not
+generate new higher order values.
+
+
+
+THE CORE SCHEME LANGUAGE
+========================
+
+The Core Scheme is the internal language of the specializer Semilux.
+Here is its syntax:
+
+CPr : CoreProgram, CPD : CoreProcedureDefinition, F : FileName,
+CE : CoreExpression, V : Variable, P : ProcedureName,
+O : OperatorName, Num : Number,
+Bool : Boolean, Str : String, Ch : Character, Sym : Symbol,
+Q : QuotedValue, Pa : Pair, Ve : Vector
+
+CPr  ::=  (F*)                     ;; Load-files names
+          (F*)                     ;; Loadt-file names
+          CPD+                     ;; Procedure definitions
+CPD  ::=  (define (P V*) CE)
+CE   ::=  (quote Q) |              ;; Constant
+          V |                      ;; Variable
+          (if CE CE CE) |          ;; Conditional
+          (let ((V CE)) CE) |      ;; Local variable definition
+          (begin CE CE) |          ;; Sequence
+          (o O CE*) |              ;; Primitive operation call
+          (error CE*) |            ;; Error expression
+          (p P CE*) |              ;; Procedure call
+          (lambda (V*) CE) |       ;; Lambda abstraction
+          (a CE CE*) |             ;; Application
+          (O CE*)                  ;; Equivalent to (o O CE*)
+Q    ::=  Num | Bool | Str | Ch | Sym | Pa | Ve
+Pa   ::=  (Q . Q)
+Ve   ::=  #(Q*)
+
+A construct (o O CE*) may be abbreviated to (O CE*), provided that O is
+different from the following key words: quote, if, let, begin, o,
+error, p, lambda, a.
+
+
+
+THE ANNOTATED SCHEME LANGUAGE
+=============================
+
+Programs in the Annotated Scheme have the following syntax:
+
+APr : AnnotatedProgram, APD : AnnotatedProcedureDefinition,
+ALA : AnnotatedLambdaAbstractions,
+St : PartialEvaluatorStyle,
+F : FileName, AE : AnnotatedExpression,
+V : Variable, P : ProcedureName, O :  OperatorName,
+Num : Number, Bool : Boolean, Str : String, Ch :  Character,
+Sym : Symbol, Q : QuotedValue, Pa : Pair, Ve : Vector,
+ACS : AbstractClosureSet, ACSP : AbstractClosureSetPattern
+BT: BindingTime, BTP : BindingTimePattern,
+Unfold? : Unfoldability, Index : LambdaAbstractionIndex
+
+APr  ::=  (*style* St)             ;; Partial evaluator's style
+          (*load-files* F*)        ;; Load-file names
+          (*adt-files* F*)         ;; Loadt-file names
+          (*definitions APD+)      ;; Procedure definitions
+          (*lambdas* ALA*)         ;; Lambda abstractions
+St   ::=  direct |
+          continuation-passing
+APD  ::=  (define (P V*)           ;; Formal parameters
+            ACSP                   ;; Formal parameters' ACSP
+            BTP                    ;; Formal parameters' BTP
+            Unfold?                ;; Unfoldability
+            AE)                    ;; Body
+ALA  ::=  (lambda (V*)             ;; Formal parameters
+            BTP                    ;; Formal parameters' BTP
+            Index                  ;; Index
+            (V*)                   ;; Free variables
+            ACSP                   ;; Free variables' ACSP
+            BTP                    ;; Free variables' BTP
+            AE)                    ;; Body
+AE   ::=  (quote Q) |              ;; Constant
+          V |                      ;; Variable
+          (lift AE)                ;; Purely static subexpression
+          (if# AE AE AE) |         ;; Residual conditional
+          (if AE AE AE) |          ;; Eliminable conditional
+          (let# ((V AE)) AE) |     ;; Residual let-expression
+          (let ((V AE)) AE) |      ;; Unfoldable let-expression
+          (begin# AE AE) |         ;; Residual sequence
+          (begin AE AE) |          ;; Eliminable sequence
+          (o# O AE*) |             ;; Residual operation call
+          (o O AE*) |              ;; Eliminable operation call
+          (error# AE*) |           ;; Residual error expression
+          (error AE*) |            ;; Eliminable error expression
+          (p# P AE*) |             ;; Residual procedure call
+          (p P AE*) |              ;; Unfoldable procedure call
+          (lambda# Index) |        ;; Residual lambda reference
+          (lambda Index) |         ;; Eliminable lambda reference
+          (a# ACS AE AE*) |        ;; Residual application
+          (a ACS AE AE*) |         ;; Eliminable application
+          (O AE*)                  ;; Equivalent to (o O AE*)
+Q    ::=  Num | Bool | Str | Ch | Sym | Pa | Ve
+Pa   ::=  (Q . Q)
+Ve   ::=  #(Q*)
+ACS  ::=  (Index*)
+ACSP ::=  (ACS*)
+BT   ::=  b | s | c | d
+BTP  ::=  (BT*)
+Unfold?   ::=  #t | #f
+Index     ::= 0 | 1 | 2 | ...
+
+
+
+EXAMPLES
+========
+
+In addition to the files that contains the the specializer, there are
+several files that contains some example programs to be specialized.
+(They can be found in the subdirectory EXAMPLES.) Here we list the
+programs with some suggestions about the way they can be specialized.
+
+-------------------------------------------------------------------
+|  Program            |  Source   |  Binding time |  Static data  |
+|                     |  file     |  pattern      |  files        |
+-------------------------------------------------------------------
+|                     |           |               |               |
+| Zipper              | ZIP.S     |  SD           |  Z123.DAT     |
+|                     |           |               |               |
+| Maximum substring   | MAXCS.S   |  SD           |  Z123.DAT     |
+|                     |           |               |               |
+| MP-Interpreter      | MP-INT.S  |  SD           |  MP-MLT.DAT   |
+|                     |           |               |               |
+| C-Zipper            | CZIP.S    |  SD           |  Z123.DAT     |
+|                     |           |  DS           |  Z123.DAT     |
+|                     |           |               |               |
+| Mapper (1)          | MAP.S     |  D            |  NULL.DAT     |
+|                     |           |               |               |
+| Mapper (2)          | MAPG.S    |  DD           |  NULL.DAT     |
+|                     |           |               |               |
+| Mapper (2)          | MAPGS.S   |  D            |  NULL.DAT     |
+|                     |           |               |               |
+| Lam-Interpreter     | LAM-INT.S |  SD           |  LAM-FCT.DAT  |
+|                     |           |               |               |
+| CPS-Lam-Interpreter | LAM-IC.S  |  SD           |  LAM-FCT.DAT  |
+|                     |           |               |               |
+| Non-linear patterns | NLP-INT.S |  SD           |  NLP-P1.DAT   |
+|                     |           |  SD           |  NLP-P2.DAT   |
+|                     |           |               |               |
+| Node counter        | CNTN.S    |  SD           |  CNTN-1.DAT   |
+|                     |           |               |               |
+| CPS-example         | CPS.S     |  SD (Direct)  |  Z123.DAT     |
+|                     |           |  SD (Contin)  |  Z123.DAT     |
+|                     |           |               |               |
+-------------------------------------------------------------------
+
+
+REFERENCES
+==========
+
+[Barzdin 88] Barzdin G., Mixed Computation and Compiler Basis. In
+   D.Bjorner, A.P.Ershov and N.D.Jones, editors, Partial Evaluation and
+   Mixed Computation, pages 15-26, North-Holland, 1988.
+
+[Beckman 76] Beckman L., Haraldson A., Oskarsson O., Sandewall E.. A
+   Partial Evaluator, and Its Use as a Programming Tool. Artificial
+   Intelligence, 7(4):319-357, 1976.
+
+[Bondorf 90] Bondorf A., Automatic autoprojection of higher order
+   recursive equations. In: Jones N. D. (ed.), ESOP '90.  (Copenhagen,
+   Denmark).  Lecture Notes in Computer Science, Vol. 432, 70-87,
+   Springer-Verlag 1990.
+
+[Bondorf 91] Bondorf A., Automatic autoprojection of higher order
+   recursive equations. In: Science of Computer Programming, 17:  3-34,
+   1991.
+
+[Bondorf 91] Bondorf A., Compiling laziness by partial evaluation. In:
+   Peyton Jones S. L., Hutton G., Holst C. K. (ed.), Glasgow Workshop
+   on Functional Programming. (Ullapool, Scotland).  9-22,
+   Springer-Verlag 1991.
+
+[Bondorf 91] Bondorf A., Similix manual. Institute of Datalogy,
+   University of Copenhagen. DIKU Report No. 91/9, 1991.
+
+[Bondorf 92] Bondorf A., Improving binding times without explicit
+   CPS-conversion. In: ACM Conference on Lisp and Functional
+   Programming. (San Francisco, California). ACM Press 1992 (to
+   appear).
+
+[Bondorf 90] Bondorf A., Danvy O., Automatic autoprojection of
+   recursive equations with global variables and abstract data types.
+   Institute of Datalogy, University of Copenhagen. DIKU Report No.
+   90/4, 1990.
+
+[Bondorf 91] Bondorf A., Danvy O., Automatic autoprojection of
+   recursive equations with global variables and abstract data types.
+   In:  Science of Computer Programming, 16(2): 151-195, 1991.
+
+[Bulyonkov 84] Bulyonkov M.A., Polyvariant Mixed Computation for
+   Analyzer Programs. Acta Informatica, 21:473-484, 1984.
+
+[Burstall 77] Burstall R.M., Darlington J., A Transformation System for
+   Developing Recursive Programs. Journal of the ACM, 24(1):44-67,
+   1977.
+
+[Consel 89] Consel C., Danvy O., Partial evaluation of pattern matching
+   in strings. In: Information Processing Letters, 30(2):  79-86, 1989.
+
+[Danvy 91] Danvy O., Semantics-directed compilation of non-linear
+   patterns. In: Information Processing Letters, 37(6):  315-322, 1991.
+
+[Dixon 71] Dixon J., The Specializer, a Method of Automatically Writing
+   Computer Programs. Division of Computer Research and Technology,
+   National Institute of Health, Bethenda, Maryland, 1971.
+
+[Ershov 78] Ershov A.P., On the Essence of Compilation. In E.J.Neuhold,
+   editor, Formal Description of Programming Concepts, pages 391-420,
+   North-Holland, 1978.
+
+[Futamura 71] Futamura Y., Partial Evaluation of Computation Process -
+   An Approach to a Compiler-Compiler. Systems, Computers, Controls,
+   2(5):45-50, 1971.
+
+[Hughes 88] Hughes J., Backward Analysis of Functional Programs. In
+   D.Bjorner, A.P.Ershov and N.D.Jones, editors, Partial Evaluation and
+   Mixed Computation, pages 187-208, North-Holland, 1988.
+
+[Jones 85] Jones N.D., Sestoft P., Sondergaard H., An Experiment in
+   Partial Evaluation: The Generation of a Compiler Generator. In
+   J.-P.Jouannaud, editor, Rewriting Techniques and Applications,
+   Dijon, France, pages 124-140, Lecture Notes in Computer Science,
+   Vol.202, Springer-Verlag, 1985.
+
+[Jones 86] Jones N.D., Mycroft A., Data Flow Analysis of Applicative
+   Programs Using Minimal Function Graphs. In Thirteens ACM Symposium
+   on Principles of Programming Languages, St.Petersburg, Florida,
+   pages 296-306, ACM, 1986.
+
+[Jones 88] Jones N.D., Automatic Program Specialization: A
+   Re-Examination from Basic Principles. In D.Bjorner, A.P.Ershov and
+   N.D.Jones, editors, Partial Evaluation and Mixed Computation, pages
+   225-282, North-Holland, 1988.
+
+[Mogensen 88] Mogensen T., Partially Static Structures in a
+   Self-Applicable Partial Evaluator. In D.Bjorner, A.P.Ershov and
+   N.D.Jones, editors, Partial Evaluation and Mixed Computation, pages
+   325-347, North-Holland, 1988.
+
+[Ostrovski 88] Ostrowski B.N., Implementation of Controlled Mixed
+   Computation in System for Automatic Development of Language-Oriented
+   Parsers. In D.Bjorner, A.P.Ershov and N.D.Jones, editors, Partial
+   Evaluation and Mixed Computation, pages 385-403, North-Holland,
+   1988.
+
+[Romanenko 88] Romanenko S.A., A Compiler Generator Produced by a
+   Self-Applicable Specializer Can Have a Surprisingly Natural and
+   Understandable Structure. In D.Bjorner, A.P.Ershov and N.D.Jones,
+   editors, Partial Evaluation and Mixed Computation, pages 445-463,
+   North-Holland, 1988.
+
+[Romanenko 90] Romanenko S.A., Arity Raiser and Its Use in Program
+   Specialization. In N.Jones, editor, ESOP '90, 3rd European Symposium
+   on Programming, Copenhagen, Denmark, May 15-18, 1990, pages 341-360,
+   Lecture Notes in Computer Science, Vol. 432, Springer-Verlag, 1990.
+
+[Scheme 86] Rees J., Clinger W., Revised report^3 on the algorithmic
+   language Scheme. SIGPLAN Notices, Vol.21, No.12, pp.37-79, December
+   1986.
+
+[Scheme 88] PC Scheme User's Guide & Language Reference Manual.
+   Cambridge, Massachusetts, London, England, First MIT Press paperback
+   edition, 1990, (c) 1988, Texas Instruments Incorporated, ISBN
+   0-262-70040-9
+
+[Sestoft 86] Sestoft P., The Structure of a Self-Applicable Partial
+   Evaluator.  In H.Ganzinger and N.D.Jones, editors, Programs as Data
+   Objects, Copenhagen, Denmark, 1985, pages 236-256, Lecture Notes in
+   Computer Science, Vol. 217, Springer-Verlag, 1986.
+
+[Sestoft 88] Sestoft P., Automatic Call Unfolding in a Partial
+   Evaluator.  In D.Bjorner, A.P.Ershov and N.D.Jones, editors, Partial
+   Evaluation and Mixed Computation, pages 485-506, North-Holland,
+   1988.
+
+[Turchin 72] Turchin V.F., Equivalent Transformation of Recursive
+   Functions Defined in Refal. In Teoriya Yazykov i Metody
+   Programmirovaniya. Trudy Simposiuma, pages 31-42, Alushta-Kiev, 1972
+   (in Russian).
+
+[Turchin 79] Turchin V.F., A Supercompiler System Based on the Language
+   Refal. SIGPLAN Notices, 14(2):46-54, February 1979.
+
+[Turchin 82] Turchin V.F., Nirenberg R.M., Turchin D.V., Experiments
+   with a Supercompiler. In 1982 ACM Symposium on Lisp and Functional
+   Programming, Pittsburgh, Pennsylvania, pages 47-55, ACM, 1982.
+
+[Turchin 86] Turchin V.F., The Concept of a Supercompiler. ACM
+   Transactions on Programming Languages and Systems, 8(3):292-325,
+   July 1986.
+
+[Turchin 88] Turchin V.F., The Algorithm of Generalization in the
+   Supercompiler. In D.Bjorner, A.P.Ershov and N.D.Jones, editors,
+   Partial Evaluation and Mixed Computation, pages 531-549,
+   North-Holland, 1988.
+
+[Wadler 88] Wadler P., Deforestation: Transforming Programs to
+   Eliminate Trees. In European Symposium on Programming, Lecture Notes
+   in Computer Science, Springer-Verlag, 1988.
+
+
+APPENDIX. SOME MACROS USED IN SEMILUX
+=====================================
+
+Semilux, as well as the example programs, has been written in
+Scheme extended with the following macros.
+
+
+GENERALIZED CASE-EXPRESSION
+
+        (MATCH  (arg ...)
+                (pat ...  & guard => exp ... ) ... )
+
+The expressions "arg ..." are evaluated to produce S-expressions "S-exp
+...". "S-exp ..." are then matched against the corresponding patterns
+"pat ...". If the matching succeeds for some clause
+
+         (pat ... & guard => exp ... )
+
+the variables in "pat ..." get bound to the corresponding subexpressions
+in "S-exp ...", and then the expression "guard" is evaluated in the
+extended environment. If the result of "guard" is not #!FALSE, the
+expressions "exp ..." are evaluated in the extended environment,
+otherwise the next clause is tried.  If the guard is #!TRUE, "& guard"
+may be omitted.
+
+The patterns have the following syntax:
+
+   <pat> ::= '<S-exp>             matches <S-exp>.
+           | <literal>            matches <literal>.
+           | <var>                matches anything, <var> is bound.
+           | _                    matches anything.
+           | (<var> as <pat>)     matches <pat>, <var> is bound.
+           | (<pat> . <pat>)      matches a pair with <pat>'s as elements.
+
+   <var> ::= <symbol>
+   <literal> ::=
+           | ()
+           | <boolean>
+           | <number>
+           | <character>
+           | <string>
+           | <vector>
+
+
+GENERALIZED LET-EXPRESSION
+
+        (WITH  ((pat arg) ...)
+                exp ... )
+
+The expressions "arg ..." are evaluated to produce S-expressions "S-exp
+...". "S-exp ..." are supposed to match the patterns "pat ...", in which
+case the variables in "pat ..." get bound to the corresponding
+subexpressions in "S-exp ...", and then the expressions "exp ..." are
+evaluated in the extended environment.  If some of "S-exp ..." do not
+match against patterns "pat ...", the result of the form WITH is
+unspecified, because there is no actual analysis of the structure of
+"S-exp ...".  The syntax of patterns is exactly the same as in the case
+of the form MATCH.
+
+The form
+
+        (WITH* ((pat1 arg1) . (pat arg) ...) exp ...)
+
+is equivalent to
+
+        (WITH ((pat1 arg1)) (WITH* ((pat arg) ...) exp ...)
+
+
+RESTRICTED GENERALIZED CASE-EXPRESSION
+
+        (SELECT (arg ...)
+                (rpat ...  & guard => exp ...) ... )
+
+The expressions "arg ..." are evaluated to produce S-expressions "S-exp
+...". "S-exp ..." are then matched against the corresponding restricted
+patterns "rpat ...". If the matching succeeds for some clause
+
+        (rpat ... & guard => exp ...)
+
+the variables in "pat ..." get bound to the corresponding subexpressions
+in "S-exp ...", and then the expression "guard" is evaluated in the
+extended environment. If the result of "guard" is not #!FALSE, the
+expressions "exp ..." are evaluated in the extended environment,
+otherwise the next clause is tried.  If the guard is #!TRUE, "& guard"
+may be omitted.
+
+Restricted patterns is a subclass of patterns.
+
+   <rpat>::= '<S-exp>
+           | <literal>
+           | <var>
+           | _
+           | ('<S-exp> . <pat>)
+           | (<literal> . <pat>)
+           | (_ . <pat>)
+           | (<var> . <pat>)
+
+Restricted patterns have the following meaning.
+
+Restricted patterns '<S-exp>, <literal>, <var>, and _ have the same
+meaning as the ordinary patterns.
+
+The result of matching an S-expression against other restricted patterns
+may be unspecified.
+
+If an S-expression <S-exp'> is not a pair, the result of matching
+<S-exp'> against the patterns ('<S-exp> . <pat>), (<literal> . <pat>),
+(_ . <pat>), and (<var> . <pat>) is unspecified.
+
+If an S-expression is a pair (<S-exp'> . <S-exp''>), where the pattern
+<pat> does not match <S-exp''>, the result of matching (<S-exp'> .
+<S-exp''>) against the patterns ('<S-exp> . <pat>), (<literal> . <pat>),
+(_ . <pat>), and (<var> . <pat>) is unspecified.
+
+Now suppose that an S-expression is a pair (<S-exp'> . <S-exp''>), where
+the pattern <pat> matches <S-exp''>. Then we have the following cases.
+
+The patterns (_ . <pat>), and (<var> . <pat>)  always match (<S-exp'> .
+<S-exp''>).
+
+The pattern (<S-exp> . <pat>) matches (<S-exp'> . <S-exp''>) if <S-exp>
+is equal to <S-exp'>, otherwise the matching fails.
+
+The pattern (<literal> . <pat>) matches (<S-exp'> . <S-exp''>) if
+<literal> is equal to <S-exp'>, otherwise the matching fails.
+
+The above definition enables the restricted patterns to be compiled into
+efficient code.
+

@@ -1,0 +1,209 @@
+Novell NetWare 3.xx server
+This is an ASCII file called NETWR386.TXT in the ATI 
+CardAssistant INFO directory. Use a text editor or a 
+word processor with a mono-space font such as Courier 
+to print this file if needed for reference.
+************************************************************
+************************************************************
+**                                                        **
+**        Novell NetWare 3.xx Server Installation         **
+**                                                        **
+************************************************************
+************************************************************
+
+------------------------------------------------------------
+--                        Contents                        --
+------------------------------------------------------------
+I.   Special Considerations
+II.  Files Needed for Installation
+III. Installing the AT-2500TX NetWare 3 Server Driver
+IV.  Removing an Existing Driver 
+V.   How to See MAC Address
+VI.  Multiple Adapters 
+
+
+I.  Special Considerations
+==========================
+
+Configuration of the AT-2500TX is under PCI control, and 
+the AT-2500TX is NWAY capable. For most applications, no 
+setup other than normal installation of the network 
+software is necessary. For any half-duplex application, the 
+card by default auto-detects the speed of the link (10 Mbps 
+or 100 Mbps). If the connection is full-duplex without NWAY 
+capability, you must select one of the full-duplex settings.
+In this case, refer to the "Connection speed and duplex" 
+information file. 
+
+
+II. Files Needed for Installation
+=================================
+
+The following files are required for installation:
+
+\NWSERVER\A2500v3.LAN   (Server driver)
+\NWSERVER\NBI31X.NLM   (NetWare Loadable Module)
+\NWSERVER\MSM31X.NLM   (NetWare Loadable Module)
+\NWSERVER\ETHERTSM.NLM   (NetWare Loadable Module)
+\INFO\NETWR386.TXT   (this file)
+
+
+III. Installing the AT-2500 NetWare 3 Server Driver
+===================================================
+
+NOTE: The 3.12 version of NetWare requires a patch - 
+      312PTn.EXE - and driver/NLM update - LANDRn.EXE - 
+      (where n = current alphanumeric revision level of the 
+      file) from Novell's web site. The URL is: 
+      http://support.novell.com.
+
+1. Install the NetWare file server support files to the DOS 
+   partition as described in the Novell documentation.
+
+2. Copy the A2500v3.LAN file from the NWSERVER directory 
+   on the CardAssistant disk to the directory where the 
+   Novell server files are located, e.g., C:\SERVER.312.
+
+3. Load SERVER.EXE to start the file server, and set up 
+   hard disk support as directed in the Novell 
+   documentation.
+
+4. At the server console, issue the load statement(s) in 
+   this order:
+
+   LOAD <DRIVE>:<PATH>\NBI31X
+   LOAD <DRIVE>:<PATH>\MSM31X
+   LOAD <DRIVE>:<PATH>\ETHERTSM
+   LOAD <DRIVE>:<PATH>\A2500v3
+
+   where <DRIVE> and <PATH> are the drive and directory 
+   where you copied the NLMs and the A2500v3.LAN file, and 
+   where X is the last digit of the NetWare version number.
+
+5. Bind the IPX protocol to the AT-2500 driver by typing:
+
+     BIND IPX TO A2500v3 NET=n
+
+   where n is the node address Novell uses for routing 
+   IPX packets. This number is arbitrary if there is the 
+   only one server on the network, but if there are 
+   multiple servers on the same network, it must match the 
+   other servers' external network number.
+
+Note: The default frame type for Novell file servers is now 
+      Ethernet_802.2. If you require Ethernet_802.3, 
+      specify FRAME=ETHERNET_802.3 on the command line when 
+      loading the driver.
+
+To load multiple frame types for a single card, enter a 
+LOAD and BIND statement for each frame type. 
+
+You need to supply a name on each load line in order to 
+avoid being prompted for which board to bind IPX to. If you 
+do not have the name option in the AUTOEXEC.NCF , it will 
+not execute completely without user intervention. Example:
+
+    LOAD A2500v3 FRAME=ETHERNET_802.3 NAME=IEE8023
+    BIND IPX TO IEE8023 NET=11111
+    LOAD A2500v3 FRAME=ETHERNET_802.2 NAME=IEE8022
+    BIND IPX TO LAN8022 NET=22222
+
+Also: If you have a PCI-1 bus in your system, add 
+      BUSTYPE=PCI1 to the command line, e.g., 
+      LOAD C:\SERVER.312\A2500v3 BUSTYPE=PCI1. 
+      Otherwise the driver may not find the card. If you 
+      don't know which bus you have, try loading without 
+      the option. If it loads, you don't need it.
+
+6. Add the load and bind statements you need to the 
+   server's AUTOEXEC.NCF file so the adapter driver loads 
+   automatically each time the server starts.
+
+IV.  Removing an Existing Driver 
+================================
+
+To de-install the driver, bring up NetWare and follow the 
+Novell instructions.
+
+
+V. How to See MAC Address
+=========================
+
+To determine a MAC address for a card:
+
+1. Boot the computer into DOS with no drivers loaded.
+
+2. Insert the CardAssistant diskette in the floppy drive 
+   and launch SETUP25: type a:\setup25.
+
+3. The main screen shows a table listing the AT-2500 Fast 
+   Ethernet cards installed in the computer. Write down the 
+   address(es) listed in the "MAC" column of the table.
+
+
+VI. Multiple Adapters 
+=====================
+
+If you have multiple AT-2500 Fast Ethernet adapters 
+installed in the system,the keyword "SLOT" identifies each 
+to the driver A2500v3.LAN. If you have multiple adapters in 
+a single server, each adapter must have a different network 
+number and SLOT number. Also, you might want to name each 
+adapter. So add the options in LOAD commands to distinguish 
+particular cards. For example:
+
+      LOAD A2500v3 FRAME=Ethernet_802.2 NAME=LAN_A SLOT=1
+      BIND IPX TO LAN_A NET=11
+      LOAD A2500v3 FRAME=Ethernet_802.2 NAME=LAN_B SLOT=2
+      BIND IPX TO LAN_B NET=22
+
+Add the load and bind statements you need to the server's 
+AUTOEXEC.NCF file so that the AT-2500 adapter drivers load 
+automatically each time the server starts.
+
+To implement multiple AT-2500 cards in a Netware v3.12 
+server, add the following line to your STARTUP.NCF: 
+
+     SET RESERVED CACHE BUFFERS BELOW 16 MEG = 64
+
+This is not needed with version 3.11, but you will have 
+problems binding multiple 2500 cards without it in version 
+3.12.
+
+-  In an IPX internal router configuration (a server with 
+   two adapters, each connected to a different network), 
+   the data transfer rate across the router can be low. 
+   This happens if client workstations have CPU speeds 
+   equal to or higher than the server. You might be able to 
+   increase the data transfer rate by adding the following 
+   line to STARTUP.NCF:
+
+      SET MAXIMUM INTERRUPT EVENTS = 100000
+
+   The default setting is 10.
+
+-  If you have problems loading the driver on multiple 
+   adapters and the initialization fails due to 
+   "Insufficient RCBs," increase the number of buffers 
+   allocated to the server. Add the following to 
+   STARTUP.NCF:
+      
+      SET MINIMUM PACKET RECEIVE BUFFERS = 100 (or larger)
+      SET MAXIMUM PACKET RECEIVE BUFFERS = 500 (or larger)
+
+   The MINIMUM value you specify must be at least 30 times 
+   the number of AT-2500 PCI adapters in the computer.
+
+   Recommended settings:
+      
+      1-3 adapters:  100
+      4 adapters:    150
+
+The MAXIMUM you can specify depends on the amount of memory 
+in the server, but it must be greater than the MINIMUM.
+********************
+
+
+*  Third-party trademarks are the property of their 
+   respective owners.
+                  

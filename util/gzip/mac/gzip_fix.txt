@@ -1,0 +1,407 @@
+Date: Fri, 14 May 93 14:44:46 BST 
+From: tim@maths.tcd.ie
+
+Newsgroups: comp.sys.mac.digest
+Path: tim
+From: tim@maths.tcd.ie (Timothy Murphy)
+Subject: Re: gzip instructions
+Message-ID: <1993May14.134442.1943@maths.tcd.ie>
+Organization: Dept. of Maths, Trinity College, Dublin, Ireland.
+References: <9305140138.AA05312@SUMEX-AIM.Stanford.EDU>
+Date: Fri, 14 May 1993 13:44:42 GMT
+Lines: 392
+
+Info-Mac@sumex-aim.stanford.edu writes:
+
+>That program is filed on sumex-aim.stanford.edu as:
+>/info-mac/util/gzip.hqx
+>and has the most awful interface you can imagine. There are NO instructions
+>of any kind. 
+
+>Since the program looked like a direct port of the UNIX version, I tried
+>typing "gzip -h" in the command line and--SURPRISE!--wound up with the
+>internal help file:
+
+>gzip 1.0.7 (18 Mar 93)
+>usage: gzip [-cdfhLrtvV19] [file ...]
+> -a --ascii       ascii text; convert end-of-lines to local OS conventions
+> -c --stdout      write on standard output, keep original files unchanged
+> -d --decompress  decompress
+> -f --force       force overwrite of output file and compress links
+> -h --help        give this help
+> -L --license     display software license
+> -q --quiet       suppress all warnings
+> -r --recurse     recurse through directories
+> -t --test        test compressed file integrity
+> -v --verbose     verbose mode
+> -V --version     display version number
+> -1 --fast        compress faster
+> -9 --best        compress better
+> file...          files to (de)compress. If none given, use standard input.
+
+>I suppose it's pointless to ask why a program for a Mac requires you to
+>know UNIX commands, or why the help file wasn't included as a separate file
+>in the upload.
+
+
+Guilty, guilty, guilty.
+Actually, I didn't upload this program (which I believe is my port).
+Somebody else did.
+I had a README file with my version. It read (in full):
+
+For further information, "gzip -h".
+
+Couldn't be clearer than that!
+You Mac users are all spoilt.
+Whatever happened to the pioneering spirit?
+
+For those interested, 
+here is the diff file from the original gzip-1.0.7 distribution
+(available from prep.ai.mit.edu, directory pub/gnu).
+As will be evident, the number of changes required is minimal.
+I have to confess that as it stands this requires
+the ThinkCPosix library I wrote
+(available from ftp.maths.tcd.ie in pub/Mac).
+However, I don't think anything vital is required;
+it should be easy enough to delete references to it.
+
+If someone would like to add a nice user interface, please feel free.
+
+There is one point I wasn't clear about,
+which you Mac gurus could assist me with.
+With my version, if a file is compressed or uncompressed on the Mac,
+it keeps the same FileType.
+This is clearly wrong;
+but I couldn't see any other way of ensuring eg that a 'TEXT' file
+remains a 'TEXT' file after compression and decompression.
+Any suggestions?
+I suppose one ought to have a "gzip" CreatorSignature,
+so that "gzip -d" starts up if one double-clicks on a gzip-ped file.
+With a nice icon?
+
+===================== gzip.patch ======================
+
+diff -c ../getopt.c ./getopt.c
+*** ../getopt.c	Thu Mar 18 18:14:56 1993
+--- ./getopt.c	Wed Mar 31 13:55:06 1993
+***************
+*** 29,34 ****
+--- 29,38 ----
+  #ifdef _AIX
+   #pragma alloca
+  #else
++ #ifdef THINK_C
++ char *alloca (unsigned);
++ char *PreferenceName="GNU Preferences";
++ #endif
+  char *alloca ();
+  #endif
+  #endif /* alloca.h */
+diff -c ../getopt.h ./getopt.h
+*** ../getopt.h	Thu Mar  4 19:15:33 1993
+--- ./getopt.h	Wed Mar 31 13:55:06 1993
+***************
+*** 18,23 ****
+--- 18,31 ----
+  #ifndef _GETOPT_H
+  #define _GETOPT_H 1
+  
++ #ifdef THINK_C
++ #include <stdlib.h>
++ #include <string.h>
++ #undef __STDC__
++ #define __STDC__ 1
++ #define __GNU_LIBRARY__
++ #endif /* THINK_C */
++ 
+  #ifdef	__cplusplus
+  extern "C" {
+  #endif
+diff -c ../gzip.c ./gzip.c
+*** ../gzip.c	Thu Mar 18 18:14:56 1993
+--- ./gzip.c	Fri Feb 23 21:02:48 1923
+***************
+*** 170,175 ****
+--- 170,178 ----
+  
+  		/* local variables */
+  
++ #ifdef THINK_C
++ int ascii = 0;  /* output as text-file (-a) */
++ #endif /* THINK_C */
+  int to_stdout = 0;    /* output to stdout (-c) */
+  int decompress = 0;   /* decompress (-d) */
+  int force = 0;        /* don't ask questions, compress links (-f) */
+***************
+*** 208,214 ****
+  struct option longopts[] =
+  {
+   /* { name  has_arg  *flag  val } */
+!  /* {"ascii",      0, 0, 'a'},  ascii text mode */
+      {"stdout",     0, 0, 'c'}, /* write output on standard output */
+      {"decompress", 0, 0, 'd'}, /* decompress */
+      {"uncompress", 0, 0, 'd'}, /* decompress */
+--- 211,217 ----
+  struct option longopts[] =
+  {
+   /* { name  has_arg  *flag  val } */
+!     {"ascii",      0, 0, 'a'}, /* ascii text mode */
+      {"stdout",     0, 0, 'c'}, /* write output on standard output */
+      {"decompress", 0, 0, 'd'}, /* decompress */
+      {"uncompress", 0, 0, 'd'}, /* decompress */
+***************
+*** 280,286 ****
+  local void help()
+  {
+      static char  *help_msg[] = {
+! /* -a --ascii       ascii text; convert end-of-lines to local OS conventions */
+   " -c --stdout      write on standard output, keep original files unchanged",
+   " -d --decompress  decompress",
+  /* -e --encrypt     encrypt */
+--- 283,289 ----
+  local void help()
+  {
+      static char  *help_msg[] = {
+!  " -a --ascii       ascii text; convert end-of-lines to local OS conventions",
+   " -c --stdout      write on standard output, keep original files unchanged",
+   " -d --decompress  decompress",
+  /* -e --encrypt     encrypt */
+***************
+*** 416,424 ****
+--- 419,435 ----
+      }
+  #endif
+  
++ #ifdef THINK_C
++     while ((optc = getopt_long (argc, argv, "b:acdfhLqrtvVZ123456789",
++ #else
+      while ((optc = getopt_long (argc, argv, "b:cdfhLqrtvVZ123456789",
++ #endif /* THINK_C */
+  				longopts, (int *)0)) != EOF) {
+  	switch (optc) {
++ #ifdef THINK_C
++ 	case 'a':
++ 	    ascii = 1; break;
++ #endif /* THINK_C */
+  	case 'b':
+  	    maxbits = atoi(optarg);
+  	    break;
+***************
+*** 627,632 ****
+--- 638,648 ----
+      /* Open the input file and determine compression method. The mode
+       * parameter is ignored but required by some systems (VMS).
+       */
++ #ifdef THINK_C
++ 	if (ascii && !decompress)
++     	ifd = open(ifname, O_RDONLY | O_TEXT, RW_USER);
++ 	else
++ #endif /* THINK_C */
+      ifd = open(ifname, O_RDONLY | O_BINARY, RW_USER);
+      if (ifd == -1) {
+  	perror(ifname);
+***************
+*** 725,730 ****
+--- 741,751 ----
+  	}
+  	/* Create the output file */
+  	remove_ofname = 1;
++ #ifdef THINK_C
++ 	if (ascii && decompress)
++ 		ofd = open(ofname, O_WRONLY|O_CREAT|O_EXCL|O_TEXT, RW_USER);
++ 	else
++ #endif /* THINK_C */
+  	ofd = open(ofname, O_WRONLY|O_CREAT|O_EXCL|O_BINARY, RW_USER);
+  	if (ofd == -1) {
+  	    perror(ofname);
+***************
+*** 1196,1202 ****
+--- 1217,1227 ----
+  	if (foreground && isatty(fileno(stdin))) {
+  	    fprintf(stderr, " do you wish to overwrite (y or n)? ");
+  	    fflush(stderr);
++ #ifdef THINK_C
++ 	    (void)fgets(response, sizeof(response) - 1, stdin);
++ #else
+  	    (void)read(fileno(stdin), response, sizeof(response));
++ #endif /* THINK_C */
+  	}
+  	if (tolow(*response) != 'y') {
+  	    fprintf(stderr, "\tnot overwritten\n");
+***************
+*** 1268,1273 ****
+--- 1293,1301 ----
+  #endif
+      remove_ofname = 0;
+      /* It's now safe to remove the input file: */
++ #ifdef THINK_C
++ 	SetType(ofname, ifstat->st_FlFndrInfo);
++ #endif /* THINK_C */
+      (void) chmod(ifname, 0777);
+      if (unlink(ifname)) {
+  	WARN((stderr, "%s: ", progname));
+***************
+*** 1316,1327 ****
+--- 1344,1365 ----
+  	    continue;
+  	}
+  	if (((int)strlen(dir) + NLENGTH(dp) + 1) < (MAX_PATH_LEN - 1)) {
++ #ifdef THINK_C
++ 		if (*dir != ':') {
++ 	    	*nbuf = ':';
++ 	    	strcpy(nbuf+1,dir);
++ 		} else
++ #endif
+  	    strcpy(nbuf,dir);
+  	    if (strlen(dir) != 0) { /* dir = "" means current dir on Amiga */
+  #ifdef OTHER_PATH_SEP
+  		if (dir[strlen(dir)-1] != OTHER_PATH_SEP)
+  #endif
++ #ifdef THINK_C
++ 		strcat(nbuf,":");
++ #else
+  		strcat(nbuf,"/");
++ #endif
+  	    }
+  	    strcat(nbuf,dp->d_name);
+  	    treat_file(nbuf);
+diff -c ../gzip.h ./gzip.h
+*** ../gzip.h	Thu Mar 18 18:14:56 1993
+--- ./gzip.h	Wed Mar 31 13:55:07 1993
+***************
+*** 80,89 ****
+--- 80,96 ----
+  #ifdef DYN_ALLOC
+  #  define EXTERN(type, array)  extern type * near array
+  #  define DECLARE(type, array, size)  type * near array
++ #ifdef THINK_C
+  #  define ALLOC(type, array, size) { \
++       array = (type*)fcalloc((size_t)(((size)+1L)/2), 2*sizeof(type)); \
++       if (array == NULL) error("insufficient memory"); \
++    }
++ #else
++ #  define ALLOC(type, array, size) { \
+        array = (type*)fcalloc((unsigned)(((size)+1L)/2), 2*sizeof(type)); \
+        if (array == NULL) error("insufficient memory"); \
+     }
++ #endif /* THINK_C */
+  #  define FREE(array) {if (array != NULL) fcfree(array), array=NULL;}
+  #else
+  #  define EXTERN(type, array)  extern type array[]
+diff -c ../tailor.h ./tailor.h
+*** ../tailor.h	Sat Mar 27 22:47:23 1993
+--- ./tailor.h	Wed Mar 31 13:55:07 1993
+***************
+*** 8,19 ****
+   * The target dependent functions should be defined in tailor.c.
+   */
+  
+! /* $Id: tailor.h,v 1.1 1993/03/27 22:46:20 tim Exp tim $ */
+  
+! #ifdef mips
+! extern errno;
+! #endif
+  
+  #if defined(__MSDOS__) && !defined(MSDOS)
+  #  define MSDOS
+  #endif
+--- 8,73 ----
+   * The target dependent functions should be defined in tailor.c.
+   */
+  
+! /* $Id: tailor.h,v 0.14 1993/03/18 18:14:56 jloup Exp $ */
+  
+! #ifdef THINK_C
+! /* Options from Makefile
+! # -DDIRENT              Use <dirent.h>  for recursion (-r)
+! # -DSYSDIR              Use <sys/dir.h> for recursion (-r)
+! # -DSYSNDIR             Use <sys/ndir.h> for recursion (-r)
+! # -DNDIR                Use <ndir.h> for recursion (-r)
+! # -DSTDC_HEADERS        Use <stdlib.h>
+! # -DHAVE_UNISTD_H	Use <unistd.h>
+! # -DHAVE_UTIME_H	Use <utime.h>
+! # -DHAVE_SYSUTIME_H	Use <sys/utime.h>
+! # -DNEED_MEMORY_H       Use <memory.h>
+! # -DHAVE_STRING_H       Use <string.h> (otherwise use strings.h)
+! # -DRETSIGTYPE=int      Define this if signal handlers must return an int.
+! # -DNO_SYMLINK          OS defines S_IFLNK but does not support symbolic links
+! # -DNO_MULTIPLE_DOTS    System does not allow file names with multiple dots
+! # -DNO_UTIME		System does not support setting file modification time
+! # -DNO_CHOWN		System does not support setting file owner
+! # -DNO_DIR		System does not support readdir()
+! # -DPROTO		Force function prototypes even if __STDC__ not defined
+! # -DASMV		Use asm version match.S
+! # -DMSDOS		MSDOS specific
+! # -DOS2			OS/2 specific
+! # -DVMS			Vax/VMS specific
+! # -DDEBUG		Debug code
+! # -DDYN_ALLOC		Use dynamic allocation of large data structures
+! # -DMAXSEG_64K		Maximum array size is 64K (for 16 bit system)
+! # -DRECORD_IO           read() and write() are rounded to record sizes.
+! # -DNO_STDIN_FSTAT      fstat() is not available on stdin
+! # -DNO_SIZE_CHECK       stat() does not give a reliable file size
+! */
+  
++ #  define DDIRENT
++ #  define STDC_HEADERS
++ #  define HAVE_UNISTD_H 1
++ #  define HAVE_UTIME_H
++ #  define HAVE_STRING_H
++ #  define NO_SYMLINK
++ #  define NO_MULTIPLE_DOTS
++ #  define NO_CHOWN
++ #  define PROTO
++ #  define DYN_ALLOC
++ #  define MAXSEG_64K
++ #  undef NO_SIZE_CHECK
++ #  define PATH_SEP ':'
++ #  define MAX_PATH_LEN  256
++ #  define STDC_HEADERS
++ #include <stdlib.h>
++ #include <unix.h>
++ #include <console.h>
++ #include "getopt.h"
++ #include "ThinkCPosix.h"
++ #  define EXPAND(argc,argv) argc = ccommand(&argv);
++ #define open Open
++ #define read(fd, buf, n) read(fd, (char*)buf, n)
++ #define write(fd, buf, n) write(fd, (char*)buf, n)
++ #define extended Extended
++ #endif /* THINK_C */
++ 
+  #if defined(__MSDOS__) && !defined(MSDOS)
+  #  define MSDOS
+  #endif
+***************
+*** 86,91 ****
+--- 140,149 ----
+  #  define fcalloc(items,size) malloc((unsigned)(items)*(unsigned)(size))
+  #  define fcfree(ptr) free(ptr)
+  #else
++ #ifdef THINK_C
++ #  define fcalloc(items,size) calloc((size_t)(items),(size_t)(size))
++ #  define fcfree(ptr) free(ptr)
++ #else
+  #  ifdef __TURBOC__
+  #    include <alloc.h>
+  #    define DYN_ALLOC
+***************
+*** 97,102 ****
+--- 155,161 ----
+  #    define fcalloc(nitems,itemsize) halloc((long)(nitems),(itemsize))
+  #    define fcfree(ptr) hfree(ptr)
+  #  endif
++ #endif /* THINK_C */
+  #endif
+  
+  #if defined(VAXC) || defined(VMS)
+=======================================================
+
+
+-- 
+Timothy Murphy  
+e-mail: tim@maths.tcd.ie
+tel: +353-1-2842366
+s-mail: School of Mathematics, Trinity College, Dublin 2, Ireland
+
+

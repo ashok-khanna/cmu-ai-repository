@@ -1,0 +1,242 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node180.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:31:35 GMT -->
+<HEAD>
+<TITLE>20.1. Run-Time Evaluation of Forms</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Run-Time Evaluation of Forms">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3775 HREF="node181.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3773 HREF="node179.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3767 HREF="node179.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3777 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3778 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3776 HREF="node181.html"> The Top-Level Loop</A>
+<B>Up:</B> <A NAME=tex2html3774 HREF="node179.html"> The Evaluator</A>
+<B> Previous:</B> <A NAME=tex2html3768 HREF="node179.html"> The Evaluator</A>
+<HR> <P>
+<H1><A NAME=SECTION002410000000000000000>20.1. Run-Time Evaluation of Forms</A></H1>
+<P>
+The function <tt>eval</tt> is the main user interface to the evaluator.
+Hooks are provided for user-supplied debugging routines
+to obtain control during the execution of an interpretive evaluator.
+The functions <tt>evalhook</tt> and <tt>applyhook</tt> provide alternative
+interfaces to the evaluator mechanism for use by these debugging routines.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>eval <i>form</i></tt><P>The <i>form</i> is evaluated in the current dynamic environment and
+a null lexical environment.  Whatever results from the evaluation
+is returned from the call to <tt>eval</tt>.
+<P>
+Note that when you write a call to <tt>eval</tt> <i>two</i> levels
+of evaluation occur on the argument form you write.
+First the argument form is evaluated, as for arguments to any function,
+by the usual argument evaluation mechanism
+(which involves an implicit use of <tt>eval</tt>).  Then the argument
+is passed to the <tt>eval</tt> function, where another evaluation occurs.
+For example:
+<P><pre>
+(eval (list 'cdr (car '((quote (a . b)) c)))) => b
+</pre><P>
+The argument form <tt>(list 'cdr (car '((quote (a . b)) c)))</tt> is evaluated
+in the usual way to produce the argument <tt>(cdr (quote (a . b)))</tt>;
+this is then given to <tt>eval</tt> because <tt>eval</tt> is being called explicitly,
+and <tt>eval</tt> evaluates its argument <tt>(cdr (quote (a . b)))</tt> to produce <tt>b</tt>.
+<P>
+If all that is required for some application is
+to obtain the current dynamic value of a given symbol, the function
+<tt>symbol-value</tt> may be more efficient than <tt>eval</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=19129>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Variable]</b><BR>
+<tt>*evalhook* <BR></tt><tt>*applyhook*</tt><P>If the value of <tt>*evalhook*</tt> is not <tt>nil</tt>, then <tt>eval</tt> behaves
+in a special way.  The non-<tt>nil</tt> value of <tt>*evalhook*</tt> should be a function
+that takes two arguments, a form and an environment;
+this is called the <i>eval hook function</i>.
+When a form is to be evaluated (any form at all, even a number or a symbol),
+whether implicitly or via an explicit call to <tt>eval</tt>, no attempt
+is made to evaluate the form.
+Instead, the hook function is invoked and is passed the form to be evaluated
+as its first argument.  The hook function is then responsible for
+evaluating the form; whatever is returned by the hook function is assumed
+to be the result of evaluating the form.
+<P>
+The variable <tt>*applyhook*</tt> is similar to <tt>*evalhook*</tt> but is used
+when a function is about to be applied to arguments.
+If the value of <tt>*applyhook*</tt> is not <tt>nil</tt>, then <tt>eval</tt> behaves
+in a special way.
+<p>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+The non-<tt>nil</tt> value of <tt>*applyhook*</tt> should be a function
+that takes three arguments: a function, a list of arguments,
+and an environment;
+this is called the <i>apply hook function</i>.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(APPLYHOOK-ENVIROMENT) <A NAME=19152>&#160;</A> 
+to revise the definition of <tt>*applyhook*</tt>.
+Its value should be a function of <i>two</i> arguments,
+a function and a list of arguments; no environment information is passed
+to an apply hook function.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+This was simply a flaw in the first edition.  Sorry about that.
+<P>
+When a function is about to be applied to a list of arguments,
+no attempt is made to apply the function.
+Instead, the hook function is invoked and is passed the function and the list
+of arguments
+as its first and second arguments.  The hook function is then responsible for
+evaluating the form; whatever is returned by the hook function is assumed
+to be the result of evaluating the form.
+The apply hook function is used only for application of ordinary functions
+within <tt>eval</tt>.  It is not used for applications via <tt>apply</tt> or
+<tt>funcall</tt>, for applications by such functions as <tt>map</tt> or
+<tt>reduce</tt>, or for invocation of macro-expansion functions
+by either <tt>eval</tt> or <tt>macroexpand</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1988 (FUNCTION-TYPE) <A NAME=19164>&#160;</A>  to specify
+that the value of <tt>*macroexpand-hook*</tt> is first coerced to a
+function before being called as the expansion interface hook.
+This vote made no mention of <tt>*evalhook*</tt> or <tt>*applyhook*</tt>,
+but this may have been an oversight.
+<P>
+A proposal was submitted to X3J13 in September 1989 to specify
+that the value of <tt>*evalhook*</tt> or <tt>*applyhook*</tt> is first coerced to a
+function before being called.  If this proposal is accepted,
+the value of either variable may be <tt>nil</tt>, any other symbol,
+a lambda-expression, or any object of type <tt>function</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+The last argument passed to either kind of hook function contains information
+about the lexical environment in an implementation-dependent format.
+These arguments are suitable for the functions
+<tt>evalhook</tt>, <tt>applyhook</tt>, and <tt>macroexpand</tt>.
+<P>
+When either kind of hook function is invoked, both of the variables
+<tt>*evalhook*</tt>
+and <tt>*applyhook*</tt> are rebound to the value <tt>nil</tt> around the invocation
+of the hook function.  This is so that the hook function will not be
+invoked recursively on evaluations and applications that occur
+in the course of executing the code of the hook function.
+The functions <tt>evalhook</tt>
+and <tt>applyhook</tt> are useful for performing recursive evaluations
+and applications within the hook function.
+<P>
+The hook feature is provided as an aid to debugging.
+The <tt>step</tt> facility is implemented using this hook.
+<P>
+If a non-local exit causes a throw back to the top level
+of Lisp, perhaps because an error could not
+be corrected, then <tt>*evalhook*</tt> and <tt>*applyhook*</tt> are
+automatically reset to <tt>nil</tt> as a safety feature.
+<P>
+<BR><b>[Function]</b><BR>
+<pre>
+evalhook <i>form</i> <i>evalhookfn</i> <i>applyhookfn</i> &amp;optional <i>env</i> 
+applyhook <i>function</i> <i>args</i> <i>evalhookfn</i> <i>applyhookfn</i> &amp;optional <i>env</i>
+</pre>
+<P>The functions <tt>evalhook</tt> and <tt>applyhook</tt> are provided to make it
+easier to exploit the hook feature.
+<P>
+In the case of <tt>evalhook</tt>, the <i>form</i> is evaluated.
+In the case of <tt>applyhook</tt>, the <i>function</i> is applied to the
+list of arguments <i>args</i>.  In either case,
+for the duration of the operation
+the variable <tt>*evalhook*</tt> is bound to <i>evalhookfn</i>, and
+<tt>*applyhook*</tt> is bound to <i>applyhookfn</i>.
+Furthermore, the <i>env</i> argument
+is used as the lexical environment for the operation;
+<i>env</i> defaults to the null environment.
+The check for a hook function is <i>bypassed</i> for the evaluation
+of the <i>form</i> itself (for <tt>evalhook</tt>) or for the application
+of the <i>function</i> to the <i>args</i> itself (for <tt>applyhook</tt>),
+but not for subsidiary evaluations and applications
+such as evaluations of subforms.  It is this one-shot bypass that makes
+<tt>evalhook</tt> and <tt>applyhook</tt> so useful.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(APPLYHOOK-ENVIROMENT) <A NAME=19209>&#160;</A> 
+to eliminate the optional <i>env</i>
+parameter to <tt>applyhook</tt>, because it is not (and cannot)
+be useful.  Any function that can be applied carries its own
+environment and does not need another environment to be specified
+separately.
+This was a flaw in the first edition.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+Here is an example of a very simple tracing routine that uses just the
+<tt>evalhook</tt> feature.
+<P><pre>
+(defvar *hooklevel* 0) 
+
+(defun hook (x) 
+  (let ((*evalhook* 'eval-hook-function)) 
+    (eval x))) 
+
+(defun eval-hook-function (form <tt>&amp;rest</tt> env) 
+  (let ((*hooklevel* (+ *hooklevel* 1))) 
+    (format *trace-output* &quot;~%~V@TForm:  ~S&quot; 
+            (* *hooklevel* 2) form) 
+    (let ((values (multiple-value-list 
+                     (evalhook form 
+                               #'eval-hook-function 
+                               <tt>nil</tt> 
+                               env)))) 
+      (format *trace-output* &quot;~%~V@TValue:~{ ~S~}&quot; 
+              (* *hooklevel* 2) values) 
+      (values-list values))))
+</pre><P>
+Using these routines, one might see the following interaction:
+<P><pre>
+(hook '(cons (floor *print-base* 2) 'b)) 
+  Form:  (CONS (FLOOR *PRINT-BASE* 2) (QUOTE B)) 
+    Form:  (FLOOR *PRINT-BASE* 3) 
+      Form:  *PRINT-BASE* 
+      Value: 10 
+      Form:  3 
+      Value: 3 
+    Value: 3 1 
+    Form:  (QUOTE B) 
+    Value: B 
+  Value: (3 . B) 
+(3 . B)
+</pre><P>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>constantp <i>object</i></tt><P>If the predicate <tt>constantp</tt> is true of an object,
+then that object, when considered as a form to
+be evaluated, always evaluates to the same thing;
+it is a constant.
+This includes self-evaluating objects such as numbers, characters,
+strings, bit-vectors, and keywords, as well as all constant symbols
+declared by <tt>defconstant</tt>,
+such as <tt>nil</tt>, <tt>t</tt>, and <tt>pi</tt>.
+In addition, a list whose <i>car</i> is <tt>quote</tt>,
+such as <tt>(quote foo)</tt>, is considered to be a constant.
+<P>
+If <tt>constantp</tt> is false of an object, then
+that object, considered as a form,
+might or might not always evaluate to the same thing.
+<P>
+<BR> <HR><A NAME=tex2html3775 HREF="node181.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3773 HREF="node179.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3767 HREF="node179.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3777 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3778 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3776 HREF="node181.html"> The Top-Level Loop</A>
+<B>Up:</B> <A NAME=tex2html3774 HREF="node179.html"> The Evaluator</A>
+<B> Previous:</B> <A NAME=tex2html3768 HREF="node179.html"> The Evaluator</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

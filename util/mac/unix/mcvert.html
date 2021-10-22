@@ -1,0 +1,4619 @@
+#From: jskud@wv.MENTORG.COM (Joseph Skudlarek)
+#Date: Tue, 6 Jul 93 11:08:12 -0700 
+#Subject: mcvert-209.shar 
+#
+#mcvert is written in C and runs on many popular UNIX boxes.
+#mcvert converts among Macintosh file formats used for file interchange,
+#including BinHex 4.0 (.hqx) and MacBinary (.bin).
+#See mcvert.1 (the man page) for details.
+#
+#Please replace mcvert-20.shar with mcvert-209.shar, which follows.
+#Major changes and current usage are described below.
+#
+#<<Changes>>
+# * ----------------------------------------------------------------------------
+# * External
+# * -----
+# * unixify all relevent output files
+# *    (replace suspect characters with _)
+# * macify all relevent MacBinary files
+# *    (replace suspect chars with -, take first 20 and last 11 if > 31 char)
+# *    avoiding Mac file name > 31 chars (Rick Zaccone zaccone@bucknell.edu)
+# * always emit the Macintosh file name in the converting messages
+# *    since the UNIX file names are now provided by default
+# * rework man page to bring it more up to date, added OTHER SOURCES section
+# * emit data and rsrc len when printing bin header
+# * report the input character, not the mapped character, if avail,
+# *    else report mapped value as hex
+# * add -VV (Very Verbose) option
+# * -----
+# * Internal
+# * -----
+# * distribute mcvert.idraw, a postscript file
+# *    describing mcvert options and transformations pictorially,
+# *    contributed by Brian Bartholomew - bb@math.ufl.edu
+# * create and distribute README-conversion file
+# * update Makefile and README to make it more obvious how to build mcvert
+# *    problem reported by David Micklethwaite <mickles@cherax.super.csiro.au>
+# * make s/S/v/V flag processing serially reusable
+# * avoid obsolete ftime on HP-UX, SunOS, DomainOS -- default is now -DTIMEVAL
+# *    problem reported by smith@sfu.ca (Richard Smith) and
+# *    Adam Harris (harris@cs.uchicago.edu)
+# * avoid SGI bug regarding unterminated character constant within #ifdef notdef
+# *    problem reported by smith@sfu.ca (Richard Smith)
+# * clean up some FILE confusion
+# * make the man page work well across platforms
+# * re-lint on SunOS and HP-UX
+# * add various additional comments
+# * -----
+# * Joseph Skudlarek  Mentor Graphics  8005 SW Boeckman Rd  Wilsonville OR 97070
+# * (503) 685-1576 (work)
+# * {Jskud@wv.MentorG.com,Joseph_Skudlarek@MentorG.com}
+# * Version 2.09 30Jun93
+# * ----------------------------------------------------------------------------
+#<<Usage>>
+#Usage: mcvert { [option] ... name ...} ...
+# version:	2.09
+# default:	-xDqv
+#
+# option:
+#	-x	BinHex        .hqx  <-> MacBinary
+#	-u	Text(trans)   .text <-> MacBinary
+#	-h	Host(as is)   .text <-> MacBinary
+#	-d	Data          .data <-> MacBinary
+#	-r	Resource      .rsrc <-> MacBinary
+#	-b	Both    .data .rsrc <-> MacBinary
+#
+#	-D	Download       Other -> MacBinary
+#	-U	Upload     MacBinary -> Other
+#
+#	-p	BinHex -> MacBinary => unpack PIT
+#	-q	disable unpack PIT
+#	-t	translate end-of-line chars (useful with -b)
+#
+#	-I	Information only (does not write output files)
+#	-s	silent
+#	-S	Silent about ``Converting ... '' lines too
+#	-v	verbose
+#	-V	Verbose, includes debugging information
+#	-VV	Very Verbose, includes extra debugging information
+#	-H	disable skip-legal-but-suspect-lines Heuristic
+#
+#Environment:
+#	MAC_FILETYPE  	TEXT|????	Mac file type for Text|other
+#	MAC_EDITOR    	MACA|????	Mac creator (author) for Text|other
+#	MAC_EXT       	.bin     	extension for -D
+#	MAC_DLOAD_DIR 	.        	directory for -D
+#	MAC_LINE_LIMIT	none     	maximum line length for -Ux
+#
+#<<shar>>
+#!/bin/sh
+# This is a shell archive (produced by shar 3.50)
+# To extract the files from this archive, save it to a file, remove
+# everything above the "!/bin/sh" line above, and type "sh file_name".
+#
+# made 06/30/1993 19:20 UTC by jskud@zigzag
+# Source directory /tmp_mnt/user/jskud/notes/info-mac/mcvert
+#
+# existing files will NOT be overwritten unless -c is specified
+#
+# This shar contains:
+# length  mode       name
+# ------ ---------- ------------------------------------------
+#  40958 -r--r--r-- mcvert.c
+#  28298 -r--r--r-- hqxify.c
+#   6864 -r--r--r-- unpack.c
+#  10016 -r--r--r-- mactypes.h
+#   2281 -r--r--r-- Makefile
+#    829 -r--r--r-- README
+#   7650 -r--r--r-- README-conversion
+#  13179 -r--r--r-- mcvert.idraw
+#  12652 -r--r--r-- mcvert.1
+#
+# ============= mcvert.c ==============
+if test -f 'mcvert.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping mcvert.c (File already exists)'
+else
+echo 'x - extracting mcvert.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'mcvert.c' &&
+/**
+X * mcvert.c - version 1.05 - 10 January, 1990
+X * Written by Doug Moore - Rice University - dougm@rice.edu - April '87
+X
+X * Sun bug fixes, assorted stuff - Jim Sasaki, March '89
+X
+X * Changed default max_line_size from 2000 to unlimited - Doug Moore, April, '89
+X
+X * Sun 3/60 doesn't like odd-sized structs.  Bug fixed - Doug Moore, April, '89
+X *                                              - aided by Spencer W. Thomas
+X
+X * Didn't handle properly many hqx files combined in one file.  Bug fixed -
+X *                                           Doug Moore, June, '89
+X
+X * Modified to handle MacBinaryII specification. Jim Van Verth, Sept, '89
+X
+X * Fixed a bug when there are blank lines in hqx data, as happens when newline
+X * get translated to CRLF and then to \n\n, common for some file transfers.
+X * The last hqx line would be lost if the previous line was blank or junk.
+X *	Glenn Trewitt, Stanford University, 1990	(1.05)
+X
+X * Fixed a bug that occurred when extracting data or resource
+X * forks on a Sun 4.  It was a byte alignment problem.
+X * Rick Zaccone, zaccone@bucknell.edu.  April 1991.  Version 1.6
+X
+X * Fixed:
+X *   Sent all "Converting ... " lines to stdout instead of stderr
+X *   Changed mactypes.h for HP-UX systems
+X *      Alan Danziger, aland@cs.brandeis.edu.  October 1991. Version 1.6.5
+X
+X * ----------------------------------------------------------------------------
+X * External
+X * -----
+X * Fixed buffering bug when converting very small MacBinary files to hqx files.
+X * Provide helpful usage line.
+X * Control "Converting ... " lines separately with -S flag.
+X * Make encoding and decoding consistent by ignoring locked and init flags.
+X * Clean up some error messages; check for more errors; provide errno on error.
+X * Updated the man page.
+X * -----
+X * Internal
+X * -----
+X * Reformat source (sorry, local standard used by tools is tab space == 3)
+X * Remove compiler warning messages.
+X * Rename some variables.
+X * Added some comments to code.
+X * Added some offsets to struct definitions.
+X * Since the makefile has compilation flags,
+X *    make the compiles depend on the Makefile.
+X * -----
+X * Thanks to all who have gone before for creating, maintaining,
+X * improving, and providing this program and documentation.
+X * -----
+X * Joseph Skudlarek  Mentor Graphics  8005 SW Boeckman Rd  Wilsonville OR 97070
+X * {Jskud@std.mentorg.com,Joseph_Skudlarek@mentorg.com}
+X * ...{uunet,nosun,sequent,attunix,apollo}!mntgfx!Jskud
+X * Version 1.70 09Jul92
+X * ----------------------------------------------------------------------------
+X
+X * ----------------------------------------------------------------------------
+X * External
+X * -----
+X * Added -V (Verbose) option (includes debugging information).
+X * Fixed bug converting hqx to MacBinary if last line is ":".
+X * Avoided a silent error and quick exit situation.
+X * -----
+X * Internal
+X * -----
+X * Got rid of almost all lint (SunOS and HP-UX) error messages.
+X * Compiled on SunOs, HP-UX, DomainOS.
+X * Incorporated Parag Patel <parag@netcom.com> changes for AU/X.
+X *    Here's some diffs for really quick cheap hacks to get mcvert to compile
+X *    and run under A/UX.  The main problem was that timeb does not exist, so
+X *    I added 2 #ifdef TIMEVAL to use the System-V timeval package instead.
+X *    The Makefile just has a -DTIMEVAL and a magic -U_SYSV_SOURCE to get
+X *    around a pre-defined type "ulong" in sys/types.h (thanks to Apple).
+X * Did more code overhauling:
+X *    add lots more comments, rename variables, reformat source.
+X * Put code in un_hqx to avoid suspected buffering problem.
+X * -----
+X * Joseph Skudlarek  Mentor Graphics  8005 SW Boeckman Rd  Wilsonville OR 97070
+X * (503) 685-1576 (work)
+X * {Jskud@std.MENTORG.Com,Joseph_Skudlarek@MENTORG.Com}
+X * ...{uunet,nosun,sequent,attunix,apollo}!mntgfx!Jskud
+X * Version 1.80 15Jul92
+X * ----------------------------------------------------------------------------
+X
+X * ----------------------------------------------------------------------------
+X * External
+X * -----
+X * Made hqx file scan processing much smarter
+X *    so, for example, info-mac/comm/qwk-reader.hqx,
+X *    complete with extraneous colons in column one, converts correctly
+X *    (problem described by Edward John Sabol <es2j+@andrew.cmu.edu>)
+X * Avoid silly perror on usage message (prompted by Edward John Sabol)
+X * Improve error message regarding improper format
+X * Added more caveats to man page
+X * -----
+X * Internal
+X * -----
+X * Fixed typo's in printf lines to pass all expected arguments
+X *    (pointed out by Bo Holst-Christensen
+X *    [holst@diku.dk/dikubhc1@uts.uni-c.dk/holst@login.dkuug.dk])
+X * Tweak Makefile to ease shar creation and special case ulong, not A/UX
+X * Add yet more comments and debugging code
+X * -----
+X * Joseph Skudlarek  Mentor Graphics  8005 SW Boeckman Rd  Wilsonville OR 97070
+X * (503) 685-1576 (work)
+X * {Jskud@std.MENTORG.Com,Joseph_Skudlarek@MENTORG.Com}
+X * ...{uunet,nosun,sequent,attunix,apollo}!mntgfx!Jskud
+X * Version 1.82 30Jul92
+X * ----------------------------------------------------------------------------
+X
+X * ----------------------------------------------------------------------------
+X * External
+X * -----
+X * relax exactly 64 characters per incoming hqx file, and
+X * handle files without trailing newline, so, eg, 
+X *    Telnet2.5docs.sit.hqx now converts correctly
+X *       (failure reported by Justin Sullivan <justin@f2.facts.uky.edu>)
+X *    now also processes info-mac/app/road-map.hqx correctly
+X *       (failure reported by Victor Norton<norton@andy.bgsu.edu>)
+X * rework the man page for improved clarity and completeness
+X * -----
+X * Internal
+X * -----
+X * avoid warning message from gcc on Sequent Balance mainframe
+X *    reported by Justin Sullivan <justin@f2.facts.uky.edu>
+X * bump max incoming line length to 2048 from 255
+X * add mcvert.ps target to Makefile
+X * -----
+X * Joseph Skudlarek  Mentor Graphics  8005 SW Boeckman Rd  Wilsonville OR 97070
+X * (503) 685-1576 (work)
+X * {Jskud@std.MENTORG.Com,Joseph_Skudlarek@MENTORG.Com}
+X * ...{uunet,nosun,sequent,attunix,apollo}!mntgfx!Jskud
+X * Version 1.83 03Aug92
+X * ----------------------------------------------------------------------------
+X
+X * ----------------------------------------------------------------------------
+X * External
+X * -----
+X * Found and fixed problem with byte ordering plaguing users of
+X *    Sequent's Balance running DYNIX, and DEC computers.
+X *    The error message looked something like
+X *       hqx_to_bin_fork: writing nnn too many bytes
+X * Avoid generating debugging info if not to be printed -- cut runtime in half!
+X * Generalize and incorporate -I (info) option processing provided by
+X *    Paul Franklin, Computer Enginnering, Univ. of Calif., Davis CA 95616
+X *    pdfranklin@ucdavis.edu.
+X * Added heuristic to avoid false matches in mail headers.
+X *    problem expertly characterized, solution beta tested, and subsequent
+X *    improvement suggested by "Jim (J.) Lattanzi" <lattanzi@bnr.ca>
+X *    so segmented comp.binaries.mac files (either multi-file or concatenated
+X *    single file) should now convert correctly.
+X * Added -H switch to disable heuristic.
+X * Document heuristic in man page.
+X * Fixed (long-standing) bug which precluded -p option from being recognized
+X *    and verified decompressing and unpacking of PIT files working.
+X *    Thanks to Dave Clemans for providing me with a version of PackIt.
+X * Add the version to the extened Usage message emitted by the program.
+X * Tune the syntax of the summary in the program and man page.
+X * Cleaned up spelling mistakes in the man page.
+X * -----
+X * Internal
+X * -----
+X * Close all open streams --
+X *    fix for binfile by Paul Franklin <pdfranklin@ucdavis.edu>
+X * Incorporate changes suggested by Barry_Wolman@transarc.com
+X *    to mactypes.h and Makefile for support of IBM RS/6000 running AIX 3.2
+X *    reformat Makefile to avoid long option lines
+X * Identify the right Makefile lines for Irix too
+X *    suggested by Jack Repenning (jackr@dblues.wpd.sgi.com)
+X * Clean up the stream handling and add mopen/mclose
+X *    avoid unnecessary /dev/null opens
+X *    all file open/close/read/write are checked for success
+X * Lower lint content on SunOS and HP-UX.
+X *    avoiding all "sometimes ignored" lint messages.
+X * Improve modularity with mopen/mclose/converting routines.
+X * Tune debugging output information.
+X * Verify that passes smoke tests on DomainOS/SunOS/HP-UX/ULTRIX.
+X * Reformat these comments to avoid tabs.
+X * -----
+X * Joseph Skudlarek  Mentor Graphics  8005 SW Boeckman Rd  Wilsonville OR 97070
+X * (503) 685-1576 (work)
+X * {Jskud@std.MENTORG.Com,Joseph_Skudlarek@MENTORG.Com}
+X * ...{uunet,nosun,sequent,attunix,apollo}!mntgfx!Jskud
+X * Version 1.87 25Sep92
+X * ----------------------------------------------------------------------------
+X
+X * ----------------------------------------------------------------------------
+X * External
+X * -----
+X * Add README file which describes how to configure and compile mcvert
+X * Handle multiple BinHex4.0 inputs in a single file again (thanks to
+X *    <Mark_Larimer@pigeon.cpg.cdc.com> for pointing out this regression)
+X * Emit the MacBinary header if verbose (to get create and modify times)
+X * -----
+X * Internal
+X * -----
+X * Rename some variables, create mac2unix (time) routine, more comments
+X * Keep lint content low
+X * Pull unnecessary include of <net/nh.h> -- avoid breaking AIX 3.1
+X * Fix = vs == typo dealing with protect bit
+X * -----
+X * Joseph Skudlarek  Mentor Graphics  8005 SW Boeckman Rd  Wilsonville OR 97070
+X * (503) 685-1576 (work)
+X * {Jskud@std.MENTORG.Com,Joseph_Skudlarek@MENTORG.Com}
+X * ...{uunet,nosun,sequent,attunix,apollo}!mntgfx!Jskud
+X * Version 1.88 08Dec92
+X * ----------------------------------------------------------------------------
+X
+X * ----------------------------------------------------------------------------
+X * External
+X * -----
+X * emit input file names when verbose is enabled
+X *    (suggested by franklin@eecs.ucdavis.edu)
+X * make it easier to build on AT&T 3B2's
+X * -----
+X * Internal
+X * -----
+X * provide compile time switch to avoid bzero and bcopy, and use memset
+X *    and memcpy instead (pointed out by linger@drystone.attmail.com, and
+X *    requested again by Larry S. Staples <attjp4!lss>)
+X * update Makefile to include incantations required for AT&T 3B2's
+X * fflush all diagnostic output to ensure correct order when output to a file
+X * -----
+X * Joseph Skudlarek  Mentor Graphics  8005 SW Boeckman Rd  Wilsonville OR 97070
+X * (503) 685-1576 (work)
+X * {Jskud@std.MENTORG.Com,Joseph_Skudlarek@MENTORG.Com}
+X * ...{uunet,nosun,sequent,attunix,apollo}!mntgfx!Jskud
+X * Version 1.89 05Jan93
+X * ----------------------------------------------------------------------------
+X
+X * ----------------------------------------------------------------------------
+X * External
+X * -----
+X * incorporate MAC_FILETYPE support provided by <root@genome.stanford.edu>
+X * minor edits to man page
+X * -----
+X * Internal
+X * -----
+X * update Makefile to simplify incantations required for AT&T 3B2's
+X * -----
+X * Joseph Skudlarek  Mentor Graphics  8005 SW Boeckman Rd  Wilsonville OR 97070
+X * (503) 685-1576 (work)
+X * {Jskud@std.MENTORG.Com,Joseph_Skudlarek@MENTORG.Com}
+X * ...{uunet,nosun,sequent,attunix,apollo}!mntgfx!Jskud
+X * Version 1.90 04Mar93
+X * ----------------------------------------------------------------------------
+X
+X * ----------------------------------------------------------------------------
+X * External
+X * -----
+X * handle -b (both .data and .rsrc at same time) option
+X *    ( -> MacBinary suggested by bb@math.ufl.edu)
+X * remove anomalous file extension handling
+X *    (suggested by bb@math.ufl.edu)
+X * regularize MAC_EDITOR (author) and MAC_FILETYPE (file type) handling
+X * detect and report important file format errors
+X * emit output file name too
+X * revise Usage line
+X * massively revise man page to reflect changes and generally overhaul
+X * -----
+X * Internal
+X * -----
+X * avoid overwriting internal storage (what a chore!)
+X *    for example, mcvert -UI *.hqx used to abort with a segmentation violation
+X *    symptom reported by franklin@eecs.ucdavis.edu  Thu Sep 24 16:39:21 1992
+X * check return values from all getc/putc operations
+X * find and fix ancient bug extracting resource fork from MacBinary format
+X * identify failing file in EOF error messages
+X * clarify and amend distribution and update restrictions
+X * expand disclaimer (patterned after INFO-MAC CD-ROM -- Thx, Cliff and Joe!)
+X * -----
+X * Joseph Skudlarek  Mentor Graphics  8005 SW Boeckman Rd  Wilsonville OR 97070
+X * (503) 685-1576 (work)
+X * {Jskud@std.MENTORG.Com,Joseph_Skudlarek@MENTORG.Com}
+X * ...{uunet,nosun,sequent,attunix,apollo}!mntgfx!Jskud
+X * Version 2.00 28Feb93
+X * ----------------------------------------------------------------------------
+X
+X * ----------------------------------------------------------------------------
+X * External
+X * -----
+X * unixify all relevent output files
+X *    (replace suspect characters with _)
+X * macify all relevent MacBinary files
+X *    (replace suspect chars with -, take first 20 and last 11 if > 31 char)
+X *    avoiding Mac file name > 31 chars (Rick Zaccone zaccone@bucknell.edu)
+X * always emit the Macintosh file name in the converting messages
+X *    since the UNIX file names are now provided by default
+X * rework man page to bring it more up to date, added OTHER SOURCES section
+X * emit data and rsrc len when printing bin header
+X * report the input character, not the mapped character, if avail,
+X *    else report mapped value as hex
+X * add -VV (Very Verbose) option
+X * -----
+X * Internal
+X * -----
+X * distribute mcvert.idraw, a postscript file
+X *    describing mcvert options and transformations pictorially,
+X *    contributed by Brian Bartholomew - bb@math.ufl.edu
+X * create and distribute README-conversion file
+X * update Makefile and README to make it more obvious how to build mcvert
+X *    problem reported by David Micklethwaite <mickles@cherax.super.csiro.au>
+X * make s/S/v/V flag processing serially reusable
+X * avoid obsolete ftime on HP-UX, SunOS, DomainOS -- default is now -DTIMEVAL
+X *    problem reported by smith@sfu.ca (Richard Smith) and
+X *    Adam Harris (harris@cs.uchicago.edu)
+X * avoid SGI bug regarding unterminated character constant within #ifdef notdef
+X *    problem reported by smith@sfu.ca (Richard Smith)
+X * clean up some FILE confusion
+X * make the man page work well across platforms
+X * re-lint on SunOS and HP-UX
+X * add various additional comments
+X * -----
+X * Joseph Skudlarek  Mentor Graphics  8005 SW Boeckman Rd  Wilsonville OR 97070
+X * (503) 685-1576 (work)
+X * {Jskud@wv.MentorG.com,Joseph_Skudlarek@MentorG.com}
+X * Version 2.09 30Jun93
+X * ----------------------------------------------------------------------------
+X
+X * ----------------------------------------------------------------------------
+X * This program may be freely distributed for non-profit purposes.  It
+X * may not be sold, by itself or as part of a collection of software.
+X * However, it may be distributed in source form with large
+X * collections of freeware and shareware, such as the INFO-MAC CD-ROM,
+X * which charge only a modest fee for publishing, but not selling, the
+X * software.  It may be freely modified as long as no modified version
+X * is independently distributed.  Modifications of interest to all can
+X * be incorporated into the program by sending them to me for
+X * inclusion and redistribution, or by releasing an updated mcvert to
+X * the info-mac archives.  Parts of the code can be used in other
+X * programs.  We hope you find mcvert useful, and enjoy using it.
+X * ----------------------------------------------------------------------------
+X
+X * ----------------------------------------------------------------------------
+X * DISCLAIMER -- USE mcvert software AT YOUR OWN RISK
+X * This mcvert software is provided "as is" without warrantee of any
+X * kind.  The entire risk as to the results and performance of the
+X * software is assumed by you, and in no event will we be liable for
+X * any consequential, incidental, or indirect damages suffered in the
+X * course of using this software.
+X * ----------------------------------------------------------------------------
+X
+X * ----------------------------------------------------------------------------
+X * Things that yet could be done:
+X * ---
+X * handle incoming BinHex4.0 files with ^M instead of ^J
+X * (requested by jonathan brecher brecher@husc.harvard.edu 29Mar93)
+X *  eg, right now we toss the entire line if it doesn't start with a colon
+X *  but the start of the line could be later on, following a ^M
+X * check for more file format errors, eg, MacBinary must be multiple of 128
+X * option to avoid .text extension on write (Rick Zaccone zaccone@bucknell.edu)
+X * check return values from fputs/fprintf
+X * provide header heuristic tuning option: set length and/or same sensitivity
+X * ----------------------------------------------------------------------------
+X */
+X
+/*
+X * Naming
+X *		DOWNLOAD
+X *			=> converting TO MacBinary
+X *			=> direction == FORWARDS
+X *			=> use un_* routines (un => UNdo encoding?)
+X *		UPLOAD
+X *			=> converting FROM MacBinary
+X *			=> direction == BACKWARDS
+X *			=> use re_* routines (re => Really Encode?)
+X */
+X
+#include "mactypes.h"
+X
+/* it would be natural to use an enum here, but avoid "fancy" features */
+#define HQX 0
+#define TEXT 1
+#define DATA 2
+#define RSRC 3
+#define BOTH 5
+X
+#define FORWARDS 0
+#define BACKWARDS 1
+X
+FILE *devnull;
+FILE *convert;
+FILE *verbose;
+FILE *debug;
+int   Debug;
+X
+char **hqxnames, **hqxnames_left;
+char *dir, *ext, *mac_auth, *mac_type;
+int translate_eol;
+char *maxlines_str;
+int maxlines;
+X
+/* used to skip suspect mail header lines */
+int suspect_shorter = 12;
+int suspect_same = 1;
+X
+/* used to avoid writing output files */
+int info_only;
+X
+char Usage[] = "\
+Usage: %s { [option] ... name ...} ...\n\
+X version:\t%4.2f\n\
+X default:\t-xDqv\n\
+\n\
+X option:\n\
+\t-x\tBinHex        .hqx  <-> MacBinary\n\
+\t-u\tText(trans)   .text <-> MacBinary\n\
+\t-h\tHost(as is)   .text <-> MacBinary\n\
+\t-d\tData          .data <-> MacBinary\n\
+\t-r\tResource      .rsrc <-> MacBinary\n\
+\t-b\tBoth    .data .rsrc <-> MacBinary\n\
+\n\
+\t-D\tDownload       Other -> MacBinary\n\
+\t-U\tUpload     MacBinary -> Other\n\
+\n\
+\t-p\tBinHex -> MacBinary => unpack PIT\n\
+\t-q\tdisable unpack PIT\n\
+\t-t\ttranslate end-of-line chars (useful with -b)\n\
+\n\
+\t-I\tInformation only (does not write output files)\n\
+\t-s\tsilent\n\
+\t-S\tSilent about ``Converting ... '' lines too\n\
+\t-v\tverbose\n\
+\t-V\tVerbose, includes debugging information\n\
+\t-VV\tVery Verbose, includes extra debugging information\n\
+\t-H\tdisable skip-legal-but-suspect-lines Heuristic\n\
+\n\
+Environment:\n\
+\tMAC_FILETYPE  \tTEXT|????\tMac file type for Text|other\n\
+\tMAC_EDITOR    \tMACA|????\tMac creator (author) for Text|other\n\
+\tMAC_EXT       \t.bin     \textension for -D\n\
+\tMAC_DLOAD_DIR \t.        \tdirectory for -D\n\
+\tMAC_LINE_LIMIT\tnone     \tmaximum line length for -Ux\n\
+";
+X
+char *cmdname;
+X
+main(argc, argv)
+X	int argc;
+X	char **argv;
+{
+X	char *flags, *getenv();
+X	int direction, mode, unpit_flag;
+X
+X	cmdname = argv[0];
+X
+X	/* Early error and clean exit if missing arguments */
+X	if (argc < 2) {
+X		usage();
+X		/*NOTREACHED*/
+X	}
+X
+X	devnull = fopen("/dev/null", "w+");
+X
+X	argv++;
+X	argc--;
+X
+X	convert = stdout;
+X	verbose = stderr;
+X	debug = devnull;
+X	Debug = 0;
+X
+X	direction = FORWARDS;
+X	mode = HQX;
+X	unpit_flag = 0;
+X
+X	mac_type = getenv("MAC_FILETYPE");
+X	mac_auth = getenv("MAC_EDITOR");
+X
+X	if ((ext = getenv("MAC_EXT")) == NULL)
+X		ext = ".bin";
+X	if ((dir = getenv("MAC_DLOAD_DIR")) == NULL)
+X		dir = ".";
+X	if ((maxlines_str = getenv("MAC_LINE_LIMIT")) == NULL)
+X		maxlines = 0;
+X	else {
+X		maxlines = atoi(maxlines_str);
+X		if (maxlines < MIN_HQX_LINES) {
+X			fprintf(stderr, "%s: %s; was %d; reset to %d\n",
+X				cmdname,
+X				"warning: MAC_LINE_LIMIT too small",
+X				maxlines, MIN_HQX_LINES);
+X			fflush(stderr);
+X			maxlines = MIN_HQX_LINES;
+X		}
+X	}
+X
+X	/* Make command line arguments globally accessible */
+X	hqxnames = (char **) calloc((unsigned)argc + 1, sizeof(char *));
+X	hqxnames_left = hqxnames;
+X	while (argc--)
+X		*hqxnames_left++ = *argv++;
+X
+X	/* Flag the end of the list */
+X	*hqxnames_left = "-";
+X	hqxnames_left = hqxnames;
+X
+X	/* While not at the end of the list */
+X	while (strcmp(*hqxnames_left, "-")) {
+X		translate_eol = 0;
+X		if (hqxnames_left[0][0] == '-') {
+X			flags = *hqxnames_left++;
+X			while (*++flags)
+X				switch (*flags) {
+X				case 'x':
+X					mode = HQX;
+X					break;
+X				case 'u':
+X					translate_eol = 1;
+X					mode = TEXT;
+X					break;
+X				case 'd':
+X					mode = DATA;
+X					break;
+X				case 'r':
+X					mode = RSRC;
+X					break;
+X				case 'h':
+X					translate_eol = 0;
+X					mode = TEXT;
+X					break;
+X				case 'b':
+X					mode = BOTH;
+X					break;
+X				case 't':
+X					translate_eol = 1;
+X					break;
+X				case 'D':
+X					direction = FORWARDS;
+X					break;
+X				case 'U':
+X					direction = BACKWARDS;
+X					break;
+X				case 'q':
+X					unpit_flag = 0;
+X					break;
+X				case 'p':
+X					unpit_flag = 1;
+X					break;
+X				case 'S':
+X					convert = devnull;
+X					verbose = devnull;
+X					debug = devnull;
+X					Debug = 0;
+X					break;
+X				case 's':
+X					convert = stdout;
+X					verbose = devnull;
+X					debug = devnull;
+X					Debug = 0;
+X					break;
+X				case 'v':
+X					convert = stdout;
+X					verbose = stderr;
+X					debug = devnull;
+X					Debug = 0;
+X					break;
+X				case 'V':
+X					convert = stdout;
+X					verbose = stderr;
+X					debug = stderr;
+X					Debug++;
+X					break;
+X				case'H':
+X					suspect_shorter = suspect_same = 0;
+X					break;
+X				case 'I':
+X					info_only = 1;
+X					break;
+X				default:
+X					usage();
+X					/*NOTREACHED*/
+X				}
+X		}
+X
+X		if (direction == BACKWARDS)
+X			if (mode == HQX && unpit_flag)
+X				re_hqx();      /* no re_pit() yet */
+X			else if (mode == HQX)
+X				re_hqx();
+X			else
+X				re_other(mode);
+X		else if (mode == HQX)
+X			un_hqx(unpit_flag);
+X		else
+X			un_other(mode);
+X	}
+X
+X	exit(0);
+X	/*NOTREACHED*/
+}
+X
+/* An array useful for CRC calculations that use 0x1021 as the "seed" */
+word magic[] = {
+X    0x0000, 0x1021, 0x2042, 0x3063, 0x4084, 0x50a5, 0x60c6, 0x70e7,
+X    0x8108, 0x9129, 0xa14a, 0xb16b, 0xc18c, 0xd1ad, 0xe1ce, 0xf1ef,
+X    0x1231, 0x0210, 0x3273, 0x2252, 0x52b5, 0x4294, 0x72f7, 0x62d6,
+X    0x9339, 0x8318, 0xb37b, 0xa35a, 0xd3bd, 0xc39c, 0xf3ff, 0xe3de,
+X    0x2462, 0x3443, 0x0420, 0x1401, 0x64e6, 0x74c7, 0x44a4, 0x5485,
+X    0xa56a, 0xb54b, 0x8528, 0x9509, 0xe5ee, 0xf5cf, 0xc5ac, 0xd58d,
+X    0x3653, 0x2672, 0x1611, 0x0630, 0x76d7, 0x66f6, 0x5695, 0x46b4,
+X    0xb75b, 0xa77a, 0x9719, 0x8738, 0xf7df, 0xe7fe, 0xd79d, 0xc7bc,
+X    0x48c4, 0x58e5, 0x6886, 0x78a7, 0x0840, 0x1861, 0x2802, 0x3823,
+X    0xc9cc, 0xd9ed, 0xe98e, 0xf9af, 0x8948, 0x9969, 0xa90a, 0xb92b,
+X    0x5af5, 0x4ad4, 0x7ab7, 0x6a96, 0x1a71, 0x0a50, 0x3a33, 0x2a12,
+X    0xdbfd, 0xcbdc, 0xfbbf, 0xeb9e, 0x9b79, 0x8b58, 0xbb3b, 0xab1a,
+X    0x6ca6, 0x7c87, 0x4ce4, 0x5cc5, 0x2c22, 0x3c03, 0x0c60, 0x1c41,
+X    0xedae, 0xfd8f, 0xcdec, 0xddcd, 0xad2a, 0xbd0b, 0x8d68, 0x9d49,
+X    0x7e97, 0x6eb6, 0x5ed5, 0x4ef4, 0x3e13, 0x2e32, 0x1e51, 0x0e70,
+X    0xff9f, 0xefbe, 0xdfdd, 0xcffc, 0xbf1b, 0xaf3a, 0x9f59, 0x8f78,
+X    0x9188, 0x81a9, 0xb1ca, 0xa1eb, 0xd10c, 0xc12d, 0xf14e, 0xe16f,
+X    0x1080, 0x00a1, 0x30c2, 0x20e3, 0x5004, 0x4025, 0x7046, 0x6067,
+X    0x83b9, 0x9398, 0xa3fb, 0xb3da, 0xc33d, 0xd31c, 0xe37f, 0xf35e,
+X    0x02b1, 0x1290, 0x22f3, 0x32d2, 0x4235, 0x5214, 0x6277, 0x7256,
+X    0xb5ea, 0xa5cb, 0x95a8, 0x8589, 0xf56e, 0xe54f, 0xd52c, 0xc50d,
+X    0x34e2, 0x24c3, 0x14a0, 0x0481, 0x7466, 0x6447, 0x5424, 0x4405,
+X    0xa7db, 0xb7fa, 0x8799, 0x97b8, 0xe75f, 0xf77e, 0xc71d, 0xd73c,
+X    0x26d3, 0x36f2, 0x0691, 0x16b0, 0x6657, 0x7676, 0x4615, 0x5634,
+X    0xd94c, 0xc96d, 0xf90e, 0xe92f, 0x99c8, 0x89e9, 0xb98a, 0xa9ab,
+X    0x5844, 0x4865, 0x7806, 0x6827, 0x18c0, 0x08e1, 0x3882, 0x28a3,
+X    0xcb7d, 0xdb5c, 0xeb3f, 0xfb1e, 0x8bf9, 0x9bd8, 0xabbb, 0xbb9a,
+X    0x4a75, 0x5a54, 0x6a37, 0x7a16, 0x0af1, 0x1ad0, 0x2ab3, 0x3a92,
+X    0xfd2e, 0xed0f, 0xdd6c, 0xcd4d, 0xbdaa, 0xad8b, 0x9de8, 0x8dc9,
+X    0x7c26, 0x6c07, 0x5c64, 0x4c45, 0x3ca2, 0x2c83, 0x1ce0, 0x0cc1,
+X    0xef1f, 0xff3e, 0xcf5d, 0xdf7c, 0xaf9b, 0xbfba, 0x8fd9, 0x9ff8,
+X    0x6e17, 0x7e36, 0x4e55, 0x5e74, 0x2e93, 0x3eb2, 0x0ed1, 0x1ef0
+};
+X
+X
+/*
+X * calc_crc() --
+X *   Compute the MacBinary II-style CRC for the data pointed to by p, with the
+X *   crc seeded to seed.
+X *
+X *   Modified by Jim Van Verth to use the magic array for efficiency.
+X */
+short
+calc_mb_crc(p, len, seed)
+X	unsigned char *p;
+X	long len;
+X	short seed;
+{
+X	short hold;		/* crc computed so far */
+X	long i;			/* index into data */
+X
+X	extern unsigned short magic[];	/* the magic array */
+X
+X	hold = seed;			       /* start with seed */
+X	for (i = 0; i < len; i++, p++) {
+X		hold ^= (*p << 8);
+X		hold = (hold << 8) ^ magic[(unsigned char) (hold >> 8)];
+X	}
+X
+X	return (hold);
+}				/* calc_crc() */
+X
+X
+/* Report a fatal error, and exit, never return */
+error(msg, name)
+X	char msg[], name[];
+X
+{
+X	fprintf(stderr, msg, name);
+X	(void)putc('\n', stderr);
+X	perror("\nlast perror (may not be relevant)");
+X	fprintf(stderr, "%s: exiting\n", cmdname);
+X	if (debug == stderr)
+X		abort();
+X	exit(2);
+X	/*NOTREACHED*/
+}
+X
+/* replace illegal Unix characters in file name */
+/* make sure host file name doesn't get truncated beyond recognition */
+unixify(np)
+X	register char *np;
+{
+X	register ulong c;
+X
+X	c = strlen(np);
+X	if (c > SYSNAMELEN - MAXEXTENSION)
+X		c = SYSNAMELEN - MAXEXTENSION;
+X	np[c] = '\0';
+X
+X	/* pre-decrement to match pre-increment within loop */
+X	np--;
+X	while (c = *++np)
+X		/*
+X		 * that is, ``if control or blank, or slash, or delete or 8bit''
+X		 * which is the same as ``if blank, slash, or non graphic''
+X		*/
+X		if (c <= ' ' || c == '/' || c > '~')
+X			*np = '_';
+}
+X
+/*
+X * replace illegal Macintosh characters in file name
+X * return resulting length
+X *
+X * According to Inside Macintosh, IV-90, valid file names
+X *	must be [1..31] characters long
+X *	must not contain a colon
+X *	must contain only printing characters
+X */
+macify(name, len, translate)
+X	char *name;
+X	int len;
+X	int translate;
+{
+X	register char *np;
+X	register ulong c;
+X	char *s, *t;
+X	char buffer[SYSNAMELEN];
+X
+X	/* make a copy to ensure null terminated */
+X	strncpy(buffer, name, len);
+X	buffer[len] = 0;
+X	np = buffer;
+X
+X	if (len < 1)
+X		error("incoming file name is null", "");
+X	if (len > 31) {
+X		/* too long, so just take first 20 and last 11 */
+X		s = np + 20;
+X		t = np + len - 11;
+X		while (*s++ = *t++)
+X			;
+X		len = 31;
+X	}
+X
+X	if (translate) {
+X		/* pre-decrement to match pre-increment within loop */
+X		np--;
+X		while (c = *++np)
+X
+X         /*
+X
+X          * Inside Macintosh, I-246, defines the printable characters
+X          * for the Macintosh as 0x20 thru 0xD8 less 0x7F.  Yet, the
+X          * apple character is above this range, at 0xF0, and the diamond
+X          * character is below this range, at 0x13.  And Adobe Garamond
+X          * has lots of characgters above 0xD8.
+X          * 
+X          * On the other hand, we only translate when processing UNIX
+X          * file names which are usually ASCII, and ASCII printables are
+X          * ' ' <= valid <= '~'.
+X          * 
+X          * But we want to avoid zapping any characters with the high
+X          * order bit set, so 8 bit character users are not zinged.  I've
+X          * never used a SONY-NeWS box, but this one's for you.  But how
+X          * do we know if/that the UNIX and Macintosh extended characters
+X          * are the same?
+X          * 
+X          * So what to do, what to do?
+X          * 
+X          * Let's look at it this way: if the UNIX file name has extended
+X          * characters in it, they got there for a reason, hopefully on
+X          * purpose, and we'll not gratuitously modify them.
+X          * 
+X          * And it looks like the 6.1.5 Finder running with the 6.0.5
+X          * System will translate both control characters and colon into
+X          * a dash, but leave the others alone, so so will we.
+X          * 
+X          * I don't know if MacOS, as opposed to the Finder, behaves
+X          * differently, and it's too late tonight to find out.  Maybe
+X          * some other time.
+X
+X	  */
+X
+X          if (c < ' ' || c == ':' || c == '\177')
+X				 *np = '-';
+X	}
+X
+X	/* copy the resulting string back in place */
+X	strncpy(name, buffer, len);
+X
+X	return len;
+}
+X
+/*
+X * Unix time (GMT since 1-1-1970)
+X * Mac time (local since 1-1-1904)
+X */
+#define MACTIMEDIFF 0x7c25b080	/* Mac time of 00:00:00 GMT, Jan 1, 1970 */
+X
+/* Convert Unix time to Mac time */
+ulong
+unix2mac(xtime)
+X	ulong xtime;
+{
+#ifdef TIMEVAL
+X	struct timeval t;
+X	struct timezone tz;
+X
+X	gettimeofday(&t, &tz);
+X	return long2mac(xtime + MACTIMEDIFF
+X	   - 60 * (tz.tz_minuteswest - 60 * tz.tz_dsttime));
+#else
+X	struct timeb tp;
+X
+X	ftime(&tp);
+X	return long2mac(xtime + MACTIMEDIFF
+X	    - 60 * (tp.timezone - 60 * tp.dstflag));
+#endif
+}
+X
+/* Convert Mac time to Unix time */
+ulong
+mac2unix(xtime)
+X	ulong xtime;
+{
+#ifdef TIMEVAL
+X	struct timeval t;
+X	struct timezone tz;
+X
+X	gettimeofday(&t, &tz);
+X	return (mac2long(xtime) - MACTIMEDIFF
+X	   + 60 * (tz.tz_minuteswest - 60 * tz.tz_dsttime));
+#else
+X	struct timeb tp;
+X
+X	ftime(&tp);
+X	return (mac2long(xtime) - MACTIMEDIFF
+X	    + 60 * (tp.timezone - 60 * tp.dstflag));
+#endif
+}
+X
+/*
+X * computes the appropriate output files
+X * and the appropriate optional suffixes,
+X * all depending on the processing "mode"
+X */
+X
+mode_to_fname_suffix(
+X	mode, base_fname, data_fname, data_suffix, rsrc_fname, rsrc_suffix
+)
+X	int mode;
+X	char *base_fname, *data_fname, **data_suffix, *rsrc_fname, **rsrc_suffix;
+{
+X
+X	/* clear names to indicate nothing selected yet */
+X	*data_fname = *rsrc_fname = 0;
+X
+X	switch (mode) {
+X	case TEXT:
+X		strcpy(data_fname, base_fname);
+X		*data_suffix = ".text";
+X		break;
+X	case DATA:
+X		strcpy(data_fname, base_fname);
+X		*data_suffix = ".data";
+X		break;
+X	case RSRC:
+X		strcpy(rsrc_fname, base_fname);
+X		*rsrc_suffix = ".rsrc";
+X		break;
+X	case BOTH:
+X		strcpy(data_fname, base_fname);
+X		strcat(data_fname, ".data");
+X		*data_suffix = "";
+X		strcpy(rsrc_fname, base_fname);
+X		strcat(rsrc_fname, ".rsrc");
+X		*rsrc_suffix = "";
+X		break;
+X	default:
+X		error("Internal error: unexpected mode", "");
+X		break;
+X	}
+}
+X
+/*
+X	This procedure basically copies the input file(s) to the output
+X	MacBinary file; in TEXT (translate_eol) mode it changes LF's to
+X	CR's, and in any mode it forges a Mac info header.  Author type
+X	comes from the MAC_EDITOR environment variable if it is defined.
+X */
+X
+un_other(mode)
+X	int mode;
+{
+X	char data_fname[SYSNAMELEN], rsrc_fname[SYSNAMELEN], binfname[SYSNAMELEN];
+X	FILE *data_file, *rsrc_file, *binfile;
+X	char *base_fname, *data_suffix, *rsrc_suffix;
+X	struct stat data_stbuf, rsrc_stbuf;
+X	ulong dlen, rlen, mtim, ctim;
+X
+X	info_header info;
+X	register ulong b;				/* not character, must hold EOF diagnostic */
+X	register ulong nchars;
+X	int extra_chars;
+X	short crc, calc_mb_crc();
+X	long len;
+X
+X	while (hqxnames_left[0][0] != '-') {
+X
+X		if (strlen(*hqxnames_left) >= SYSNAMELEN)
+X			error("Error: specified base file name is too long", "");
+X		base_fname = *hqxnames_left++;
+X
+X		/* set up file names */
+X		mode_to_fname_suffix(mode, base_fname,
+X			data_fname, &data_suffix, rsrc_fname, &rsrc_suffix);
+X
+X		/* process the data file, if requested */
+X		dlen = 0;
+X		if (*data_fname) {
+X			data_file = mopen(data_fname, data_suffix, "r");
+X			if (fstat(fileno(data_file), &data_stbuf))
+X				error("Cannot stat %s", data_fname);
+X			mtim = unix2mac((ulong)data_stbuf.st_mtime);
+X			ctim = unix2mac((ulong)data_stbuf.st_ctime);
+X			dlen = long2mac(data_stbuf.st_size);
+X		}
+X
+X		/* process the rsrc file, if requested */
+X		rlen = 0;
+X		if (*rsrc_fname) {
+X			rsrc_file = mopen(rsrc_fname, rsrc_suffix, "r");
+X			if (fstat(fileno(rsrc_file), &rsrc_stbuf))
+X				error("Cannot stat %s", rsrc_fname);
+X			mtim = unix2mac((ulong)rsrc_stbuf.st_mtime);
+X			ctim = unix2mac((ulong)rsrc_stbuf.st_ctime);
+X			rlen = long2mac(rsrc_stbuf.st_size);
+X		}
+X
+X		/* stuff header data into the info header */
+X
+X		bzero((char*)&info, sizeof(info_header));
+X
+X		info.nlen = strlen(base_fname);
+X		info.nlen = (info.nlen > NAMELEN) ? NAMELEN : info.nlen;
+X		strncpy((char*)info.name, base_fname, (int)info.nlen);
+X
+X		/* now make sure the resulting name is valid */
+X		info.nlen = macify((char*)info.name, (int)info.nlen, 1);
+X
+X		info.uploadvers = '\201';
+X		info.readvers = '\201';
+X
+X		bcopy((char*)&mtim, (char*)info.mtim, 4);
+X		bcopy((char*)&ctim, (char*)info.ctim, 4);
+X
+X		bcopy((char*)&dlen, (char*)info.dlen, 4);
+X		bcopy((char*)&rlen, (char*)info.rlen, 4);
+X
+X		switch (mode) {
+X		case TEXT:
+X			bcopy(mac_type ? mac_type : "TEXT", (char*)info.type, 4);
+X			bcopy(mac_auth ? mac_auth : "MACA", (char*)info.auth, 4);
+X			break;
+X		case DATA:
+X		case RSRC:
+X		case BOTH:
+X			bcopy(mac_type ? mac_type : "????", (char*)info.type, 4);
+X			bcopy(mac_auth ? mac_auth : "????", (char*)info.auth, 4);
+X			break;
+X		default:
+X			error("Internal error: unexpected mode", "");
+X			break;
+X		}
+X
+X		/* calculate CRC */
+X		crc = calc_mb_crc((unsigned char*)&info, 124L, 0);
+X		info.crc[0] = (char) (crc >> 8);
+X		info.crc[1] = (char) crc;
+X
+X		/* Create the .bin file and write the info to it */
+X
+X		len = strlen(dir) + strlen(base_fname) + strlen(ext) + 1;
+X		if (len >= sizeof(binfname))
+X			error("Error: generated binfname would be too long", "");
+X		/*
+X		 * base_fname does not need to be unixified --
+X		 * was valid coming in
+X		 */
+X		sprintf(binfname, "%s/%s%s", dir, base_fname, ext);
+X		binfile = mopen(binfname, "", "w");
+X
+X		converting(info.name, (int)info.nlen, info.type, info.auth);
+X		print_bin_hdr("Creating", &info);
+X		if (1 != fwrite((char*)&info, sizeof(info), 1, binfile))
+X			error("fwrite failed on binfile", "");
+X
+X		/* pump out the data portion */
+X		if (*data_fname) {
+X			nchars = data_stbuf.st_size;
+X			extra_chars = 127 - (nchars + 127) % 128;
+X
+X			if (translate_eol)
+X				while (nchars--) {
+X					(b = getc(data_file)) == EOF &&
+X						error("Error: getc failed on data_file", "");
+X					if (b == LF)
+X						b = CR;
+X					putc((char)b, binfile) == EOF &&
+X						error("Error: putc failed on binfile", "");
+X				}
+X
+X			else
+X				while (nchars--) {
+X					(b = getc(data_file)) == EOF &&
+X						error("Error: getc failed on data_file", "");
+X					putc((char)b, binfile) == EOF &&
+X						error("Error: putc failed on binfile", "");
+X				}
+X
+X			while (extra_chars--) {
+X				putc(0, binfile) == EOF &&
+X					error("Error: putc failed on binfile", "");
+X			}
+X
+X			mclose(&data_file, "txtfile");
+X		}
+X
+X		/* pump out the rsrc portion */
+X		if (*rsrc_fname) {
+X			nchars = rsrc_stbuf.st_size;
+X			extra_chars = 127 - (nchars + 127) % 128;
+X
+X			while (nchars--) {
+X				(b = getc(rsrc_file)) == EOF &&
+X					error("Error: getc failed on rsrc_file", "");
+X				putc((char)b, binfile) == EOF &&
+X					error("Error: putc failed on binfile", "");
+X			}
+X
+X			while (extra_chars--) {
+X				putc(0, binfile) == EOF &&
+X					error("Error: putc failed on binfile", "");
+X			}
+X
+X			mclose(&rsrc_file, "txtfile");
+X		}
+X
+X		mclose(&binfile, "binfile");
+X	}
+}
+X
+/*
+X	This procedure basically copies the MacBinary input file to the
+X	output file(s); in TEXT (translate_eol) mode it changes CR's to
+X	LF's, and in any mode it skikps over the Mac info header.
+X */
+X
+re_other(mode)
+X	int mode;
+{
+X	char base_fname[SYSNAMELEN];
+X	char data_fname[SYSNAMELEN], rsrc_fname[SYSNAMELEN], binfname[SYSNAMELEN];
+X	FILE *data_file, *rsrc_file, *binfile;
+X	char *data_suffix, *rsrc_suffix;
+X
+X	info_header info;
+X	register ulong b;
+X	register ulong nchars;
+X	ulong temp;
+X	int extra_chars;
+X	long len;
+X
+X	while (hqxnames_left[0][0] != '-') {
+X
+X		/* suck in the MacBinary header */
+X		if (strlen(*hqxnames_left) >= sizeof(binfname))
+X			error("Error: specified binfname is too long", "");
+X		strcpy(binfname, *hqxnames_left++);
+X		binfile = mopen(binfname, ext, "r");
+X		if (1 != fread((char*)&info, sizeof(info), 1, binfile))
+X			error("fread failed on binfile", "");
+X
+X		/* figure out the target base file name */
+X		if (info.nlen >= NAMELEN)
+X			error("Error: corrupt BinHex data format", "");
+X		strncpy(base_fname, (char*)info.name, (int)info.nlen);
+X		base_fname[info.nlen] = '\0';
+X		converting(info.name, (int)info.nlen, info.type, info.auth);
+X		print_bin_hdr("Reading", &info);
+X
+X		/* ensure the output files have no bogus UNIX characters */
+X		unixify(base_fname);
+X		mode_to_fname_suffix(mode, base_fname,
+X			data_fname, &data_suffix, rsrc_fname, &rsrc_suffix);
+X
+X		/* always use suffix on write */
+X
+X		if (*data_fname) {
+X			len = strlen(data_fname) + strlen(data_suffix);
+X			if (len >= sizeof(data_fname))
+X				error("Error: generated data_fname would be too long", "");
+X			strcat(data_fname, data_suffix);
+X			data_file = mopen(data_fname, "", "w");
+X		}
+X
+X		if (*rsrc_fname) {
+X			len = strlen(rsrc_fname) + strlen(rsrc_suffix);
+X			if (len >= sizeof(rsrc_fname))
+X				error("Error: generated rsrc_fname would be too long", "");
+X			strcat(rsrc_fname, rsrc_suffix);
+X			rsrc_file = mopen(rsrc_fname, "", "w");
+X		}
+X
+X		/* process the data fork */
+X		bcopy((char*)info.dlen, (char *) &temp, 4);
+X		nchars = temp;
+X		extra_chars = 127 - (nchars + 127) % 128;
+X
+X		if (*data_fname) {
+X
+X			if (translate_eol)
+X				while (nchars--) {
+X					(b = getc(binfile)) == EOF &&
+X						error("Error: getc failed on binfile", "");
+X					if (b == CR)
+X						b = LF;
+X					putc((char)b, data_file) == EOF &&
+X						error("Error: putc failed on data_file", "");
+X				}
+X
+X			else
+X				while (nchars--) {
+X					(b = getc(binfile)) == EOF &&
+X						error("Error: getc failed on binfile", "");
+X					putc((char)b, data_file) == EOF &&
+X						error("Error: putc failed on data_file", "");
+X				}
+X		
+X			mclose(&data_file, data_fname);
+X
+X		} else {
+X
+X			/* skip the actual data */
+X			while (nchars--) {
+X				getc(binfile) == EOF &&
+X					error("Error: getc failed on binfile", "");
+X			}
+X		}
+X
+X		/* eat the padding to 128 byte boundary */
+X		while (extra_chars--) {
+X			getc(binfile) == EOF &&
+X				error("Error: getc failed on binfile", "");
+X		}
+X
+X		/* process the rsrc fork */
+X
+X		bcopy((char*)info.rlen, (char *) &temp, 4);
+X		nchars = temp;
+X
+X		if (*rsrc_fname) {
+X			while (nchars--) {
+X				(b = getc(binfile)) == EOF &&
+X					error("Error: getc failed on binfile", "");
+X				putc((char)b, rsrc_file) == EOF &&
+X					error("Error: putc failed on rsrc_file", "");
+X			}
+X			mclose(&rsrc_file, rsrc_fname);
+X		}
+X
+X		mclose(&binfile, "binfile");
+X	}
+}
+X
+usage()
+{
+X	fprintf(stderr, Usage, cmdname, VERSION/100.);
+X	exit(1);
+X	/*NOTREACHED*/
+}
+X
+X
+/* My FileIO routines, to enable clean implementation of info_only */
+/* If info_only and open for write, inform user and use devnull instead */
+/* If trying to close devnull, don't */
+X
+FILE *
+mopen(name, exten, type)
+X	char *name;
+X	char *exten;
+X	char *type;
+{
+X	FILE *result;
+X
+X	switch (*type) {
+X	case 'r':
+X		result = fopen(name, type);
+X		if (result == NULL && *exten) {
+X			/* see if adding the extension would help */
+X			int len_root = strlen(name);
+X			int len_ext = strlen(exten);
+X			char *dotspot = name + len_root - len_ext;
+X			if (strcmp(exten, dotspot)) {
+X				if (len_root + len_ext >= SYSNAMELEN)
+X					error("Error: generated file name would be too long", "");
+X				strcat(name, exten);
+X				result = fopen(name, type);
+X			}
+X		}
+X		if (result == NULL)
+X			error("Cannot open %s for read", name);
+X		else {
+X			fprintf(verbose, "\n%-15s%-27s\n",
+X				"Input file", name);
+X			fflush(verbose);
+X		}
+X		break;
+X
+X	case 'w':
+X		if (info_only) {
+X			fprintf(verbose, " %-14s%-27s -I specified\n",
+X				" No output to", name);
+X			fflush(verbose);
+X			result = devnull;
+X		} else {
+X			result = fopen(name, type);
+X			if (result == NULL)
+X				error("Cannot open %s for write", name);
+X			else {
+X				fprintf(verbose, "%-15s%-27s\n",
+X					"Output file", name);
+X				fflush(verbose);
+X			}
+X		}
+X		break;
+X
+X	default:
+X		fprintf(stderr, "%s: internal error in mopen -- exiting\n", cmdname);
+X		exit(2);
+X
+X	}
+X
+X	return result;
+}
+X
+mclose(stream_p, name)
+X	FILE **stream_p;
+X	char *name;
+{
+X	if (*stream_p && *stream_p != devnull) {
+X		if (fclose(*stream_p) == EOF)
+X			error("Error closing %s", name);
+X	}
+X
+X	*stream_p = (FILE *)0;
+}
+X
+converting(name, len, type, auth)
+X	byte *name;
+X	int len;
+X	byte *type;
+X	byte *auth;
+{
+X	char buffer[SYSNAMELEN];
+X
+X	/* make a copy to ensure null terminated */
+X	strncpy(buffer, (char*)name, len);
+X	buffer[len] = 0;
+X
+X	fprintf(convert,
+X	    "%-15s%-30s type = \"%4.4s\", author = \"%4.4s\"\n",
+X 	    info_only ? "Processing" : "Converting",
+X		 buffer, type, auth);
+X	fflush(convert);
+}
+X
+print_bin_hdr(msg, hdr)
+X	char *msg;
+X	info_header *hdr;
+{
+X	ulong otime, xtime;
+X	long	dlen, rlen;
+X
+X	bcopy((char*)hdr->ctim, (char*)&otime, 4);
+X	DEBUG && fprintf(debug, "DEBUG: verifying mac2unix/unix2mac: 0x%8lx, 0x%8lx\n",
+X		otime, unix2mac(mac2unix(otime)));
+X
+X	bcopy((char*)hdr->dlen, (char*)&dlen, 4);
+X	bcopy((char*)hdr->rlen, (char*)&rlen, 4);
+X
+X	DEBUG && fprintf(debug, "\
+%s\n\
+\tName     %.*s\n\
+\tType     %.4s\n\
+\tCreator  %.4s\n\
+\tDataLen  %ld\n\
+\tRsrcLen  %ld\n\
+",
+X		msg,
+X		hdr->nlen, hdr->name,
+X		hdr->type,
+X		hdr->auth,
+X		mac2long(dlen),
+X		mac2long(rlen),
+X		0);
+X
+X	bcopy((char*)hdr->ctim, (char*)&otime, 4);
+X	xtime = mac2unix(otime);
+X	DEBUG && fprintf(debug, "raw ctim: 0x%8lx, mac2unix: 0x%8lx\n",
+X		otime, xtime);
+X	DEBUG && fflush(debug);
+X
+X	fprintf(verbose, "\tCreated  %s", ctime((time_t *)&xtime));
+X	fflush(verbose);
+X
+X	bcopy((char*)hdr->mtim, (char*)&otime, 4);
+X	xtime = mac2unix(otime);
+X	DEBUG && fprintf(debug, "raw mtim: 0x%8lx, mac2unix: 0x%8lx\n",
+X		otime, xtime);
+X	DEBUG && fflush(debug);
+X	fprintf(verbose, "\tModified %s", ctime((time_t *)&xtime));
+X	fflush(verbose);
+X
+}
+SHAR_EOF
+chmod 0444 mcvert.c ||
+echo 'restore of mcvert.c failed'
+Wc_c="`wc -c < 'mcvert.c'`"
+test 40958 -eq "$Wc_c" ||
+	echo 'mcvert.c: original size 40958, current size' "$Wc_c"
+fi
+# ============= hqxify.c ==============
+if test -f 'hqxify.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping hqxify.c (File already exists)'
+else
+echo 'x - extracting hqxify.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'hqxify.c' &&
+#include "mactypes.h"
+X
+/* HQXBUFLEN must be large enough to hold a complete hqx header */
+#define HQXBUFLEN 512
+byte hqxbuf[HQXBUFLEN + 1], *buf_ptr, *buf_end, *buf_start = hqxbuf + 1;
+X
+/* Note: line[0] stores the run length character,
+X * so line is one greater than MAXLINE  */
+#define MAXLINE 2048
+byte line[MAXLINE + 1], *line_ptr, *line_end, *line_start = line + 1;
+X
+/* keep the compiler happy */
+#define LINE_START ((char*)(line_start))
+X
+extern char *cmdname;
+X
+int line_count, file_count;
+int save_state, total_bytes, save_run_length;
+word save_accum;
+char binfname[SYSNAMELEN], hqxfname[SYSNAMELEN];
+FILE *hqxfile, *binfile;
+X
+X
+/*
+X * hqxsuspect caches whether or not we have gotten past all suspect data
+X * at the head of a file, for example, a mail header.  hqxsuspect is set
+X * on every new hqx file read, and reset only in non_suspect()
+X */
+int hqxsuspect;
+extern suspect_shorter;
+extern suspect_same;
+X
+extern int info_only;
+X
+/* This routine reads the header of a hqxed file and appropriately twiddles it,
+X    determines if it has CRC problems, creates the .bin file, and puts the info
+X    into the .bin file.
+X    Output is hqx_datalen, hqx_rsrclen, type, binfname, binfile.
+X	 Returns 0 iff failed to read header.
+X */
+X
+X
+int
+hqx_to_bin_hdr(type, hqx_datalen, hqx_rsrclen, same_file_only)
+X	char *type;
+X	ulong *hqx_datalen, *hqx_rsrclen;
+X	int same_file_only;
+{
+X	register byte *hqx_ptr, *hqx_end;
+X	register ulong calc_crc;
+X	hqx_buf *hqx_block;
+X	hqx_header *hqx;
+X	info_header info;
+X	ulong mtim;
+X	short crc;
+X	long len;
+X
+X	extern word magic[];
+X	extern char *dir, *ext;
+X	extern short calc_mb_crc();
+X
+X	/* read the hqx header, 
+X	 * assuming that I won't exhaust hqxbuf in so doing --
+X	 * that is, that hqxbuf is always large enough (it is)
+X	 */
+X	(void)fill_hqxbuf(same_file_only);
+X	/*
+X	 * If we are reading multiple files, then we could have the last
+X	 * unread line of the "previous" file be just a colon (since we are
+X	 * length driven, and stopped when we processed the expected
+X	 * lengths), and the prior fill_hqxbuf() call would find it and
+X	 * return 0, leaving the buffer unfilled.  So, if we have zero
+X	 * bytes so far, just fill it again.
+X	 */
+X	if (total_bytes == 0) {
+X		DEBUG && fprintf(debug,
+X			"%s: Note: had to call fill_hqxbuf again in hqx_to_bin_hdr\n",
+X			cmdname);
+X		DEBUG && fflush(debug);
+X		(void)fill_hqxbuf(same_file_only);
+X	}
+X	if (same_file_only == 1 && total_bytes == 0)
+X		return 0;
+X	if (total_bytes < MIN_HQX_HDR) {
+X		fprintf(verbose, "%s: %s (%d < %d): bad file format? -- exiting\n",
+X			cmdname, "error: hqx_header too short", total_bytes, MIN_HQX_HDR);
+X		fflush(verbose);
+X		exit(2);
+X	}
+X
+X	hqx_block = (hqx_buf *) buf_ptr;
+X	hqx = (hqx_header *) (hqx_block->name + hqx_block->nlen);
+X	hqx_ptr = buf_ptr;
+X	hqx_end = (byte *) hqx + sizeof(hqx_header) - 1;
+X	calc_crc = 0;
+X	while (hqx_ptr < hqx_end)
+X		calc_crc = (((calc_crc & 0xff) << 8) | *hqx_ptr++) ^ magic[calc_crc >> 8];
+X	calc_crc = ((calc_crc & 0xff) << 8) ^ magic[calc_crc >> 8];
+X	calc_crc = ((calc_crc & 0xff) << 8) ^ magic[calc_crc >> 8];
+X	buf_ptr = hqx_ptr;
+X
+X	/* stuff the hqx header data into the info header */
+X	bzero((char*)&info, sizeof(info_header));
+X	info.nlen = hqx_block->nlen;
+X	if (info.nlen > sizeof(info.name))
+X		error("Error: corrupt BinHex data format", "");
+X	strncpy((char*)info.name, (char*)hqx_block->name, (int)info.nlen);/* name */
+X
+X	/* now make sure the resulting name is valid for length only */
+X	info.nlen = macify((char*)info.name, (int)info.nlen, 0);
+X
+X	bcopy((char*)hqx->type, (char*)info.type, 9);       /* type, author, flag */
+X	info.flags &= 0x7e;		       /* reset lock bit, init bit */
+X	if (hqx->protect & 0x40)
+X		info.protect = 1;	       /* copy protect bit */
+X	bcopy((char*)hqx->dlen, (char*)info.dlen, 8);	       /* dlen, rlen */
+X	mtim = unix2mac((ulong)time((long*)0));
+X	bcopy((char*)&mtim, (char*)info.mtim, 4);
+X	bcopy((char*)&mtim, (char*)info.ctim, 4);
+X	info.uploadvers = '\201';
+X	info.readvers = '\201';
+X
+X	/* calculate MacBinary CRC */
+X	crc = calc_mb_crc((unsigned char*)&info, 124L, 0);
+X	info.crc[0] = (char) (crc >> 8);
+X	info.crc[1] = (char) crc;
+X
+X	/* Create the .bin file and write the info to it */
+X
+X	unixify((char*)hqx_block->name);
+X	converting(info.name, (int)info.nlen, info.type, info.auth);
+X	print_bin_hdr("Creating", &info);
+X
+X	len = strlen(dir) + strlen((char*)hqx_block->name) + strlen(ext) + 1;
+X	if (len >= sizeof(binfname))
+X		error("Error: generated binfname would be too long", "");
+X	sprintf(binfname, "%s/%s%s", dir, hqx_block->name, ext);
+X	binfile = mopen(binfname, "", "w");
+X
+X	check_hqx_crc((word)calc_crc, "File header CRC mismatch in %s", binfname);
+X	if (1 != fwrite((char*)&info, sizeof(info), 1, binfile))
+X		error("fwrite failed on binfile", "");
+X
+X	/* Get a couple of items we'll need later */
+X	bcopy((char*)info.dlen, (char*)hqx_datalen, 4);
+X	*hqx_datalen = mac2long(*hqx_datalen);
+X	bcopy((char*)info.rlen, (char*)hqx_rsrclen, 4);
+X	*hqx_rsrclen = mac2long(*hqx_rsrclen);
+X	bcopy((char*)info.type, (char*)type, 4);
+X
+X	/* emit useful debugging info */
+X	DEBUG && fprintf(debug, "\tdata_len=%10ld\t\trsrc_len=%10ld\n",
+X		*hqx_datalen, *hqx_rsrclen);
+X	DEBUG && fflush(debug);
+X
+X	return 1;
+}
+X
+/* This routine reads the header of a bin file and appropriately twiddles it,
+X    creates the .hqx file, and puts the info into the .hqx file.
+X    Output is hqx_datalen, hqx_rsrclen, type, hqxfname, hqxfile */
+X
+bin_to_hqx_hdr(hqx_datalen, hqx_rsrclen)
+X	ulong *hqx_datalen, *hqx_rsrclen;
+{
+X	register byte *hqx_ptr, *hqx_end;
+X	register ulong calc_crc;
+X	hqx_buf *hqx_block;
+X	hqx_header *hqx;
+X	info_header info;
+X	extern word magic[];
+X	extern char **hqxnames_left;
+X	extern char *ext;
+X	long len;
+X
+X	len = strlen(*hqxnames_left);
+X	if (len >= sizeof(binfname))
+X		error("Error: specified binfname is too long", "");
+X	strcpy(binfname, *hqxnames_left++);
+X	binfile = mopen(binfname, ext, "r");
+X
+X	if (!fread((char*)&info, sizeof(info), 1, binfile))
+X		error("Unexpected EOF in MacBinary header of %s", binfname);
+X
+X	/* stuff the info header into the hqx header */
+X	hqx_block = (hqx_buf *) buf_ptr;
+X	hqx_block->nlen = info.nlen;
+X	if (info.nlen > sizeof(hqx_block->name))
+X		error("Error: corrupt MacBinary data format", "");
+X	strncpy((char*)hqx_block->name, (char*)info.name, (int)info.nlen);
+X	/*
+X	 * We expect a valid Macintosh file name since it came from a MacBinary file
+X	 * so we don't potentially corrupt a valid copied name via macify translate.
+X	 * File name length should not be a problem, so we do nothing.
+X	 */
+X	hqx = (hqx_header *) (hqx_block->name + hqx_block->nlen);
+X	hqx->version = 0;
+X	bcopy((char*)info.type, (char*)hqx->type, 9);   /* type, author, flags */
+X	hqx->flags &= 0x7e;		       /* reset lock bit, init bit */
+X	if (info.protect == 1)
+X		hqx->protect = 0;	       /* protect bit: 0x40 */
+X	else
+X		hqx->protect = 0;
+X	bcopy((char*)info.dlen, (char*)hqx->dlen, 8);	       /* dlen, rlen */
+X
+X	/* Create the .hqx file and write the info to it */
+X
+#ifdef notdef
+X	   This is the right thing to check but the Sun optimizing
+X	   compiler gives a (valid) warning that info.nlen (one char,
+X	   255 max) is always less than sizeofhqxfname) which is
+X	   hardwired to 1024 since version 1.99.  Since we have already
+X	   checked info.nlen above, we skip the test and avoid the warning.
+X
+X	if (info.nlen >= sizeof(hqxfname))
+X		error("Error: generated hqxfname would be too long", "");
+#endif
+X
+X	strncpy(hqxfname, (char*)info.name, (int)info.nlen);
+X	hqxfname[info.nlen] = '\0';
+X	unixify(hqxfname);
+X	converting(info.name, (int)info.nlen, info.type, info.auth);
+X	print_bin_hdr("Reading", &info);
+X
+X	calc_crc = 0;
+X	hqx_ptr = (byte *) hqx_block;
+X	hqx_end = hqx_ptr + hqx_block->nlen + sizeof(hqx_header);
+X	while (hqx_ptr < hqx_end)
+X		calc_crc = (((calc_crc & 0xff) << 8) | *hqx_ptr++) ^ magic[calc_crc >> 8];
+X	calc_crc = ((calc_crc & 0xff) << 8) ^ magic[calc_crc >> 8];
+X	calc_crc = ((calc_crc & 0xff) << 8) ^ magic[calc_crc >> 8];
+X	buf_ptr = hqx_end;
+X	write_hqx_crc((word)calc_crc);
+X
+X	/* Get a couple of items we'll need later */
+X	bcopy((char*)info.dlen, (char*)hqx_datalen, 4);
+X	*hqx_datalen = mac2long(*hqx_datalen);
+X	bcopy((char*)info.rlen, (char*)hqx_rsrclen, 4);
+X	*hqx_rsrclen = mac2long(*hqx_rsrclen);
+}
+X
+X
+/* This routine copies bytes from the decoded input stream to the output.  
+X    It also pads to a multiple of 128 bytes on the output, which is part
+X    of the .bin format */
+word
+hqx_to_bin_fork(nbytes)
+X	register ulong nbytes;
+{
+X	register byte *cp;
+X	register ulong calc_crc;
+X	register int c_length;
+X	ulong extra_bytes;
+X	extern word magic[];
+X	long avail = 0;	/* used for internal consistency checking */
+X	int wrote;
+X
+X	extra_bytes = 127 - (nbytes + 127) % 128;	/* pad fork to mult of
+X							 * 128 bytes */
+X	calc_crc = 0;
+X	for (;;) {
+X		cp = buf_ptr;
+X		c_length = (cp + nbytes > buf_end) ? buf_end - cp : nbytes;
+X		/* we can only check readily if we read it here */
+X		if (avail && c_length > avail)
+X			error("hqx_to_bin_fork: writing %ld too many bytes",
+X				(char*)c_length - avail);
+X		nbytes -= c_length;
+X		wrote = fwrite((char*)cp, sizeof(byte), c_length, binfile);
+X		if (wrote != c_length)
+X			error("hqx_to_bin_fork: fwrite on binfile wrote %ld bytes too few",
+X				(char*)c_length-wrote);
+X		while (c_length--)
+X			calc_crc = (((calc_crc & 0xff) << 8) | *cp++) ^ magic[calc_crc >> 8];
+X		if (!nbytes)
+X			break;
+X		avail = fill_hqxbuf(0);
+X	}
+X	buf_ptr = cp;
+X	while (extra_bytes--)
+X		if (EOF == putc(0, binfile))
+X			error("Error: putc failed on binfile", "");
+X	calc_crc = ((calc_crc & 0xff) << 8) ^ magic[calc_crc >> 8];
+X	calc_crc = ((calc_crc & 0xff) << 8) ^ magic[calc_crc >> 8];
+X	return (word) calc_crc;
+}
+X
+/* This routine copies bytes from the input stream to the encoded output.  
+X    It also pads to a multiple of 128 bytes on the input, which is part
+X    of the .bin format */
+word
+bin_to_hqx_fork(nbytes)
+X	register ulong nbytes;
+{
+X	register byte *cp;
+X	register ulong calc_crc;
+X	register int c_length;
+X	ulong extra_bytes;
+X	extern word magic[];
+X
+X	extra_bytes = 127 - (nbytes + 127) % 128;	/* pad fork to mult of
+X							 * 128 bytes */
+X	calc_crc = 0;
+X	for (;;) {
+X		cp = buf_ptr;
+X		c_length = (cp + nbytes > buf_end) ? buf_end - cp : nbytes;
+X		nbytes -= c_length;
+X		if (c_length != fread((char*)cp, sizeof(byte), c_length, binfile))
+X			error("fread failed on binfile", "");
+X		buf_ptr += c_length;
+X		while (c_length--)
+X			calc_crc = (((calc_crc & 0xff) << 8) | *cp++) ^ magic[calc_crc >> 8];
+X		if (!nbytes)
+X			break;
+X		empty_hqxbuf();
+X	}
+X	buf_ptr = cp;
+X
+X	fseek(binfile, (long)extra_bytes, 1);
+X	calc_crc = ((calc_crc & 0xff) << 8) ^ magic[calc_crc >> 8];
+X	calc_crc = ((calc_crc & 0xff) << 8) ^ magic[calc_crc >> 8];
+X	return (word) calc_crc;
+}
+X
+/* Essentials for Binhex 8to6 run length encoding */
+#define RUNCHAR 0x90
+#define MAXRUN 255
+#define IS_LEGAL <0x40
+#define ISNT_LEGAL >0x3f
+#define DONE 0x7F		/* tr68[':'] = DONE, since Binhex terminator is ':' */
+#define SKIP 0x7E		/* tr68['\n'|'\r'] = SKIP, i. e. end of line char.  */
+X	/* We also treat '\0' as SKIP to handle files without trailing newline */
+X
+X	/*
+X	   NOTE: we really don't do a very good job of handling lines
+X	   with ^M's as the end of line character, since we jettison
+X	   the entire UNIX line (which can look like multiple Mac
+X	   lines) when rejecting the line.  Easiest way to fix this is
+X	   to write our own version of fgets which breaks on ^M or ^J.
+X	 */
+X
+#define FAIL 0x7D		/* character illegal in binhex file */
+X
+byte tr86[] =
+"!\"#$%&'()*+,-012345689@ABCDEFGHIJKLMNPQRSTUVXYZ[`abcdefhijklmpqr";
+byte tr68[] = {
+/* 0x00 */
+X    SKIP, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL,
+X    FAIL, FAIL, SKIP, FAIL, FAIL, SKIP, FAIL, FAIL,
+/* 0x10 */
+X    FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL,
+X    FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL,
+/* 0x20 */
+X    FAIL, 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06,
+X    0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, FAIL, FAIL,
+/* 0x30 */
+X    0x0D, 0x0E, 0x0F, 0x10, 0x11, 0x12, 0x13, FAIL,
+X    0x14, 0x15, DONE, FAIL, FAIL, FAIL, FAIL, FAIL,
+/* 0x40 */
+X    0x16, 0x17, 0x18, 0x19, 0x1A, 0x1B, 0x1C, 0x1D,
+X    0x1E, 0x1F, 0x20, 0x21, 0x22, 0x23, 0x24, FAIL,
+/* 0x50 */
+X    0x25, 0x26, 0x27, 0x28, 0x29, 0x2A, 0x2B, FAIL,
+X    0x2C, 0x2D, 0x2E, 0x2F, FAIL, FAIL, FAIL, FAIL,
+/* 0x60 */
+X    0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, FAIL,
+X    0x37, 0x38, 0x39, 0x3A, 0x3B, 0x3C, FAIL, FAIL,
+/* 0x70 */
+X    0x3D, 0x3E, 0x3F, FAIL, FAIL, FAIL, FAIL, FAIL,
+X    FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL,
+/* 0x80 */
+X    FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL,
+X    FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL,
+/* 0x90 */
+X    FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL,
+X    FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL,
+/* 0xA0 */
+X    FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL,
+X    FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL,
+/* 0xB0 */
+X    FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL,
+X    FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL,
+/* 0xC0 */
+X    FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL,
+X    FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL,
+/* 0xD0 */
+X    FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL,
+X    FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL,
+/* 0xE0 */
+X    FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL,
+X    FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL,
+/* 0xF0 */
+X    FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL,
+X    FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL, FAIL,
+};
+X
+/*
+X *  This procedure transparently reads and decodes the hqx input.
+X *  It does run length and 6 to 8 decoding.
+X *  As many lines as required are read to fill up buf.
+X * Global Input
+X *  buf_start
+X *  line_ptr
+X *  save_*
+X * Global Output
+X *  buf_ptr end of buffer used
+X *  line_ptr
+X *  save_*
+X * Internal
+X *  line     holds the encoded incoming ascii line.
+X *  buf      holds the decoding binary binary. [what the heck does this mean?]
+X *  buf[-1]  holds the character to be repeated for run length encoding.
+X */
+#define READING 0
+#define SKIPPING 1
+#define FIND_START_COLON 2
+#define FINDING_COLON 3
+X
+/*
+X
+X * It's too bad we can't look for ``(This file ..'' when hunting for a
+X * starting colon, but we don't emit such a line at the head of every
+X * segment, so we can't expect to find one, now, can we?
+X
+X * We were really too brittle when scanning, since we only
+X * accepted lines which were exactly 64 (HQXLINELEN) characters long.
+X * Fixed in version 1.83.  But allowing any length valid line
+X * permitted the false-match-in-mail-headers-problem for lines like "---".
+X * Better header skipping provided in 1.84.
+X
+X * XXX: rather than decode line inplace, it would be better
+X * to leave the original intact to enable better warning messages
+X
+X */
+X
+/* returns the number of bytes read */
+fill_hqxbuf(same_file_only)
+X	int same_file_only;
+{
+X	register ulong c, accum;
+X	register int not_in_a_run = TRUE, state68;
+X	register byte *fast_buf, *fast_line;
+X	static int phase = FIND_START_COLON;
+X	long avail;
+X
+X	buf_ptr = fast_buf = buf_start;
+X	fast_line = line_ptr;
+X	state68 = save_state;
+X	accum = save_accum;
+X	if (save_run_length > 0) {
+X		c = save_run_length;
+X		save_run_length = 0;
+X		goto continue_run;
+X	}
+X
+X	while (fast_buf < buf_end) {
+X
+next_char:
+X		if ((c = *fast_line++) ISNT_LEGAL) {
+X			if (c == DONE) {
+X				/* done processing the file, so get out */
+X				/* phase has already been set by read processing */
+X				break;
+X		  }
+X
+X	next_line:
+X			if (!fgets(LINE_START, MAXLINE, hqxfile)) {
+X				if (same_file_only) {
+X					avail = fast_buf - buf_ptr;
+X					if (avail != 0) {
+X						DEBUG && fprintf(debug, "DEBUG: avail: %d\n", avail);
+X						DEBUG && fflush(debug);
+X						error(
+X				"Premature EOF reading non-initial BinHex 4.0 header from %s",
+X							hqxfname);
+X					} else {
+X						/* this routine may be called many times in a row,
+X						 * and we must ensure that we don't allow fast_line
+X						 * to march beyond the end of line (it did), so we jam
+X						 * fast_line to the start of the line, and salt the
+X						 * line to mark it invalid, so a new line will be fetched.
+X						 * Jeepers, how I hate the (il)logic of this routine!
+X						 */
+X						fast_line = line_start;
+X						*fast_line = SKIP;
+X						break;
+X					}
+X					/*NOTREACHED*/
+X				} else if (new_in_hqx_file() == 0) {
+X					/*
+X					 * Used to assume if no more input available through error or
+X					 * exhaustion while looking for valid data then must be done.
+X					 * But we are demand driven (now) and if called, must
+X					 * find data.  So we don't silently exit any more.
+X					 */
+X					error("Premature EOF while reading BinHex 4.0 %s", hqxfname);
+X				}
+X			}
+X			line_ptr = line_start;
+X
+X			if (Debug > 1) {
+X					  fprintf(debug, "DEBUG: input: %s", line_start);
+X					  fflush(debug);
+X		 	}
+X
+X	scan_line:
+X
+X			/* ensure the the entire line is valid */
+X
+X			fast_line = line_ptr;
+X			while ((*fast_line = tr68[*fast_line]) IS_LEGAL)
+X				fast_line++;
+X
+X			/* grab the stopper */
+X			c = *fast_line;
+X
+X			/* check for validity, transition phases as required */
+X			switch (phase) {
+X
+X			case READING:
+X			case SKIPPING:
+X			case FINDING_COLON:
+X				if (SKIP == c && fast_line > line_ptr &&
+X					( 0 == hqxsuspect ||
+X						non_suspect((char *)line_ptr, (char *)fast_line) )
+X				) {
+X					/* the entire line is valid (again), so (resume) reading */
+X					/* hack: require the line to be non-empty to simplify logic */
+X					/* require line to non suspect [outside [mail] header] */
+X					phase = READING;
+X					break;
+X				}
+X				if (c == DONE && tr68[fast_line[1]] == SKIP) {
+X					/*
+X					 * valid encoded last line, so
+X					 * set phase for next line, and process this line --
+X					 * we exit the fill-the-buffer loop when the terminal
+X					 * colon is encountered during line processing
+X					 */
+X					phase = FIND_START_COLON;
+X					break;
+X				}
+X
+X				/* line is not entirely valid, so do some flavor of skipping */
+X				phase = (phase == FINDING_COLON) ? FIND_START_COLON : SKIPPING;
+X				/* we're suspicious again, since we could be reading a
+X				 * concatenated multi-segmented file */
+X				hqxsuspect = 1;
+X				goto next_line;
+X
+X			case FIND_START_COLON:
+X				if (*line_start == DONE) {
+X					/* can't transition to READING
+X					 * until know that entire line is valid
+X					 * so transition to intermediate state
+X					 */
+X					phase = FINDING_COLON;
+X					/* skip the initial colon */
+X					line_ptr++;
+X					goto scan_line;
+X				}
+X				goto next_line;
+X
+X			}
+X
+X			/* we've read in a valid line, so start processing it */
+X			fast_line = line_ptr;
+X			c = *fast_line++;
+X
+X			/*
+X			 * Jskud 15Jul92: fix bug reported by Info-Mac Moderator Bill
+X			 * regarding case of last line just :
+X			 * The line is valid, but it has no data, so don't ingest it.
+X			 */
+X
+X			if (c == DONE)
+X				break;
+X
+X			if (Debug > 1) {
+X				fprintf(debug, "DEBUG: processing above line\n\n");
+X				fflush(debug);
+X			}
+X
+X		}
+X
+X		/* Finally, we have the next 6 bits worth of data in "c" as input. */
+X		/* Note: we use "c" as the output of this processing too */
+X		switch (state68++) {
+X		case 0:
+X			accum = c;
+X			goto next_char;
+X		case 1:
+X			accum = (accum << 6) | c;
+X			c = accum >> 4;
+X			break;
+X		case 2:
+X			accum = (accum << 6) | c;
+X			c = (accum >> 2) & 0xff;
+X			break;
+X		case 3:
+X			/* we avoid any miniscule optimizations here
+X			 * to maintain parallelism and clarity
+X			 * which should enhance program maintainability
+X			 */
+X			accum = (accum << 6) | c;
+X			c = accum & 0xff;
+X			state68 = 0;
+X			break;
+X		}
+X		if (not_in_a_run)
+X			if (c != RUNCHAR)
+X				*fast_buf++ = c;
+X			else {
+X				not_in_a_run = FALSE;
+X				goto next_char;
+X			}
+X		else {
+X			/* "c" has the run total length, not just the incremental,
+X			   hence the post decrement is correct */
+X			if (c--) {
+X				avail = buf_end - fast_buf;
+X				if (c > avail) {
+X					save_run_length = c - avail;
+X					c = avail;
+X				}
+X		continue_run:
+X				{
+X					register char ch = fast_buf[-1];
+X
+X					while (c--)
+X						*fast_buf++ = ch;
+X				}
+X
+X			} else
+X				/* handle special case of 0x9000 => 0x90 */
+X				*fast_buf++ = RUNCHAR;
+X
+X			not_in_a_run = TRUE;
+X		}
+X	}
+X
+/* exit: */
+X	avail = fast_buf - buf_ptr;
+X	total_bytes += avail;
+X	buf_start[-1] = fast_buf[-1];
+X	line_ptr = fast_line;
+X	save_state = state68;
+X	save_accum = accum;
+X
+X	return avail;
+X
+}
+X
+non_suspect(start, beyond)
+X	char *start;
+X	char *beyond;
+{
+X	int looking_good;
+X	int len;
+X	register char *cp;
+X	register char *last;
+X	char *skip_msg = "Warning: skipping legal but suspect line in hqx file";
+X
+X	/* ensure it's long enough */
+X	len = beyond - start;
+X	looking_good = len >= suspect_shorter;
+X	DEBUG && fprintf(debug, "DEBUG: non_suspect: long enough: %d\n", looking_good);
+X	DEBUG && fflush(debug);
+X	if (!looking_good) {
+X		fprintf(verbose, "%s -- line too short (%d < %d)\n",
+X			skip_msg, len, suspect_shorter);
+X		fflush(verbose);
+X	}
+X
+X	/* ensure it's different enough */
+X	if (suspect_same && looking_good) {
+X		last = beyond - 1;
+X		for (cp = start; cp < last; cp++)
+X			if (*cp != *last) {
+X				break;
+X			}
+X		/* is different */
+X		looking_good = cp != last;
+X		DEBUG && fprintf(debug,
+X			"DEBUG: non_suspect: different enough: %d\n",
+X			looking_good);
+X		DEBUG && fflush(debug);
+X		if (!looking_good) {
+X			if (*last IS_LEGAL) {
+X				fprintf(verbose, "%s -- all one input char ('%c')\n",
+X					skip_msg, tr86[*last] );
+X			} else {
+X				fprintf(verbose, "%s -- all chars mapped to 0x%02x\n",
+X					skip_msg, *last );
+X			}
+X			fflush(verbose);
+X		}
+X	}
+X
+X	hqxsuspect = !looking_good;
+X
+X	return looking_good;
+}
+X
+new_in_hqx_file()
+{
+X	extern char **hqxnames_left;
+X	int result;
+X	long len;
+X
+X	DEBUG && fprintf(debug, "entering new_in_hqx_file ...\n");
+X	DEBUG && fflush(debug);
+X
+X	if (*hqxnames_left[0] == '\0' || *hqxnames_left[0] == '-') {
+X		result = FALSE;
+X		goto exit;
+X	}
+X
+X	len = strlen(*hqxnames_left);
+X	if (len >= sizeof(hqxfname))
+X		error("Error: specified hqxfname is too long", "");
+X	strcpy(hqxfname, *hqxnames_left++);
+X	/*
+X	 * we used to use freopen,
+X	 * but now suffer the slight inefficiency of close/open
+X	 * to provide info_only and consistent handling
+X	 * with good software engineering methods
+X	 */
+X	mclose(&hqxfile, "hqxfile");
+X	hqxfile = mopen(hqxfname, ".hqx", "r");
+X	hqxsuspect = 1;
+X	(void)fgets(LINE_START, MAXLINE, hqxfile);
+X	result = TRUE;
+X
+exit:
+X	if (result == TRUE)
+X		DEBUG && fprintf(debug, "... opened %s\n", hqxfname);
+X	else
+X		DEBUG && fprintf(debug, "... nothing to open\n");
+X	DEBUG && fflush(debug);
+X
+X	return result;
+}
+X
+/*
+X *  This procedure transparently encodes and writes the hqx output.  
+X *  It does run length and 8 to 6 encoding.
+X */
+empty_hqxbuf()
+{
+X	register ulong c, accum, last_c;
+X	register byte *fast_buf, *fast_line;
+X	register int state86, dont_look_for_runs = FALSE, run_length;
+X	extern int maxlines;
+X
+X	run_length = save_run_length;
+X	last_c = buf_start[-1];
+X	fast_buf = buf_start;
+X	fast_line = line_ptr;
+X	state86 = save_state;
+X	accum = save_accum;
+X	while (fast_buf < buf_ptr) {
+X		c = *fast_buf++;
+X		if (dont_look_for_runs)
+X			dont_look_for_runs = FALSE;
+X		else if (last_c == c && run_length < MAXRUN) {
+X			run_length++;
+X			continue;
+X		} else {
+X			if (run_length > 1) {
+X				--fast_buf;
+X				if (run_length == 2 && last_c != RUNCHAR)
+X					c = last_c;
+X				else {
+X					c = RUNCHAR;
+X					*--fast_buf = run_length;
+X					dont_look_for_runs = TRUE;
+X				}
+X				run_length = 1;
+X			} else
+X				last_c = c;
+X			if (c == RUNCHAR && !dont_look_for_runs) {
+X				*--fast_buf = 0;
+X				dont_look_for_runs = TRUE;
+X			}
+X		}
+X
+X		if (fast_line == line_end) {
+X			if (line_count++ == maxlines)
+X				new_out_hqx_file();
+X			fputs(LINE_START, hqxfile);
+X			fast_line = line_start;
+X		}
+X		switch (state86++) {
+X		case 0:
+X			*fast_line++ = tr86[c >> 2];
+X			accum = (c << 4) & 0x3f;
+X			break;
+X		case 1:
+X			*fast_line++ = tr86[(c >> 4) | accum];
+X			accum = (c << 2) & 0x3f;
+X			break;
+X		case 2:
+X			*fast_line++ = tr86[(c >> 6) | accum];
+X			if (fast_line == line_end) {
+X				if (line_count++ == maxlines)
+X					new_out_hqx_file();
+X				fputs(LINE_START, hqxfile);
+X				fast_line = line_start;
+X			}
+X			*fast_line++ = tr86[c & 0x3f];
+X			state86 = 0;
+X			break;
+X		}
+X	}
+X	save_run_length = run_length;
+X	buf_start[-1] = last_c;
+X	buf_ptr = buf_start;
+X	line_ptr = fast_line;
+X	save_state = state86;
+X	save_accum = accum;
+}
+X
+new_out_hqx_file()
+{
+X	char filename[SYSNAMELEN + 7];
+X	extern int maxlines;
+X
+X	fprintf(hqxfile, "<<< End of Part %2d >>>\n", file_count);
+X	mclose(&hqxfile, "hqxfile");
+X	file_count++;
+X	if (maxlines)
+X		sprintf(filename, "%s%02d.hqx", hqxfname, file_count);
+X	else
+X		sprintf(filename, "%s.hqx", hqxfname);
+X	hqxfile = mopen(filename, "", "w");
+X	if (file_count > 1)
+X		fprintf(hqxfile, "<<< Start of Part %2d >>>\n", file_count);
+X	else
+X		fprintf(hqxfile, "(This file must be converted with BinHex 4.0)\n\n");
+X	line_count = 3;
+}
+X
+check_hqx_crc(calc_crc, msg, name)
+X	word calc_crc;
+X	char msg[], name[];
+X
+{
+X	word read_crc;
+X
+X	if (buf_ptr >= buf_end)
+X		(void)fill_hqxbuf(0);
+X	read_crc = *buf_ptr++ << 8;
+X	if (buf_ptr >= buf_end)
+X		(void)fill_hqxbuf(0);
+X	read_crc |= *buf_ptr++;
+X	if (read_crc != calc_crc)
+X		error(msg, name);
+}
+X
+write_hqx_crc(calc_crc)
+X	word calc_crc;
+{
+X	if (buf_ptr == buf_end)
+X		empty_hqxbuf();
+X	*buf_ptr++ = calc_crc >> 8;
+X	if (buf_ptr == buf_end)
+X		empty_hqxbuf();
+X	*buf_ptr++ = calc_crc;
+}
+X
+un_hqx(unpit_flag)
+X	int unpit_flag;
+{
+X	char type[5];	/* stuff EOS */
+X	ulong hqx_datalen, hqx_rsrclen;
+X	word un_pit();
+X	int unpitting, bytes_read;
+X	word calc_crc;
+X	extern char **hqxnames_left;
+X	int same_file_only = 0;
+X	int active;
+X
+X	/* we read EOF on this to transision, so the stream must be valid */
+X	hqxfile = devnull;
+X	line_end = line_start + HQXLINELEN;
+X	buf_end = buf_start + HQXBUFLEN;
+X
+X	while (1) {
+X		total_bytes = 0;
+X		line_ptr = line_start;
+X		/* ensure that the line buffer is considered empty */
+X		/* why we use SKIP and not newline, I'm not sure */
+X		line_ptr[0] = SKIP;
+X		save_state = 0;
+X		save_run_length = 0;
+X
+X		active = hqx_to_bin_hdr(type, &hqx_datalen, &hqx_rsrclen, same_file_only);
+X		if (active == 0)
+X			break;
+X		same_file_only = 1;
+X		type[4] = 0; /* set EOS */
+X
+X		unpitting = unpit_flag && !strcmp(type, "PIT ");
+X		DEBUG && fprintf(debug,
+X			"DEBUG: unpit_flag=%d type=%s unpitting=%d\n",
+X			unpit_flag, type, unpitting);
+X		DEBUG && fflush(debug);
+X		if (unpitting) {
+X			mclose(&binfile, "binfile");
+X			/* Do not unlink files we did not open */
+X		   if (!info_only)
+X				unlink(binfname);
+X			bytes_read = total_bytes - (buf_end - buf_ptr);
+X			calc_crc = un_pit();
+X			bytes_read = total_bytes - (buf_end - buf_ptr) - bytes_read;
+X			if (bytes_read != hqx_datalen) {
+X				fprintf(verbose,
+X				    "Warning - Extraneous characters ignored in %s\n", binfname);
+X				fflush(verbose);
+X			}
+X		} else {
+X			calc_crc = hqx_to_bin_fork(hqx_datalen);
+X		}
+X		check_hqx_crc(calc_crc, "File data CRC mismatch in %s", binfname);
+X
+X		calc_crc = hqx_to_bin_fork(hqx_rsrclen);
+X		check_hqx_crc(calc_crc, "File rsrc CRC mismatch in %s", binfname);
+X
+X		if (!unpitting) {
+X			mclose(&binfile, "binfile");
+X		}
+X
+X	}
+X	mclose(&hqxfile, "hqxfile");
+}
+X
+re_hqx()
+{
+X	word calc_crc;
+X	ulong hqx_datalen, hqx_rsrclen;
+X	extern char **hqxnames_left;
+X	extern int maxlines;
+X
+X	line_end = line_start + HQXLINELEN;
+X	buf_end = buf_start + HQXBUFLEN;
+X	while (*hqxnames_left[0] != '-') {
+X		/* we write the trailer, so the stream must be valid */
+X		hqxfile = devnull;
+X
+X		/*
+X       * We use the trick of setting our line_count at the limit to
+X       * force an immediate transition on overflow.
+X		 */
+X		line_count = maxlines;
+X
+X		file_count = 0;
+X		line_ptr = line_start;
+X		*line_ptr++ = ':';
+X		strcpy((char*)line_end, "\n");
+X		buf_ptr = buf_start;
+X		save_state = 0;
+X		save_run_length = 1;
+X
+X		bin_to_hqx_hdr(&hqx_datalen, &hqx_rsrclen);	/* calculates hqxfname */
+X
+X		/*
+X       * Now that we have hqxfname, start the new file if
+X		 * not yet started.  We no longer wait until the output
+X		 * buffer overflows, since empty files with short names didn't overflow!
+X		 */
+X
+X		if (file_count == 0)
+X			new_out_hqx_file();
+X
+X		calc_crc = bin_to_hqx_fork(hqx_datalen);
+X		write_hqx_crc(calc_crc);
+X
+X		calc_crc = bin_to_hqx_fork(hqx_rsrclen);
+X		write_hqx_crc(calc_crc);
+X		/*
+X       * To end a run and to get the last stray bits,
+X		 * temporarily add a char.
+X		 */
+X		*buf_ptr = !buf_ptr[-1];
+X		buf_ptr++;
+X		empty_hqxbuf();
+X		/* now toss any extra output character generated */
+X		if (save_state != 2)
+X			--line_ptr;
+X
+X		/* if we're at the end of the line now, write it out */
+X		if (line_ptr == line_end) {
+X			fputs(LINE_START, hqxfile);
+X			line_ptr = line_start;
+X		}
+X
+X		/* paste the trailing colon onto the end of the line */
+X		/* recall that line_ptr points into the line, not at the line */
+X		strcpy((char*)line_ptr, ":\n");
+X		
+X		/* and flush the output buffer */
+X		fputs(LINE_START, hqxfile);
+X
+X		mclose(&hqxfile, "hqxfile");
+X		mclose(&binfile, "binfile");
+X
+X	}
+}
+X
+SHAR_EOF
+chmod 0444 hqxify.c ||
+echo 'restore of hqxify.c failed'
+Wc_c="`wc -c < 'hqxify.c'`"
+test 28298 -eq "$Wc_c" ||
+	echo 'hqxify.c: original size 28298, current size' "$Wc_c"
+fi
+# ============= unpack.c ==============
+if test -f 'unpack.c' -a X"$1" != X"-c"; then
+	echo 'x - skipping unpack.c (File already exists)'
+else
+echo 'x - extracting unpack.c (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'unpack.c' &&
+#include "mactypes.h"
+X
+extern word magic[];
+extern char *dir, *ext;
+extern int info_only;
+X
+ulong pit_datalen, pit_rsrclen;
+word hqx_crc, write_pit_fork();
+char pitfname[SYSNAMELEN];	/* name of file being unpacked */
+FILE *pitfile;			/* output file */
+X
+branch branchlist[255], *branchptr, *read_tree();
+leaf leaflist[256], *leafptr;
+word Huff_nibble, Huff_bit_count;
+X
+byte(*read_char) (), get_crc_byte(), getHuffbyte();
+X
+word 
+un_pit()
+{
+X	char PitId[4];
+X	int i;
+X	word pit_crc;
+X
+X	hqx_crc = 0;
+X	/* Read and unpack until the PackIt End message is read */
+X	for (;;) {
+X		read_char = get_crc_byte;
+X		for (i = 0; i < 4; i++)
+X			PitId[i] = (char) get_crc_byte();
+X		if (!strncmp(PitId, "PEnd", 4))
+X			break;
+X
+X		if (strncmp(PitId, "PMag", 4) && strncmp(PitId, "PMa4", 4))
+X			error("Unrecognized Packit format message %s", PitId);
+X
+X		if (PitId[3] == '4') {
+X			/* if this file is compressed */
+X			/* read the Huffman decoding  */
+X			/* tree that is on the input  */
+X			/* and use Huffman decoding   */
+X			/* subsequently               */
+X			branchptr = branchlist;
+X			leafptr = leaflist;
+X			Huff_bit_count = 0;
+X			(void)read_tree();
+X			read_char = getHuffbyte;
+X		}
+X		read_pit_hdr();		       /* also calculates datalen,
+X					        * rsrclen, pitfile, pitfname */
+X		pit_crc = write_pit_fork(pit_datalen, (ulong)0);
+X		pit_crc = write_pit_fork(pit_rsrclen, (ulong)pit_crc);
+X		check_pit_crc(pit_crc, "  File data/rsrc CRC mismatch in %s", pitfname);
+X		mclose(&pitfile, "pitfile");
+X	}
+X	hqx_crc = (hqx_crc << 8) ^ magic[hqx_crc >> 8];
+X	hqx_crc = (hqx_crc << 8) ^ magic[hqx_crc >> 8];
+X	return hqx_crc;
+}
+X
+check_pit_crc(calc_crc, msg, name)
+X	word calc_crc;
+X	char msg[], name[];
+X
+{
+X	word read_crc;
+X
+X	read_crc = (*read_char) () << 8;
+X	read_crc |= (*read_char) ();
+X	if (read_crc != calc_crc)
+X		error(msg, name);
+}
+X
+/* This routine reads the header of a packed file and appropriately twiddles it,
+X    determines if it has CRC problems, creates the .bin file, and puts the info
+X    into the .bin file.
+X    Output is pit_datalen, pit_rsrclen, pitfname, pitfile */
+read_pit_hdr()
+{
+X	register int n;
+X	register byte *pit_byte;
+X	register ulong pit_crc;
+X	pit_header pit;
+X	info_header info;
+X	short crc;
+X	char *action;
+X	long len;
+X
+X	extern short calc_mb_crc();
+X
+X	/* read the pit header and compute the CRC */
+X	pit_crc = 0;
+X	pit_byte = (byte *) & pit;
+X	for (n = 0; n < sizeof(pit_header); n++) {
+X		*pit_byte = (*read_char) ();
+X		pit_crc = ((pit_crc & 0xff) << 8)
+X		    ^ magic[*pit_byte++ ^ (pit_crc >> 8)];
+X	}
+X
+X	/* stuff the pit header data into the info header */
+X	bzero((char*)&info, sizeof(info_header));
+X	info.nlen = pit.nlen;
+X	if (pit.nlen > sizeof(info.name))
+X		error("Error: corrupt PIT data format", "");
+X	/*
+X	 * expect a valid Macintosh file name since it came from a PIT file
+X	 * and don't potentially corrupt a valid copied name via macify
+X	 */
+X	strncpy((char*)info.name, (char*)pit.name, (int)pit.nlen);/* name */
+X	bcopy((char*)pit.type, (char*)info.type, 9);  /* type, author, flag */
+X	bcopy((char*)pit.dlen, (char*)info.dlen, 16); /* (d,r)len, (c,m)tim */
+X	info.flags &= 0x7e;		       /* reset lock bit, init bit */
+X	if (pit.protect & 0x40)
+X		info.protect = 1;	       /* copy protect bit */
+X	info.uploadvers = '\201';
+X	info.readvers = '\201';
+X
+X	/* calculate MacBinary CRC */
+X	crc = calc_mb_crc((unsigned char*)&info, 124L, 0);
+X	info.crc[0] = (char) (crc >> 8);
+X	info.crc[1] = (char) crc;
+X
+X	/* Create the .bin file and write the info to it */
+X	pit.name[pit.nlen] = '\0';
+X	unixify((char*)pit.name);
+X
+X	len = strlen(dir) + strlen((char*)pit.name) + strlen(ext) + 1;
+X	if (len >= sizeof(pitfname))
+X		error("Error: generated pitfname would be too long", "");
+X	sprintf(pitfname, "%s/%s%s", dir, pit.name, ext);
+X
+X	if (info_only)
+X		action = (read_char == get_crc_byte) ? "Packed" : "Compressed";
+X	else
+X		action = (read_char == get_crc_byte) ? "Unpacking" : "Decompressing";
+X
+X	fprintf(convert, " %-14s%-30s type = \"%4.4s\", author = \"%4.4s\"\n",
+X	    action, pit.name, pit.type, pit.auth);
+X	fflush(convert);
+X	print_bin_hdr("Creating", &info);
+X	pitfile = mopen(pitfname, "", "w");
+X	check_pit_crc((word)pit_crc, "  File header CRC mismatch in %s", pitfname);
+X	if (1 != fwrite((char*)&info, sizeof(info_header), 1, pitfile))
+X		error("fwrite failed on pitfile", "");
+X
+X	/* Get a couple of items we'll need later */
+X	bcopy((char*)pit.dlen, (char*)&pit_datalen, 4);
+X	pit_datalen = mac2long(pit_datalen);
+X	bcopy((char*)pit.rlen, (char*)&pit_rsrclen, 4);
+X	pit_rsrclen = mac2long(pit_rsrclen);
+}
+X
+/* This routine copies bytes from the decoded input stream to the output
+X    and calculates the CRC.  It also pads to a multiple of 128 bytes on the
+X    output, which is part of the .bin format */
+word 
+write_pit_fork(nbytes, calc_crc)
+X	register ulong nbytes;
+X	register ulong calc_crc;
+{
+X	register ulong b;
+X	int extra_bytes;
+X
+X	/* pad fork to mult of * 128 bytes */
+X	extra_bytes = 127 - (nbytes + 127) % 128;
+X	while (nbytes--) {
+X		b = (*read_char) ();
+X		calc_crc = ((calc_crc & 0xff) << 8) ^ magic[b ^ (calc_crc >> 8)];
+X		if (EOF == putc((char)b, pitfile))
+X			error("Error: putc failed on pitfile", "");
+X	}
+X	while (extra_bytes--)
+X		if (EOF == putc(0, pitfile))
+X			error("Error: putc failed on pitfile", "");
+X	return (word) calc_crc;
+}
+X
+/* This routine recursively reads the compression decoding data.
+X   It appears to be Huffman compression.  Every leaf is represented
+X   by a 1 bit, then the byte it represents.  A branch is represented
+X   by a 0 bit, then its zero and one sons */
+branch *
+read_tree()
+{
+X	register branch *branchp;
+X	register leaf *leafp;
+X	register ulong b;
+X
+X	if (!Huff_bit_count--) {
+X		Huff_nibble = get_crc_byte();
+X		Huff_bit_count = 7;
+X	}
+X	if ((Huff_nibble <<= 1) & 0x0100) {
+X		leafp = leafptr++;
+X		leafp->flag = 1;
+X		b = get_crc_byte();
+X		leafp->data = Huff_nibble | (b >> Huff_bit_count);
+X		Huff_nibble = b << (8 - Huff_bit_count);
+X		return (branch *) leafp;
+X	} else {
+X		branchp = branchptr++;
+X		branchp->flag = 0;
+X		branchp->zero = read_tree();
+X		branchp->one = read_tree();
+X		return branchp;
+X	}
+}
+X
+/* This routine returns the next 8 bits.  It finds the byte in the
+X   Huffman decoding tree based on the bits from the input stream. */
+byte 
+getHuffbyte()
+{
+X	register branch *branchp;
+X
+X	branchp = branchlist;
+X	while (!branchp->flag) {
+X		if (!Huff_bit_count--) {
+X			Huff_nibble = get_crc_byte();
+X			Huff_bit_count = 7;
+X		}
+X		branchp = ((Huff_nibble <<= 1) & 0x0100) ? branchp->one : branchp->zero;
+X	}
+X	return ((leaf *) branchp)->data;
+}
+X
+/* This routine returns the next byte on the .hqx input stream, hiding
+X    most file system details at a lower level.  .hqx CRC is maintained
+X    here */
+byte 
+get_crc_byte()
+{
+X	register ulong c;
+X	extern byte *buf_ptr, *buf_end;
+X
+X	if (buf_ptr == buf_end) {
+X		if (fill_hqxbuf(0) == 0)
+X			error("premature EOF reading PIT info from BinHex 4.0 file", "");
+X	}
+X	c = *buf_ptr++;
+X	hqx_crc = ((hqx_crc << 8) | c) ^ magic[hqx_crc >> 8];
+X	return (byte) c;
+}
+SHAR_EOF
+chmod 0444 unpack.c ||
+echo 'restore of unpack.c failed'
+Wc_c="`wc -c < 'unpack.c'`"
+test 6864 -eq "$Wc_c" ||
+	echo 'unpack.c: original size 6864, current size' "$Wc_c"
+fi
+# ============= mactypes.h ==============
+if test -f 'mactypes.h' -a X"$1" != X"-c"; then
+	echo 'x - skipping mactypes.h (File already exists)'
+else
+echo 'x - extracting mactypes.h (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'mactypes.h' &&
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/dir.h>
+#include <sys/stat.h>
+X
+#ifdef TIMEVAL
+#  include <sys/param.h>
+#  include <sys/time.h>
+#else
+#  include <sys/timeb.h>
+#endif
+X
+typedef unsigned char byte;     /* one byte, obviously */
+typedef unsigned short word;    /* must be 2 bytes */
+#ifndef ULONG
+X	typedef unsigned long ulong; /* 4 bytes */
+#endif
+X
+/* declarations to keep lint informed */
+char *calloc();
+#include <string.h>
+void exit();
+long time();
+ulong unix2mac();
+ulong mac2unix();
+char *ctime();
+FILE *mopen();
+X
+#define TRUE  1
+#define FALSE 0
+#define CR 0x0d
+#define LF 0x0a
+X
+/* various files and debug options */
+extern FILE *devnull;	/* constant /dev/null for bit bucket output */
+extern FILE *convert;	/* convert messages */
+extern FILE *verbose;	/* verbose output */
+extern FILE *debug;	/* debug output */
+extern int   Debug;	/* debug level */
+#define DEBUG (debug != devnull)
+X
+/* Compatibility issues */
+X
+#ifdef NOBYTEORDER
+#define mac2word
+#define mac2long
+#define word2mac
+#define long2mac
+#else
+#include <netinet/in.h>
+#define mac2word (word) ntohs
+#define mac2long (ulong) ntohl
+#define word2mac (word) htons
+#define long2mac (ulong) htonl
+#endif
+X
+#ifdef NOBZEROBCOPY
+#define bzero(dst,len) (memset(dst,0,len))
+#define bcopy(src,dst,len) (memcpy(dst,src,len))
+#endif
+X
+#define MAXEXTENSION 5          /* max(".bin", ".text", ".data", ".rsrc") */
+#define SYSNAMELEN 1024         /* reasonable UNIX working name length */
+#define NAMELEN 63              /* maximum legal Mac file name length */
+X
+/* Format of a bin file:
+A bin file is composed of 128 byte blocks.  The first block is the
+info_header (see below).  Then comes the data fork, null padded to fill the
+last block.  Then comes the resource fork, padded to fill the last block.  A
+proposal to follow with the text of the Get Info box has not been implemented,
+to the best of my knowledge.  Version, zero1 and zero2 are what the receiving
+program looks at to determine if a MacBinary transfer is being initiated.
+*/
+typedef struct {                /* info file header (128 bytes). Unfortunately,
+X                                 * these longs don't align to word boundaries */
+X
+/* decimal offset */
+X
+/* 000 */
+X        byte version;           /* there is only a version 0 at this time */
+/* 001 */
+X        byte nlen;              /* Length of filename. */
+/* 002 */
+X        byte name[NAMELEN];     /* Filename (only 1st nlen are significant) */
+/* 065 */
+X        byte type[4];           /* File type. */
+/* 069 */
+X        byte auth[4];           /* File creator. */
+/* 073 */
+X        byte flags;             /* file flags: LkIvBnSyBzByChIt */
+X                                /* Locked, Invisible,Bundle, System */
+X                                /* Bozo, Busy, Changed, Init */
+/* 074 */
+X        byte zero1;
+/* 075 */
+X        byte icon_vert[2];      /* Vertical icon position within window */
+/* 077 */
+X        byte icon_horiz[2];     /* Horizontal icon postion in window */
+/* 079 */
+X        byte window_id[2];      /* Window or folder ID. */
+/* 081 */
+X        byte protect;           /* = 1 for protected file, 0 otherwise */
+/* 082 */
+X        byte zero2;
+/* 083 */
+X        byte dlen[4];           /* Data Fork length (bytes) -   most sig.  */
+/* 087 */
+X        byte rlen[4];           /* Resource Fork length         byte first */
+/* 091 */
+X        byte ctim[4];           /* File's creation date. */
+/* 095 */
+X        byte mtim[4];           /* File's "last modified" date. */
+/* 099 */
+X        byte ilen[2];           /* GetInfo message length */
+/* 101 */
+X        byte flags2;            /* Finder flags, bits 0-7 */
+/* 102 */
+X        byte unused[14];
+/* 116 */
+X        byte packlen[4];        /* length of total files when unpacked */
+/* 120 */
+X        byte headlen[2];        /* length of secondary header */
+/* 122 */
+X        byte uploadvers;        /* Version of MacBinary II that the uploading
+X                                 * program is written for */
+/* 123 */
+X        byte readvers;          /* Minimum MacBinary II version needed to read
+X                                 * this file */
+/* 124 */
+X        byte crc[2];            /* CRC of the previous 124 bytes */
+/* 126 */
+X        byte padding[2];        /* two trailing unused bytes */
+/* 128 */
+}      info_header;
+X
+/* The *.info file of a MacTerminal file transfer either has exactly this
+structure or has the protect bit in bit 6 (near the sign bit) of byte zero1.
+The code I have for macbin suggests the difference, but I'm not so sure */
+X
+/*
+X * Format of a hqx file:
+X * (but see also binhex-40-specs.txt for legal variations)
+X * 
+X * It begins with a line that begins "(This file" and the rest is 64
+X * character lines (except possibly the last, and not including
+X * newlines) where the first begins and the last ends with a colon.
+X * The characters between colons should be only from the set in tr86,
+X * below, each of which corresponds to 6 bits of data.  Once that is
+X * translated to 8 bit bytes, you have the real data, except that the
+X * byte 0x90 may indicate, if the following character is nonzero, that
+X * the previous byte is to be repeated 1 to 255 times all together
+X * (that is, the count following 0x90 contains the total run length,
+X * not the marginal repeat count).  The byte 0x90 is represented by
+X * 0x9000.  The information in the file is the hqx_buf (see below), a
+X * CRC word, the data fork, a CRC word, the resource fork, and a CRC
+X * word.  There is considerable confusion about the flags.  An
+X * official looking document unclearly states that the init bit is
+X * always clear, as is the following byte.  The experience of others
+X * suggests, however, that this is not the case.
+X */
+X
+/* NOTE:
+X * Jskud 25Jun92
+X
+X * a hqx file has no date/time information, and a binary constructed
+X * from a hqx file will use the current time; therefore, reconverting
+X * a hqx file repeatedly will generate different bin files!
+X
+X * The "flags" byte can change when refetched, for example, whether or
+X * not the init bit is set (that is, the Finder has "seen" the file);
+X * this can affect the hqx file, including the run length encoding, so
+X * the hqx files can look quite different, although the actual
+X * difference is miniscule; also, the init bit difference will not be
+X * present when the hqx file is converted to a bin file, since both the
+X * locked and init bits are cleared on bin file creation.
+X
+X * Because we've experienced this "spurious" difference, and since
+X * the init bit is only thought meaningful when running on the Mac,
+X * and to establish symmetry between bin file creation and hqx file
+X * creation, we unconditionally clear the init and locked bits when
+X * creating the hqx file.
+X
+X */
+X
+#define HQXLINELEN 64
+typedef struct {
+/* decimal offset */
+/* 000 */
+X        byte version;           /* there is only a version 0 at this time */
+/* 001 */
+X        byte type[4];           /* File type. */
+/* 005 */
+X        byte auth[4];           /* File creator. */
+/* 009 */
+X        byte flags;             /* file flags: LkIvBnSyBzByChIt */
+/* 010 */
+X        byte protect;           /* ?Pr??????, don't know what ? bits mean */
+/* 011 */
+X        byte dlen[4];           /* Data Fork length (bytes) -   most sig.  */
+/* 015 */
+X        byte rlen[4];           /* Resource Fork length         byte first */
+/* 019 */
+X        byte bugblank;          /* to fix obscure sun 3/60 problem that always
+X                                 * makes sizeof(hqx_header) even */
+/* 020 */
+}      hqx_header;
+X
+typedef struct {                /* hqx file header buffer (includes file name) */
+X        byte nlen;              /* Length of filename. */
+X        byte name[NAMELEN];     /* Filename: only nlen actually appear */
+X        hqx_header all_the_rest;/* and all the rest follows immediately */
+}      hqx_buf;
+X
+/* every valid hqx header is at least this long */
+#define MIN_HQX_HDR (sizeof(hqx_header) + 2)
+X
+/*
+X *	The minimum number of hqx_lines in a file to ensure that we have
+X *	enough lines to emit the entire header before starting a new file.
+X * + 1 is for rounding, + 2 is for "(This file " and the blank line.
+X */
+#define MIN_HQX_LINES (sizeof(hqx_buf) * 4 / 3 / HQXLINELEN + 1 + 2)
+X
+X
+/* Format of a Packit file:
+Repeat the following sequence for each file in the Packit file:
+X    4 byte identifier ("PMag" = not compressed, "Pma4" = compressed)
+X    320 byte compression data (if compressed file)
+X        = preorder transversal of Huffman tree
+X        255 0 bits corresponding to nonleaf nodes
+X        256 1 bits corresponding to leaf nodes
+X        256 bytes associating leaf nodes with bytes
+X        1   completely wasted bit
+X    92 byte header (see pit_header below) *
+X    2 bytes CRC word for header *
+X    data fork (length from header) *
+X    resource fork (length from header) *
+X    2 bytes CRC word for forks *
+X
+Last file is followed by the 4 byte Ascii string, "Pend", and then the EOF.
+The CRC calculations differ from those in the binhex format.
+X
+* these are in compressed form if compression is on for the file
+X
+*/
+X
+typedef struct {                /* Packit file header (92 bytes) */
+X        byte nlen;              /* Length of filename. */
+X        byte name[NAMELEN];     /* Filename (only 1st nlen are significant) */
+X        byte type[4];           /* File type. */
+X        byte auth[4];           /* File creator. */
+X        byte flags;             /* file flags: LkIvBnSyBzByChIt */
+X        byte zero1;
+X        byte protect;           /* = 1 for protected file, 0 otherwise */
+X        byte zero2;
+X        byte dlen[4];           /* Data Fork length (bytes) -   most sig.  */
+X        byte rlen[4];           /* Resource Fork length         byte first */
+X        byte ctim[4];           /* File's creation date. */
+X        byte mtim[4];           /* File's "last modified" date. */
+}      pit_header;
+X
+/* types for constructing the Huffman tree */
+typedef struct branch_st {
+X        byte flag;
+X        struct branch_st *one, *zero;
+}         branch;
+X
+typedef struct leaf_st {
+X        byte flag;
+X        byte data;
+}       leaf;
+SHAR_EOF
+chmod 0444 mactypes.h ||
+echo 'restore of mactypes.h failed'
+Wc_c="`wc -c < 'mactypes.h'`"
+test 10016 -eq "$Wc_c" ||
+	echo 'mactypes.h: original size 10016, current size' "$Wc_c"
+fi
+# ============= Makefile ==============
+if test -f 'Makefile' -a X"$1" != X"-c"; then
+	echo 'x - skipping Makefile (File already exists)'
+else
+echo 'x - extracting Makefile (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'Makefile' &&
+## This file is formatted with a tab-width of 3
+X
+## See the README file for how to modify this Makefile.
+X
+CSOURCES    = mcvert.c hqxify.c unpack.c
+HSOURCES    = mactypes.h
+SOURCES     = $(CSOURCES) $(HSOURCES) \
+X              Makefile README README-conversion mcvert.idraw
+sharSOURCES = $(SOURCES) mcvert.1
+OBJECTS     = mcvert.o hqxify.o unpack.o
+ALL         = mcvert mcvert.man
+EVERYTHING  = $(ALL) shar mcvert.ps
+CLEAN       = $(OBJECTS) $(XOBJ) $(ALL)
+X
+VERSION=209
+X
+BIN = .
+X
+##
+## *LAST* Defintion Always Wins ##
+##
+X
+### Bind Time Library Selection
+# for RS/6000
+LIBS= -lbsd
+# for most implementations
+LIBS=
+X
+### Extra Object Files if Required
+# for AT&T 3B2
+XXOBJ= gettod.o
+# normal case
+XXOBJ=
+X
+### Machine CFLAGS
+## for machines with <timeb.h> and ftime() [and maybe without gettimeofday()]
+## note that ftime() is obsolete, and has been replaced by gettimeofday()
+# eg: works for ULTRIX
+CFLAGS_M=
+## for machines with ulong pre-defined; eg: IBM RS/6000's AIX
+CFLAGS_M= -DULONG
+## eg: A/UX, SGI's Irix, AT&T 3B2
+CFLAGS_M= -DTIMEVAL -DULONG
+## for machines with gettimeofday() [and maybe without <timeb.h> and ftime()]
+# eg: HP-UX 9.01, SunOS 4.1.3, DomainOS 10.4
+CFLAGS_M= -DTIMEVAL
+X
+### Byteorder(3n) [eg: htonl()] and Byte Manipulation [eg: bzero, bcopy] CFLAGS
+# uncommon case -- without support, eg: AT&T 3B2
+CFLAGS_N = -DNOBYTEORDER -DNOBZEROBCOPY
+# common case -- with support
+CFLAGS_N =
+X
+### Debugging/Optimization CFLAGS
+# debugging
+CFLAGS_D = -g
+# optimization
+CFLAGS_D = -O
+X
+### All CFLAGS
+CFLAGS=$(CFLAGS_M) $(CFLAGS_D) $(CFLAGS_N) -DVERSION=$(VERSION)
+X
+### lint related
+LINT=lint
+LFLAGS=$(CFLAGS_M) $(CFLAGS_N) -DVERSION=$(VERSION)
+X
+all: $(ALL)
+everything: $(EVERYTHING)
+X
+mcvert: $(OBJECTS) $(XOBJ)
+X	$(CC) $(CFLAGS) $(OBJECTS) $(LIBS) $(XOBJ) -o $(BIN)/mcvert
+X
+lint: $(HSOURCES) $(CSOURCES)
+X	$(LINT) $(LFLAGS) $(CSOURCES)
+X
+$(sharSOURCES):
+X	sccs get $@
+X
+$(OBJECTS): mactypes.h Makefile
+X
+## should only matter for AT&T 3B2
+gettod.o:
+X	ar -xv /usr/lib/libnet.a $@
+X
+print: $(SOURCES)
+X	lpr -p -P$(PRINTER) $(SOURCES)
+X
+shar : mcvert-$(VERSION).shar
+mcvert-$(VERSION).shar : $(sharSOURCES)
+X	shar $(sharSOURCES) > $@
+X
+clean:
+X	rm -f $(CLEAN)
+X
+man: mcvert.man
+mcvert.man: mcvert.1
+X	nroff -man mcvert.1 | col | sed 's/.//g' > $@
+mcvert.ps: mcvert.1
+X	groff -man mcvert.1 > $@
+SHAR_EOF
+chmod 0444 Makefile ||
+echo 'restore of Makefile failed'
+Wc_c="`wc -c < 'Makefile'`"
+test 2281 -eq "$Wc_c" ||
+	echo 'Makefile: original size 2281, current size' "$Wc_c"
+fi
+# ============= README ==============
+if test -f 'README' -a X"$1" != X"-c"; then
+	echo 'x - skipping README (File already exists)'
+else
+echo 'x - extracting README (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'README' &&
+mcvert needs to be compiled before you can run it, since mcvert runs on
+a wide variety of machines, each with its own binary format.
+X
+o Ready a directory to hold mcvert
+X
+X	cd
+X	mkdir mcvert
+X	cp mcvert-1nn.shar mcvert
+X	cd mcvert
+X
+o Create the individual files from the Shell Archive (shar) file
+X
+X	sh mcvert-1nn.shar
+X
+o Reorder the Makefile as appropriate for your machine
+X
+X  Note that there are a number of flags with which to fiddle,
+X  and that the last definition wins.
+X
+X  For example, when compiling for AT&T's 3B2, reorder so these lines
+X  are last within group:
+X
+X	XOBJ= gettod.o
+X
+X	CFLAGS_M= -DTIMEVAL -DULONG
+X
+X	CFLAGS_N = -DNOBYTEORDER -DNOBZEROBCOPY
+X
+o Make the binary and man page
+X
+X	make
+X
+o Read the manpage for a full description
+X
+X	more mcvert.man
+X
+o Invoke the binary without arguments for a short description
+X
+X	mcvert
+X
+[]
+SHAR_EOF
+chmod 0444 README ||
+echo 'restore of README failed'
+Wc_c="`wc -c < 'README'`"
+test 829 -eq "$Wc_c" ||
+	echo 'README: original size 829, current size' "$Wc_c"
+fi
+# ============= README-conversion ==============
+if test -f 'README-conversion' -a X"$1" != X"-c"; then
+	echo 'x - skipping README-conversion (File already exists)'
+else
+echo 'x - extracting README-conversion (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'README-conversion' &&
+Overview of file conversion
+X
+More details regarding file formats may be found in the mcvert.1 man
+page, but basically, there are native Mac files that live (only) on
+the Mac (since they have interesting internal structure), and
+representations of Mac files.
+X
+One very important representation is called MacBinary.  It is nothing
+but "data".  But it is 8-bit data, and that confuses some things some
+times, like mail programs and modems.  So, there are encodings of
+MacBinary files as ASCII only files, and one very important one is
+called BinHex4.0.  So far, so good.
+X
+mcvert runs under UNIX and converts between different representations
+of Mac files.  One very common conversion is between BinHex4.0 and
+MacBinary.  So know we know how to do that (on a UNIX box).  On the
+Mac, I prefer the CompactPro shareware for doing this conversion
+X
+A MacBinary file must be converted into the actual native Mac file it
+represents.  One such program, which runs on the Mac, is binhex4.0.
+Often, though, programs like telnet from NCSA, kermit, White Knight,
+or any number of other communication programs will convert MacBinary
+files into the native Mac files they represent during transfer.
+X
+Files can be very large, and rather redundent.  So it makes sense
+to compress the files to save space and reduce transfer cost.
+There are compressed file formats.  Two popular ones are StuffIt
+and CompactPro.  But if a file is compressed, something must
+uncompress it.  There are unstuffers and extractors, which are
+separate programs which work on the compressed files.  Some files
+are "self-extracting", which means the files are actually Mac
+programs which, when run, recreate the original file.
+X
+Files are often identified by extensions, those .ext suffixes at the
+end of the name.  Common suffixes include:
+X
+X	.bin	MacBinary
+X	.sit	StuffIt
+X	.cpt	CompactPro
+X	.hqx	BinHex4.0
+X	.sea	self extracting archive
+X
+It is not uncommon for multiple transformations to be applied, so if
+one had a file called foo.sit.bin, that likely means that it's a
+MacBinary format of a StuffIt archive file.  So, to convert it, you
+must turn the MacBinary file into a native Mac file, and then run
+[un]StuffIt (or CompactPro, which can handle many StuffIt formats).
+X
+There's more information in the info-mac archives about getting files.
+For example, here's info-mac/help/accessing-files.txt,as of 13Jun93:
+X
+>------ Begin Included Message ------
+> To access binaries in the Info-Mac archive at sumex-aim, use your
+> machine's ftp program.  Type "ftp sumex-aim.stanford.edu".  Use the
+> account name "anonymous" (lower-case) and enter any password. Then
+> "cd info-mac" to enter our directory. You should be able to transfer
+> binaries with a statement like "get app/silly-paint.hqx".
+> 
+> NOTE: Almost all files (even binaries) in the Info-Mac archive are in
+> text format, even though they may not be human-readable. Hence, a FTP
+> transfer using a text-only option, often called ASCII, should work in
+> all common cases.
+> 
+> In order to provide a reasonable level of performance and avoid
+> causing Internet overload, there is a 35-user limit for anonymous ftp
+> into sumex-aim during working hours, which we define as 8AM to 5PM
+> Pacific time, Monday through Friday. When sumex is busy, use one of
+> the many mirror archives around the world (see info/comm/ for a list
+> of other archive sites, including sumex mirrors.) Gopher is another
+> alternative; as a more modern alternative to ftp, it imposes less of a
+> burden on sumex, so there is no user limit.
+> 
+> Here are some simple commands to move you around the directory structure.
+> This example assumes that you started in the /info-mac directory.
+> 	cd app         # move into the app directory
+> 	ls             # list the files there
+>         get planet.hqx # transfer a file to your computer
+>         cd ..          # move back up to the parent directory
+>         cd help        # and so on...
+> 
+> Most Info-Mac files are stored in BinHex 4.0 format.  We have adopted
+> the common practice of labeling such files with .hqx extensions.  To
+> take these files and use them on your Macintosh, you must first run
+> them through a program which will convert them from .hqx format into a
+> regular Macintosh file. On Unix systems, you can use the mcvert
+> program, stored as cmp/mcvert.shar. You can also do the conversion on
+> your Macintosh by using any of a number of utilities, including BinHex
+> 4.0, StuffIt, or Compact Pro. We recommend using Compact Pro because
+> it is slightly more convenient and reliable than the other tools.
+> Note: do NOT use BinHex 5.0 as it is incompatible, for some very
+> brain-damaged reasons.
+> 
+> Note that some of our files were split into smaller pieces so that
+> they could be mailed more easily.  Most such files are old, as we no
+> longer split new submissions.  You must join split files together
+> before running BinHex or StuffIt. Hqx files can be edited as normal
+> text; therefore, you can use any word processor or append command on
+> your host to stitch the pieces together. There are some utilities
+> (unity and united) in disk/ to do this step for you.
+> 
+> Many of our files also have been compressed to save space. You'll know
+> that they have been when the file name after converting to Macintosh
+> format ends with a .sit, .cpt, .sea, or .pit extension. Here is a
+> table to help you with the reconstruction:
+> 
+> Extension	Created By	Recommended unpacker	Notes
+> 
+> .pit		PackIt II	StuffIt			obsolete format
+> .sit		StuffIt		Compact Pro/StuffIt	has type SIT!
+> 		StuffIt Deluxe	Stuffit Expander	has type SITD
+> .cpt		Compact Pro	Compact Pro
+> .sea		various		itself (double-click on it to unpack)
+> 
+> 
+> In summary, there are generally five steps to pulling .hqx files from our
+> archives:
+> 	1. Transfer them to your computer with FTP.
+> 	2. Transfer them to your Macintosh somehow.
+>         3. If necessary, put separate pieces together.
+> 	4. Run a de-binhexing utility to convert the .hqx files into either
+>            real Macintosh files or compressed Macintosh files.
+> 	5. If they are compressed, use the appropriate decompression
+>            program to decompress them.
+> People using Unix may be able to skip steps 3 and 4 by using the program
+> mcvert on their Unix system before transferring the program to their Macintosh.
+> 
+> If you don't already have BinHex 4.0, it would be easiest to get it
+> from a friend or user group. Or, if you know how to do an 8-bit binary
+> download, you can FTP it from us as cmp/binhex4.bin. Unfortunately, a
+> little bit of pulling yourself up by the bootstraps is required.
+> StuffIt Expander is a more modern and useful program which incoporates
+> the functionality of Binhex, while also decompressing files. It is
+> also available in cmp/ in both binary and binhexed forms.
+> 
+> A CD-ROM of the archives is commercially available from Pacific HiTech.
+> They can be contacted by phone at 800-765-8369, fax at 801-278-2666, and email
+> at 71175.3152@compuserve.com. The CD-ROM is approximately $45 including 
+> shipping and handling.
+> 
+> Please note that we cannot test software for reliability on all Macintosh
+> configurations. As the software in this archive is generally non-commercial,
+> it may be less reliable and more prone to crashes than you are used to.
+> 
+> We highly recommend that you maintain an active backup procedure to protect
+> yourself even in the event of a system crash that results in the loss of
+> some of your data. Download and use all software in this archive at your own
+> risk.
+> 
+> The Info-Mac Moderators
+> info-mac-request@sumex-aim.stanford.edu
+> 
+>------  End Included Message  ------
+SHAR_EOF
+chmod 0444 README-conversion ||
+echo 'restore of README-conversion failed'
+Wc_c="`wc -c < 'README-conversion'`"
+test 7650 -eq "$Wc_c" ||
+	echo 'README-conversion: original size 7650, current size' "$Wc_c"
+fi
+# ============= mcvert.idraw ==============
+if test -f 'mcvert.idraw' -a X"$1" != X"-c"; then
+	echo 'x - skipping mcvert.idraw (File already exists)'
+else
+echo 'x - extracting mcvert.idraw (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'mcvert.idraw' &&
+%!PS-Adobe-2.0 EPSF-1.2
+%%DocumentFonts: Helvetica-Bold
+%%Pages: 1
+%%BoundingBox: 69 66 547 688
+%%EndComments
+X
+%% Contributed by
+%% Brian Bartholomew - bb@math.ufl.edu - Univ. of Florida Dept. of Mathematics
+%% Sat, 20 Feb 93 04:45:04 EST
+X
+50 dict begin
+X
+/arrowHeight 8 def
+/arrowWidth 4 def
+/none null def
+/numGraphicParameters 17 def
+/stringLimit 65535 def
+X
+/Begin {
+save
+numGraphicParameters dict begin
+} def
+X
+/End {
+end
+restore
+} def
+X
+/SetB {
+dup type /nulltype eq {
+pop
+false /brushRightArrow idef
+false /brushLeftArrow idef
+true /brushNone idef
+} {
+/brushDashOffset idef
+/brushDashArray idef
+0 ne /brushRightArrow idef
+0 ne /brushLeftArrow idef
+/brushWidth idef
+false /brushNone idef
+} ifelse
+} def
+X
+/SetCFg {
+/fgblue idef
+/fggreen idef
+/fgred idef
+} def
+X
+/SetCBg {
+/bgblue idef
+/bggreen idef
+/bgred idef
+} def
+X
+/SetF {
+/printSize idef
+/printFont idef
+} def
+X
+/SetP {
+dup type /nulltype eq {
+pop true /patternNone idef
+} {
+dup -1 eq {
+/patternGrayLevel idef
+/patternString idef
+} {
+/patternGrayLevel idef
+} ifelse
+false /patternNone idef
+} ifelse
+} def
+X
+/BSpl {
+0 begin
+storexyn
+newpath
+n 1 gt {
+0 0 0 0 0 0 1 1 true subspline
+n 2 gt {
+0 0 0 0 1 1 2 2 false subspline
+1 1 n 3 sub {
+/i exch def
+i 1 sub dup i dup i 1 add dup i 2 add dup false subspline
+} for
+n 3 sub dup n 2 sub dup n 1 sub dup 2 copy false subspline
+} if
+n 2 sub dup n 1 sub dup 2 copy 2 copy false subspline
+patternNone not brushLeftArrow not brushRightArrow not and and { ifill } if
+brushNone not { istroke } if
+0 0 1 1 leftarrow
+n 2 sub dup n 1 sub dup rightarrow
+} if
+end
+} dup 0 4 dict put def
+X
+/Circ {
+newpath
+0 360 arc
+patternNone not { ifill } if
+brushNone not { istroke } if
+} def
+X
+/CBSpl {
+0 begin
+dup 2 gt {
+storexyn
+newpath
+n 1 sub dup 0 0 1 1 2 2 true subspline
+1 1 n 3 sub {
+/i exch def
+i 1 sub dup i dup i 1 add dup i 2 add dup false subspline
+} for
+n 3 sub dup n 2 sub dup n 1 sub dup 0 0 false subspline
+n 2 sub dup n 1 sub dup 0 0 1 1 false subspline
+patternNone not { ifill } if
+brushNone not { istroke } if
+} {
+Poly
+} ifelse
+end
+} dup 0 4 dict put def
+X
+/Elli {
+0 begin
+newpath
+4 2 roll
+translate
+scale
+0 0 1 0 360 arc
+patternNone not { ifill } if
+brushNone not { istroke } if
+end
+} dup 0 1 dict put def
+X
+/Line {
+0 begin
+2 storexyn
+newpath
+x 0 get y 0 get moveto
+x 1 get y 1 get lineto
+brushNone not { istroke } if
+0 0 1 1 leftarrow
+0 0 1 1 rightarrow
+end
+} dup 0 4 dict put def
+X
+/MLine {
+0 begin
+storexyn
+newpath
+n 1 gt {
+x 0 get y 0 get moveto
+1 1 n 1 sub {
+/i exch def
+x i get y i get lineto
+} for
+patternNone not brushLeftArrow not brushRightArrow not and and { ifill } if
+brushNone not { istroke } if
+0 0 1 1 leftarrow
+n 2 sub dup n 1 sub dup rightarrow
+} if
+end
+} dup 0 4 dict put def
+X
+/Poly {
+3 1 roll
+newpath
+moveto
+-1 add
+{ lineto } repeat
+closepath
+patternNone not { ifill } if
+brushNone not { istroke } if
+} def
+X
+/Rect {
+0 begin
+/t exch def
+/r exch def
+/b exch def
+/l exch def
+newpath
+l b moveto
+l t lineto
+r t lineto
+r b lineto
+closepath
+patternNone not { ifill } if
+brushNone not { istroke } if
+end
+} dup 0 4 dict put def
+X
+/Text {
+ishow
+} def
+X
+/idef {
+dup where { pop pop pop } { exch def } ifelse
+} def
+X
+/ifill {
+0 begin
+gsave
+patternGrayLevel -1 ne {
+fgred bgred fgred sub patternGrayLevel mul add
+fggreen bggreen fggreen sub patternGrayLevel mul add
+fgblue bgblue fgblue sub patternGrayLevel mul add setrgbcolor
+eofill
+} {
+eoclip
+originalCTM setmatrix
+pathbbox /t exch def /r exch def /b exch def /l exch def
+/w r l sub ceiling cvi def
+/h t b sub ceiling cvi def
+/imageByteWidth w 8 div ceiling cvi def
+/imageHeight h def
+bgred bggreen bgblue setrgbcolor
+eofill
+fgred fggreen fgblue setrgbcolor
+w 0 gt h 0 gt and {
+l b translate w h scale
+w h true [w 0 0 h neg 0 h] { patternproc } imagemask
+} if
+} ifelse
+grestore
+end
+} dup 0 8 dict put def
+X
+/istroke {
+gsave
+brushDashOffset -1 eq {
+[] 0 setdash
+1 setgray
+} {
+brushDashArray brushDashOffset setdash
+fgred fggreen fgblue setrgbcolor
+} ifelse
+brushWidth setlinewidth
+originalCTM setmatrix
+stroke
+grestore
+} def
+X
+/ishow {
+0 begin
+gsave
+fgred fggreen fgblue setrgbcolor
+/fontDict printFont findfont printSize scalefont dup setfont def
+/descender fontDict begin 0 [FontBBox] 1 get FontMatrix end
+transform exch pop def
+/vertoffset 0 descender sub printSize sub printFont /Courier ne
+printFont /Courier-Bold ne and { 1 add } if def {
+0 vertoffset moveto show
+/vertoffset vertoffset printSize sub def
+} forall
+grestore
+end
+} dup 0 3 dict put def
+X
+/patternproc {
+0 begin
+/patternByteLength patternString length def
+/patternHeight patternByteLength 8 mul sqrt cvi def
+/patternWidth patternHeight def
+/patternByteWidth patternWidth 8 idiv def
+/imageByteMaxLength imageByteWidth imageHeight mul
+stringLimit patternByteWidth sub min def
+/imageMaxHeight imageByteMaxLength imageByteWidth idiv patternHeight idiv
+patternHeight mul patternHeight max def
+/imageHeight imageHeight imageMaxHeight sub store
+/imageString imageByteWidth imageMaxHeight mul patternByteWidth add string def
+0 1 imageMaxHeight 1 sub {
+/y exch def
+/patternRow y patternByteWidth mul patternByteLength mod def
+/patternRowString patternString patternRow patternByteWidth getinterval def
+/imageRow y imageByteWidth mul def
+0 patternByteWidth imageByteWidth 1 sub {
+/x exch def
+imageString imageRow x add patternRowString putinterval
+} for
+} for
+imageString
+end
+} dup 0 12 dict put def
+X
+/min {
+dup 3 2 roll dup 4 3 roll lt { exch } if pop
+} def
+X
+/max {
+dup 3 2 roll dup 4 3 roll gt { exch } if pop
+} def
+X
+/arrowhead {
+0 begin
+transform originalCTM itransform
+/taily exch def
+/tailx exch def
+transform originalCTM itransform
+/tipy exch def
+/tipx exch def
+/dy tipy taily sub def
+/dx tipx tailx sub def
+/angle dx 0 ne dy 0 ne or { dy dx atan } { 90 } ifelse def
+gsave
+originalCTM setmatrix
+tipx tipy translate
+angle rotate
+newpath
+0 0 moveto
+arrowHeight neg arrowWidth 2 div lineto
+arrowHeight neg arrowWidth 2 div neg lineto
+closepath
+patternNone not {
+originalCTM setmatrix
+/padtip arrowHeight 2 exp 0.25 arrowWidth 2 exp mul add sqrt brushWidth mul
+arrowWidth div def
+/padtail brushWidth 2 div def
+tipx tipy translate
+angle rotate
+padtip 0 translate
+arrowHeight padtip add padtail add arrowHeight div dup scale
+arrowheadpath
+ifill
+} if
+brushNone not {
+originalCTM setmatrix
+tipx tipy translate
+angle rotate
+arrowheadpath
+istroke
+} if
+grestore
+end
+} dup 0 9 dict put def
+X
+/arrowheadpath {
+newpath
+0 0 moveto
+arrowHeight neg arrowWidth 2 div lineto
+arrowHeight neg arrowWidth 2 div neg lineto
+closepath
+} def
+X
+/leftarrow {
+0 begin
+y exch get /taily exch def
+x exch get /tailx exch def
+y exch get /tipy exch def
+x exch get /tipx exch def
+brushLeftArrow { tipx tipy tailx taily arrowhead } if
+end
+} dup 0 4 dict put def
+X
+/rightarrow {
+0 begin
+y exch get /tipy exch def
+x exch get /tipx exch def
+y exch get /taily exch def
+x exch get /tailx exch def
+brushRightArrow { tipx tipy tailx taily arrowhead } if
+end
+} dup 0 4 dict put def
+X
+/midpoint {
+0 begin
+/y1 exch def
+/x1 exch def
+/y0 exch def
+/x0 exch def
+x0 x1 add 2 div
+y0 y1 add 2 div
+end
+} dup 0 4 dict put def
+X
+/thirdpoint {
+0 begin
+/y1 exch def
+/x1 exch def
+/y0 exch def
+/x0 exch def
+x0 2 mul x1 add 3 div
+y0 2 mul y1 add 3 div
+end
+} dup 0 4 dict put def
+X
+/subspline {
+0 begin
+/movetoNeeded exch def
+y exch get /y3 exch def
+x exch get /x3 exch def
+y exch get /y2 exch def
+x exch get /x2 exch def
+y exch get /y1 exch def
+x exch get /x1 exch def
+y exch get /y0 exch def
+x exch get /x0 exch def
+x1 y1 x2 y2 thirdpoint
+/p1y exch def
+/p1x exch def
+x2 y2 x1 y1 thirdpoint
+/p2y exch def
+/p2x exch def
+x1 y1 x0 y0 thirdpoint
+p1x p1y midpoint
+/p0y exch def
+/p0x exch def
+x2 y2 x3 y3 thirdpoint
+p2x p2y midpoint
+/p3y exch def
+/p3x exch def
+movetoNeeded { p0x p0y moveto } if
+p1x p1y p2x p2y p3x p3y curveto
+end
+} dup 0 17 dict put def
+X
+/storexyn {
+/n exch def
+/y n array def
+/x n array def
+n 1 sub -1 0 {
+/i exch def
+y i 3 2 roll put
+x i 3 2 roll put
+} for
+} def
+X
+%%EndProlog
+X
+%I Idraw 7 Grid 8 
+X
+%%Page: 1 1
+X
+Begin
+%I b u
+%I cfg u
+%I cbg u
+%I f u
+%I p u
+%I t
+[ 0.8 0 0 0.8 0 0 ] concat
+/originalCTM matrix currentmatrix def
+X
+Begin %I Rect
+%I b 65535
+2 0 0 [] 0 SetB
+%I cfg Black
+0 0 0 SetCFg
+%I cbg White
+1 1 1 SetCBg
+none SetP %I p n
+%I t
+[ 1 0 0 1 -72 275 ] concat
+%I
+361 198 556 269 Rect
+End
+X
+Begin %I Rect
+%I b 65535
+2 0 0 [] 0 SetB
+%I cfg Black
+0 0 0 SetCFg
+%I cbg White
+1 1 1 SetCBg
+none SetP %I p n
+%I t
+[ 1 0 0 1 -271 479 ] concat
+%I
+361 198 556 269 Rect
+End
+X
+Begin %I Rect
+%I b 65535
+2 0 0 [] 0 SetB
+%I cfg Black
+0 0 0 SetCFg
+%I cbg White
+1 1 1 SetCBg
+none SetP %I p n
+%I t
+[ 1 0 0 1 97 486 ] concat
+%I
+361 198 556 269 Rect
+End
+X
+Begin %I Rect
+%I b 65535
+2 0 0 [] 0 SetB
+%I cfg Black
+0 0 0 SetCFg
+%I cbg White
+1 1 1 SetCBg
+none SetP %I p n
+%I t
+[ 1 0 0 1 125 81 ] concat
+%I
+361 198 556 269 Rect
+End
+X
+Begin %I Rect
+%I b 65535
+2 0 0 [] 0 SetB
+%I cfg Black
+0 0 0 SetCFg
+%I cbg White
+1 1 1 SetCBg
+none SetP %I p n
+%I t
+[ 1 0 0 1 -269 85 ] concat
+%I
+361 198 556 269 Rect
+End
+X
+Begin %I Text
+%I cfg Black
+0 0 0 SetCFg
+%I f *-helvetica-bold-r-*-140-*
+/Helvetica-Bold 14 SetF
+%I t
+[ 1 0 0 1 348 513 ] concat
+%I
+[
+(MacBinary)
+] Text
+End
+X
+Begin %I Text
+%I cfg Black
+0 0 0 SetCFg
+%I f *-helvetica-bold-r-*-140-*
+/Helvetica-Bold 14 SetF
+%I t
+[ 1 0 0 1 513 723 ] concat
+%I
+[
+(BinHex 4.0)
+] Text
+End
+X
+Begin %I Text
+%I cfg Black
+0 0 0 SetCFg
+%I f *-helvetica-bold-r-*-140-*
+/Helvetica-Bold 14 SetF
+%I t
+[ 1 0 0 1 150 324 ] concat
+%I
+[
+(Data Fork)
+] Text
+End
+X
+Begin %I Text
+%I cfg Black
+0 0 0 SetCFg
+%I f *-helvetica-bold-r-*-140-*
+/Helvetica-Bold 14 SetF
+%I t
+[ 1 0 0 1 534 322 ] concat
+%I
+[
+(Resource Fork)
+] Text
+End
+X
+Begin %I Text
+%I cfg Black
+0 0 0 SetCFg
+%I f *-helvetica-bold-r-*-140-*
+/Helvetica-Bold 14 SetF
+%I t
+[ 1 0 0 1 173 717 ] concat
+%I
+[
+(Text)
+] Text
+End
+X
+Begin %I Line
+%I b 65535
+1 1 0 [] 0 SetB
+%I cfg Black
+0 0 0 SetCFg
+%I cbg White
+1 1 1 SetCBg
+%I p
+0 SetP
+%I t
+[ 1 0 0 1 -89 166 ] concat
+%I
+287 500 373 393 Line
+End
+X
+Begin %I Line
+%I b 65535
+1 0 1 [] 0 SetB
+%I cfg Black
+0 0 0 SetCFg
+%I cbg White
+1 1 1 SetCBg
+%I p
+0 SetP
+%I t
+[ 1 0 0 1 -69 167 ] concat
+%I
+355 286 310 199 Line
+End
+X
+Begin %I Line
+%I b 65535
+1 0 1 [] 0 SetB
+%I cfg Black
+0 0 0 SetCFg
+%I cbg White
+1 1 1 SetCBg
+%I p
+0 SetP
+%I t
+[ 1 0 0 1 -69 167 ] concat
+%I
+547 290 609 198 Line
+End
+X
+Begin %I Line
+%I b 65535
+1 0 1 [] 0 SetB
+%I cfg Black
+0 0 0 SetCFg
+%I cbg White
+1 1 1 SetCBg
+%I p
+0 SetP
+%I t
+[ 1 0 0 1 -69 167 ] concat
+%I
+542 395 584 504 Line
+End
+X
+Begin %I Line
+%I b 65535
+1 1 0 [] 0 SetB
+%I cfg Black
+0 0 0 SetCFg
+%I cbg White
+1 1 1 SetCBg
+%I p
+0 SetP
+%I t
+[ 1 0 0 1 -44 162 ] concat
+%I
+542 395 584 504 Line
+End
+X
+Begin %I Line
+%I b 65535
+1 0 1 [] 0 SetB
+%I cfg Black
+0 0 0 SetCFg
+%I cbg White
+1 1 1 SetCBg
+%I p
+0 SetP
+%I t
+[ 1 0 0 1 -58 170 ] concat
+%I
+287 500 373 393 Line
+End
+X
+Begin %I Line
+%I b 65535
+1 1 0 [] 0 SetB
+%I cfg Black
+0 0 0 SetCFg
+%I cbg White
+1 1 1 SetCBg
+%I p
+0 SetP
+%I t
+[ 1 0 0 1 -40 167 ] concat
+%I
+355 286 310 199 Line
+End
+X
+Begin %I Line
+%I b 65535
+1 1 0 [] 0 SetB
+%I cfg Black
+0 0 0 SetCFg
+%I cbg White
+1 1 1 SetCBg
+%I p
+0 SetP
+%I t
+[ 1 0 0 1 -43 176 ] concat
+%I
+547 290 609 198 Line
+End
+X
+Begin %I Text
+%I cfg Black
+0 0 0 SetCFg
+%I f *-helvetica-bold-r-*-140-*
+/Helvetica-Bold 14 SetF
+%I t
+[ 1 0 0 1 224 419 ] concat
+%I
+[
+(-dU)
+] Text
+End
+X
+Begin %I Text
+%I cfg Black
+0 0 0 SetCFg
+%I f *-helvetica-bold-r-*-140-*
+/Helvetica-Bold 14 SetF
+%I t
+[ 1 0 0 1 304 406 ] concat
+%I
+[
+(-dD)
+] Text
+End
+X
+Begin %I Text
+%I cfg Black
+0 0 0 SetCFg
+%I f *-helvetica-bold-r-*-140-*
+/Helvetica-Bold 14 SetF
+%I t
+[ 1 0 0 1 467 405 ] concat
+%I
+[
+(-rU)
+] Text
+End
+X
+Begin %I Text
+%I cfg Black
+0 0 0 SetCFg
+%I f *-helvetica-bold-r-*-140-*
+/Helvetica-Bold 14 SetF
+%I t
+[ 1 0 0 1 553 429 ] concat
+%I
+[
+(-rD)
+] Text
+End
+X
+Begin %I Text
+%I cfg Black
+0 0 0 SetCFg
+%I f *-helvetica-bold-r-*-140-*
+/Helvetica-Bold 14 SetF
+%I t
+[ 1 0 0 1 458 629 ] concat
+%I
+[
+(-xU)
+] Text
+End
+X
+Begin %I Text
+%I cfg Black
+0 0 0 SetCFg
+%I f *-helvetica-bold-r-*-140-*
+/Helvetica-Bold 14 SetF
+%I t
+[ 1 0 0 1 536 613 ] concat
+%I
+[
+(-xD)
+] Text
+End
+X
+Begin %I Text
+%I cfg Black
+0 0 0 SetCFg
+%I f *-helvetica-bold-r-*-140-*
+/Helvetica-Bold 14 SetF
+%I t
+[ 1 0 0 1 284 631 ] concat
+%I
+[
+(-uD)
+] Text
+End
+X
+Begin %I Text
+%I cfg Black
+0 0 0 SetCFg
+%I f *-helvetica-bold-r-*-140-*
+/Helvetica-Bold 14 SetF
+%I t
+[ 1 0 0 1 199 611 ] concat
+%I
+[
+(-uU)
+] Text
+End
+X
+Begin %I Text
+%I cfg Black
+0 0 0 SetCFg
+%I f *-helvetica-bold-r-*-140-*
+/Helvetica-Bold 14 SetF
+%I t
+[ 1 0 0 1 451 536 ] concat
+%I
+[
+(.bin)
+] Text
+End
+X
+Begin %I Text
+%I cfg Black
+0 0 0 SetCFg
+%I f *-helvetica-bold-r-*-140-*
+/Helvetica-Bold 14 SetF
+%I t
+[ 1 0 0 1 619 748 ] concat
+%I
+[
+(.hqx)
+] Text
+End
+X
+Begin %I Text
+%I cfg Black
+0 0 0 SetCFg
+%I f *-helvetica-bold-r-*-140-*
+/Helvetica-Bold 14 SetF
+%I t
+[ 1 0 0 1 274 150 ] concat
+%I
+[
+(-s  Silent)
+] Text
+End
+X
+Begin %I Text
+%I cfg Black
+0 0 0 SetCFg
+%I f *-helvetica-bold-r-*-140-*
+/Helvetica-Bold 14 SetF
+%I t
+[ 1 0 0 1 274 125 ] concat
+%I
+[
+(-v  Verbose)
+] Text
+End
+X
+Begin %I Text
+%I cfg Black
+0 0 0 SetCFg
+%I f *-helvetica-bold-r-*-140-*
+/Helvetica-Bold 14 SetF
+%I t
+[ 2.24324 0 0 2.24324 244 850.216 ] concat
+%I
+[
+(mcvert\(1\) options)
+] Text
+End
+X
+Begin %I Text
+%I cfg Black
+0 0 0 SetCFg
+%I f *-helvetica-bold-r-*-140-*
+/Helvetica-Bold 14 SetF
+%I t
+[ 1 0 0 1 274 100 ] concat
+%I
+[
+(-p  Unpack top-level PackIt archives)
+] Text
+End
+X
+End %I eop
+X
+showpage
+X
+%%Trailer
+X
+end
+SHAR_EOF
+chmod 0444 mcvert.idraw ||
+echo 'restore of mcvert.idraw failed'
+Wc_c="`wc -c < 'mcvert.idraw'`"
+test 13179 -eq "$Wc_c" ||
+	echo 'mcvert.idraw: original size 13179, current size' "$Wc_c"
+fi
+# ============= mcvert.1 ==============
+if test -f 'mcvert.1' -a X"$1" != X"-c"; then
+	echo 'x - skipping mcvert.1 (File already exists)'
+else
+echo 'x - extracting mcvert.1 (Text)'
+sed 's/^X//' << 'SHAR_EOF' > 'mcvert.1' &&
+.TH MCVERT LOCAL "29Jun93"
+.UC 4.2
+.SH NAME
+mcvert \- MacBinary <=> BinHex 4.0 and more file conversion utility
+.SH SYNOPSIS
+.B mcvert
+{ [option] ... name ... } ...
+.br
+.SH DESCRIPTION
+The
+.I mcvert
+program translates files between MacBinary format and
+other formats often used in exchanging Macintosh files.
+See
+.I FILE FORMATS
+below for a description of the file formats supported.
+.SH PARAMETERS
+The defaults for the parameters are
+.RB - xDqv :
+convert BinHex 4.0 files
+.RB ( x )
+to MacBinary files
+.RB ( D ),
+bypass automatic unpacking of PIT files
+.RB ( q ),
+and provide a verbose level of output
+.RB ( v ).
+.SH "OPTIONS"
+All the options, other than
+.I "FORMAT OPTIONS"
+described below, are listed here.
+XFrom each set, one and only one alternative is active for any one file.
+.TP
+.B U | D
+When option -U, as in Upload, is selected,
+the conversion is from MacBinary to something else.
+Conversely, option -D, as in Download,
+selects conversion from something to MacBinary.
+.TP
+.B p | q
+If a BinHex 4.0 to MacBinary conversion is taking place
+and option -p, as in Pit, is selected,
+any file of type "PIT "
+will be unpacked into its constituent parts.
+This option does not recursively
+unpack "PIT " files packed in "PIT " files.
+If a MacBinary to BinHex 4.0 conversion is taking place,
+this option is currently
+ignored.
+Conversely, option -q, as in Quiescent, does no such unpacking.
+.TP
+.B t
+Macintosh and UNIX differ in the end-of-line character they use.
+Option -t, as in Translate,
+enables end-of-line character translation for the data.
+Translation is off by default,
+but it is enabled automatically when processing -u (Usual Text) files.
+Option -t is useful when processing both data and resource files at the
+same time (option -b) to enable end-of-line character translation for
+the data.
+.TP
+.B
+S | s | v | V | VV
+Normally,
+.I mcvert
+prints converting messages to stdout and other information
+about the files it is processing to stderr.
+Option -S, as in SILENT, disables all such reporting.
+Option -s, as in Silent, disables all but the "Converting ..." messages.
+Option -v, as in Verbose, emits generally useful information.
+Option -V, as in VERBOSE, displays some additional debugging information.
+Option -VV, as in VERY VERBOSE, 
+displays detailed debugging information as well.
+.TP
+.B H
+Option -H, as in Heuristic,
+disables the skip-legal-but-suspect-lines heuristic
+used when processing BinHex 4.0 formatted input files.
+See
+.I BUGS
+below for details on the heuristic.
+.TP
+.B I
+Option -I, as in Information only,
+does not write output files, but does indicate which output files would
+normally be written.
+All other operations are performed, including verifying file formats
+and calculated CRC values.
+The -I option basically provides a non-destructive verification of the
+files and their processing.
+It is also a soothing balm for the
+somewhat paranoid, since it reports what files would be changed,
+without actually changing them.
+.SH "FILE FORMATS"
+Some useful formats in which Macintosh files are represented on non-Macs are:
+.TP
+.B MacBinary:
+An eight bit wide representation of the data and resource forks of a Mac
+file and of relevant Finder information, MacBinary files are recognized
+as "special" by several Macintosh terminal emulators.  These emulators,
+using kermit or xmodem or other file transfer protocols,
+can separate
+the incoming file into forks and appropriately modify the Desktop to display
+icons, types, creation dates, and the like.
+.TP
+.B BinHex 4.0:
+A seven bit wide representation of a Mac file with CRC error checking,
+BinHex 4.0 files are designed for communication of Mac files over long
+distance, possibly noisy, seven bit wide paths.
+.TP
+.B PackIt:
+PackIt files are actually representations of collections of Mac files, possibly
+Huffman compressed.  Packing many small related files together before
+a MacBinary transfer or a translation to BinHex 4.0 is common practice.
+.TP
+.B Text:
+A Macintosh ends each line of a plain text file with a carriage return
+character (^M), rather than the newline character (^J) that some systems
+require (for example, UNIX).
+Moreover, a MacBinary file has prepended Finder information
+that non-Macintoshes usually don't expect.
+.TP
+.B Data, Rsrc:
+A Data or Rsrc file is the exact copy of the data or resource fork of a
+Macintosh file.
+.SH "FORMAT OPTIONS"
+Exactly one of the following selections may be specified for an input name:
+.TP
+.B x
+BinHex 4.0 [.hqx] - files in the MacBinary format are translated to
+BinHex 4.0 files, or vice versa.
+The name argument is the name of a file to be converted.
+If the conversion is from BinHex 4.0 to MacBinary,
+several files may comprise the BinHex 4.0 representation of the Mac file.
+Rather than manually concatenate the files and manually delete mail
+headers and other extraneous garbage, one may specify the names of the
+files in order and
+.I mcvert
+will do the concatenating and deleting.  Conversely, in converting
+a MacBinary file to BinHex 4.0 format for mailing over long distances,
+one may be restricted to mail messages of no greater that some fixed
+length.  In this case,
+.I mcvert
+can automatically divide the BinHex 4.0 file into pieces and label each
+piece appropriately.
+For details on automatically segmenting files, see the description of the
+.B MAC_LINE_LIMIT
+environment variable below.
+.TP
+.B u | h
+Text [.text] - files in the MacBinary format with nonempty data forks
+and empty resource forks are made from ordinary data files, or vice versa.
+Option -u, for Usual Text, performs translation.
+Option -h, for Host Text, performs no translation.
+When translating,
+UNIX newline
+characters are interchanged with Macintosh carriage return
+characters.
+.TP
+.B d
+Data [.data] - files in the MacBinary format with nonempty data forks
+and empty resource forks are made from ordinary data files, or vice versa.
+.TP
+.B r
+Resource [.rsrc] - files in the MacBinary format with empty data forks
+and nonempty resource forks are made from ordinary data files, or vice versa.
+.TP
+.B b
+Both [.data .rsrc] -
+files in the MacBinary format with nonempty data forks and
+and nonempty resource forks are made from ordinary data files, or vice versa.
+For option -b processing, a single base file name is provided, and
+the ".data" and ".rsrc" extensions are supplied by
+.IR mcvert .
+.SH "FILE NAMES AND EXTENSIONS"
+.PP
+.I mcvert
+uses certain
+file extensions when reading and writing files.  These
+extensions are indicated in the "FORMAT OPTIONS" section above.
+For example, the appropriate extension for a BinHex 4.0 file is
+".hqx".
+.PP
+For input files,
+.I mcvert 
+first tries to open the file using the specified name.
+If that fails,
+.I mcvert
+appends the appropriate suffix (if not already present) and tries again.
+Recall that for option -b (Both) processing,
+a single base file name must be provided, since
+the ".data" and ".rsrc" extensions are appended automatically by
+.IR mcvert .
+For example,
+"mcvert foo" will try to open "foo",
+and failing that, try to open "foo.hqx" for input;
+while "mcvert -b foo" will open only
+"foo.data" and "foo.rsrc" for input.
+.PP
+For output files,
+.I mcvert
+always uses the specified base file name and appropriate extension.
+For MacBinary and BinHex 4.0 input files,
+the base file name is specified within the input file,
+while for plain files,
+the file name specified on the command line is used.
+The appropriate extension is based on the conversion,
+or on the MAC_EXT
+environment variable for MacBinary output files.
+For example, if there is text file named foo.text
+(but no file named foo),
+"mcvert -u foo" will use foo.text as input, and
+generate a file called "foo.bin",
+while 
+"mcvert -u foo.text" will use foo.text as input, and
+generate a file called "foo.text.bin".
+.SH "ENVIRONMENT VARIABLES AND DEFAULTS"
+There are five environment variables one may use to customize 
+the behavior of
+.I mcvert
+slightly.
+.TP
+.B MAC_FILETYPE
+The file type of a MacBinary file converted from
+non BinHex 4.0 inputs is set to this four-character sequence.
+For example, one might
+set this variable to "PICT" when converting files created
+by ppmtopict(1).
+The default is "TEXT" for Text or Host inputs, and "????" otherwise.
+BinHex 4.0 inputs specify the file type to use internally.
+.TP
+.B MAC_EDITOR
+The creator type (author)
+of MacBinary files is set to this four-character sequence.
+The default is "MACA" (the creator type of MacWrite)
+for Text inputs, and "????" otherwise.
+BinHex 4.0 inputs specify the creator type to use internally.
+.TP
+.B MAC_DLOAD_DIR
+The MacBinary files created when option -D is selected are placed in this
+directory.  The default is ".", the current working directory.
+.TP
+.B MAC_EXT
+The MacBinary files created when option -D is selected are named according
+to the file name field stored in the file header, with the name extended by
+this suffix.  The default is ".bin".
+.TP
+.B MAC_LINE_LIMIT
+The BinHex 4.0 files created when option -U is selected may be no longer than
+this many lines long.  Files that would otherwise exceed this line limit
+are broken up into several files with numbers embedded into their file 
+names to show their order.  Each such file has "Start of part x" and "End
+of part x" messages included where appropriate.
+.SH BUGS
+.PP
+.I mcvert
+silently discards input lines which are not completely valid.
+Therefore, error indications for illegally formatted files are likely to
+be somewhat obtuse, often with just a CRC mismatch message.
+.PP
+In order to handle files
+(such as segmented comp.binaries.mac files)
+which have extraneous
+but valid BinHex 4.0 lines
+(such as  "---"),
+.I mcvert
+uses the following heuristic
+to discard suspect but legal lines
+in BinHex 4.0 formatted input files.
+When a new file is opened, or when invalid lines are found,
+the search for good data begins.
+While searching for good data,
+if a line is too short (less than 12 characters),
+or if a line is just
+a single repeated character, the line is discarded.
+Once
+.I mcvert
+starts processing good data,
+no valid lines are discarded.
+Thus, this heuristic can also discard (unusually formatted)
+valid and intended BinHex 4.0 lines.
+While there is no way to tune the heuristic
+(other than modifying the program and recompiling),
+the heuristic can be completely disabled with the
+.B -H
+option.
+So if you run into problems,
+put all the relevant lines into one file,
+edit the file to remove any extraneous lines,
+and invoke
+.I mcvert
+with the
+.B -H
+option.
+.PP
+It should be possible to discard bad input now and successfully translate
+good input later, but bad input usually causes immediate termination.
+.PP
+A more diligent person would support BinHex 3.0 and BinHex 2.0 and BinHex
+5000 B. C., but I've never seen or heard of anyone using them in years.
+.SH "OTHER SOURCES"
+There are other programs available which run under UNIX and convert
+between various Macintosh file formats.
+One of these programs may be what you want to use if
+.I mcvert
+does not meet your needs.
+One collection, called
+.IR macutil ,
+is available from various archives.
+Here's what the comp.sys.mac.comm FAQ (Frequently Asked Questions),
+Last-modified: Sat Jun 05 1993, has to say about it:
+.RS
+.IP "As of (8/92), macutil includes three programs:"
+.IP hexbin
+a program to convert BinHex 4.0 to MacBinary;
+it also converts uuencode (and UULite) files to their
+native binary format; support for .dl, .hex, and .hcx
+formats (all predecessors of BinHex 4.0) also exists
+.IP macsave
+a MacBinary filter program to convert
+between various MacBinary representations, including
+a single .bin file, three separate .data, .rsrc, .info
+files, and AUFS format. macsave also allows one to
+"peek" inside MacBinary files
+.IP macunpack
+a program to unpack PackIt, StuffIt,
+Diamond, Compactor/Compact Pro, most StuffIt Classic
+and StuffIt Deluxe, DiskDoubler, Zoom and LHarc/MacLHa
+archives.
+X
+It also decodes BinHex 5.0, MacBinary, uuencode, and
+UNIX compress (ie: .Z suffix) files (as well as variants
+of compress implemented by various Macintosh compress
+programs).
+X
+Support for password protected and/or multi-segment
+archives of various types is minimal or non-existent.
+.RE
+.SH "SEE ALSO"
+hexbin(1),
+kermit(1),
+macbin(1),
+macunpack(1),
+macsave(1),
+macutil(1),
+ppmtopict(1),
+sit(1),
+unsit(1),
+xbin(1),
+xmodem(1)
+.SH AUTHORS
+Doug Moore, Cornell University Computer Science.  Based upon
+.I xbin
+by Dave Johnson, Brown University, as modified by Guido van Rossum, and upon
+.I unpit
+by Allan G. Weber, as well as upon correspondence with several helpful
+readers of USENET.
+.PP
+Joseph P. Skudlarek (Jskud@wv.MentorG.com) made numerous
+enhancement and maintenance releases.
+See the comments in mcvert.c for additional supporting characters.
+SHAR_EOF
+chmod 0444 mcvert.1 ||
+echo 'restore of mcvert.1 failed'
+Wc_c="`wc -c < 'mcvert.1'`"
+test 12652 -eq "$Wc_c" ||
+	echo 'mcvert.1: original size 12652, current size' "$Wc_c"
+fi
+exit 0
+
+<<Signature>>
+----------------------------------------------------------------------------
+Joseph Skudlarek  Mentor Graphics  8005 SW Boeckman Rd  Wilsonville OR 97070
+(503) 685-1576 (work)
+{Jskud@wv.MentorG.com,Joseph_Skudlarek@MentorG.com}
+
+

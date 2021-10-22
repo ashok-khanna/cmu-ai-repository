@@ -1,0 +1,1258 @@
+	 
+     ,_O<  Amzi! inc.    40 Samuel Prescott Dr.   >O_,
+     ( )                   Stow, MA 01775, USA     ( )
+ ~~~~~~~~~--------------------------------------~~~~~~~~~~~
+  tel 508/897-7332   amzi@world.std.com   fax 508/897-2784
+
+
+
+Technical Note: HELLO
+October 1994
+
+This technote gives detailed instructions on how to implement a
+minimal application that calls the Cogent Prolog API from each
+of the supported environments.  The source code is listed in this
+document and is also contained in the APISAMP directory.  The
+subdirectories are:
+
+  APISAMP
+    HELLO  -  Contains the Prolog code, copies are in each subdirectory
+      DOS    -  DOS C and C++ versions
+      MFC    -  Windows MFC version
+      OWL    -  Windows OWL version
+      SDK    -  Windows SDK version
+      VCIDE  -  A version for use with Visual C++ IDE
+
+
+CONTENTS
+--------
+
+The Prolog Program
+  HELLO.PRO
+  Compiling and Linking Prolog
+The Host Language Program
+DOS Interfaces
+  C versions
+    Watcom 32
+    Borland 16
+    Microsoft 16
+  C++ versions
+    Watcom 32
+    Borland 16
+    Microsoft 16
+Windows Interfaces
+  MFC version
+    Command line tools
+    Using the Visual C++ IDE
+  OWL version 16 & 32 bit
+  SDK version
+    Visual C++
+    Borland C++
+  Other language versions
+    Visual Basic
+    Access
+Appendix - Source Code listings
+  DOS C
+  DOS C++
+  Windows MFC
+  Windows OWL
+  Windows SDK
+  Windows Visual C++ IDE
+  Visual Basic
+  Microsoft Access
+
+
+The Prolog Program
+=======================================================================
+
+HELLO.PRO
+---------
+
+The Prolog program to be embedded is HELLO.PRO, which has a single
+predicate, hello/2, whose first argument is supplied by the caller
+and whose second argument is constructed in Prolog for retrieval.
+
+%-----
+% HELLO.PRO - hello for embedding
+%
+
+hello(Caller, Greeting) :-
+  strcat($Greetings $, Caller, S1),
+  strcat(S1, $, from Cogent Prolog.$, Greeting).
+
+%
+%-----
+
+Compiling and Linking Prolog
+----------------------------
+
+To call Cogent Prolog from another language, you must have a
+compiled program to load, and that compiled program must have been
+linked with CPLIB.PLM, the Cogent Prolog library.  This is because
+CPLIB provides many of the built-in predicates of Cogent Prolog.
+
+(Once a compiled program is loaded, you can then consult other
+Prolog source files or compiled files, but you can't consult another
+.XPL file that was linked with CPLIB.)
+
+To create HELLO.XPL from DOS:
+
+  > cpc hello
+  > cpl hello cplib hello
+
+
+The Host Language Program
+=======================================================================
+
+The host program initializes the Prolog environment, and calls the
+hello/2 predicate.  It checks for error conditions, and, all
+going well, prints the returned greeting from HELLO.PRO.
+
+The code looks a little longer, because at each step of the way
+error checking is done.  Return codes from the API indicate whether
+or not a function was succesfull.  The sample code displays informatory
+messages at each step, or displays an error if the step failed.
+
+The error handling uses an API function call to get and display the
+error from Prolog.  To test the error handling, simply rename the
+the file HELLO.XPL to something else, and run the host language
+program.  You should get an error message indicating the load was
+unsuccessfull because HELLO.XPL couldn't be loaded.
+
+When the program runs correctly, you will get output similar to
+
+  Prolog Initialized
+  Hello Loaded
+
+  Greetings Programmer from Cogent Prolog
+
+  Prolog Successfully Completed
+
+In the Windows versions of the program, the output will appear as
+a sequence of message boxes.
+
+
+DOS Interfaces
+=======================================================================
+
+C versions
+----------
+
+To build HELLO.EXE, use the appropriate batch file provided in
+the \COG30\APISAMP\HELLO\DOS directory.  The argument to the
+batch file is HELLO.C.
+
+For example, to build a Watcom version
+  > h_wd3 hello.c
+
+To run it
+  > hello
+
+The supported C compilers are:
+
+Watcom 32-bit DOS
+-----------------
+
+H_WD3.BAT
+wcl386 /zp4 /i=\cog30 %1 \cog30\cp_wd3.lib
+
+Borland 16-bit DOS
+------------------
+
+The Borland library is built using the large memory model.
+
+H_BD1.BAT
+bcc -ml -O1 -Os -G- -I\cog30 %1 \cog30\cp_bd1.lib
+
+Microsoft 16-bit DOS
+--------------------
+
+The Microsoft library is built using the large memory model.
+
+H_MD1.BAT
+cl -AL -F 2000 -I\cog30 %1 \cog30\cp_md1.lib
+
+
+C++ versions
+------------
+
+The C++ wrapper around the Cogent Prolog API is defined in the
+header file CPENG.HPP.  Include it in your C++ applications.
+
+The wrapper makes the Prolog engine an object, to which you send
+messages which correspond to the API function calls.
+
+NOTE: If you wish to use the normal API from C++, without including
+CPENG.HPP, then you must declare the include for COGENT.H as extern "C"
+as follows:
+
+extern "C"
+{
+#include "cogent.h"
+}
+
+CPENG.HPP does this include for you, so you don't need both.
+
+To build the C++ version, use the same batch files as for C
+only with hello.cpp as the argument.  For example to build
+the Borland version
+
+  > h_bd1 hello.cpp
+
+
+Windows Interfaces
+=======================================================================
+
+MFC version
+-----------
+
+Command line tools
+------------------
+
+This section describes a simple MFC application that you can compile
+and link using command line tools, and then run under windows.  If
+you are in DOS you can run it with the command
+
+  > win hello
+
+In Windows you can use the Program Manager FILE/RUN menu item.
+
+A subsequent section describes how to use the Visual C++ IDE to
+implement a program with a menu item that runs the HELLO sample.
+
+
+Building the MFC application.
+
+A makefile is used to build the Visual C++ version of HELLO.  It can
+build using either the Visual C++ static library or the DLL, depending
+on a flag.  Two batch files are used for the two cases.
+
+The Windows static library is built using the medium memory model.
+For calling the Cogent DLL, you can use any model, although it was
+implemented with the large memory model.
+
+(cp_mw2d.lib contains the definitions for the DLL functions, by linking
+with it you do not need to include the DLL function definitions in
+the .DEF file or explicititly declare them.)
+
+H_MFC.BAT
+nmake /f hello.mak
+
+H_MFCD.BAT
+nmake /f hello.mak DLL=
+
+HELLO.MAK
+CC = cl
+LINK = link
+
+! ifndef DLL
+COGLIB = cp_mw2.lib
+! else
+COGLIB = cp_mw2d.lib
+! endif
+
+CFLAGS = /c /nologo /Gs /G3 /W4 /AM /O2 /D"NDEBUG" /GA 
+LFLAGS = /NOLOGO /NOD /PACKC:61440 /STACK:10240 /ALIGN:16 /ONERROR:NOEXE  
+LIBS = $(COGLIB) mafxcw.lib oldnames.lib libw.lib mlibcew.lib commdlg.lib shell.lib
+
+hello.exe: hello.obj
+  $(LINK) $(LFLAGS) hello, hello, ,$(LIBS), hello.def;
+
+hello.obj: hello.cpp
+  $(CC) $(CFLAGS) hello.cpp
+
+Using the Visual C++ IDE
+------------------------
+
+This section describes how to add a menu item to a Visual C++ IDE
+Application Wizard generated application.  The application will
+be called HELLO and it will use the modules CHELLO.HPP & CPP which
+implement the HELLO class, which calls the compiled Prolog module
+HELLO.XPL.
+
+The sample code is in directory APISAMP\HELLO\VCIDE
+
+In the Visual C++ IDE
+
+  Project/Application Wizard
+    change directory to cog30\apisamp\hello\vcide
+    project name = hello
+    delete the new subdirectory
+    OK
+
+  Project/Edit
+    add chello.cpp
+
+  Options/Directories
+    add \cog30 to
+      executable path
+      include path
+      libary path
+
+  Options/Project
+    linker
+      prevent use of extended dictionary
+
+  Tools/App Studio
+    Menu IDR_HELLOTYPE
+      add item &Prolog
+      add subitem &Hello with ID = IDM_HELLO
+      MFC ClassWizard (funny icon with magic wand)
+        pick IDM_HELLO id
+        pick COMMAND message
+        Add Function
+        Edit Code
+          put in the two lines:
+            Hello hello;
+            hello.run;
+          go to the top of the file and add:
+            #include "chello.hpp"
+          (after the other includes so as not to disturb
+          precompiled headers)
+          Save
+
+  Project/Build
+
+  Project/Execute
+    Select the Prolog/Hello menu item.
+
+
+OWL Version
+-----------
+
+This version uses Borland's Object Windows Library, OWL, and the
+Borland IDE.  The code is contained in the directory HELLO\OWL,
+and the main file is HELLO.CPP.  HELLO.RC contains the definition
+of the menu bar which is used to run the HELLO program.
+
+To build the application, create a new project in the HELLO\OWL
+directory, HELLO.IDE.  You can build either a Win16 or Win32
+application and use either the static link libraries or DLL.
+
+Add to the project the appropriate library:
+  \cog30\cp_bw2.lib  - static link library for 16-bit medium memory model
+  \cog30\cp_mw2d.lib - DLL for 16-bit application
+  \cog30\cp_bw3.lib  - static link library for 32-bit application
+
+(cp_mw2d.lib contains the definitions for the DLL functions, by linking
+with it you do not need to include the DLL function definitions in
+the .DEF file or explicititly declare them.)
+  
+From Project Options, add the cog30 directory to the source include
+and library paths.  Make sure cog30 is in your main path if you plan
+to use the DLL version.
+
+Build the project and run it from the debug menu, or Program manager.
+
+
+SDK version
+-----------
+
+This version of hello uses the SDK, and adds a Prolog wrinkle to
+Petzold's Hello Windows program.
+
+This program can be built using either the Cogent DLL or the static
+Windows link library.
+
+Visual C++
+----------
+
+H_SDKVC.BAT
+nmake -f hellovc.mak
+
+H_SDKDVC.BAT
+nmake -f hellovc.mak DLL=
+
+HELLOVC.MAK
+# hello make file
+
+C_FLAGS = -AM -c -GA -Ow -W3
+L_FLAGS = /nod
+
+! ifndef DLL
+COGLIB = cp_mw2.lib
+! else
+COGLIB = cp_mw2d.lib
+! endif
+
+L_LIBS = $(COGLIB) mlibcew oldnames libw commdlg ddeml
+
+hello.exe: hello.obj hello.def 
+	link $(L_FLAGS) hello.obj, hello.exe, hello.map, $(L_LIBS), hello.def
+
+hello.obj: hello.c
+	cl $(C_FLAGS) hello.c
+
+Borland
+-------
+
+The Borland libraries are built with the large memory model
+
+H_SDKBC.BAT
+make /f hellobc.mak
+
+HELLOBC.MAK
+# hello make file for Borland Windows
+
+COGDIR = \cog30
+
+C_FLAGS = -tWS -2 -ml -c -G -I$(COGDIR)
+L_FLAGS =  -Twe -C -c -L$(COGDIR);d:\bc4\lib C0WL.OBJ
+
+COGLIB = cp_bw2.lib
+
+L_LIBS = $(COGLIB) cwl.lib import.lib mathwl.lib
+
+hello.exe: hello.obj hello.def 
+	tlink $(L_FLAGS) hello.obj, hello.exe, hello.map, $(L_LIBS), hello.def
+
+hello.obj: hello.c
+	bcc $(C_FLAGS) hello.c
+
+
+Other Language Versions
+=======================================================================
+
+Visual Basic
+------------
+HELLO.MAK
+---------
+
+This Visual Basic project consists of a form, HELLO.FRM, and a
+Logic Server Definitions file, CP_VB.BAS.
+
+The form has a single button to which all the code is attached.
+The code initializes the Prolog environment and calls the hello/2
+predicate.  It checks for error conditions, and if all is well
+prints in message boxes two status messages then the returned 
+greeting from HELLO.PRO
+
+To run, open the project in Visual Basic and select Run/Start.
+Press the 'Greet Me!' button, then press [Enter] or click the 
+mouse on each of the 3 OK message boxes.
+
+
+Access
+------
+HELLO.MDB,LDB
+-------------
+
+This Access database has a single form, MainForm, and a module,
+HelloCogentProlog.  The form has a field whose contents are set
+to the value returned by the HelloCogentProlog() function (which
+should be a greeting, but could also be an error message).  The
+definitions for the Logic Server DLL are contained in the
+declarations section of the module.
+
+To run it, open HELLO.MDB in Access and select forms.  Open
+MainForm.
+
+
+APPENDIX - CODE LISTINGS
+=======================================================================
+
+/*---------------------------------------------------------------------
+** HELLO.C - DOS version
+*/
+
+#include <stdio.h>
+#include <stdlib.h>
+#include "cogent.h"
+
+void main()
+{
+   char buf[120];
+   char caller[]="DOS C Programmer";
+   TERM t;
+   RC   rc;
+   TF   tf;
+
+/* Initialize and load the compiled Prolog program */
+
+   rc = cpInit("hello");
+   if (rc) {
+      cpErrMsg(buf);
+      printf("Prolog initialization error: %d\n  %s", (int)rc, buf);
+      return;
+   }
+   else
+      printf("\nProlog initialized\n");
+
+   rc = cpLoad("hello");
+   if (rc) {
+      cpErrMsg(buf);
+      printf("Prolog load error: %d\n  %s", (int)rc, buf);
+      return;
+   }
+   else
+      printf("Hello loaded\n\n");
+
+/* Build the query term and call it */
+
+   cpMakeFA(&t, "hello", 2);
+   cpUnifyArg(&t, 1, cSTR, caller);
+   tf = cpCall(&t);
+
+/* If the query succeeded print up the results */
+
+   if (tf) {
+      cpGetArg(t, 2, cSTR, buf);
+      printf("%s\n\n", buf);
+      }
+   else
+      printf("Hello failed\n");
+
+   cpClose();
+   printf("Prolog successfully completed\n");
+}
+
+/*
+**-------------------------------------------------------------------*/
+
+//---------------------------------------------------------------------
+// HELLO.CPP - DOS C++ version
+//
+
+#include <iostream.h>
+#include "cpeng.hpp"
+
+class Hello
+{
+public:
+   Hello();
+   ~Hello();
+   void run();
+private:
+   CPEngine *cpeng;
+   char buf[120];
+   BOOL loadedB;
+};
+
+Hello::Hello()
+{
+   RC  rc;
+
+   loadedB = FALSE;
+   cpeng = new CPEngine;
+
+// Initialize and load the compiled Prolog program
+
+   rc = cpeng->Init("hello");
+   if (rc) {
+      cpeng->ErrMsg(buf);
+      cout << "Prolog initialization error: " << rc << '\n' << buf;
+      return; }
+   else cout << "Prolog initialized\n";
+
+   rc = cpeng->Load("hello");
+   if (rc) {
+      cpeng->ErrMsg(buf);
+      cout << "Prolog load error: " << rc << '\n' << buf;
+      return; }
+   else cout << "Hello loaded\n\n";
+   loadedB = TRUE;
+}
+
+Hello::~Hello()
+{
+   cpeng->Close()
+   delete cpeng;
+   cout << "\nProlog successfully completed\n";
+}
+
+void Hello::run()
+{
+   char   caller[]="DOS C++ Programmer";
+   TERM   t;
+   RC     rc;
+   TF     tf;
+
+   if (!loadedB) return;
+
+// Build a query term and call it
+
+   cpeng->MakeFA(&t, "hello", 2);
+   cpeng->UnifyArg(&t, 1, cSTR, caller);
+   tf = cpeng->Call(&t);
+
+// If the query succeeded print up the results
+
+   if (tf) {
+      cpeng->GetArg(t, 2, cSTR, buf);
+      cout << buf << '\n';
+      }
+   else
+      cout << "Hello failed\n";
+}
+
+void main()
+{
+   Hello hello;
+   hello.run();
+}
+
+//
+//---------------------------------------------------------------------
+
+//---------------------------------------------------------------------
+// HELLO.CPP - MFC Version
+//
+
+// Class Definitions
+
+class HelloApp : public CWinApp
+{
+public:
+	HelloApp();
+	BOOL InitInstance();
+};
+
+class HelloWnd : public CFrameWnd
+{
+public:
+  HelloWnd();
+  virtual ~HelloWnd();
+};
+
+// The Prolog Program's class
+
+class Hello
+{
+public:
+   Hello();
+   ~Hello();
+   void run();
+private:
+   CPEngine *cpeng;         // The Prolog engine
+   char buf[120];
+   BOOL loadedB;
+};
+
+HelloApp  theApp;
+
+//---------------------------------------------------------------------
+// Hello application object
+//
+
+HelloApp::HelloApp()
+{
+}
+
+BOOL HelloApp::InitInstance()
+{
+// Throw up the main frame window
+
+   HelloWnd *frameWnd = new HelloWnd;
+   frameWnd->Create(NULL, "Hello - A Cogent Prolog Sample");
+   frameWnd->ShowWindow(m_nCmdShow);
+   frameWnd->UpdateWindow();
+   m_pMainWnd = frameWnd;
+
+// Run the Prolog program
+
+   Hello hello;
+   hello.run();
+
+   return TRUE;
+}
+
+//---------------------------------------------------------------------
+// Hello framing window
+//
+
+HelloWnd::HelloWnd()
+{
+}
+
+HelloWnd::~HelloWnd()
+{
+}
+
+//---------------------------------------------------------------------
+// Hello Prolog object
+//
+
+Hello::Hello()
+{
+   RC  rc;
+   char errmsg[80];
+
+   loadedB = FALSE;
+
+   cpeng = new CPEngine;
+   if (cpeng == NULL) return;
+
+// Initialize and load the compiled Prolog program
+
+   rc = cpeng->Init("hello");
+   if (rc) {
+      cpeng->ErrMsg(errmsg);
+      sprintf(buf,"Prolog initialization error: %d\n%s", rc, errmsg);
+      AfxMessageBox(buf);
+      return; }
+   else AfxMessageBox("Prolog initialized");
+
+   rc = cpeng->Load("hello");
+   if (rc) {
+      cpeng->ErrMsg(errmsg);
+      sprintf(buf,"Prolog loading error: %d\n%s", rc, errmsg);
+      AfxMessageBox(buf);
+      return; }
+   else AfxMessageBox("Hello loaded");
+
+   loadedB = TRUE;
+}
+
+Hello::~Hello()
+{
+   cpeng->Close()
+   delete cpeng;
+   AfxMessageBox("Prolog successfully completed");
+}
+
+void Hello::run()
+{
+   char   caller[]="Windows MFC Programmer";
+   TERM   t;
+   TF     tf;
+
+   if (!loadedB) return;
+
+// Build a query term and call it
+
+   cpeng->MakeFA(&t, "hello", 2);
+   cpeng->UnifyArg(&t, 1, cSTR, caller);
+   tf = cpeng->Call(&t);
+
+// If the query succeeded print up the results
+
+   if (tf) {
+      cpeng->GetArg(t, 2, cSTR, buf);
+      AfxMessageBox(buf);
+      }
+   else
+      AfxMessageBox("Hello failed");
+}
+//
+//---------------------------------------------------------------------
+
+-----------------------------------------------------------------------
+HELLO.RC - resources for OWL version
+
+#define CM_PROLOG  100
+
+#ifdef RC_INVOKED
+MainMenu MENU PRELOAD DISCARDABLE
+BEGIN
+	MENUITEM "&Prolog",    CM_PROLOG
+END
+#endif
+
+//---------------------------------------------------------------------
+// HELLO.CPP - The OWL version
+//
+
+#include <owl\applicat.h>
+#include <owl\framewin.h>
+#include <owl\window.h>
+#include <stdio.h>
+#include "hello.rc"
+#include "cpeng.hpp"
+
+// The Prolog Program's class
+
+class Hello
+{
+public:
+	Hello();
+	~Hello();
+	void run();
+private:
+	CPEngine *cpeng;         // The Prolog engine
+	char buf[120];
+	BOOL loadedB;
+};
+
+// Various OWL classes
+
+class TMyWindow : public TWindow
+{
+ public:
+	TMyWindow(TWindow *parent = 0);
+ protected:
+	void CmProlog();
+
+	DECLARE_RESPONSE_TABLE(TMyWindow);
+};
+
+DEFINE_RESPONSE_TABLE1(TMyWindow, TWindow)
+  EV_COMMAND(CM_PROLOG, CmProlog),
+END_RESPONSE_TABLE;
+
+class TMyApp : public TApplication
+{
+ public:
+	TMyApp() : TApplication() {}
+
+	void InitMainWindow()
+	{
+		SetMainWindow(
+			new TFrameWindow(0, "OWL Sample Cogent Prolog Application",
+					new TMyWindow));
+		GetMainWindow()->AssignMenu("MainMenu");
+	}
+};
+
+
+//---------------------------------------------------------------------
+// OWL Member Funtions
+//
+
+TMyWindow::TMyWindow(TWindow *parent)
+{
+	Init(parent, 0, 0);
+}
+
+void TMyWindow::CmProlog()
+{
+	Hello hello;
+	hello.run();
+}
+
+//---------------------------------------------------------------------
+// Hello Prolog object
+//
+
+Hello::Hello()
+{
+	RC  rc;
+	char errmsg[80];
+
+	loadedB = FALSE;
+
+	cpeng = new CPEngine;
+	if (cpeng == NULL) return;
+
+// Initialize and load the compiled Prolog program
+
+	rc = cpeng->Init("hello");
+	if (rc) {
+		cpeng->ErrMsg(errmsg);
+		sprintf(buf,"Prolog initialization error: %d\n%s", rc, errmsg);
+		MessageBox(NULL, buf, "", MB_OK);
+		return; }
+	else MessageBox(NULL, "Prolog initialized", "", MB_OK);
+
+	rc = cpeng->Load("hello");
+	if (rc) {
+		cpeng->ErrMsg(errmsg);
+		sprintf(buf,"Prolog loading error: %d\n%s", rc, errmsg);
+		MessageBox(NULL, buf, "", MB_OK);
+		return; }
+	else MessageBox(NULL, "Hello loaded", "", MB_OK);
+
+	loadedB = TRUE;
+}
+
+Hello::~Hello()
+{
+   cpeng->Close()
+	delete cpeng;
+	MessageBox(NULL, "Prolog successfully completed", "", MB_OK);
+}
+
+void Hello::run()
+{
+	char   caller[]="Windows OWL Programmer";
+   TERM   t;
+   TF     tf;
+
+   if (!loadedB) return;
+
+// Build a query term and call it
+
+   cpeng->MakeFA(&t, "hello", 2);
+   cpeng->UnifyArg(&t, 1, cSTR, caller);
+   tf = cpeng->Call(&t);
+
+// If the query succeeded print up the results
+
+   if (tf) {
+      cpeng->GetArg(t, 2, cSTR, buf);
+		MessageBox(NULL, buf, "", MB_OK);
+      }
+   else
+      MessageBox(NULL, "Hello failed", "", MB_OK);
+}
+
+int OwlMain(int /*argc*/, char* /*argv*/ [])
+{
+	return TMyApp().Run();
+}
+
+
+
+/*---------------------------------------------------------------------
+** HELLO.C - The SDK version
+*/
+
+#include <windows.h>
+#include <stdio.h>
+#include "cogent.h"
+
+char szAppName[] = "HELLO" ;
+
+long far PASCAL _export WndProc(HWND, UINT, UINT, LONG);
+void run_hello(HWND);
+ 
+/* Start of Windows stuff */
+/* ---------------------- */
+
+int PASCAL WinMain (HANDLE hInstance, HANDLE hPrevInstance,
+            LPSTR lpszCmdParam, int nCmdShow)
+   {
+   HWND    hwnd ;
+   MSG    msg ;
+   WNDCLASS  wndclass ;
+
+   if (!hPrevInstance)
+      {
+      wndclass.style            = CS_HREDRAW | CS_VREDRAW;
+      wndclass.lpfnWndProc      = WndProc ;
+      wndclass.cbClsExtra       = 0 ;
+      wndclass.cbWndExtra       = 0 ;
+      wndclass.hInstance        = hInstance ;
+      wndclass.hIcon            = LoadIcon (hInstance, szAppName) ;
+      wndclass.hCursor          = LoadCursor (NULL, IDC_ARROW) ;
+      wndclass.hbrBackground    = GetStockObject (WHITE_BRUSH) ;
+      wndclass.lpszMenuName     = NULL ;
+      wndclass.lpszClassName    = szAppName ;
+
+      RegisterClass (&wndclass) ;
+   }
+
+   hwnd = CreateWindow (szAppName,       // window class name
+            "Cogent Prolog Sample Application",      // window caption
+            WS_OVERLAPPEDWINDOW,         // window style
+            CW_USEDEFAULT,               // initial x position
+            CW_USEDEFAULT,               // initial y position
+            CW_USEDEFAULT,               // initial x size
+            CW_USEDEFAULT,               // initial y size
+            NULL,                        // parent window handle
+            NULL,                        // window menu handle
+            hInstance,                  // program instance handle
+            NULL) ;                     // creation parameters
+
+   ShowWindow (hwnd, nCmdShow) ;
+   UpdateWindow (hwnd) ;
+
+   while (GetMessage (&msg, NULL, 0, 0))
+      {
+      TranslateMessage (&msg) ;
+      DispatchMessage (&msg) ;
+      }
+   return msg.wParam ;
+   }
+
+long far PASCAL _export WndProc (HWND hwnd, UINT message, UINT wParam,
+                                  LONG lParam)
+{
+   HDC           hdc;
+   PAINTSTRUCT   ps;
+
+   switch (message)
+      {
+      case WM_PAINT:
+         hdc = BeginPaint (hwnd, &ps) ;
+         run_hello(hwnd);
+         EndPaint (hwnd, &ps) ;
+         return 0 ;
+
+      case WM_DESTROY:
+         PostQuitMessage (0) ;
+         return 0 ;
+      }
+
+  return DefWindowProc (hwnd, message, wParam, lParam) ;
+}
+
+/* The Prolog engine */
+/* ----------------- */
+
+void run_hello(HWND hwnd)
+{
+   char errmsg[80];
+   char buf[120];
+   char caller[]="Windows SDK Programmer";
+   TERM t;
+   RC   rc;
+   TF   tf;
+
+/* Initialize and load the compiled Prolog program */
+
+   rc = cpInit("hello");
+   if (rc) {
+      cpErrMsg(errmsg);
+      sprintf(buf, "Prolog initialization error: %d\n  %s", (int)rc, errmsg);
+      MessageBox(hwnd, buf, szAppName, MB_OK);
+      return;
+   }
+   else
+      MessageBox(hwnd, "Prolog initialized", szAppName, MB_OK);
+
+   rc = cpLoad("hello");
+   if (rc) {
+      cpErrMsg(errmsg);
+      sprintf(buf, "Prolog initialization error: %d\n  %s", (int)rc, errmsg);
+      MessageBox(hwnd, buf, szAppName, MB_OK);
+      return;
+   }
+   else
+      MessageBox(hwnd, "Prolog Loaded", szAppName, MB_OK);
+
+/* Build a query term and call it */
+
+   cpMakeFA(&t, "hello", 2);
+   cpUnifyArg(&t, 1, cSTR, caller);
+   tf = cpCall(&t);
+
+/* If the query succeeded print up the results */
+
+   if (tf) {
+      cpGetArg(t, 2, cSTR, buf);
+      MessageBox(hwnd, buf, szAppName, MB_OK);
+      }
+   else
+      MessageBox(hwnd, "Hello failed", szAppName, MB_OK);
+
+   cpClose();
+   MessageBox(hwnd, "Prolog successfully completed", szAppName, MB_OK);
+}
+
+/*
+**-------------------------------------------------------------------*/
+
+
+//---------------------------------------------------------------------
+// HELLO.HPP - header file for sample Cogent Prolog class
+//
+
+#include <stdafx.h>
+#include <afxwin.h>
+#include "cpeng.hpp"
+
+class Hello
+{
+public:
+   Hello();
+   ~Hello();
+   void run();
+private:
+   CPEngine *cpeng;         // The Prolog engine
+   char buf[120];
+   BOOL loadedB;
+};
+
+//---------------------------------------------------------------------
+// HELLO.CPP - just the hello class for use with MFC
+//
+
+#include <stdafx.h>
+#include <afxwin.h>
+#include "chello.hpp"
+
+Hello::Hello()
+{
+   RC  rc;
+   char errmsg[80];
+
+   loadedB = FALSE;
+
+   cpeng = new CPEngine;
+   if (cpeng == NULL) return;
+
+// Initialize and load the compiled Prolog program
+
+   rc = cpeng->Init("hello");
+   if (rc) {
+      cpeng->ErrMsg(errmsg);
+      sprintf(buf,"Prolog initialization error: %d\n%s", rc, errmsg);
+      AfxMessageBox(buf);
+      return; }
+   else AfxMessageBox("Prolog initialized");
+
+   rc = cpeng->Load("hello");
+   if (rc) {
+      cpeng->ErrMsg(errmsg);
+      sprintf(buf,"Prolog loading error: %d\n%s", rc, errmsg);
+      AfxMessageBox(buf);
+      return; }
+   else AfxMessageBox("Hello loaded");
+
+   loadedB = TRUE;
+}
+
+Hello::~Hello()
+{
+   cpeng->Close()
+   delete cpeng;
+   AfxMessageBox("Prolog successfully completed");
+}
+
+void Hello::run()
+{
+   char   caller[]="Windows MFC Programmer";
+   TERM   t;
+   TF     tf;
+
+   if (!loadedB) return;
+
+// Build a query term and call it
+
+   cpeng->MakeFA(&t, "hello", 2);
+   cpeng->UnifyArg(&t, 1, cSTR, caller);
+   tf = cpeng->Call(&t);
+
+// If the query succeeded print up the results
+
+   if (tf) {
+      cpeng->GetArg(t, 2, cSTR, buf);
+      AfxMessageBox(buf);
+      }
+   else
+      AfxMessageBox("Hello failed");
+}
+
+'----------------------------------------------------------------------
+' Visual Basic Program
+'
+
+Sub Command1_Click ()
+
+    ' rc is used for functions that return an error code
+    ' tf is for functions that return true/false (success/failure)
+    Dim rc As Integer, rc2 As Integer, tf As Integer
+    Dim s As String, xpl As String, errmsg as string
+    ' term is actually a pointer, but we use longs in VB
+    Dim term As Long
+    
+    ' Initialize the engine with the empty string
+    rc = cpInit(Chr$(0))
+    If rc <> 0 Then
+        rc2 = cpErrMsg(errmsg)
+        MsgBox errmsg, MB_OK + MB_ICONSTOP
+        Stop
+    End If
+
+    MsgBox "Prolog Initialized", MB_OK
+    
+    ' Need to add a null onto strings passed to C/C++
+    xpl = "\cog30\apisamp\hello\vb\hello" + Chr$(0)
+    ' Load the XPL file
+    rc = cpLoad(xpl)
+    If rc <> 0 Then
+        rc2 = cpErrMsg(errmsg)
+        MsgBox errmsg, MB_OK + MB_ICONSTOP
+        Stop
+    End If
+
+    MsgBox "Hello.XPL Loaded", MB_OK
+
+    ' Turn a string into a Prolog term to call
+    s = "hello($Visual Basic Programmer$, X)" + Chr$(0)
+    rc = cpStrtoTerm(term, s)
+    If rc <> 0 Then
+        rc2 = cpErrMsg(errmsg)
+        MsgBox errmsg, MB_OK + MB_ICONSTOP
+        Stop
+    End If
+    
+    ' Call the term created above (returns true/false)
+    tf = cpCall(term)
+    ' Loop while the term can be unified
+    If (tf) Then
+        ' Make room for the Cogent engine to return a string
+        s = Space$(255)
+        ' Get the second argument (the X variable)
+        ' Note the ByVal is required when passing strings as any
+        rc = cpGetArg(term, 2, bSTR, ByVal s)
+        ' Display the second argument
+        MsgBox s, MB_OK
+    End If
+
+    ' Close things up before we go
+    rc = cpClose()
+
+    End
+End Sub
+
+'
+'----------------------------------------------------------------------
+
+'----------------------------------------------------------------------
+' Access Version
+'
+
+Function HelloCogentProlog () As String
+
+    ' rc is used for functions that return an error code
+    ' tf is for functions that return true/false (success/failure)
+    Dim rc As Integer, rc2 As Integer, tf As Integer
+    Dim s As String, xpl As String, errmsg As String
+    ' term is actually a pointer, but we use longs in Access
+    Dim term As Long, eng as long
+    
+    ' Initialize the engine with the empty string
+    rc = cpInit(eng, Chr$(0))
+    If rc <> 0 Then
+        rc2 = cpErrMsg(eng, errmsg)
+        HelloCogentProlog = errmsg
+        Exit Function
+    End If
+
+    ' Need to add a null onto strings passed to C/C++
+    xpl = "hello" + Chr$(0)
+    ' Load the XPL file
+    rc = cpLoad(eng, xpl)
+    If rc <> 0 Then
+        rc2 = cpErrMsg(eng, errmsg)
+        HelloCogentProlog = errmsg
+        Exit Function
+    End If
+
+    ' Turn a string into a Prolog term to call
+    s = "hello($Microsoft Access Programmer$, X)" + Chr$(0)
+    rc = cpStrtoTerm(eng, term, s)
+    If rc <> 0 Then
+        rc2 = cpErrMsg(eng, errmsg)
+        HelloCogentProlog = errmsg
+        Exit Function
+    End If
+    
+    ' Call the term created above (returns true/false)
+    tf = cpCall(eng, term)
+    ' Loop while the term can be unified
+    If (tf) Then
+        ' Make room for the Cogent engine to return a string
+        s = Space$(255)
+        ' Get the second argument (the X variable)
+        ' Note the ByVal is required when passing strings as any
+        rc = cpGetArg(eng, term, 2, bSTR, ByVal s)
+        ' Return the second argument
+        HelloCogentProlog = s
+    End If
+
+    ' Close things up before we go
+    rc = cpClose(eng)
+    If rc <> 0 Then
+        rc2 = cpErrMsg(eng, errmsg)
+        HelloCogentProlog = errmsg
+        Exit Function
+    End If
+
+End Function
+
+'
+'----------------------------------------------------------------------
+
+

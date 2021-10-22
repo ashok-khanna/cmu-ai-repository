@@ -1,0 +1,149 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node151.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:32:30 GMT -->
+<HEAD>
+<TITLE>15.4. Substitution of Expressions</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Substitution of Expressions">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3413 HREF="node152.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3411 HREF="node147.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3405 HREF="node150.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3415 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3416 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3414 HREF="node152.html"> Using Lists as </A>
+<B>Up:</B> <A NAME=tex2html3412 HREF="node147.html"> Lists</A>
+<B> Previous:</B> <A NAME=tex2html3406 HREF="node150.html"> Alteration of List </A>
+<HR> <P>
+<H1><A NAME=SECTION001940000000000000000>15.4. Substitution of Expressions</A></H1>
+<P>
+<A NAME=16784>&#160;</A>
+A number of functions are provided for performing substitutions
+within a tree.  All take a tree and a description
+of old subexpressions to be replaced by new ones.
+They come in non-destructive and destructive varieties
+and specify substitution either by two arguments or by an association list.
+<P>
+The naming conventions for these functions and for their keyword
+arguments generally follow the conventions for the generic sequence
+functions.  See chapter <A HREF="node141.html#KSEQUE">14</A>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>subst <i>new</i> <i>old</i> <i>tree</i> &amp;key :test :test-not :key <BR></tt><tt>subst-if <i>new</i> <i>test</i> <i>tree</i> &amp;key :key <BR></tt><tt>subst-if-not <i>new</i> <i>test</i> <i>tree</i> &amp;key :key</tt><P><tt>(subst <i>new</i> <i>old</i> <i>tree</i>)</tt> makes a copy of <i>tree</i>,
+substituting <i>new</i> for every subtree or leaf of <i>tree</i>
+(whether the subtree or leaf is a <i>car</i> or a <i>cdr</i> of its parent)
+such that <i>old</i> and the subtree or leaf satisfy the test.  It
+returns the modified copy of <i>tree</i>.  The original <i>tree</i> is
+unchanged, but the result tree may share with parts of the argument
+<i>tree</i>.
+<P>
+<hr>
+<b>Compatibility note:</b> In MacLisp, <tt>subst</tt> is guaranteed <i>not</i> to share with
+the <i>tree</i> argument, and the idiom <tt>(subst <tt>nil nil</tt> x)</tt> was
+used to copy a tree <tt>x</tt>.  In Common Lisp, the function <tt>copy-tree</tt> should
+be used to copy a tree, as the <tt>subst</tt> idiom will not work.
+<hr>
+<P>
+For example:
+<P><pre>
+(subst 'tempest 'hurricane 
+       '(shakespeare wrote (the hurricane))) 
+   => (shakespeare wrote (the tempest)) 
+
+(subst 'foo '<tt>nil</tt> '(shakespeare wrote (twelfth night))) 
+   => (shakespeare wrote (twelfth night . foo) . foo) 
+
+(subst '(a . cons) '(old . pair) 
+       '((old . spice) ((old . shoes) old . pair) (old . pair)) 
+       <tt>:test</tt> #'equal) 
+   => ((old . spice) ((old . shoes) a . cons) (a . cons))
+</pre><P>
+This function is not destructive; that is, it does not change
+the <i>car</i> or <i>cdr</i> of any already existing list structure.
+One possible definition of <tt>subst</tt>:
+<P><pre>
+(defun subst (old new tree <tt>&amp;rest</tt> x <tt>&amp;key</tt> test test-not key) 
+  (cond ((satisfies-the-test old tree :test test 
+                             :test-not test-not :key key) 
+         new) 
+        ((atom tree) tree) 
+        (t (let ((a (apply #'subst old new (car tree) x)) 
+                 (d (apply #'subst old new (cdr tree) x))) 
+             (if (and (eql a (car tree)) 
+                      (eql d (cdr tree))) 
+                 tree 
+                 (cons a d))))))
+</pre><P>
+See also <tt>substitute</tt>, which substitutes for top-level elements
+of a sequence.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=16822>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>nsubst <i>new</i> <i>old</i> <i>tree</i> &amp;key :test :test-not :key <BR></tt><tt>nsubst-if <i>new</i> <i>test</i> <i>tree</i> &amp;key :key <BR></tt><tt>nsubst-if-not <i>new</i> <i>test</i> <i>tree</i> &amp;key :key</tt><P><tt>nsubst</tt> is a destructive version of <tt>subst</tt>.  The list structure of
+<i>tree</i> is altered by destructively replacing with <i>new</i>
+each leaf or subtree of the <i>tree</i> such that <i>old</i> and the leaf
+or subtree satisfy the test.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=16834>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>sublis <i>alist</i> <i>tree</i> &amp;key :test :test-not :key</tt><P><tt>sublis</tt> makes substitutions for objects in a tree
+(a structure of conses).
+The first argument to <tt>sublis</tt> is an association list.
+The second argument is the tree in which
+substitutions are to be made, as for <tt>subst</tt>.
+<tt>sublis</tt> looks at all subtrees and leaves of the tree;
+if a subtree or leaf appears as a key in the association
+list (that is, the key and the subtree or leaf satisfy the test),
+it is replaced by the object with which it is associated.
+This operation is non-destructive.  In effect, <tt>sublis</tt> can
+perform several <tt>subst</tt> operations simultaneously.
+For example:
+<P><pre>
+(sublis '((x . 100) (z . zprime)) 
+        '(plus x (minus g z x p) 4 . x)) 
+   => (plus 100 (minus g zprime 100 p) 4 . 100) 
+ 
+(sublis '(((+ x y) . (- x y)) ((- x y) . (+ x y))) 
+        '(* (/ (+ x y) (+ x p)) (- x y)) 
+        :test #'equal) 
+   => (* (/ (- x y) (+ x p)) (+ x y))
+</pre><P>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=16848>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>nsublis <i>alist</i> <i>tree</i> &amp;key :test :test-not :key</tt><P><tt>nsublis</tt> is like <tt>sublis</tt> but destructively modifies the relevant
+parts of the <i>tree</i>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=16857>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html3413 HREF="node152.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3411 HREF="node147.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3405 HREF="node150.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3415 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3416 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3414 HREF="node152.html"> Using Lists as </A>
+<B>Up:</B> <A NAME=tex2html3412 HREF="node147.html"> Lists</A>
+<B> Previous:</B> <A NAME=tex2html3406 HREF="node150.html"> Alteration of List </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

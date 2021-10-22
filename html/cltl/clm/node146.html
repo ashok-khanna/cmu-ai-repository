@@ -1,0 +1,205 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node146.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:47:30 GMT -->
+<HEAD>
+<TITLE>14.5. Sorting and Merging</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Sorting and Merging">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3347 HREF="node147.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3345 HREF="node141.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3341 HREF="node145.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3349 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3350 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3348 HREF="node147.html"> Lists</A>
+<B>Up:</B> <A NAME=tex2html3346 HREF="node141.html"> Sequences</A>
+<B> Previous:</B> <A NAME=tex2html3342 HREF="node145.html"> Searching Sequences for </A>
+<HR> <P>
+<H1><A NAME=SECTION001850000000000000000>14.5. Sorting and Merging</A></H1>
+<P>
+These functions may destructively modify argument sequences
+in order to put a sequence into sorted order or to merge two
+already sorted sequences.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>sort <i>sequence</i> <i>predicate</i> &amp;key :key <BR></tt><tt>stable-sort <i>sequence</i> <i>predicate</i> &amp;key :key</tt><P><A NAME=16004>&#160;</A>
+The <i>sequence</i> is destructively sorted according to an order determined by
+the <i>predicate</i>.  The <i>predicate</i> should take two
+arguments, and return non-<tt>nil</tt> if and only if the first argument is
+strictly less than the second (in some appropriate sense). 
+If the first argument is greater than or equal to the second
+(in the appropriate sense), then the <i>predicate</i> should return <tt>nil</tt>.
+<P>
+The <tt>sort</tt> function determines the relationship between two elements
+by giving keys extracted from the elements to the <i>predicate</i>.
+The <tt>:key</tt> argument, when applied to an element, should return
+the key for that element.  The <tt>:key</tt> argument defaults to the identity
+function, thereby making the element itself be the key.
+<P>
+The <tt>:key</tt> function should not have any side effects.
+A useful example of a <tt>:key</tt> function would be a component
+selector function for a <tt>defstruct</tt> structure, used in sorting
+a sequence of structures.
+<P><pre>
+(sort <i>a</i> <i>p</i> <tt>:key</tt> <i>s</i>)
+   == (sort <i>a</i> #'(lambda (x y) (<i>p</i> (<i>s</i> x) (<i>s</i> y))))
+</pre><P>
+While the above two expressions are equivalent, the first may be more
+efficient in some implementations for certain types of arguments.  For
+example, an implementation may choose to apply <i>s</i> to each
+item just once, putting the resulting keys into a separate table, and
+then sort the parallel tables, as opposed to applying
+<i>s</i> to an item every time just before applying the <i>predicate</i>.
+<P>
+If the <tt>:key</tt> and <i>predicate</i> functions always return, then the
+sorting operation will always terminate, producing a sequence containing
+the same elements as the original sequence (that is, the result is a
+permutation of <i>sequence</i>).  This is guaranteed even if the
+<i>predicate</i> does not really consistently represent a total order
+(in which case the elements will be scrambled in some unpredictable
+way, but no element will be lost).  If
+the <tt>:key</tt> function consistently returns meaningful keys,
+and the <i>predicate</i>
+does reflect some total ordering criterion on those keys, then the
+elements of the result sequence will be properly sorted according
+to that ordering.
+<P>
+The sorting operation performed by <tt>sort</tt> is not guaranteed <i>stable</i>.
+Elements considered equal by the <i>predicate</i> may or may not
+stay in their original order.  (The <i>predicate</i> is assumed to
+consider two elements <i>x</i> and <i>y</i> to be equal if
+<tt>(funcall <i>predicate</i> <i>x</i> <i>y</i>)</tt> and
+<tt>(funcall <i>predicate</i> <i>y</i> <i>x</i>)</tt> are both false.)
+The function <tt>stable-sort</tt> guarantees
+stability but may be slower than <tt>sort</tt> in some situations.
+<P>
+The sorting operation may be destructive in all cases.  In the case of an
+array argument, this is accomplished by permuting the elements in place.
+In the case of a list, the list is
+destructively reordered in the same manner as for
+<tt>nreverse</tt>.  Thus if the argument should not be destroyed, the
+user must sort a copy of the argument.
+<P>
+Should execution of the <tt>:key</tt> function or the <i>predicate</i> cause an error,
+the state of the list or array being sorted is
+undefined.  However, if the error is corrected, the sort will, of
+course, proceed correctly.
+<P>
+Note that since sorting requires many comparisons, and thus
+many calls to the <i>predicate</i>, sorting will be much faster if the
+<i>predicate</i> is a compiled function rather than interpreted.
+<P>
+An example:
+<P><pre>
+(setq foovector (sort foovector #'string-lessp <tt>:key</tt> #'car))
+</pre><P>
+If <tt>foovector</tt> contained these items before the sort
+<P><pre>
+(&quot;Tokens&quot; &quot;The Lion Sleeps Tonight&quot;) 
+(&quot;Carpenters&quot; &quot;Close to You&quot;) 
+(&quot;Rolling Stones&quot; &quot;Brown Sugar&quot;) 
+(&quot;Beach Boys&quot; &quot;I Get Around&quot;) 
+(&quot;Mozart&quot; &quot;Eine Kleine Nachtmusik&quot; (K 525)) 
+(&quot;Beatles&quot; &quot;I Want to Hold Your Hand&quot;)
+</pre><P>
+then after the sort <tt>foovector</tt> would contain
+<P><pre>
+(&quot;Beach Boys&quot; &quot;I Get Around&quot;) 
+(&quot;Beatles&quot; &quot;I Want to Hold Your Hand&quot;) 
+(&quot;Carpenters&quot; &quot;Close to You&quot;) 
+(&quot;Mozart&quot; &quot;Eine Kleine Nachtmusik&quot; (K 525)) 
+(&quot;Rolling Stones&quot; &quot;Brown Sugar&quot;) 
+(&quot;Tokens&quot; &quot;The Lion Sleeps Tonight&quot;)
+</pre><P>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=16066>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>merge <i>result-type</i> <i>sequence1</i> <i>sequence2</i> <i>predicate</i> &amp;key :key</tt><P>The sequences <i>sequence1</i> and <i>sequence2</i> are destructively
+merged according to an order determined by
+the <i>predicate</i>.  The result is a sequence of type <i>result-type</i>,
+which must be a subtype of <tt>sequence</tt>, as for the function <tt>coerce</tt>.
+The <i>predicate</i> should take two
+arguments and return non-<tt>nil</tt> if and only if the first argument is
+strictly less than the second (in some appropriate sense). 
+If the first argument is greater than or equal to the second
+(in the appropriate sense), then the <i>predicate</i> should return <tt>nil</tt>.
+<P>
+The <tt>merge</tt> function determines the relationship between two elements
+by giving keys extracted from the elements to the <i>predicate</i>.
+The <tt>:key</tt> function, when applied to an element, should return
+the key for that element; the <tt>:key</tt> function defaults to the identity
+function, thereby making the element itself be the key.
+<P>
+The <tt>:key</tt> function should not have any side effects.
+A useful example of a <tt>:key</tt> function would be a component
+selector function for a <tt>defstruct</tt> structure, used to merge
+a sequence of structures.
+<P>
+If the <tt>:key</tt> and <i>predicate</i> functions always return, then the
+merging operation will always terminate.
+The result of merging two sequences <i>x</i> and <i>y</i> is a new sequence
+<i>z</i>, such that the length of <i>z</i> is the sum of the lengths of <i>x</i>
+and <i>y</i>, and <i>z</i> contains all the elements of <i>x</i> and <i>y</i>.
+If <i>x1</i> and <i>x2</i> are two elements of <i>x</i>, and <i>x1</i> precedes
+<i>x2</i> in <i>x</i>, then <i>x1</i> precedes <i>x2</i> in <i>z</i>, and similarly for
+elements of <i>y</i>.  In short, <i>z</i> is an <i>interleaving</i> of <i>x</i>
+and <i>y</i>.
+<P>
+Moreover, if <i>x</i> and <i>y</i> were correctly sorted according to the
+<i>predicate</i>, then <i>z</i> will also be correctly sorted,
+as shown in this example.
+<P><pre>
+(merge 'list '(1 3 4 6 7) '(2 5 8) #'&lt;) => (1 2 3 4 5 6 7 8)
+</pre><P>
+If <i>x</i> or <i>y</i> is not so sorted then <i>z</i> will not be sorted,
+but will nevertheless be an interleaving of <i>x</i> and <i>y</i>.
+<P>
+The merging operation is guaranteed
+<i>stable</i>; if two or more elements are considered equal by the
+<i>predicate</i>, then the elements from <i>sequence1</i> will
+precede those from <i>sequence2</i> in the result.
+(The <i>predicate</i> is assumed to
+consider two elements <i>x</i> and <i>y</i> to be equal if
+<tt>(funcall <i>predicate</i> <i>x</i> <i>y</i>)</tt> and
+<tt>(funcall <i>predicate</i> <i>y</i> <i>x</i>)</tt> are both false.)
+For example:
+<P><pre>
+(merge 'string &quot;BOY&quot; &quot;nosy&quot; #'char-lessp) => &quot;BnOosYy&quot;
+</pre><P>
+The result can <i>not</i> be <tt>&quot;BnoOsYy&quot;</tt>, <tt>&quot;BnOosyY&quot;</tt>, or <tt>&quot;BnoOsyY&quot;</tt>.
+The function <tt>char-lessp</tt> ignores case, and so considers
+the characters <tt>Y</tt> and <tt>y</tt> to be equal, for example;
+the stability property then guarantees that the character from the
+first argument (<tt>Y</tt>) must precede the one from the second
+argument (<tt>y</tt>).
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (SEQUENCE-TYPE-LENGTH) <A NAME=16149>&#160;</A>  to specify that
+<tt>merge</tt> should signal an error if the sequence type specifies the number of
+elements and the sum of the lengths of the two sequence arguments is
+different.
+<P>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=16153>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+	
+<P>
+<BR> <HR><A NAME=tex2html3347 HREF="node147.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3345 HREF="node141.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3341 HREF="node145.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3349 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3350 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3348 HREF="node147.html"> Lists</A>
+<B>Up:</B> <A NAME=tex2html3346 HREF="node141.html"> Sequences</A>
+<B> Previous:</B> <A NAME=tex2html3342 HREF="node145.html"> Searching Sequences for </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

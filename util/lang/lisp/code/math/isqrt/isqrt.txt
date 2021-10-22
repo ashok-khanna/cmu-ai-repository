@@ -1,0 +1,1202 @@
+Article 5196 of comp.lang.lisp:
+Path: pt.cs.cmu.edu!rochester!udel!wuarchive!cs.utexas.edu!sun-barr!ccut!yayoi!tansei1!d34676
+From: d34676@tansei.cc.u-tokyo.ac.jp (Akira Kurihara)
+Newsgroups: comp.lang.lisp
+Subject: isqrt
+Message-ID: <543@tansei1.tansei.cc.u-tokyo.ac.jp>
+Date: 5 Jun 91 13:32:11 GMT
+Sender: news@tansei.cc.u-tokyo.ac.jp
+Organization: Computer Centre, University of Tokyo
+Lines: 179
+
+
+I am interested in the speed of a Common Lisp function isqrt
+for extremely big bignums.
+
+I compared three functions:
+
+fast-isqrt-mid1.....given below
+fast-isqrt-rec......given below
+isqrt...............a Common Lisp function
+
+These functions should return the same value.
+I tried it on the following three environments:
+
+MACL.........Macintosh Allegro Common Lisp 1.3.2 on Mac SE
+             accelerated with 25 MHz 68020
+lucid........Lucid Sun Common Lisp 4 on SPARCstation IPC
+akcl.........Austin Kyoto Common Lisp 1.530 on SPARCstation IPC
+
+I tried to calculate isqrt of:
+
+(* 2 (expt 10 2000)).....to get  1000 digits of square root of 2
+(* 2 (expt 10 6000)).....to get  3000 digits of square root of 2
+(* 2 (expt 10 20000))....to get 10000 digits of square root of 2
+
+Here is the result.
+
+*** For 1000 digits ***
+
+           fast-isqrt-mid1     fast-isqrt-rec         isqrt
+MACL          1.250 sec           0.317 sec        174     sec
+lucid         2.72  sec           0.63  sec         11.91  sec
+akcl          2.400 sec           0.567 sec          2.483 sec
+
+*** For 3000 digits ***
+
+           fast-isqrt-mid1     fast-isqrt-rec         isqrt
+MACL         12.233 sec           2.450 sec       4503     sec
+lucid        27.68  sec           5.45  sec        102.12  sec
+akcl         24.567 sec           5.100 sec         24.567 sec
+
+*** For 10000 digits ***
+
+           fast-isqrt-mid1     fast-isqrt-rec         isqrt
+MACL        142     sec          35     sec         very long
+lucid       327.75  sec          80.31  sec       1126.10  sec
+akcl        273.917 sec          64.367 sec        275.783 sec
+
+Looking at this table,
+(1) 25 MHz 68020 Macintosh can be as twice as faster than SPARCstation IPC
+as far as it is concerned with division of bignums by bignums.
+(2) akcl is a little bit faster than lucid at least as far as it is
+concerned with division of bignums by bignums.
+(3) isqrt = fast-isqrt-mid1 on akcl ?
+
+I appreciate very much if you would evaluate the following forms
+
+(isqrt-time-comparison (* 2 (expt 10 2000)) 1 1)
+
+(isqrt-time-comparison (* 2 (expt 10 6000)) 1 1)
+
+(isqrt-time-comparison (* 2 (expt 10 20000)) 1 1)
+
+on a different environment, and e-mail it to me. The function
+isqrt-time-comparison is given below.
+
+Also, if you have a faster function, would you inform me?
+
+Thank you.
+
+---
+
+(defun fast-isqrt-simple (n &aux init-value iterated-value)
+  "argument n must be a non-negative integer."
+  (cond
+   ((zerop n)
+    0)
+   (t
+    (setq init-value 1)
+    ; do iteration once
+    (setq iterated-value (floor (+ init-value (floor n init-value)) 2))
+    (setq init-value iterated-value)
+    (loop
+      ; do iteration, same as above
+      (setq iterated-value (floor (+ init-value (floor n init-value)) 2))
+      (if (>= iterated-value init-value) (return init-value))
+      (setq init-value iterated-value)))))
+
+
+(defun fast-isqrt-mid1 (n &aux n-len init-value iterated-value)
+  "argument n must be a non-negative integer"
+  (cond
+   ((> n 24)		; theoretically (> n 0) ,i.e., n-len > 0
+    (setq n-len (integer-length n))
+    (if (evenp n-len)
+      (setq init-value (ash 1 (ash n-len -1)))
+      (setq init-value (ash 2 (ash n-len -1))))
+    (loop
+      (setq iterated-value (ash (+ init-value (floor n init-value)) -1))
+      (if (not (< iterated-value init-value))
+        (return init-value)
+        (setq init-value iterated-value))))
+   ((> n 15) 4)
+   ((> n  8) 3)
+   ((> n  3) 2)
+   ((> n  0) 1)
+   ((> n -1) 0)
+   (t nil)))
+
+
+(defun fast-isqrt-rec (n &aux n-len-quarter n-half n-half-isqrt
+                       init-value iterated-value)
+  "argument n must be a non-negative integer"
+  (cond
+   ((> n 24)		; theoretically (> n 7) ,i.e., n-len-quarter > 0
+    (setq n-len-quarter (ash (integer-length n) -2))
+    (setq n-half (ash n (- (ash n-len-quarter 1))))
+    (setq n-half-isqrt (fast-isqrt-rec n-half))
+    (setq init-value (ash (1+ n-half-isqrt) n-len-quarter))
+    (loop
+      (setq iterated-value (ash (+ init-value (floor n init-value)) -1))
+      (if (not (< iterated-value init-value))
+        (return init-value)
+        (setq init-value iterated-value))))
+   ((> n 15) 4)
+   ((> n  8) 3)
+   ((> n  3) 2)
+   ((> n  0) 1)
+   ((> n -1) 0)
+   (t nil)))
+
+
+(defun isqrt-time-comparison (n1 how-many iteration-times &aux n2)
+  (setq n2 (+ n1 how-many))
+  (print "do nothing")
+  (time
+   (let ((n n1))
+     (loop
+       (if (not (< n n2)) (return))
+       (dotimes (i-t iteration-times)
+         )
+       (incf n))))
+  (print "fast-isqrt-mid1")
+  (time
+   (let ((n n1))
+     (loop
+       (if (not (< n n2)) (return))
+       (dotimes (i-t iteration-times)
+         (fast-isqrt-mid1 n))
+       (incf n))))
+  (print "fast-isqrt-rec")
+  (time
+   (let ((n n1))
+     (loop
+       (if (not (< n n2)) (return))
+       (dotimes (i-t iteration-times)
+         (fast-isqrt-rec n))
+       (incf n))))
+  (print "isqrt")
+  (time
+   (let ((n n1))
+     (loop
+       (if (not (< n n2)) (return))
+       (dotimes (i-t iteration-times)
+         (isqrt n))
+       (incf n))))
+  nil)
+
+----
+
+Akira Kurihara
+
+d34676@tansei.cc.u-tokyo.ac.jp
+
+School of Mathematics
+Japan Women's University
+Mejirodai 2-8-1, Bunkyo-ku
+Tokyo 112
+Japan
+03-3943-3131 ext-7243
+Article 5199 of comp.lang.lisp:
+Path: pt.cs.cmu.edu!rochester!uhura.cc.rochester.edu!ub!zaphod.mps.ohio-state.edu!wuarchive!uunet!mcsun!ukc!edcastle!edcogsci!cogsci!miles
+From: miles@cogsci.ed.ac.uk (Miles Bader)
+Newsgroups: comp.lang.lisp
+Subject: Re: isqrt
+Message-ID: <MILES.91Jun6192626@oliphant.cogsci.ed.ac.uk>
+Date: 6 Jun 91 18:26:26 GMT
+Sender: miles@cogsci.ed.ac.uk
+Organization: HCRC, University of Edinburgh
+Lines: 26
+
+Hardware: sun4/330 (sparc) running sunos 4.0.3
+
+All compiled with speed=3, safety=0, space=0
+
+CMUCL = CMU Common Lisp (10-May-1991)
+AKCL  = Austin KCL Version 1.505
+
+* (isqrt-time-comparison (* 2 (expt 10 2000)) 1 1)
+	   fast-isqrt-mid1   fast-isqrt-rec    isqrt
+CMUCL	     0.610 sec         0.080 sec       234.340 sec
+AKCL	     2.517 sec         0.550 sec         2.483 sec
+
+* (isqrt-time-comparison (* 2 (expt 10 6000)) 1 1)
+	   fast-isqrt-mid1   fast-isqrt-rec    isqrt
+CMUCL	     5.710 sec         1.170 sec         very long (> 1 hour)
+AKCL	    24.050 sec         4.817 sec        24.950 sec
+
+* (isqrt-time-comparison (* 2 (expt 10 20000)) 1 1)
+	   fast-isqrt-mid1   fast-isqrt-rec    isqrt
+CMUCL	     37.720 sec        5.470 sec         very long
+AKCL	    276.617 sec       68.950 sec       272.317 sec
+
+-Miles
+--
+--
+Miles Bader  --  HCRC, University of Edinburgh  --  Miles.Bader@ed.ac.uk
+Article 5200 of comp.lang.lisp:
+Path: pt.cs.cmu.edu!rochester!uhura.cc.rochester.edu!ub!zaphod.mps.ohio-state.edu!cis.ohio-state.edu!ucbvax!pasteur!aspen!boyland
+From: boyland@aspen.Berkeley.EDU (John B. Boyland)
+Newsgroups: comp.lang.lisp
+Subject: Re: isqrt
+Message-ID: <14007@pasteur.Berkeley.EDU>
+Date: 7 Jun 91 01:22:09 GMT
+References: <19910606055232.5.GADBOIS@KISIN.ACA.MCC.COM> <2885210567@ARTEMIS.cam.nist.gov>
+Sender: news@pasteur.Berkeley.EDU
+Reply-To: boyland@sequoia.Berkeley.EDU (John B. Boyland)
+Lines: 72
+
+In article <2885210567@ARTEMIS.cam.nist.gov>, miller@FS1.cam.nist.gov
+(Bruce R. Miller) writes:
+|> 
+|> In article <19910606055232.5.GADBOIS@KISIN.ACA.MCC.COM>, David
+Gadbois writes: 
+|> >     Date: 5 Jun 91 13:32:11 GMT
+|> >     From: d34676@tansei.cc.u-tokyo.ac.jp (Akira Kurihara)
+|> > 
+|> >     I am interested in the speed of a Common Lisp function isqrt
+|> >     for extremely big bignums.
+|> > 
+|> > I added the results of running the test on a Symbolics machine.  The
+|> > results for the builtin ISQRT are surprising. [...]
+|> 
+|> [...]
+|> Apparently the symbolics knows that isqrt has no `real' side-effects and
+|> optimizes it out [...]
+
+I'm relieved to hear this: I spent a few hours finding a method that runs
+about twice as fast as fast-isqrt-rec and was disappointed that it was
+rendered worse than obsolete.
+
+I have a [lovely?, no!] proof, which unfortunately cannot fit in
+this margin :-), for this algorithm.  Essentially it works by noting that
+this every recursive call of fast-isqrt-rec does two or three iterations
+and that the last iteration is never useful (it only verifies the answer).
+The three iteration case needs to be checked for but this only requires
+a multiply of numbers only half as long.
+
+For allegro on a DS3100, I get the comparison:
+(I don't have the figures for the other versions, I sent them to Akira already)
+
+		fast-isqrt-rec	faster-isqrt-rec
+1000		    .884              .517
+3000		   7.30              4.02
+10000            107.               43.8
+
+Here's the function.  throw stones at it and make it break.
+(Who knows, maybe it has subtle bugs?)
+(It uses a lot of code from the old fast-isqrt-rec)
+
+---------------------------------------------------------------------
+
+(defun faster-isqrt-rec (n &aux n-len-quarter n-half n-half-isqrt
+			     init-value q r iterated-value)
+  "argument n must be a non-negative integer"
+  (cond
+   ((> n 24)		; theoretically (> n 7) ,i.e., n-len-quarter > 0
+    (setq n-len-quarter (ash (integer-length n) -2))
+    (setq n-half (ash n (- (ash n-len-quarter 1))))
+    (setq n-half-isqrt (faster-isqrt-rec n-half))
+    (setq init-value (ash (1+ n-half-isqrt) n-len-quarter))
+    (multiple-value-setq (q r) (floor n init-value))
+    (setq iterated-value (ash (+ init-value q) -1))
+    (if (eq (logbitp 0 q) (logbitp 0 init-value)) ; same sign
+	;; average is exact and we need to test the result
+	(let ((m (- iterated-value init-value)))
+	  (if (> (* m m) r)
+	      (- iterated-value 1)
+	      iterated-value))
+	;; average was not exact, we take value
+	iterated-value))
+   ((> n 15) 4)
+   ((> n  8) 3)
+   ((> n  3) 2)
+   ((> n  0) 1)
+   ((> n -1) 0)
+   (t nil)))
+-------------------------------------------------------------------
+
+John Boyland
+boyland@sequoia.berkeley.edu
+Article 5201 of comp.lang.lisp:
+Path: pt.cs.cmu.edu!rochester!cornell!batcomputer!rpi!usc!cs.utexas.edu!MCC.COM!MCC.COM!AI.gadbois
+From: AI.gadbois@MCC.COM (David Gadbois)
+Newsgroups: comp.lang.lisp
+Subject: Re: isqrt
+Message-ID: <19910606055232.5.GADBOIS@KISIN.ACA.MCC.COM>
+Date: 6 Jun 91 05:52:00 GMT
+Lines: 75
+
+
+    Date: 5 Jun 91 13:32:11 GMT
+    From: d34676@tansei.cc.u-tokyo.ac.jp (Akira Kurihara)
+
+
+    I am interested in the speed of a Common Lisp function isqrt
+    for extremely big bignums.
+
+I added the results of running the test on a Symbolics machine.  The
+results for the builtin ISQRT are surprising.  While I normally run
+screaming from numeric code, I had a look at the source, and it uses one
+of those clever bit-twiddling tricks that appears to calculate the
+result in O( (INTEGER-LENGTH n) ) time.  One of the "numerical recipes"
+books probably has an explanation of it.
+
+    I compared three functions:
+
+    fast-isqrt-mid1.....given below
+    fast-isqrt-rec......given below
+    isqrt...............a Common Lisp function
+
+    These functions should return the same value.
+    I tried it on the following three environments:
+
+    MACL.........Macintosh Allegro Common Lisp 1.3.2 on Mac SE
+		 accelerated with 25 MHz 68020
+    lucid........Lucid Sun Common Lisp 4 on SPARCstation IPC
+    akcl.........Austin Kyoto Common Lisp 1.530 on SPARCstation IPC
+    XL1200.......Symbolics XL1200 running Genera 8.0.2
+
+    I tried to calculate isqrt of:
+
+    (* 2 (expt 10 2000)).....to get  1000 digits of square root of 2
+    (* 2 (expt 10 6000)).....to get  3000 digits of square root of 2
+    (* 2 (expt 10 20000))....to get 10000 digits of square root of 2
+
+    Here is the result.
+
+    *** For 1000 digits ***
+
+	       fast-isqrt-mid1     fast-isqrt-rec         isqrt
+    MACL          1.250 sec           0.317 sec        174       sec
+    lucid         2.72  sec           0.63  sec         11.91    sec
+    akcl          2.400 sec           0.567 sec          2.483   sec
+    XL1200        0.757 sec           0.178 sec          0.00122 sec
+
+    *** For 3000 digits ***
+
+	       fast-isqrt-mid1     fast-isqrt-rec         isqrt
+    MACL         12.233 sec           2.450 sec       4503       sec
+    lucid        27.68  sec           5.45  sec        102.12    sec
+    akcl         24.567 sec           5.100 sec         24.567   sec
+    XL1200        7.257 sec           1.484 sec          0.00450 sec
+
+    *** For 10000 digits ***
+
+	       fast-isqrt-mid1     fast-isqrt-rec         isqrt
+    MACL        142     sec          35     sec         very long
+    lucid       327.75  sec          80.31  sec       1126.10   sec
+    akcl        273.917 sec          64.367 sec        275.783  sec
+    XL1200       84.780 sec          20.910 sec          0.0120 sec
+
+    Looking at this table,
+
+    (1) 25 MHz 68020 Macintosh can be as twice as faster than
+    SPARCstation IPC as far as it is concerned with division of bignums
+    by bignums.
+
+I have found that MCL (nee MACL) is a really nice second-generation
+Common Lisp.  In most of the cases I have tested, it does better than
+the UNIX-based Lisps.  Plus, you can get a decent development platform
+for under $10K.  The ISQRT implementation is evidently a disappointment,
+though.
+
+--David Gadbois
+Article 5205 of comp.lang.lisp:
+Path: pt.cs.cmu.edu!rochester!cornell!batcomputer!caen!sdd.hp.com!elroy.jpl.nasa.gov!decwrl!pa.dec.com!nntpd.lkg.dec.com!slot!adler
+From: adler@slot.enet.dec.com (Mark Adler)
+Newsgroups: comp.lang.lisp
+Subject: Re: isqrt
+Message-ID: <23210@shlump.lkg.dec.com>
+Date: 6 Jun 91 12:08:02 GMT
+References: <19910606055232.5.GADBOIS@KISIN.ACA.MCC.COM>
+Sender: newsdaemon@shlump.lkg.dec.com
+Reply-To: adler@slot.enet.dec.com (Mark Adler)
+Organization: Digital Equipment Corporation
+Lines: 139
+
+Here are the results I got on a DECsystem 3100 using Lucid Common Lisp.
+By the way, when I compiled the code in production mode,
+the isqrt time went to zero.  I assume that the compiler "optimized" the
+calculation out of existence, presumably since the value was not used.
+(This probably also explains the Syumbolics results reported in close to
+zero time.)
+
+
+;;; Lucid Common Lisp/DECsystem
+;;; Development Environment Version 4.0, 12 November 1990
+;;; Copyright (C) 1985, 1986, 1987, 1988, 1989, 1990 by Lucid, Inc.
+;;; All Rights Reserved
+;;;
+;;; This software product contains confidential and trade secret information
+;;; belonging to Lucid, Inc.  It may not be copied for any reason other than
+;;; for archival and backup purposes.
+;;;
+;;; Lucid Common Lisp is a trademark of Lucid, Inc.
+;;; DECsystem is a trademark of Digital Equipment Corp.
+
+Lisp> (isqrt-time-comparison (* 2 (expt 10 2000)) 1 1)
+
+"do nothing" 
+Elapsed Real Time = 0.03 seconds
+Total Run Time    = 0.00 seconds
+User Run Time     = 0.00 seconds
+System Run Time   = 0.00 seconds
+Process Page Faults    =          1
+Dynamic Bytes Consed   =          0
+Ephemeral Bytes Consed =        840
+
+"fast-isqrt-mid1" 
+Elapsed Real Time = 2.46 seconds
+Total Run Time    = 2.36 seconds
+User Run Time     = 2.34 seconds
+System Run Time   = 0.02 seconds
+Process Page Faults    =          2
+Dynamic Bytes Consed   =          0
+Ephemeral Bytes Consed =     21,616
+
+"fast-isqrt-rec" 
+Elapsed Real Time = 0.59 seconds
+Total Run Time    = 0.55 seconds
+User Run Time     = 0.55 seconds
+System Run Time   = 0.00 seconds
+Process Page Faults    =          1
+Dynamic Bytes Consed   =          0
+Ephemeral Bytes Consed =     10,256
+
+"isqrt" 
+Elapsed Real Time = 12.18 seconds
+Total Run Time    = 11.68 seconds
+User Run Time     = 11.54 seconds
+System Run Time   = 0.14 seconds
+Process Page Faults    =         57
+Dynamic Bytes Consed   =          0
+Ephemeral Bytes Consed = 10,502,096
+There were 20 ephemeral GCs
+NIL
+Lisp> (isqrt-time-comparison (* 2 (expt 10 6000)) 1 1)
+
+"do nothing" 
+Elapsed Real Time = 0.00 seconds
+Total Run Time    = 0.00 seconds
+User Run Time     = 0.00 seconds
+System Run Time   = 0.00 seconds
+Process Page Faults    =          1
+Dynamic Bytes Consed   =          0
+Ephemeral Bytes Consed =      2,496
+
+"fast-isqrt-mid1" 
+Elapsed Real Time = 24.14 seconds
+Total Run Time    = 23.91 seconds
+User Run Time     = 23.87 seconds
+System Run Time   = 0.04 seconds
+Process Page Faults    =          1
+Dynamic Bytes Consed   =          0
+Ephemeral Bytes Consed =     74,088
+
+"fast-isqrt-rec" 
+Elapsed Real Time = 4.77 seconds
+Total Run Time    = 4.72 seconds
+User Run Time     = 4.71 seconds
+System Run Time   = 0.01 seconds
+Process Page Faults    =          0
+Dynamic Bytes Consed   =          0
+Ephemeral Bytes Consed =     30,872
+
+"isqrt" 
+Elapsed Real Time = 97.92 seconds (1 minute, 37.92 seconds)
+Total Run Time    = 96.18 seconds (1 minute, 36.18 seconds)
+User Run Time     = 95.85 seconds (1 minute, 35.85 seconds)
+System Run Time   = 0.33 seconds
+Process Page Faults    =        105
+Dynamic Bytes Consed   =          0
+Ephemeral Bytes Consed = 93,533,248
+There were 179 ephemeral GCs
+NIL
+Lisp> (isqrt-time-comparison (* 2 (expt 10 20000)) 1 1)
+
+"do nothing" 
+Elapsed Real Time = 0.00 seconds
+Total Run Time    = 0.00 seconds
+User Run Time     = 0.00 seconds
+System Run Time   = 0.00 seconds
+Process Page Faults    =          0
+Dynamic Bytes Consed   =          0
+Ephemeral Bytes Consed =      8,312
+
+"fast-isqrt-mid1" 
+Elapsed Real Time = 291.34 seconds (4 minutes, 51.34 seconds)
+Total Run Time    = 285.04 seconds (4 minutes, 45.04 seconds)
+User Run Time     = 283.89 seconds (4 minutes, 43.89 seconds)
+System Run Time   = 1.16 seconds
+Process Page Faults    =         22
+Dynamic Bytes Consed   =          0
+Ephemeral Bytes Consed =    262,072
+There was 1 ephemeral GC
+
+"fast-isqrt-rec" 
+Elapsed Real Time = 70.17 seconds (1 minute, 10.17 seconds)
+Total Run Time    = 69.63 seconds (1 minute, 9.63 seconds)
+User Run Time     = 69.54 seconds (1 minute, 9.54 seconds)
+System Run Time   = 0.09 seconds
+Process Page Faults    =          3
+Dynamic Bytes Consed   =          0
+Ephemeral Bytes Consed =    113,392
+
+"isqrt" 
+Elapsed Real Time = 1068.20 seconds (17 minutes, 48.20 seconds)
+Total Run Time    = 1055.11 seconds (17 minutes, 35.11 seconds)
+User Run Time     = 1052.86 seconds (17 minutes, 32.86 seconds)
+System Run Time   = 2.25 seconds
+Process Page Faults    =        381
+Dynamic Bytes Consed   =    223,568
+Ephemeral Bytes Consed = 1,035,828,048
+There were 1989 ephemeral GCs
+NIL
+Lisp> 
+Article 5206 of comp.lang.lisp:
+Path: pt.cs.cmu.edu!rochester!uhura.cc.rochester.edu!ub!zaphod.mps.ohio-state.edu!usc!elroy.jpl.nasa.gov!decwrl!deccrl!news.crl.dec.com!nntpd.lkg.dec.com!slot!adler
+From: adler@slot.enet.dec.com (Mark Adler)
+Newsgroups: comp.lang.lisp
+Subject: Re: isqrt
+Message-ID: <23216@shlump.lkg.dec.com>
+Date: 6 Jun 91 13:32:46 GMT
+References: <23210@shlump.lkg.dec.com> <19910606055232.5.GADBOIS@KISIN.ACA.MCC.COM>
+Sender: newsdaemon@shlump.lkg.dec.com
+Reply-To: adler@slot.enet.dec.com (Mark Adler)
+Organization: Digital Equipment Corporation
+Lines: 42
+
+I've added DS-3100 and DS-5000 to the list.
+
+
+    MACL.........Macintosh Allegro Common Lisp 1.3.2 on Mac SE
+		 accelerated with 25 MHz 68020
+    lucid........Lucid Sun Common Lisp 4 on SPARCstation IPC
+    akcl.........Austin Kyoto Common Lisp 1.530 on SPARCstation IPC
+    XL1200.......Symbolics XL1200 running Genera 8.0.2
+    DS-3100......Lucid Common Lisp 4.0 on DEC DS-3100
+    DS-5000......Lucid Common Lisp 4.0 on DEC DS-5000
+
+
+*** For 1000 digits ***
+
+           fast-isqrt-mid1     fast-isqrt-rec         isqrt
+MACL          1.250 sec           0.317 sec        174     sec
+lucid         2.72  sec           0.63  sec         11.91  sec
+akcl          2.400 sec           0.567 sec          2.483 sec
+XL1200        0.757 sec           0.178 sec          0.00122 sec
+DS-3100	      2.34  sec            .55  sec         11.54  sec
+DS-5000       1.34  sec            .32  sec          6.57  sec
+
+*** For 3000 digits ***
+
+           fast-isqrt-mid1     fast-isqrt-rec         isqrt
+MACL         12.233 sec           2.450 sec       4503     sec
+lucid        27.68  sec           5.45  sec        102.12  sec
+akcl         24.567 sec           5.100 sec         24.567 sec
+XL1200        7.257 sec           1.484 sec          0.00450 sec
+DS-3100	     23.87  sec           4.71  sec         95.85  sec
+DS-5000      13.69  sec           2.70  sec         54.10  sec
+
+
+*** For 10000 digits ***
+
+           fast-isqrt-mid1     fast-isqrt-rec         isqrt
+MACL        142     sec          35     sec         very long
+lucid       327.75  sec          80.31  sec       1126.10  sec
+akcl        273.917 sec          64.367 sec        275.783 sec
+XL1200       84.780 sec          20.910 sec          0.0120 sec
+DS-3100	    283.89  sec          69.54  sec       1052.86  sec    
+DS-5000     161.16  sec          39.61  sec        605.57  sec
+Article 5207 of comp.lang.lisp:
+Path: pt.cs.cmu.edu!rochester!cornell!batcomputer!rpi!zaphod.mps.ohio-state.edu!wuarchive!uunet!cme!cam!ARTEMIS
+From: miller@FS1.cam.nist.gov (Bruce R. Miller)
+Newsgroups: comp.lang.lisp
+Subject: Re: isqrt
+Message-ID: <2885210567@ARTEMIS.cam.nist.gov>
+Date: 6 Jun 91 15:22:47 GMT
+References: <19910606055232.5.GADBOIS@KISIN.ACA.MCC.COM>
+Sender: news@cam.nist.gov
+Followup-To: comp.lang.lisp
+Organization: NIST - Computing and Applied Mathematics Laboratory
+Lines: 35
+
+
+In article <19910606055232.5.GADBOIS@KISIN.ACA.MCC.COM>, David Gadbois writes: 
+>     Date: 5 Jun 91 13:32:11 GMT
+>     From: d34676@tansei.cc.u-tokyo.ac.jp (Akira Kurihara)
+> 
+>     I am interested in the speed of a Common Lisp function isqrt
+>     for extremely big bignums.
+> 
+> I added the results of running the test on a Symbolics machine.  The
+> results for the builtin ISQRT are surprising.  While I normally run
+> screaming from numeric code, I had a look at the source, and it uses one
+> of those clever bit-twiddling tricks that appears to calculate the
+> result in O( (INTEGER-LENGTH n) ) time.  One of the "numerical recipes"
+> books probably has an explanation of it.
+
+Actually, one of the compiler books probably has an explanation of it!
+
+I did the same computations (but using Genera 8.0.1, in case it matters)
+and got essentially the same results as you did.
+I mailed the results directly to Akira -- with one change:
+
+Apparently the symbolics knows that isqrt has no `real' side-effects and
+optimizes it out -- the disassembled code reveals no call to isqrt --
+and I doubt that isqrt is stashed in microcode! 
+To trick the compiler, I changed each timing body to 
+  (setq result n)
+  (setq result (fast-isqrt-mid1 n))
+  ...
+  (setq result (isqrt n))
+and redid the tests.  Everything was the same except the isqrt timings
+which now are essentially the same as fast-isqrt-mid1 (which _is_ "one of
+those clever bit-twiddling tricks" !). 
+
+bruce
+miller@cam.nist.gov
+Article 5212 of comp.lang.lisp:
+Path: pt.cs.cmu.edu!rochester!udel!wuarchive!cs.utexas.edu!MCC.COM!MCC.COM!AI.gadbois
+From: AI.gadbois@MCC.COM (David Gadbois)
+Newsgroups: comp.lang.lisp
+Subject: Re: isqrt
+Message-ID: <19910609062237.3.GADBOIS@KISIN.ACA.MCC.COM>
+Date: 9 Jun 91 06:22:00 GMT
+Lines: 98
+
+
+    Date: 6 Jun 91 15:22:47 GMT
+    From: miller@FS1.cam.nist.gov (Bruce R. Miller)
+
+    In article <19910606055232.5.GADBOIS@KISIN.ACA.MCC.COM>, I write: 
+    >     Date: 5 Jun 91 13:32:11 GMT
+    >     From: d34676@tansei.cc.u-tokyo.ac.jp (Akira Kurihara)
+    > 
+    >     I am interested in the speed of a Common Lisp function isqrt
+    >     for extremely big bignums.
+    > 
+    > I added the results of running the test on a Symbolics machine.
+    > The results for the builtin ISQRT are surprising.  While I
+    > normally run screaming from numeric code, I had a look at the
+    > source, and it uses one of those clever bit-twiddling tricks that
+    > appears to calculate the result in O( (INTEGER-LENGTH n) ) time.
+    > One of the "numerical recipes" books probably has an explanation
+    > of it.
+
+    Actually, one of the compiler books probably has an explanation of
+    it!
+
+    I did the same computations (but using Genera 8.0.1, in case it
+    matters) and got essentially the same results as you did.  I mailed
+    the results directly to Akira -- with one change:
+
+    Apparently the symbolics knows that isqrt has no `real' side-effects
+    and optimizes it out -- the disassembled code reveals no call to
+    isqrt -- and I doubt that isqrt is stashed in microcode!  To trick
+    the compiler, I changed each timing body to
+
+      (setq result n)
+      (setq result (fast-isqrt-mid1 n))
+      ...
+      (setq result (isqrt n))
+
+    and redid the tests.  Everything was the same except the isqrt
+    timings which now are essentially the same as fast-isqrt-mid1 (which
+    _is_ "one of those clever bit-twiddling tricks" !).
+
+Gack, how embarrassing.  I should have know better.  By way of penance,
+here are the updated collected figures:
+
+    MACL.........Macintosh Allegro Common Lisp 1.3.2 on Mac SE
+		 accelerated with 25 MHz 68020
+    lucid........Lucid Sun Common Lisp 4 on SPARCstation IPC
+    akcl.........Austin Kyoto Common Lisp 1.530 on SPARCstation IPC
+    XL1200.......Symbolics XL1200 running Genera 8.0.2
+    CMUCL........CMU Common Lisp (10-May-1991) sun4/330 running sunos 4.0.3  
+                 ^^^^^^^^^^^^^^^
+                 Is this Python?  Running under SUNOS!?  Where can I get
+                 a copy? 
+    AKCL.........Austin KCL Version 1.505 sun4/330 running sunos 4.0.3 
+    DS3100A......Allegro (version?) on DECStation 3100
+    DS3100L......Lucid Common Lisp 4.0 on DEC DS-3100
+    DS5000.......Lucid Common Lisp 4.0 on DEC DS-5000
+
+
+*** For 1000 digits ***
+
+        fast-isqrt-mid1   fast-isqrt-rec      isqrt     faster-isqrt-rec
+MACL          1.250            0.317         174     
+lucid         2.72             0.63           11.91  
+akcl          2.400            0.567           2.483 
+XL1200        0.757            0.178           0.729            0.111
+CMUCL         0.610            0.080         234.340 
+AKCL          2.517            0.550           2.483 
+DS3100A                        0.884                            0.517
+DS3100L	      2.34              .55           11.54  
+DS5000       1.34              .32            6.57  
+
+*** For 3000 digits ***
+
+        fast-isqrt-mid1   fast-isqrt-rec      isqrt     faster-isqrt-rec
+MACL         12.233            2.450        4503     
+lucid        27.68             5.45          102.12  
+akcl         24.567            5.100          24.567 
+XL1200        7.257            1.484           6.612            0.853
+CMUCL         5.710            1.170        (> 1 hour) 
+AKCL         24.050            4.817          24.950 
+DS3100A                        7.30                             4.02
+DS3100L	     23.87             4.71           95.85  
+DS5000       13.69             2.70           54.10  
+
+*** For 10000 digits ***
+
+        fast-isqrt-mid1   fast-isqrt-rec      isqrt     faster-isqrt-rec
+MACL        142               35            very long
+lucid       327.75            80.31         1126.10  
+akcl        273.917           64.367         275.783 
+XL1200       84.780           20.910          83.085             9.205
+CMUCL        37.720            5.470        very long
+AKCL        276.617           68.950         272.317 
+DS3100A                      107.                               43.8
+DS3100L	    283.89            69.54         1052.86      
+DS5000      161.16            39.61          605.57  
+
+--David Gadbois
+Article 5213 of comp.lang.lisp:
+Path: pt.cs.cmu.edu!rochester!rutgers!sun-barr!ccut!yayoi!tansei1!d34676
+From: d34676@tansei.cc.u-tokyo.ac.jp (Akira Kurihara)
+Newsgroups: comp.lang.lisp
+Subject: Re: isqrt
+Message-ID: <560@tansei1.tansei.cc.u-tokyo.ac.jp>
+Date: 9 Jun 91 13:09:56 GMT
+Sender: news@tansei.cc.u-tokyo.ac.jp
+Organization: Computer Centre, University of Tokyo
+Lines: 155
+
+
+I received some results on (time ...) of isqrt and similar functions
+for very big bignums.
+I requested to calculate essentially (isqrt (* 2 (expt 10 (* 2 d))))
+for d = 1000, 3000, 10000.
+The following is what I received and compiled. I hope I made no mistake
+while making this table.
+Be sure that this table tells you ONLY about:
+(A) whether the system is fast for bignum operation, especially division.
+(B) whether the algorithm of isqrt for bignum is fast.
+
+*** Lisps and Machines ***
+
+(1) CMU Common Lisp (10-May-1991) on sun4/330
+(2) Genera 8.0.1 on Symbolics XL1200
+(3) Genera 8.0.2 on Symbolics XL1200
+(4) Allegro Common Lisp on SPARCstation2
+(5) Macintosh Allegro Common Lisp 1.3.2 on Mac SE accelerated with 25 MHz 68020
+(6) Lucid Common Lisp 4.0 on DEC 5000
+(7) Lucid Sun Common Lisp 4.0 on SPARCstation2
+(8) Macintosh Allegro Common Lisp 1.3.1 on Mac IIcx
+(9) Macintosh Common Lisp 2.0b1p2 on Macintosh IIx
+(a) Austin Kyoto Common Lisp 1.505 on sun4/330
+(b) Austin Kyoto Common Lisp 1.530 on SPARCstation IPC
+(c) Lucid Common Lisp 4.0 on DEC 3100
+(d) Lucid Sun Common Lisp 4 on SPARCstation IPC
+(e) Allegro Common Lisp on DEC 3100
+
+*** For 1,000 digits *** (time is in second)
+
+           fast-isqrt-mid1     fast-isqrt-rec         isqrt
+(1)           0.610               0.080            234.340    
+(2)           0.728583            0.179719           0.731269    
+(3)           0.757               0.178              0.729
+(4)           0.984               0.217              1.917
+(5)           1.250               0.317            174        
+(6)           1.34                0.32               6.57     
+(7)           1.47                0.35               7.34
+(8)           1.983               0.467            272.867
+(9)           2.150               0.567              0.633
+(a)           2.517               0.550              2.483    
+(b)           2.400               0.567              2.483    
+(c)           2.34                0.55              11.54     
+(d)           2.72                0.63              11.91     
+(e)           3.534               0.800              5.216
+
+*** For 3,000 digits *** (time is in second)
+
+           fast-isqrt-mid1     fast-isqrt-rec         isqrt
+(1)           5.710               1.170           very long (> 1 hour)
+(2)           7.114492            1.422794           6.636563
+(3)           7.257               1.484              6.612
+(4)          10.067               1.966             19.634
+(5)          12.233               2.450           4503        
+(6)          13.69                2.70              54.10     
+(7)          15.06                2.97              64.05
+(8)          19.583               3.917           7164.333
+(9)          20.117               4.083              4.150
+(a)          24.050               4.817             24.950    
+(b)          24.567               5.100             24.567    
+(c)          23.87                4.71              95.85     
+(d)          27.68                5.45             102.12     
+(e)          36.717               7.200             54.283
+
+*** For 10,000 digits *** (time is in second)
+
+           fast-isqrt-mid1     fast-isqrt-rec         isqrt
+(1)          37.720               5.470           very long
+(2)          83.216370           20.502718          83.681786
+(3)          84.780              20.910             83.085
+(4)         117.650              28.783            233.984
+(5)         142                  35               very long
+(6)         161.16               39.61             605.57     
+(7)         179.34               44.87             719.45
+(8)         229.183              56.467           very long
+(9)         229.383              56.500             56.533
+(a)         276.617              68.950            272.317
+(b)         273.917              64.367            275.783    
+(c)         283.89               69.54            1052.86         
+(d)         327.75               80.31            1126.10     
+(e)         435.350             106.617            645.550
+
+Potential Problem:
+
+(i) Under some environment with a wise compiler, the function
+isqrt-time-comparison, which I posted earlier, is over-optimized
+for our purpose. If so, (time ...) will return almost 0 second.
+
+(ii) alms@cambridge.apple.com suggested me the following
+
+>Also, it is best to pass a simple function call to the TIME macro.
+>If you pass a complex form to TIME, then the timing will include
+>the time used to process the complex form.  This processing may
+>involve invoking the compiler.
+
+So, probably it is safe to do something like:
+
+
+(let* ((how-many-dig 1000)   ; this is for d = 1000
+      (n (* 2 (expt 10 (* 2 how-many-dig)))))
+  (terpri)
+  (princ "sqrt of 2 -> ")
+  (princ how-many-dig)
+  (princ " digits")
+  (terpri)
+  (time (fast-isqrt-mid1 n))
+  (time (fast-isqrt-rec n))
+  (time (isqrt n))
+  nil)
+
+
+Also, I received a function isqrt-newton (given below) from
+boyland@aspen.Berkeley.EDU, which is twice as fast as fast-isqrt-rec.
+I followed his proof that this function returns correct answer.
+I believe that, as far as one employs Newton's method, no one can
+make functions which is twice as fast as isqrt-newton.
+
+
+(defun isqrt-newton (n &aux n-len-quarter n-half n-half-isqrt
+                       init-value q r m iterated-value)
+  "argument must be a non-negative integer"
+  (cond
+   ((> n 24)            ; theoretically (> n 15) ,i.e., n-len-quarter > 0
+    (setq n-len-quarter (ash (- (integer-length n) 1) -2))
+    (setq n-half (ash n (- (ash n-len-quarter 1))))
+    (setq n-half-isqrt (isqrt-newton n-half))
+    (setq init-value (ash n-half-isqrt n-len-quarter))
+    (multiple-value-setq (q r) (floor n init-value))
+    (setq iterated-value (ash (+ init-value q) -1))
+    (cond ((oddp q)
+           iterated-value)
+          (t
+           (setq m (- iterated-value init-value))
+           (if (> (* m m) r)
+             (1- iterated-value)
+             iterated-value))))
+   ((> n 15) 4)
+   ((> n  8) 3)
+   ((> n  3) 2)
+   ((> n  0) 1)
+   ((> n -1) 0)
+   (t nil)))
+
+--
+
+Akira Kurihara
+
+d34676@tansei.cc.u-tokyo.ac.jp
+
+School of Mathematics
+Japan Women's University
+Mejirodai 2-8-1, Bunkyo-ku
+Tokyo 112
+Japan
+03-3943-3131 ext-7243
+Article 5224 of comp.lang.lisp:
+Path: pt.cs.cmu.edu!rochester!udel!wuarchive!zaphod.mps.ohio-state.edu!rpi!news-server.csri.toronto.edu!torsqnt!lethe!telly!moore!eastern!egsgate!Uucp
+From: Akira.Kurihara@f98.n250.z1.FidoNet.Org (Akira Kurihara)
+Newsgroups: comp.lang.lisp
+Subject: isqrt
+Message-ID: <676362388.61@egsgate.FidoNet.Org>
+Date: 5 Jun 91 18:32:11 GMT
+Sender: Uucp@egsgate.FidoNet.Org
+Lines: 180
+
+
+
+I am interested in the speed of a Common Lisp function isqrt
+for extremely big bignums.
+
+I compared three functions:
+
+fast-isqrt-mid1.....given below
+fast-isqrt-rec......given below
+isqrt...............a Common Lisp function
+
+These functions should return the same value.
+I tried it on the following three environments:
+
+MACL.........Macintosh Allegro Common Lisp 1.3.2 on Mac SE
+             accelerated with 25 MHz 68020
+lucid........Lucid Sun Common Lisp 4 on SPARCstation IPC
+akcl.........Austin Kyoto Common Lisp 1.530 on SPARCstation IPC
+
+I tried to calculate isqrt of:
+
+(* 2 (expt 10 2000)).....to get  1000 digits of square root of 2
+(* 2 (expt 10 6000)).....to get  3000 digits of square root of 2
+(* 2 (expt 10 20000))....to get 10000 digits of square root of 2
+
+Here is the result.
+
+*** For 1000 digits ***
+
+           fast-isqrt-mid1     fast-isqrt-rec         isqrt
+MACL          1.250 sec           0.317 sec        174     sec
+lucid         2.72  sec           0.63  sec         11.91  sec
+akcl          2.400 sec           0.567 sec          2.483 sec
+
+*** For 3000 digits ***
+
+           fast-isqrt-mid1     fast-isqrt-rec         isqrt
+MACL         12.233 sec           2.450 sec       4503     sec
+lucid        27.68  sec           5.45  sec        102.12  sec
+akcl         24.567 sec           5.100 sec         24.567 sec
+
+*** For 10000 digits ***
+
+           fast-isqrt-mid1     fast-isqrt-rec         isqrt
+MACL        142     sec          35     sec         very long
+lucid       327.75  sec          80.31  sec       1126.10  sec
+akcl        273.917 sec          64.367 sec        275.783 sec
+
+Looking at this table,
+(1) 25 MHz 68020 Macintosh can be as twice as faster than SPARCstation IPC
+as far as it is concerned with division of bignums by bignums.
+(2) akcl is a little bit faster than lucid at least as far as it is
+concerned with division of bignums by bignums.
+(3) isqrt = fast-isqrt-mid1 on akcl ?
+
+I appreciate very much if you would evaluate the following forms
+
+(isqrt-time-comparison (* 2 (expt 10 2000)) 1 1)
+
+(isqrt-time-comparison (* 2 (expt 10 6000)) 1 1)
+
+(isqrt-time-comparison (* 2 (expt 10 20000)) 1 1)
+
+on a different environment, and e-mail it to me. The function
+isqrt-time-comparison is given below.
+
+Also, if you have a faster function, would you inform me?
+
+Thank you.
+
+---
+
+(defun fast-isqrt-simple (n &aux init-value iterated-value)
+  "argument n must be a non-negative integer."
+  (cond
+   ((zerop n)
+    0)
+   (t
+    (setq init-value 1)
+    ; do iteration once
+    (setq iterated-value (floor (+ init-value (floor n init-value)) 2))
+    (setq init-value iterated-value)
+    (loop
+      ; do iteration, same as above
+      (setq iterated-value (floor (+ init-value (floor n init-value)) 2))
+      (if (>= iterated-value init-value) (return init-value))
+      (setq init-value iterated-value)))))
+
+
+(defun fast-isqrt-mid1 (n &aux n-len init-value iterated-value)
+  "argument n must be a non-negative integer"
+  (cond
+   ((> n 24)		; theoretically (> n 0) ,i.e., n-len > 0
+    (setq n-len (integer-length n))
+    (if (evenp n-len)
+      (setq init-value (ash 1 (ash n-len -1)))
+      (setq init-value (ash 2 (ash n-len -1))))
+    (loop
+      (setq iterated-value (ash (+ init-value (floor n init-value)) -1))
+      (if (not (< iterated-value init-value))
+        (return init-value)
+        (setq init-value iterated-value))))
+   ((> n 15) 4)
+   ((> n  8) 3)
+   ((> n  3) 2)
+   ((> n  0) 1)
+   ((> n -1) 0)
+   (t nil)))
+
+
+(defun fast-isqrt-rec (n &aux n-len-quarter n-half n-half-isqrt
+                       init-value iterated-value)
+  "argument n must be a non-negative integer"
+  (cond
+   ((> n 24)		; theoretically (> n 7) ,i.e., n-len-quarter > 0
+    (setq n-len-quarter (ash (integer-length n) -2))
+    (setq n-half (ash n (- (ash n-len-quarter 1))))
+    (setq n-half-isqrt (fast-isqrt-rec n-half))
+    (setq init-value (ash (1+ n-half-isqrt) n-len-quarter))
+    (loop
+      (setq iterated-value (ash (+ init-value (floor n init-value)) -1))
+      (if (not (< iterated-value init-value))
+        (return init-value)
+        (setq init-value iterated-value))))
+   ((> n 15) 4)
+   ((> n  8) 3)
+   ((> n  3) 2)
+   ((> n  0) 1)
+   ((> n -1) 0)
+   (t nil)))
+
+
+(defun isqrt-time-comparison (n1 how-many iteration-times &aux n2)
+  (setq n2 (+ n1 how-many))
+  (print "do nothing")
+  (time
+   (let ((n n1))
+     (loop
+       (if (not (< n n2)) (return))
+       (dotimes (i-t iteration-times)
+         )
+       (incf n))))
+  (print "fast-isqrt-mid1")
+  (time
+   (let ((n n1))
+     (loop
+       (if (not (< n n2)) (return))
+       (dotimes (i-t iteration-times)
+         (fast-isqrt-mid1 n))
+       (incf n))))
+  (print "fast-isqrt-rec")
+  (time
+   (let ((n n1))
+     (loop
+       (if (not (< n n2)) (return))
+       (dotimes (i-t iteration-times)
+         (fast-isqrt-rec n))
+       (incf n))))
+  (print "isqrt")
+  (time
+   (let ((n n1))
+     (loop
+       (if (not (< n n2)) (return))
+       (dotimes (i-t iteration-times)
+         (isqrt n))
+       (incf n))))
+  nil)
+
+----
+
+Akira Kurihara
+
+d34676@tansei.cc.u-tokyo.ac.jp
+
+School of Mathematics
+Japan Women's University
+Mejirodai 2-8-1, Bunkyo-ku
+Tokyo 112
+Japan
+03-3943-3131 ext-7243
+Article 5237 of comp.lang.lisp:
+Path: pt.cs.cmu.edu!o.gp.cs.cmu.edu!ram
+From: ram+@cs.cmu.edu (Rob MacLachlan)
+Newsgroups: comp.lang.lisp
+Subject: Re: isqrt
+Message-ID: <1991Jun13.003122.19863@cs.cmu.edu>
+Date: 13 Jun 91 00:31:22 GMT
+References: <676362388.61@egsgate.FidoNet.Org>
+Sender: netnews@cs.cmu.edu (USENET News Group Software)
+Organization: School of Computer Science, Carnegie Mellon
+Lines: 77
+
+I have done an evaluation this "isqrt" benchmark on CMU CL systems here at CMU.
+I discovered that the results being computed were wrong due to bugs in
+division.  After these problems had been solved, the times were significantly
+longer than those reported Miles, but still much faster than those of
+commercial implementations.  (generally 2-5x)
+
+I'd like the remark about the apparent inconsistency of high CMU bignum
+primitive performance v.s. poor performance on the built-in ISQRT.
+Really there is no inconsistency.  The bignum implementation has consistently
+*not* been tuned.  When we first got it running, it was already much faster
+than the commercial implementations.
+
+As to why CMU is faster, it's hard to say for sure.  It isn't algorithmic
+cleverness; we implemented Knuth fairly directly.  My guess is that the biggest
+factor is compiler technology: the CMU bignum code is written in Lisp using a
+few extra primitives like 32 x 32 -> 64.  Unlike the memory-to-memory
+operations described in the Lucid bignum paper, these are register-to-register
+operations.  Python efficiently open-codes 32 bit integer operations (even
+using the standard CL arithmetic/logic functions.)
+
+In the case of division (which these benchmarks are intensive with), it is also
+possible that we have implemented the 64 / 32 divide more efficiently.  This
+must be done as an assembly routine, since neither MIPS nor SPARC have an
+extended divide instruction.
+
+So what is the significance of this benchmark (and of bignum performance in
+general)?  Well, that obviously depends on how much you use bignums.  These
+sorts of large speedups for CMU are not seen for more conventional
+"symbol-crunching" Lisp programs (20% is more common...)  But if you are
+working on mathematical or scientific software, you will like CMU CL's dramatic
+superiority in bignum and floating-point arithmetic.
+
+The fact that CMU bignums are written in Lisp and are public domain also makes
+it easy for people doing serious work with extended-precision arithmetic to
+efficiently add any new primitives they need.
+
+As you may have inferred from Miles's message, CMU CL is up on SUNOS Sparcs.
+However, we are not ready to release it yet.  We will post to comp.lang.lisp.
+
+
+Raw data:
+
+The Lucid numbers were copied from the net.  The SparcStation 1+ numbers were
+done at CMU using allegro 4.0.1.  Both CMU and Allegro numbers are elapsed
+(real) time, not any sort of "CPU" time.
+
+1000 digits
+
+system\test	mid1	rec
+ds5000 CMU	0.38	0.09
+   "   Lucid	1.34	0.32
+ds3100 CMU	0.56	0.14
+   "   Lucid	2.34	0.55	
+ss1+  CMU	0.77	0.27
+   "  Allegro	1.65	0.38
+
+3000 digits
+
+system\test	mid1	rec
+ds5000 CMU	3.39	0.69
+   "   Lucid   13.7	2.70
+ds3100 CMU	4.88	1.02
+   "   Lucid   23.9	4.71
+ss1+ CMU	5.37	1.15
+   " Allegro   16.6	3.29
+
+10000 digits
+
+system\test	mid1	rec
+ds5000 CMU	38.7	10.5
+   "   Lucid   161	39.6
+ds3100 CMU	56.9	16.6
+   "   Lucid   284	69.5
+ss1+  CMU	64.5	17.6
+   "  Allegro  198	48.2
+
+  Robert A. MacLachlan (ram@cs.cmu.edu)

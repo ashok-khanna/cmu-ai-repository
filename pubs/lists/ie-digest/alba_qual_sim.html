@@ -1,0 +1,1157 @@
+
+Constraint-based qualitative simulation and its application to diagnosis
+
+Juan J. Alba, Jose Villar, Antonio Munoz
+Instituto de Investigacion Tecnologica
+Universidad Pontificia Comillas
+Alberto Aguilera, 23. 28015 Madrid
+(alba@iit.upco.es)
+phone +34 1 544 90 88
+fax   +34 1 549 87 31
+
+Abstract
+
+This  paper  describes  SIMCC,  a  constraint-based  qualitative
+simulation system.  SIMCC is  based  on Benjamin  Kuipers'  QSIM
+algorithm, but it includes new constraints, improvements  in the
+representation of  dynamic-structure  systems,  qualitative  and
+quantitative information management, explicit treatment  of time
+and a better filtering mechanism. SIMCC application in diagnosis
+and monitoring  of industrial  equipment and  processes is  also
+discussed.
+
+
+1 Introduction
+
+Qualitative simulation  intends to  provide  an approximate  or 
+abstract description of a  system behaviour, that can  be useful 
+whenever an accurate and complete mathematical description is not 
+required or possible.
+
+Qualitative models describe the structure of a  system in terms 
+of qualitative variables, (for instance, A is greater  than 0, B 
+is less than 5.7), and qualitative constraints  (for instance, A 
+increases when B decreases). Qualitative models can  be applied, 
+for instance, in medicine, when a mathematical description of the 
+human organs  is  not  available.  It can  be  also  applied  in  
+engineering: a qualitative model can be used to guide the initial 
+stages of a design process,  when the equipment under  design is 
+not well defined and no mathematical tools can  be applied. This 
+kind of models can be also useful in diagnosis tasks, in order to 
+provide an  efficient way  of validating  failure hypothesis  or 
+filtering measurements.
+
+Qualitative modelling and simulation is based on  the following 
+steps:
+
+-  description  of  the  system  structure  through   a  set  of  
+ qualitative constraints and variables,
+- prediction  of the  system behaviour  from  the initial  state 
+ and the constraints,
+- interpretation  of  the  obtained qualitative  evolution,  and  
+ application  of  the   result  to  design   refinement,  fault  
+ detection or other application.
+
+Different researchers have  followed three  main approaches  to 
+qualitative modelling: [1] presents the description of a physical 
+system in  terms of  components  and connections.  The  approach 
+presented in [2] is based on the modelling of a system  as a set 
+of interacting processes  that act on  shared variables. [3]  is 
+based on the previously existing mathematical description of the 
+system, that is treated in a qualitative way.
+
+This paper presents an introduction to QSIM as presented in [3],
+and  describes SIMCC, a  qualitative  simulation system based on 
+the Kuipers approach,  including several improvements concerning
+filters,   constraints   and  the   management  of  quantitative 
+information.  The description  of SIMCC will  be used to present
+the main elements  of a qualitative  simulation system. The last
+part of the paper will discuss the application of these ideas to 
+diagnosis problems.
+
+
+2 Constraint-based qualitative simulation
+
+This   section   briefly   describes   the   main    ideas   of   
+constraint-based qualitative  simulation,  presenting  the  QSIM  
+algorithm as described in [3] and [4].
+
+Constraint-based qualitative simulation is based on:
+
+-     Variables describing the system state.
+-  A  description   of  the   system  structure   in  terms   of  
+ constraints linking variables.
+-     The initial qualitative state of the system.
+
+The qualitative simulation process expands the initial state in 
+order to generate all possible  states for the next  time point. 
+Each of the obtained states will be further expanded in order to 
+generate all the possible  system evolutions through  time. This 
+simulation process has the following steps:
+
+-  A  set   of  possible   transitions  are   applied  to   each  
+ variable, in order to  determine the possible values  for each 
+ variable in the next time point.
+- The  obtained  possible  values  are  filtered,  in  order  to  
+ discard those that do not verify the constraints.
+- Each set  of possible  values for  every variable  is used  to 
+ generate a global interpretation, that will  define a possible 
+ system state.
+- The  global filtering  is applied  on global  interpretations, 
+ in order to determine which of them should be further expanded.
+
+The result of this process will be an oriented tree (see figure 
+1) where each node  represents a global qualitative  state. Each 
+path from the tree root up  to a leaf will represent  a feasible 
+system  evolution.  The  number  of  different  feasible  system  
+evolutions will depend on the amount of information contained in 
+the  qualitative   formulation   of  the   system   description.   
+Qualitative descriptions are usually less informative than their 
+quantitative counterparts, therefore several possible behaviours 
+can be generated.
+
+                            [Picture]
+ Figure 1. The system states tree. The terms used in this figure 
+           will be explained in the following sections
+
+2.1 Qualitative variables
+
+Physical systems  will be  modelled using  time dependent  real 
+variables such as f:
+
+                         f: [a,b] -> R* 
+                                
+being R*=[-inf, +inf] . Both the  domain ([a,b]) and the range  of f 
+will be closed intervals. 
+
+Kuipers'  algorithm  is  able  to  manage  functions  with  the  
+following features:
+
+-     f is continuous in [a, b]. 
+-     f is continuously differentiable in ]a, b[. 
+-  f  has  a  finite  number  of  critical   points  (where  the  
+ derivative is zero) in any bounded interval.
+- Derivative  values in  the endpoints  of  the domain  interval 
+ are defined as:
+
+                     f'(a) = lim(t->a+) f'(t)
+                     f'(b) = lim(t->b-) f'(t) 
+
+Qualitative simulation is based on the  qualitative description 
+of variables, i.e., on the discretization of  their values. Each 
+variable can have a finite number of qualitative  values and has 
+an ordered  set  of  landmarks,  being  each  qualitative  value  
+represented  by  an  ordered  couple  of  consecutive  or  equal  
+landmarks, as in
+
+                x = (xi, xi+1) <-> xi is in ]xi, xi+1[ 
+                      x = (xi, xi) <-> x = xi
+
+Any variable will always be between two consecutive landmarks or 
+will be  equal to  one landmark.  Landmarks represent  notorious 
+values, therefore the landmarks set will contain:
+
+-     0 if it is in the function range.
+-     f(a) and f(b).
+-     The value of f(t) for each critical point.
+-     Any other additional distinguished value..
+
+
+2.2 Time as an independent discrete variable
+
+The goal of  qualitative simulation is  the description of  the 
+system behaviour  through  time.  Therefore, time  will  be  the  
+independent variable, will also be treated as a discrete variable 
+and will be divided into time intervals.  The system description 
+is constant while in a time interval, and can only change when a 
+time point (the limit between two intervals) is reached.
+
+The system  evolution  will  be  described  as  a  sequence  of  
+transitions from a time interval (where the system  stays in the 
+same qualitative state)  to a distinguished  time point (when  a 
+variable reaches a landmark, something changes in the qualitative 
+state), then to the next time interval and so.
+
+Both time  intervals  and  distinguished time  points  will  be  
+referred to as qualitative time points, and  will be represented 
+by a couple of consecutive or equal distinguished time points.
+
+                 t = (ti, ti+1) <-> t is in ]ti, ti+1[
+                     t = (ti, ti) <-> t = ti.
+
+Note that this  management of  time can  be used  to order  the 
+obtained  system  states,  but  does  not   provide  information  
+concerning time intervals  duration, because distinguished  time 
+points  are  only  ordered  symbolic  values   not  representing  
+numerical values. However, landmarks are actual numerical values 
+that can be reached by functions.
+
+
+2.3 Qualitative states
+
+The qualitative state of a function fi:
+
+                         fi: [a,b] -> R* 
+
+with landmarks c0 < c1 < ... < ck in the  qualitative time point 
+(tj, tk) being k=j or k=j+1 is defined as:
+
+                QS(fi, (tj, tk)) = fi(cm, cn, dir) 
+
+where k=j  or k=j+1,  n=m or  n=m+1, being  dir the  qualitative 
+derivative:
+
+                 dir = DEC  if  f'(tj,tk) < 0 
+                 dir = CTE  if  f'(tj,tk) = 0 
+                 dir = CRE  if  f'(tj,tk) > 0 
+
+The qualitative state of a system is defined as the  set of the 
+qualitative states of all its functions.
+
+Note that the qualitative  derivative is also  discretized, but 
+the number of its possible values is always three.  On the other 
+hand, the number of possible qualitative values of  i can change 
+as new landmarks are added.
+
+Whenever a  variable  is  between  two landmarks,  it  will  be  
+monotonous (i.e., its qualitative derivative will be constant in 
+the interval defined  by those  landmarks). If  the variable  is 
+between two landmarks and its qualitative derivative is CTE, then 
+it will be equal to a symbolic value between both landmarks.
+
+
+2.4 Qualitative constraints
+
+The structure of the system being modelled  will be represented 
+by means of a set of qualitative constraints among the previously 
+defined variables. The simulation process will assign behaviours 
+to the variables, and the constraints will be used to detect and 
+delete the unfeasible combinations of behaviours. Constraints are 
+the qualitative counterpart of differential equations.
+
+The  complete  set  of  constraints  proposed  in  [3]  is  the  
+following:
+
+                ADD(f, g, h) <-> f(t) = g(t) + h(t)
+               MULT(f, g, h) <-> f(t) = g(t) * h(t)
+                   MINUS(f, g) <-> f(t) = -g(t)
+                 DERIV(f,g) <-> f(t) = d(g(t))/dt
+        M+(f, g) <-> f(t) is an increasing function of g(t)
+         M-(f,g) <-> f(t) is a decreasing function of g(t)
+
+(note that the order of arguments is not the same as in [3]).
+
+Constraints can have associated sets of corresponding values:
+
+                M+(f, g); VCOR( (0, 0) (2, 1) ) <->
+ <-> f is an increasing function of g and for all t, g(t) = 0 -> f(t) = 0, 
+                       g(t) = 1 -> f(t) = 2
+
+
+2.5 Transitions
+
+Transitions are used to obtain the set  of possible qualitative 
+states of  a variable  in a  qualitative time  point, given  its 
+qualitative state in the previous  time point. They are  base in 
+the hypothesis stated in 2.1.
+
+There are two kinds of transitions:
+
+- P  transitions:  a  P  transition  is  an  ordered  couple  of  
+ consecutive qualitative states,
+
+               QS(f, (ti, ti)) -> QS(f, (ti, ti+1))
+
+ where the  first  state corresponds  to  a distinguished  time  
+ point, and the second state corresponds to a time interval.
+
+P transitions           QS(f, (ti, ti))       QS(f, (ti, ti + 1))
+P1                      (cj,  cj, CTE)        (cj, cj, CTE)
+P2                      (cj, cj, CTE)         (cj, cj+1, CRE)
+P3                      (cj,  cj, CTE)        (cj-1, cj,  DEC)
+P4                      (cj,  cj,  CRE)       (cj,  cj+1,   CRE)
+P5                      (cj,  cj+1, CRE)      (cj, cj+1, CRE)
+P6                      (cj, cj, DEC)         (cj-1,  cj, DEC)
+P7                      (cj, cj+1, DEC)       (cj, cj+1, CRE)
+
+- I  transitions:  an  I  transition is  an  ordered  couple  of  
+ qualitative sates
+
+             QS(f, (ti, ti+1)) -> QS(f, (ti+1, ti+1))
+
+ where the first state corresponds to a  time interval, and the 
+ second one corresponds to a distinguished time point
+
+I transitions           QS(f, (ti, ti+1))      QS(f, (ti+1, ti+1))
+I1                      (cj, cj, CTE)          (cj, cj, CTE)
+I2                      (cj,  cj+1,  CRE)      (cj+1,   cj+1,  CTE)
+I3                      (cj,   cj+1, CRE)      (cj+1,   cj+1,   CRE)
+I4                      (cj,  cj+1, CRE)       (cJ,   cJ+1,  CRE)
+I8                      (cj, cj+1, CRE)        (c*, c*, CTE)
+I5                      (cj,  cj+1, DEC)       (cj, cj,  CTE)
+I6                      (cj,  cj+1,  DEC)      (cj,  cj,   DEC)
+I7                      (cj,  cj+1, DEC)       (cj, cj+1, DEC)
+I9                      (cj, cj+1, DEC)        (c*, c*, CTE)
+
+Note that in transitions  I8 and I9  the function f  reaches c* 
+with its derivative equal to 0, being c* a new landmark such that 
+cj < c* < cj+1 
+
+
+2.6 Qualitative differential equations
+
+If a  system  can  be  described  through  a  set  of  ordinary  
+differential equations (with no partial derivatives), then it can 
+be expressed  as a  set of  qualitative constraints,  as in  the 
+following example: 
+
+Given the equation: 
+
+           f(dny/dtn) + ... + a1f(dy/dt) + a0y = f(t) 
+                                
+being ai = ai(t) and y = y(t) ,
+
+the equation can be transformed into a system by doing x0 = y, x1 
+= f(dy/dt), ... , xn-1 = f(dn-1y/dtn-1), 
+
+                         f(dx0/dt) = x1 
+                      f(dx1/dt) = x2 ... 
+       f(dxn-1/dt) = -a0x0 - a1x1 - ... - an-1xn-1 + f(t) 
+
+and the qualitative formulation of this system is the following: 
+
+DER(x1, x0)
+DER(x2, x1) ...
+DER(xn-1, xn-2)
+MUL(p0, a0, x0)
+MUL(p1, a1, x1) ...
+MUL(pn-1, an-1, xn-1)
+ADD(s0, p0, p1) 
+ADD(s1, s0, p2) ...
+ADD(sn-2, sn-3, pn-1) 
+SUB(sn-1, f, sn-2) 
+DER(xn, xn-1) 
+SUB(ZERO, xn, sn-1)  
+
+where: x0 is y(t). pi are auxiliary functions for the qualitative 
+products.  si  are  auxiliary  functions  for   the  qualitative  
+additions. Zero is a function equal to 0. 
+
+
+2.7 Consistency filtering
+
+After obtaining  the possible  transitions  for each  variable, 
+consistency filtering aims at  generating, for each  constraint, 
+the set of  consistent transitions  lists for  all the  argument 
+variables in the constraint.
+
+Let REST(f1 , f2) be a constraint and y (T1,  T2) a transitions 
+list associated to REST,
+
+  T1(f1):  (cinf1, csup1, dir1) ->  (cinf1*, csup1*, dir1*)
+   T2(f2): (cinf2,csup2,dir2) ->    (cinf2*,csup2*,dir2*) 
+
+Transitions list (T1,T2) is consistent with constraint  REST if 
+and only if the successor qualitative states generated by (T1,T2) 
+agree with REST.
+
+For instance, given
+
+-     variables f(0, 2, +ì), g(0, 1, +ì)
+-     constraint M+(f, g); VCOR((0, 0) (2, 1))
+- initial  state in  a time  interval ptc,  ptc =  (0, 1):  f(0, 
+ 2, CRE), g(0, 1, CRE)
+-     and transitions list (I8, I2) being 
+           I8: (cj, cj+1, CRE) -> (cj, cj+1, CTE)
+           I2:(cj, cj+1, CRE) -> (cj+1, cj+1, CTE)
+
+successor qualitative states in time point (1, 1) are:
+
+f(0, 2, CTE) (after applying I8)
+g(1, 1, CTE) (after applying I2)
+
+and the consistency filtering will provide the following results:
+
+- qualitative  derivatives are  consistent:  both variables  are 
+ constant in the successor  state, and that is  consistent with 
+ M+.
+-  qualitative   values:  g   reaches  the   value   1  in   the  
+ qualitative time  point (1,  1), while  f does  not reach  the  
+ corresponding  value   2,  therefore   both  transitions   are   
+ inconsistent.
+
+
+2.8 Global filtering and interpretation
+
+(Note that the  terminology in this  section is not  completely 
+equal to the one used in [3]. Some changes  have been introduced 
+in order to ensure the consistency with the description of SIMCC 
+in the next section).
+
+A global interpretation  is the assignment  of a transition  to 
+every variable in the system.
+
+Consistency filtering provides  lists of  transitions that  are 
+consistent with  each  individual constraint.  Global  filtering  
+obtains sequences  of transitions  lists  making sure  that  the 
+different transitions lists associated to  different constraints 
+assign the  same transitions  to the  same  variables when  they 
+appear in different constraints. If this is not the case for any 
+of the transitions list, it will be discarded.
+
+For instance, let S be a system with three variables, X, Y y Z, 
+and three constraints R0, R1,  R2, where the following  lists of 
+transitions have  been  selected  by the  consistency  filtering  
+procedure:
+
+               R0(X, Y)   R1(Y, Z)      R2(X, Z)
+               (P1, P2)   (P1, P1)      (P1, P3)
+               (P2, P3)   (P2, P3)      (P2, P1)
+
+The first transitions list of R0 will assign P2  to variable Y. 
+The first transitions  list of  R1 will  assign P1  to the  same 
+variable.  Therefore,  these  two  transitions  lists   are  not  
+compatible. In this case, the only global interpretation will be 
+(P1,P2,P3) (corresponding to (X ,Y ,Z)).
+
+After obtaining global interpretations that will  correspond to 
+feasible qualitative states, the  algorithm has to  select those 
+that should not be further expanded. A state will be discarded if 
+it corresponds to a no change situation,  a periodical behaviour 
+or a divergent behaviour (see section 3.9).
+
+
+3 The SIMCC algorithm
+
+The QSIM  algorithm presented  in section  2  and described  in 
+detail in [3] has some significant problems:
+
+-   Quantitative   information,    usually   useful   even    in   
+ qualitative problems, is not paid sufficient attention.
+-  Dynamic  structures  (systems  whose  structure   can  change  
+ through time) are not easily represented.
+-     Time is not explicitly treated.
+-     Lack of certain interesting constraints.
+
+The algorithm that will be described in section  3, named SIMCC
+(the  name  stands  for  the  Spanish  initials  of  Qualitative  
+Simulation in  C)  is  intended  to  provide  solutions  to  the  
+limitations mentioned above. This  algorithm basically uses  the 
+QSIM approach, with some additional elements and improvements. A 
+detailed description of SIMCC may be found in [5] and [6] or [7].
+
+SIMCC has  been written  in  the C  programming  language on  a  
+personal computer (QSIM was written in Lisp). It  has 6800 lines 
+of code. There are to auxiliary applications: SCMENU (2200 lines) 
+is a menu-based environment for using SIMCC, SCGRAF (1400 lines) 
+can generate qualitative graphical  outputs similar to  the ones 
+presented in [3].
+
+
+3.1 The management of time 
+
+Quantitative time information can be obtained by  defining time 
+as a new system variable  such that T=T(t), with  its associated 
+list of landmarks that will store interesting numerical values of 
+time. Therefore, T will be a function of time t, being the former 
+the "actual" time, including relevant  quantitative information, 
+and  the  latter  the   "Kuipers"  time,  purely   symbolic  and  
+corresponding to the sequence of qualitative time points.
+
+Therefore, let  (0,5,+ì)  be the  landmarks  of T,  a  possible  
+evolution of T could be the following:
+
+qualitative    T
+time
+point 
+(t0, t0)       (0, 0)   
+(t0, t1)       (0, 5) 
+(t1, t1)       (0, 5) 
+(t1, t2)       (0, 5)
+(t2, t2)       (5, 5) 
+(t2, t3)       (5, +inf) 
+(t3, t3)       (+inf, +inf) 
+
+where the following  quantitative information about  qualitative 
+time points is encapsulated:
+
+t0 = 0
+t1 _ ]0, 5[ 
+t2 = 5 
+t3 = +inf 
+
+
+3.2 Elements of a constraint 
+
+A constraint must have the following elements:
+
+-     A predicate, that is the constraint name.
+
+-  A  list  of  argument  variables,  that  are  linked  by  the  
+ predicate.
+ 
+-  The  constraint   validity  domain,   a  list  of   intervals  
+ (delimited by landmarks) corresponding to each of the argument 
+ variables that indicate when the constraint can  be applied (a 
+ constraint can be applied if and only if  each of the argument 
+ variables is  inside  its  corresponding domain).  This  makes  
+ possible to  enable  or  disable  constraints  as  the  system  
+ evolves, and to model systems with varying structures.
+ 
+A constraint can also have additional attributes:
+
+- A  set of  corresponding values,(vc0,  vc1,...,  vcn-1) for  a 
+ n argument variables constraint (f0, f1,..., fn-1) is a list of 
+ n landmarks vci, (one  for each fi)  such that if all  the n-1 
+ independent variables  (f1,..., fn-1)  reach their  associated  
+ landmarks (vc1,..., vcn-1) then the dependent variable f0 will 
+ also reach vc0. Note that not all the  constraints can have an 
+ associated list of corresponding values.
+ 
+-     A parameters list, that can modify the constraint
+
+
+3.3 SIMCC constraints
+
+Arithmetic constraints  mainly link  values, while  qualitative 
+constraints are mainly used to link qualitative derivatives.
+
+SIMCC arithmetic constraints are the following:
+
+Name              Meaning              Parameters   Corresp. val.
+
+ADD(F0, F1, F2)   F0 = F1 + F2         none         accepted
+SUB(F0, F1, F2)   F0 = F1 - F2         none         accepted
+MUL(F0, F1, F2)   F0 = F1F2            none         accepted
+OPP(F0, F1)       F0 = -F1             none         accepted
+EXP(F0, F1)       F0 = (eP0F1) + P1    P0, P1       accepted
+LN(F0, F1)        F0 = Ln (P0F1 + P1)  P0, P1       accepted
+SIN(F0, F1)       F0 = sin(P0F1 + P1)  P0, P1       accepted 
+COS(F0, F1)       F0 = cos(P0F1 + P1)  P0, P1       accepted
+POL(F0, F1)       F0= P0 + P1F1 +...+ Pn*F1n
+                                       P0,P1,...,Pn accepted
+
+All the landmarks in the initial state must be numerical values. 
+Therefore, arithmetic  constraints  do  not  need  corresponding  
+values in  the initial  state,  since SIMCC  will  automatically 
+relate the involved landmarks. However, during  SIMCC execution, 
+symbolic landmarks can appear because of transitions  I8 and I9. 
+Therefore SIMCC will create and maintain lists  of corresponding 
+values associated to symbolic landmarks.
+
+The qualitative constraints are the following: 
+
+Name          Meaning                   Parameters          Corr. val.
+
+MPL(F0, F1)   sign (f(dF1;dt)) = 
+                sign (f(dF0;dt))        none                 accepted
+MNG(F0, F1)   sign (f(dF1;dt)) =
+                sign (-f(dF0;dt))       none                 accepted
+CTE(F0)       f(dF0;dt) =  0            none                 not accepted
+TIM(F0)       F0 is the qualitative 
+                expression of t         none                 not accepted
+DER(F0, F1)   F0 = f(dF1;dt)            none                 not accepted
+
+A known constant will be a function with only one  value in its 
+landmarks list. An unknown constant will be defined as:
+
+- a variable  with (0, +inf)  as landmarks list  and (0, +inf,  CTE) 
+ as initial state,
+-  the  CTE  constraint  with  no  constraint   validity  domain  
+ (i.e., the constraint will be applicable for all t).
+
+
+3.4 Modelling a system using SIMCC
+
+A SIMCC model of a system must have the following components:
+
+-     Variables declarations: 
+
+                 VARIABLE_NAME (c1, c2,..., cn) 
+
+ being  (c1,  c2,...,  cn) the  initial  ordered  landmarks  list. 
+ All the  landmarks  will be  numerical  in  the current  SIMCC  
+ version. The variable range will be [c1,cn].
+
+ The  landmarks  list  may  have as  many  landmarks  as  desired.  
+ This will increase results accuracy, but will  make slower the 
+ simulation process. On the other hand, the bigger the number of 
+ landmarks,  the  bigger  the  number   of  alternative  system  
+ behaviours that  can  be  generated.  A landmark  may  be  any  
+ numerical value, + inf, - inf, or aPI/b.
+    
+
+-  Constraints  declarations:   The  most  general   declaration  
+ will be as follows,
+
+      CONSTRAINT_TYPE(farg0, farg1,..., fargm)
+      PARM (P0, P1,..., Pt), the parameters list,
+      DOMI  (f0[dominf0, domsupf0],...), the  constraint  validity  
+ domain,
+      VCOR ((vcor00, vcor01,..., vcor0m), ...), the corresponding values list.
+
+-     Initial state of each variable: 
+
+      fi (cinffi, csupfi, dir)
+
+  cinffi  and  csupfi  must  be  consecutive  or  equal  members  of  
+ the fi landmarks list. The  initial state may correspond  to a 
+ distinguished time  point or  a  time interval.  This must  be  
+ clearly stated, since this fact will determine the appropriate 
+ transitions (I or P).
+
+
+3.5 Initial state filtering
+
+The initial state  will be  consistent if and  only if  all the 
+active constraints hold for  the initial values of  the argument 
+variables. A constraint will be active if its argument variables 
+are inside the constraint validity domain.
+
+The consistency  filtering mechanism  (that  will be  described 
+later) will be  also used  for this  purpose. Since  consistency 
+filtering is based on transitions, initial state  filtering will 
+be implemented through the use of a new type of transitions (type 
+O), that generate a successor state that is equal to the initial 
+state.
+
+If the initial state is consistent, new values must be added to 
+each of  the  landmarks  lists,  in  order  to  gather  all  the  
+information that may be needed for successor states. The landmark 
+0 will always be added, and for each constraint, the appropriate 
+values will be included. For instance, if the constraint ADD(f0, 
+f1, f2) is present, the opposites of f2 landmarks  will be added 
+to f1 landmarks list and  the opposites of f1 landmarks  will be 
+added to f2 landmarks list. More details on this can be found in 
+[7].
+
+
+3.6 Selection of possible transitions
+
+After the initial  state filtering,  SIMCC will  carry out  the 
+following tasks:
+
+-  To  determine  which   are  the  applicable   transitions.  I  
+ transitions will be selected  if the current  qualitative time 
+ point is an interval, P transitions will be selected otherwise.
+-  To   apply   to   each   variable   state   the   appropriate   
+ transitions, in  order  to  generate  its  possible  successor  
+ states. The application of transitions must  take into account 
+ the variables ranges  (for instance, P2,  P3, P4 and  P6 could 
+ take a  variable out  of its  range  if applied  close to  the  
+ endpoints of the range interval).
+
+A successor  state  of  the  system is  generated  through  the  
+application of n transitions to  the n variables in  the system. 
+Since the maximum number of  transitions per variable is  4, the 
+maximum number of possible successor states is  n4. Filtering is 
+intended to limit this number.
+
+Filtering will be carried out in three steps:
+
+-  Consistency  filtering:   It  will   filter  the   applicable  
+ transitions  for  each   variable  taking  into   account  the  
+ constraints  (disregarding  their  validity  domains).  It  is  
+ similar to Kuipers' filtering but the  individual treatment of 
+ constraints has been  modified. For  each constraint,  it will 
+ generate all the lists of  transitions that can be  applied to 
+ its argument variables.
+
+- Global  filtering:  The  transitions  lists  corresponding  to  
+ all the constraints  must be  merged, in  order to  obtain the  
+ possible successor  states. If  several constraints  (that are  
+ active taking into  account their  domains) share  an argument 
+ variable, all of them should assign the same transition to that 
+ variable. Kuipers' global filtering has been modified in order 
+ to consider the constraints domain.
+
+- Global  interpretation:  It  corresponds  to  Kuipers'  global  
+ filtering,  introducing  some  modifications   in  divergences  
+ treatment.
+
+
+3.7 Consistency filtering
+
+The starting point is the set of possible  transitions for each 
+variable. The filtering process has the following stages:
+
+-  For  each  constraint,  all  possible  transitions   for  its  
+ argument variables are combined, and a set of transitions lists 
+ is obtained.
+- For  each transitions  list and  for each  list of  constraint 
+ arguments, a set of variables successor states is generated.
+- Each  list  of  possible  successor states  is  checked  again  
+ its corresponding constraint. If it is not compatible, the list 
+ is discarded.
+
+Arithmetic constraints filtering is based on the generation of a 
+theoretical  interval  (]vi0infc,  vi0supc[)  derived  from  the  
+successor states of the independent variables.  This theoretical 
+interval must be overlapped with successor state of the dependent 
+variable, otherwise  the  transitions  list  can  be  considered  
+inconsistent.
+
+Given a three argument arithmetic constraint,
+
+                          f0 = f1 # f2 
+
+being "#" any arithmetic operator, and being the successor states 
+for a given transitions list the following:
+
+                    f0(vi0inf, vi0sup, dir0)
+                    f1(vi1inf, vi1sup, dir1)
+                    f2(vi2inf, vi2sup, dir2)
+
+the theoretical interval will be obtained as follows,
+
+    ]vi1inf, vi1sup[ # ]vi2inf, vi2sup[ = ]vi0infc, vi0supc[ 
+
+and the transitions list will be consistent with the constraint 
+if:
+
+       ]vi0inf, vi0sup[ intersecton ]vi0infc, vi0supc[ /= {}
+
+The interval defined by vi0infc and vi0supc is  obtained by the 
+retvi algorithm  (see [7]),  given given  vi1inf, vi1sup,  dir1, 
+vi2inf, vi2sup and dir2.
+
+vi0infc and vi0supc  will be  obtained by  operating f1 and  f2 
+landmarks in the appropriate direction up to  obtain vi0infc and 
+vi0supc such  that  are  members  of  f0  landmarks  list.  This  
+operation is obvious if the landmarks in f1 and  f2 are numeric, 
+and makes use of corresponding values if  symbolic landmarks are 
+involved.
+
+The enclosed  table  presents  a complete  description  of  the  
+consistency filtering of constraint ADD(f0, f1, f2), being
+
+                    f0(vi0inf, vi0sup, dir0)
+                     f1(vi1inf,vi1sup,dir1)
+                     f2(vi2inf,vi2sup,dir2)
+
+the candidate successor states for each argument variable.
+
+Name          Qualitative derivatives Inconsistent if.... 
+ADD(f0,f1,f2) (dir1=CRE,dir2=CRE and dir0/=CRE) 
+              or 
+              (dir1=DEC, dir2=DEC and dir0/=DEC) 
+              or (dir1=CTE and dir2/=dir0) 
+              or (dir2=CTE and dir1/=dir0)
+              Theoretical interval
+              vi0supc = retvi(vi1sup,cre,vi2sup,cre)
+              vi0infc = retvi(vi1inf,dec,vi2inf,dec)
+              Always consistent if...
+              (f1=-inf or f2=+inf) or (f1=+inf or f2=-inf)
+
+More details can be  found in [6]  or [7]. The  following table 
+presents the filtering related to qualitative constraints.
+
+Name         Qualitative derivatives. Inconsistent if...
+DER(f0, f1)  (dir1=CTE and (vi0inf/=0 or vi0sup/=0)) or
+             (dir1=CRE and (vi0inf=vi0sup=0 or vi0inf<0)) or
+             (dir1=DEC and (vi0inf=vi0sup=0 or vi0sup>0))
+
+MNG(f0, f1)  (dir1=CTE and dir0/=CTE) or (dir1=CRE and dir0/=DEC) 
+             or (dir1=DEC and dir0/=CRE)
+             Intervals inconsistency
+             vi0infc: f0 landmark corresponding to the f1 landmark closer and 
+             greater or equal to v1sup or the smallest f0 landmark
+             vi0supc: f0 landmark corresponding to the f1 landmark closer and 
+             lesser or equal to v1inf or the greatest f0 landmark
+
+MPL(f0, f1)  dir1/=dir0
+             Intervals inconsistency
+             vi0infc: f0 landmark corresponding to the f1 landmark closer and 
+             lesser or equal to v1inf or the smallest f0 landmark
+             vi0supc: f0 landmark corresponding to the f1 landmark closer and 
+             greater or equal to v1sup or the greatest f0 landmark
+
+CTE(f0)      dir0/=CTE
+
+TIM(f0)      dir0/= CRE
+
+3.8 Global filtering
+
+Global filtering provides a complete assignment  of transitions 
+for all the variables in  the system, by adequately  merging the 
+transitions lists corresponding to each constraint. Each complete 
+assignment will generate a possible successor state.
+
+Global filtering must take into account all the constraints and 
+all the variables, since  the domain of  a given constraint  may 
+depend on  variables  that  are  not among  its  arguments.  The  
+algorithm proposed by Kuipers in [3] does not  take into account 
+the constraints domains.
+
+The global filtering process is  based on a depth  first search 
+procedure that is described in [7].
+
+
+3.9 Global interpretation
+
+A  complete  transitions  assignment  after   global  filtering  
+represents a  mathematically  feasible  state.  However,  global  
+interpretation intends  to select  states  that deserve  further 
+expansion or have some interesting feature.
+
+The possible global interpretations are the following:
+
+- No change  situation: all  the transitions  in the  assignment 
+ are I1, I4 or I7, and the generated successor state is equal to 
+ the initial one and may be discarded (note  that this does not 
+ correspond to periodical behaviour).
+
+-  Periodical  behaviour:  when  all  the  variable  states  are  
+ repeated in one  path in  the states tree  and no  changes are 
+ expected in the system structure.
+
+-  Divergent  behaviour:  a  simulated  behaviour  is  divergent  
+ whenever any of the system variables (excluded time) reaches +ì 
+ or -ì. Three interpretations are possible:
+
+    - assume  that no  variable  can reach  ì and  discard  that 
+      interpretation.
+    - assume  that  ì  corresponds  to a  system  anomaly  (such  
+      as  a   component   fatal   failure).   Therefore,   this   
+      interpretation could be accepted but  no further expanded 
+      (since the system structure will  be different because of 
+      the failure).
+    - accept  the divergence  and continue  simulation  up to  a 
+      second divergence. After  that, consistency  filtering is  
+      not possible.  This would  correspond to  the study  of a  
+      limit.
+
+Global interpretation  must  take  into account  that,  if  TIM  
+constraint is being  used, any acceptable  branch in the  states 
+tree must lead to the end of the time range.
+
+
+4 SIMCC contributions
+
+The SIMCC algorithm included several improvements over the QSIM 
+system as described in [3]. Most of QSIM  drawbacks addressed by 
+SIMCC have been described in [8].
+
+- Initial state  filtering, introduced  in SIMCC,  is the  basis 
+ of qualitative supervision, that will be described later. This 
+ filtering is based in  the same filtering algorithms  that are 
+ used in state expansion, no additional procedures are required.
+
+-  New  constraints   have  been  added   to  the  initial   set  
+ proposed by Kuipers. New arithmetic constraints and the use of 
+ parameters lists  permit to  take advantage  of the  available  
+ quantitative information, and make the qualitative models more 
+ compact. However, the consistency filtering have been improved 
+ in order to deal with these new requirements.
+
+-  Explicit  time  management   was  not  considered   by  QSIM.  
+ Generated  states  were   ordered,  but  variables   were  not  
+ explicitly related to time. The use of time in global filtering 
+ can also help to prune the states tree (see section 3.9).
+
+-  Quantitative  information  management:  QSIM  could  lead  to  
+ results like "2  + 2  = a positive  quantity greater  than 2". 
+ SIMCC is able  to take  advantage of  quantitative information 
+ through the use of the hybrid arithmetic  described in section 
+ 3.7,  that  is  able  to  deal  with  numerical  and  symbolic  
+ intervals.
+
+-  The  lack  of  dynamic  structures  in  QSIM  (reported,  for  
+ instance, in [9]) has been solved through  the use of validity 
+ domains for  constraints.  Examples of  the  interest of  this  
+ possibility can be found in [5].
+
+-  A  new   filtering  procedure  has   been  required  by   the  
+ improvements  mentioned  above.   The  new   interval  algebra   
+ described in  3.7  was not  present  in [3],  and  the use  of  
+ validity domains for constraints  require a new  structure for 
+ the global filtering mechanism.
+
+
+5 Qualitative simulation and fault 
+diagnosis
+
+Current technology in  artificial intelligence  applications in 
+monitoring and diagnosis of industrial systems is  usually based 
+in the  following elements:  (see, for  instance,  [9], [10]  or 
+[11]):
+
+-  Mathematical   models  of   the   system  being   supervised,  
+ corresponding to normal or failure situations, that can be used 
+ to predict its behaviour given input data.
+- Statistical  tools  that  are  required in  order  to  analyze  
+ differences between measures and model predictions.
+- Knowledge  based  systems  that  can  interpret  the  detected  
+ differences and provide appropriate diagnosis.
+
+Nevertheless,  this  approach   usually  presents   significant  
+drawbacks:
+
+- Mathematical  models  are  usually difficult  to  develop  and  
+ test, and their parameters can be difficult to estimate.
+- There  is a  significant  gap between  the  knowledge used  in  
+ failure detection (that is in the basis of the models) and the 
+ diagnosis knowledge,  that  can be  encoded  using well  known  
+ knowledge representation techniques.
+-  Mathematical  models  and   diagnosis  knowledge  bases   are  
+ usually system-specific,  very  difficult  to apply  in  other  
+ systems.
+- The  knowledge acquisition  task  required for  this  approach 
+ is quite time consuming and difficult to systematize.
+
+The use of qualitative models has been suggested as an answer to 
+these problems. Sometimes (see [12] or [13])  qualitative models 
+have been proposed as sources of examples that can be treated by 
+learning algorithms such ID3. Other authors ([14], [15] or [16]) 
+propose the direct usage of qualitative models in the monitoring 
+or troubleshooting process.
+
+This section presents two possible approaches to diagnosis based 
+on qualitative models. The first approach is based on the use of 
+a failure library, storing  qualitative models of  failures. The 
+second approach is based on the normal  state qualitative model, 
+and makes use of the initial state filtering to analyze measures. 
+
+
+5.1 Diagnosis based on a failure library
+
+Figure  2  shows  an  outline  of  this  approach.  Qualitative  
+simulation is used to generate a failure library that will store 
+qualitative descriptions of the system behaviour under  the most 
+frequent failure conditions. This  is the main drawback  of this 
+approach, since  it requires  the development  of a  qualitative 
+model for each failure.  Nevertheless, some authors  ([17]) have 
+proposed the automatic generation of failure models  through the 
+modification of a basic  model (however, this  is only valid  if 
+failures do  not  significantly  modify  the  structure  of  the  
+system). 
+
+The diagnosis process  will be based  on the discretization  of 
+system measures (conversion  of actual  values into  qualitative 
+information) and its comparison to the information in the failure 
+library.
+
+This comparison is easier if it is carried out using qualitative 
+information,  since  the   same  failure   can  have   different  
+quantitative descriptions that correspond to the same qualitative 
+situation.  However,   unaccuracies   inherent  to   qualitative   
+modelling must be taken into account.
+
+                            [Picture]
+         Figure 2. Diagnosis based on a failure library
+
+If the  observed system  behaviour corresponds  to  one of  the 
+failure models  in  the  library,  the  identification  will  be  
+immediate. If the comparison  is not clear enough,  new measures 
+will be requested in order to make the situation clearer.
+
+An important task in this process is  the so-called qualitative 
+conversion.
+
+
+5.2 Qualitative conversion of measures
+
+This conversion requires a  list of numeric landmarks  for each 
+monitored variable. The qualitative state of a  variable F, with 
+associated landmarks (vi1, vi2,..., vin), in the qualitative time 
+point (ptdinf, ptdsup), will be represented as:
+
+         QS(F, (ptdinf, ptdsup)) = F(viinf, visup, dir)
+
+The qualitative conversion is the determination of viinf, visup 
+and dir. The values viinf  and visup will be the  landmarks that 
+are the closest to the observed value, MED. If MED < vi1 or MED > 
+vin, there is a failure situation or an error in the model.
+
+The qualitative derivative of F, dir, will be determined through 
+the numerical computation of the derivative of MED after several 
+consecutive samples.
+
+On the other hand, any variable that is in the qualitative model 
+and is not being monitored will be estimated from measured data.
+
+
+5.3 Qualitative supervision
+
+This approach is  represented in  figure 3.  There is only  one 
+qualitative model, that  corresponds to  normal behaviour.  This 
+approach is  based in  the  following hypothesis:  every  system 
+behaviour that is not  consistent with the model  constraints is 
+caused by a failure.
+
+Qualitative supervision is also based on qualitative conversion. 
+This operation will provide a qualitative state  for the system, 
+that can be filtered as the initial state of  the simulation was 
+filtered. If any of the active constraints is violated, there is 
+a failure.
+
+Failure identification is based on the violated constraints. The 
+most appropriate model  should have one  set of constraints  for 
+each component  in  the  system,  therefore  violations  can  be  
+associated to malfunctions. If the failure identification is not 
+clear, new measures will be requested.
+
+
+                            [Picture]
+               Figure 3. Qualitative supervision.
+
+A mixed approach can  be also envisaged.  It could make  use of 
+qualitative supervision for failure detection and initial failure 
+hypothesis and could carry out failure identification by means of 
+the failure library, if the information derived from the violated 
+constraints is not enough.
+
+
+6 Conclusions and further development
+
+Expert systems are usually based on expert knowledge, frequently 
+intuitive and derived from experience. The knowledge acquisition 
+process is  a time  consuming  task, where  inconsistencies  and 
+errors can be frequently found.
+
+Qualitative simulation, on the other hand, is based  on a model 
+that can be derived from the detailed study of the system and the 
+application of its constituent physical laws. Its application to 
+diagnosis tasks seems to be more systematic.  This technique can 
+be also used to model systems that are only partially known. 
+
+
+6.1 Qualitative simulation advantages
+
+Qualitative simulation provides qualitative information, that is 
+usually easier to understand and  use than lists of  numbers. It 
+can be also useful to  obtain a first analysis of  problems that 
+will be  later approached  using  numeric techniques,  therefore 
+reducing the search space and the computational load.
+
+On the  other hand,  qualitative simulation  makes possible  to 
+study the evolution of a partially known system.
+
+Mathematical models are  not always  possible or  satisfactory. 
+Sometimes,  they  do   not  exist   (like  in  certain   medical  
+applications). The involved parameters can be extremely difficult 
+to estimate, or the mathematical  structure of the model  can be 
+too complex. In  these cases,  qualitative simulation  can be  a 
+solution.
+
+The qualitative model  can provide information  about variables 
+that cannot  be observed,  because  of technical  or  economical 
+reasons.
+
+Diagnosis based on qualitative models of failures can take into 
+account the future failure evolution. This can be used to provide 
+a more  useful information  on the  failure, and  to assess  the 
+different maintenance strategies. On the other hand, qualitative 
+models are flexible enough to be modified through the addition of 
+new constraints.
+
+Last but not least, qualitative simulation intends to be a step 
+further in the formalization of common sense  reasoning that can 
+be implemented in a computer, and therefore a step further in the 
+development of intelligent systems.
+
+
+6.2 Qualitative simulation drawbacks
+
+The  most  important  disadvantage  of  this  approach  is  the  
+generation of  a tree  of possible  behaviours,  instead of  one 
+single description of the system evolution. This is caused by the 
+lack of information in the qualitative formulation of a problem, 
+and can lead to computational unefficiencies.
+
+This problem can  be addressed  through the  use of  additional 
+equations, that would be  redundant in a quantitative  model but 
+are useful in a qualitative formulation. An alternative solution 
+is the use  of domain  specific knowledge,  useful to prune  the 
+states tree.
+
+
+6.3 Further development
+
+Efficient filtering methods are the most important goal of SIMCC 
+improvement.  Constraint-guided  search   algorithms,  such   as  
+relaxation labelling ([18], [19]) could be used for this purpose. 
+The basic  problem in  SIMCC the  assignment  of transitions  to 
+functions, and this  could be  formulated as  the assignment  of 
+values to  discrete variables,  as in  the relaxation  labelling 
+problem.
+
+SIMCC could be also  improved through the addition  of discrete 
+functions (such as the ones used in  electronic circuits). These 
+new functions  do  not verify  the  hypothesis in  section  2.1,  
+therefore they  would  require  their own  transitions.  No  new  
+landmarks would be added, state changes would only correspond to 
+distinguished time points  (I transitions)  and new  constraints 
+could be required (such as AND, OR, etc).
+
+New constraints like "greater  than" or "less than"  could make 
+easier to model certain systems. Last but not least, constraints 
+involving only corresponding values could be also useful.
+
+
+References
+
+[12]   I.    Bratko   et    al.,    Automatic   synthesis    and   
+          compression  of   cardiological   knowledge.  Machine   
+          Intelligence 11, 1988.
+[9]  B.   Bredeweg,   B.   Wielinga.   Integrating   qualitative   
+          reasoning approaches. ECAI-88
+[1]  J.  De   Kleer,  J.   S.  Brown,   A  qualitative   physics
+          based on  confluences.  Artificial  Intelligence, 24,
+          1984.
+[2]    K.    D.    Forbus,    Qualitative     process    theory.
+          Artificial Intelligence, 24, 1984.
+[18]  R.A.   Hummel,  S.W.   Zucker,  On   the  foundations   of
+          relaxation labeling  processes. IEEE  Transactions on
+          Pattern  Analysis  and   Machine  Intelligence,  Vol.
+          PAMI-5, No. 3, mayo 1983.
+[8]   R.    Janowsky.    An    introduction    to    QSIM    and    
+          qualitative simulation.  Artificial  Intelligence  in  
+          Engineering, 1987, Vol. 2, No. 2.
+[3]   B.    Kuipers.    Qualitative    simulation.    Artificial    
+          Intelligence, 24. 1986.
+[4]   B.    Kuipers.    Qualitative   simulation    as    causal    
+          explanation. IEEE  Transactions on  Systems,  Man and  
+          Cybernetics, vol SMC-1.7, n§ 3, may-june 1987.
+[14]  J.T.  Malin   et  al.,  Use   of  qualitative  models   in  
+          discrete event simulation to  analyze malfunctions in  
+          processing systems.  in  Artificial  Intelligence  in  
+          Process Engineering, [11]
+[11]      M.L.      Mavrovouniotis,      editor.      Artificial      
+          Intelligence in process  engineering. Academic Press,  
+          1990
+[5]  A.   Munoz.   Desarrollo   informatico  de   un   simulador   
+          cualitativo basado  en restricciones.  Estudio  de su  
+          aplicaci¢n al diagn¢stico.  Proyecto Fin  de Carrera,  
+          ETSII Universidad Pontificia Comillas, 1991
+[13]   D.A.   Pearce,   The   induction   of   fault   diagnosis   
+          systems  from   qualitative   models,   Workshop   on   
+          artificial intelligence intelligence applications for  
+          space projects, ESA/ESTEC, 1988.
+[15]   S.H.    Rich,    V.    Venkatasubramanian,    Model-based    
+          reasoning in diagnostic  expert systems  for chemical  
+          process plants,  Computers  in  Chemical Engineering,  
+          Vol. 11, No. 2, 1987
+[9]   G.   Saucier,   A.    Ambler,   M.A.   Breuer,    editors.   
+          Knowledge  based  systems  for  test  and  diagnosis.  
+          North-Holland, 1989.
+[16]   T.F.    Thompson,    W.J.    Clancey,    A    qualitative    
+          modeling shell for process  diagnosis, IEEE Software,  
+          march 1986.
+[19]  C.  Torras,   Relaxation  and   neural  learning:   points  
+          of convergence and divergence. Journal of Parallel and 
+          distributed computing, april 1988.
+[10]   S.G.    Tzafestas,    editor.   Knowledge-based    system    
+          diagnosis, supervision  and  control.  Plenum  Press,  
+          1989.
+[6]   J.   Villar.   Desarrollo   te¢rico   de    un   simulador   
+          cualitativo  basado   en   restricciones.  Aplicacion   
+          informatica al diagnostico. Proyecto  Fin de Carrera,  
+          ETSII Universidad Pontificia Comillas, 1991
+[7]  A.   Munoz,  J.   Villar,  J.J.   Alba.  SIMCC:   Simulador  
+          Cualitative basado en  restricciones. Informe Interno  
+          IIT-91-013, 1991.
+[17]   Q.   Shen,   R.    Leitch.   Qualitative   model    based   
+          diagnosis of continuous dynamic systems. Submitted to 
+          the First  International  Conference  on  Intelligent  
+          Systems Engineering. 1992.

@@ -1,0 +1,117 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node316.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 10:10:47 GMT -->
+<HEAD>
+<TITLE>29.3.1. Signaling Errors</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Signaling Errors">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html5647 HREF="node317.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5645 HREF="node315.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5639 HREF="node315.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5649 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5650 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5648 HREF="node317.html"> Trapping Errors</A>
+<B>Up:</B> <A NAME=tex2html5646 HREF="node315.html"> Survey of Concepts</A>
+<B> Previous:</B> <A NAME=tex2html5640 HREF="node315.html"> Survey of Concepts</A>
+<HR> <P>
+<H2><A NAME=SECTION003331000000000000000>29.3.1. Signaling Errors</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+Conceptually, signaling an error in a program is an admission by that program
+that it does not know how to continue and requires external intervention. Once
+an error is signaled, any decision about how to continue must come from the
+``outside.''
+<P>
+The simplest way to signal an error is to use the <tt>error</tt> function with
+<tt>format</tt>-style arguments describing the error for the sake of the user interface.
+If <tt>error</tt> is called and there are no active handlers (described
+in sections <A HREF="node317.html#TRAPPINGERRORS">29.3.2</A> and <A HREF="node318.html#HANDLINGCONDITIONS">29.3.3</A>), the
+debugger will be entered and the error message will be typed out. For example:
+<P><pre>
+Lisp&gt; (defun factorial (x) 
+        (cond ((or (not (typep x 'integer)) (minusp x)) 
+               (error &quot;~S is not a valid argument to FACTORIAL.&quot; 
+                      x)) 
+              ((zerop x) 1) 
+              (t (* x (factorial (- x 1)))))) 
+ => FACTORIAL 
+Lisp&gt; (factorial 20) 
+ => 2432902008176640000 
+Lisp&gt; (factorial -1) 
+Error: -1 is not a valid argument to FACTORIAL. 
+To continue, type :CONTINUE followed by an option number: 
+ 1: Return to Lisp Toplevel. 
+Debug&gt;
+</pre><P>
+In general, a call to <tt>error</tt> cannot directly return. Unless special work has
+been done to override this behavior, the debugger will be entered and there
+will be no option to simply continue.
+<P>
+The only exception may be that some implementations may provide debugger
+commands for interactively returning from individual stack frames; even then,
+however, such commands should never be used except by someone who has read the
+erring code and understands the consequences of continuing from that point. In
+particular, the programmer should feel confident
+about writing code like this:
+<P><pre>
+(defun wargames:no-win-scenario () 
+  (when (true) (error &quot;Pushing the button would be stupid.&quot;)) 
+  (push-the-button))
+</pre><P>
+In this scenario, there should be no chance that the function <tt>error</tt> will return
+and the button will be pushed.
+<P>
+<hr>
+<b>Remark:</b> It should be noted that the notion of
+``no chance'' that the button will be pushed is relative only to the language
+model; it assumes that the language is accurately implemented.  In practice,
+compilers have bugs, computers have glitches, and users have been known
+to interrupt at inopportune moments and use the debugger to return from
+arbitrary stack frames.  Such violations of the language model are
+beyond the scope of the condition system but not necessarily beyond the
+scope of potential failures that the programmer should consider and defend against.
+The possibility of such unusual failures may of course also influence the design of
+code meant to handle less drastic situations,
+such as maintaining a database uncorrupted.-KMP and GLS
+<hr>
+<P>
+In some cases, the programmer may have a single, well-defined idea of a
+reasonable recovery strategy for this particular error. In that case, he can
+use the function <tt>cerror</tt>, which specifies information about what would happen
+if the user did simply continue from the call to <tt>cerror</tt>. For example:
+<P><pre>
+Lisp&gt; (defun factorial (x) 
+        (cond ((not (typep x 'integer)) 
+               (error &quot;~S is not a valid argument to FACTORIAL.&quot; 
+                      x)) 
+              ((minusp x) 
+               (let ((x-magnitude (- x))) 
+                 (cerror &quot;Compute -(~D!) instead.&quot; 
+                         &quot;(-~D)! is not defined.&quot; x-magnitude) 
+                 (- (factorial x-magnitude)))) 
+              ((zerop x) 1) 
+              (t (* x (factorial (- x 1)))))) 
+ => FACTORIAL 
+Lisp&gt; (factorial -3) 
+Error: (-3)! is not defined. 
+To continue, type :CONTINUE followed by an option number: 
+ 1: Compute -(3!) instead. 
+ 2: Return to Lisp Toplevel. 
+Debug&gt; :continue 1 
+ => -6
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html5647 HREF="node317.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5645 HREF="node315.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5639 HREF="node315.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5649 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5650 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5648 HREF="node317.html"> Trapping Errors</A>
+<B>Up:</B> <A NAME=tex2html5646 HREF="node315.html"> Survey of Concepts</A>
+<B> Previous:</B> <A NAME=tex2html5640 HREF="node315.html"> Survey of Concepts</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

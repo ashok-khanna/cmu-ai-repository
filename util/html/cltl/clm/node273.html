@@ -1,0 +1,180 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node273.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 10:10:07 GMT -->
+<HEAD>
+<TITLE>28.1.4. Integrating Types and Classes</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Integrating Types and Classes">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html5070 HREF="node274.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5068 HREF="node261.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5062 HREF="node272.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5072 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5073 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5071 HREF="node274.html"> Determining the Class </A>
+<B>Up:</B> <A NAME=tex2html5069 HREF="node261.html"> Programmer Interface Concepts</A>
+<B> Previous:</B> <A NAME=tex2html5063 HREF="node272.html"> Examples</A>
+<HR> <P>
+<H2><A NAME=SECTION003214000000000000000>28.1.4. Integrating Types and Classes</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<A NAME=IntegratingTypesandClassesSECTION>The</A>
+Common Lisp Object System maps the space of classes into the Common Lisp type space.
+Every class that has a proper name has a corresponding type with the same 
+name.
+<P>
+The proper name of every class is a valid type specifier.  In
+addition, every class object is a valid type specifier.  Thus the
+expression <tt>(typep <i>object class</i>)</tt> evaluates to true if the
+class of <i>object</i> is <i>class</i> itself or a subclass of <i>class</i>.  The evaluation of the expression <tt>(subtypep <i>class1
+class2</i>)</tt> returns the values <tt>t</tt> and <tt>t</tt> if <i>class1</i> is a
+subclass of <i>class2</i> or if they are the same class; otherwise it
+returns the values <tt>nil</tt> and <tt>t</tt>.  If <i>I</i> is an instance of some class
+<i>C</i> named <i>S</i> and <i>C</i> is an instance of <tt>standard-class</tt>, the
+evaluation of the expression <tt>(type-of <i>I</i>)</tt> will return <i>S</i> if
+<i>S</i> is the proper name of <i>C</i>; if <i>S</i> is not the proper
+name of <i>C</i>, the expression <tt>(type-of <i>I</i>)</tt> will
+return <i>C</i>.
+<P>
+Because the names of classes and class objects are type specifiers, they may
+be used in the special form <tt>the</tt> and in type declarations.
+<P>
+Many but not all of the predefined Common Lisp type specifiers have a
+corresponding class with the same proper name as the type.  These type
+specifiers are listed in table <A HREF="node273.html#CLOSPRECEDENCETABLE">28-1</A>.  For example, the
+type <tt>array</tt> has a corresponding class named <tt>array</tt>.  No type specifier
+that is a list, such as <tt>(vector double-float 100)</tt>, has a corresponding
+class. The form <tt>deftype</tt> does not create any classes.
+<P>
+Each class that corresponds to a predefined Common Lisp type specifier
+can be implemented in one of three ways, at the discretion of each
+implementation.  It can be a <i>standard class</i> (of the kind
+defined by <tt>defclass</tt>), a <i>structure class</i> (defined
+by <tt>defstruct</tt>), or a <i>built-in class</i> (implemented in
+a special, non-extensible way).
+<P>
+A built-in class is one whose instances have restricted capabilities or
+special representations.  Attempting to use <tt>defclass</tt> to define 
+subclasses of a built-in class signals an error.  Calling 
+<tt>make-instance</tt> to create an instance of a built-in class signals an error.
+Calling <tt>slot-value</tt> on an instance of a built-in class signals an
+error.  Redefining a built-in class or using <tt>change-class</tt> to change
+the class of an instance to or from a built-in class signals an error.
+However, built-in classes can be used as parameter specializers in
+methods.
+<P>
+
+<P>
+It is possible to determine whether a class is a built-in class by
+checking the metaclass.  A standard class is an instance of 
+<tt>standard-class</tt>, a built-in class is an instance of 
+<tt>built-in-class</tt>, and a structure class is an instance of 
+<tt>structure-class</tt>.
+<P>
+Each structure type created by <tt>defstruct</tt> without using the 
+<tt>:type</tt> option has a corresponding class.  This class is an instance of
+<tt>structure-class</tt>.  
+
+<P>
+The <tt>:include</tt> option of <tt>defstruct</tt> creates a direct
+subclass of the class that corresponds to the included structure.
+<P>
+The purpose of specifying that many of the standard Common Lisp type
+specifiers have a corresponding class is to enable users to write methods that
+discriminate on these types.  
+Method selection requires that a class precedence list can be
+determined for each class.
+<P>
+The hierarchical relationships among the Common Lisp type specifiers
+are mirrored by relationships among the classes corresponding to those
+types.  The existing type hierarchy is used for determining the
+class precedence list for each class that corresponds to a predefined
+Common Lisp type.  In some cases, the first edition
+did not specify a local precedence order for two supertypes of a
+given type specifier.  For example, <tt>null</tt> is a subtype of both
+<tt>symbol</tt> and <tt>list</tt>, but the first edition
+did not specify whether <tt>symbol</tt> is more specific or less
+specific than <tt>list</tt>.  The CLOS specification defines those
+relationships for all such classes.
+<P>
+Table <A HREF="node273.html#CLOSPRECEDENCETABLE">28-1</A> lists the set of classes required by the Object System 
+that correspond to predefined Common Lisp type specifiers.  The
+superclasses of each such class are presented in order from most
+specific to most general, thereby defining the class precedence list
+for the class. The local precedence order for each class that
+corresponds to a Common Lisp type specifier can be derived from this
+table.
+<P>
+Individual implementations may be extended to define other type
+specifiers to have a corresponding class.  Individual implementations
+can be extended to add other subclass relationships and to add other
+elements to the class precedence lists in the above table as long as
+they do not violate the type relationships and disjointness
+requirements specified in section <A HREF="node42.html#DATATYPERELATIONSHIPS">2.15</A>.
+A standard class defined with no direct superclasses is guaranteed to
+be disjoint from all of the classes in the table, except for the
+class named <tt>t</tt>.
+<P>
+[At this point the original CLOS report specified that certain Common Lisp
+types were to appear in table <A HREF="node273.html#CLOSPRECEDENCETABLE">28-1</A> if and only if
+X3J13 voted to make them disjoint from
+<tt>cons</tt>, <tt>symbol</tt>, <tt>array</tt>, <tt>number</tt>, and <tt>character</tt>.
+X3J13 voted to do so in June 1988
+(DATA-TYPES-HIERARCHY-UNDERSPECIFIED) <A NAME=31775>&#160;</A> .  I have added these types
+and their class precedence lists to the table; the new types are indicated
+by asterisks.-GLS]
+<P>
+<pre><A NAME=CLOSPRECEDENCETABLE>&#160;</A>
+----------------------------------------------------------------
+Table 28-1: Class Precedence Lists for Predefined Types
+
+Predefined              Class Precedence List 
+Common Lisp Type        for Corresponding Class
+==============================================================
+array                   (array t)
+bit-vector              (bit-vector vector array sequence t)
+character               (character t)
+complex                 (complex number t)
+cons                    (cons list sequence t)
+float                   (float number t)
+function *              (function t) 
+hash-table *            (hash-table t) 
+integer                 (integer rational number t)
+list                    (list sequence t)
+null                    (null symbol list sequence t)
+number                  (number t)
+package *               (package t) 
+pathname *              (pathname t) 
+random-state *          (random-state t) 
+ratio                   (ratio rational number t)
+rational                (rational number t)
+readtable *             (readtable t) 
+sequence                (sequence t)
+stream *                (stream t) 
+string                  (string vector array sequence t)
+symbol                  (symbol t)
+t                       (t)
+vector                  (vector array sequence t)
+==============================================================
+
+[An asterisk indicates a type added to this table as a consequence of
+a portion of the CLOS specification that was conditional on X3J13
+voting to make that type disjoint from certain other built-in types
+(DATA-TYPES-HIERARCHY-UNDERSPECIFIED).---GLS]
+
+----------------------------------------------------------------
+</pre>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html5070 HREF="node274.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5068 HREF="node261.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5062 HREF="node272.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5072 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5073 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5071 HREF="node274.html"> Determining the Class </A>
+<B>Up:</B> <A NAME=tex2html5069 HREF="node261.html"> Programmer Interface Concepts</A>
+<B> Previous:</B> <A NAME=tex2html5063 HREF="node272.html"> Examples</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

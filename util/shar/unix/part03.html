@@ -1,0 +1,1124 @@
+Subject:  v15i020:  Tools to create and unpack shell archives, Part03/03
+Newsgroups: comp.sources.unix
+Approved: rsalz@uunet.UU.NET
+
+Submitted-by: Rich Salz <rsalz@bbn.com>
+Posting-number: Volume 15, Issue 20
+Archive-name: cshar/part03
+
+#! /bin/sh
+# This is a shell archive.  Remove anything before this line, then unpack
+# it by saving it into a file and typing "sh file".  To overwrite existing
+# files, type "sh file -c".  You can also feed this as standard input via
+# unshar, or by typing "sh <file", e.g..  If this archive is complete, you
+# will see the following message at the end:
+#		"End of archive 3 (of 3)."
+# Contents:  parser.c
+# Wrapped by rsalz@fig.bbn.com on Fri May 27 14:15:09 1988
+PATH=/bin:/usr/bin:/usr/ucb ; export PATH
+if test -f 'parser.c' -a "${1}" != "-c" ; then 
+  echo shar: Will not clobber existing file \"'parser.c'\"
+else
+echo shar: Extracting \"'parser.c'\" \(24206 characters\)
+sed "s/^X//" >'parser.c' <<'END_OF_FILE'
+X/*
+X**  An interpreter that can unpack many /bin/sh shell archives.
+X**  This program should really be split up into a couple of smaller
+X**  files; it started with Argify and SynTable as a cute ten-minute
+X**  hack and it just grew.
+X**
+X**  Also, note that (void) casts abound, and that every command goes
+X**  to some trouble to return a value.  That's because I decided
+X**  not to implement $? "properly."
+X*/
+X#include "shar.h"
+X#ifdef	RCSID
+static char RCS[] =
+X	"$Header: parser.c,v 2.0 88/05/27 13:27:39 rsalz Exp $";
+X#endif	/* RCSID */
+X
+X
+X/*
+X**  Manifest constants, handy shorthands.
+X*/
+X
+X/* Character classes used in the syntax table. */
+X#define C_LETR		1		/* A letter within a word	*/
+X#define C_WHIT		2		/* Whitespace to separate words	*/
+X#define C_WORD		3		/* A single-character word	*/
+X#define C_DUBL		4		/* Something like <<, e.g.	*/
+X#define C_QUOT		5		/* Quotes to group a word	*/
+X#define C_META		6		/* Heavy magic character	*/
+X#define C_TERM		7		/* Line terminator		*/
+X
+X/* Macros used to query character class. */
+X#define ISletr(c)	(SynTable[(c)] == C_LETR)
+X#define ISwhit(c)	(SynTable[(c)] == C_WHIT)
+X#define ISword(c)	(SynTable[(c)] == C_WORD)
+X#define ISdubl(c)	(SynTable[(c)] == C_DUBL)
+X#define ISquot(c)	(SynTable[(c)] == C_QUOT)
+X#define ISmeta(c)	(SynTable[(c)] == C_META)
+X#define ISterm(c)	(SynTable[(c)] == C_TERM)
+X
+X
+X/*
+X**  Data types
+X*/
+X
+X/* Command dispatch table. */
+typedef struct {
+X    char	  Name[10];		/* Text of command name		*/
+X    int		(*Func)();		/* Function that implements it	*/
+X} COMTAB;
+X
+X/* A shell variable.  We only have a few of these. */
+typedef struct {
+X    char	 *Name;
+X    char	 *Value;
+X} VAR;
+X
+X
+X/*
+X**  Global variables.
+X*/
+X
+XFILE		*Input;			/* Current input stream		*/
+char		*File;			/* Input filename		*/
+int		 Interactive;		/* isatty(fileno(stdin))?	*/
+X#ifdef	MSDOS
+jmp_buf		 jEnv;			/* Pop out of main loop		*/
+X#endif	MSDOS
+X
+extern COMTAB	 Dispatch[];		/* Defined below...		*/
+static VAR	 VarList[MAX_VARS];	/* Our list of variables	*/
+static char	 Text[BUFSIZ];		/* Current text line		*/
+static int	 LineNum = 1;		/* Current line number		*/
+static int	 Running = TRUE;	/* Working, or skipping?	*/
+static short	 SynTable[256] = {	/* Syntax table			*/
+X    /*	\0	001	002	003	004	005	006	007	*/
+X	C_TERM,	C_WHIT,	C_WHIT,	C_WHIT,	C_WHIT,	C_WHIT,	C_WHIT,	C_WHIT,
+X    /*	\h	\t	\n	013	\f	\r	016	017	*/
+X	C_WHIT,	C_WHIT,	C_TERM,	C_WHIT,	C_TERM,	C_TERM,	C_WHIT,	C_WHIT,
+X    /*	020	021	022	023	024	025	026	027	*/
+X	C_WHIT,	C_WHIT,	C_WHIT,	C_WHIT,	C_WHIT,	C_WHIT,	C_WHIT,	C_WHIT,
+X    /*	can	em	sub	esc	fs	gs	rs	us	*/
+X	C_WHIT,	C_WHIT,	C_WHIT,	C_WHIT,	C_WHIT,	C_WHIT,	C_WHIT,	C_WHIT,
+X
+X    /*	sp	!	"	#	$	%	&	'	*/
+X	C_WHIT,	C_LETR,	C_QUOT,	C_TERM,	C_LETR,	C_LETR,	C_DUBL,	C_QUOT,
+X    /*	(	)	*	+	,	-	.	/	*/
+X	C_WORD,	C_WORD,	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,
+X    /*	0	1	2	3	4	5	6	7	*/
+X	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,
+X    /*	8	9	:	;	<	=	>	?	*/
+X	C_LETR,	C_LETR,	C_LETR,	C_DUBL,	C_DUBL,	C_LETR,	C_DUBL,	C_LETR,
+X
+X    /*	@	A	B	C	D	E	F	G	*/
+X	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,
+X    /*	H	I	J	K	L	M	N	O	*/
+X	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,
+X    /*	P	Q	R	S	T	U	V	W	*/
+X	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,
+X    /*	X	Y	Z	[	\	]	^	_	*/
+X	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_META,	C_LETR,	C_LETR,	C_LETR,
+X
+X    /*	`	a	b	c	d	e	f	g	*/
+X	C_WORD,	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,
+X    /*	h	i	j	k	l	m	n	o	*/
+X	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,
+X    /*	p	q	r	s	t	u	v	w	*/
+X	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_LETR,
+X    /*	x	y	z	{	|	}	~	del	*/
+X	C_LETR,	C_LETR,	C_LETR,	C_LETR,	C_DUBL,	C_LETR,	C_LETR,	C_WHIT,
+X};
+X
+X/**
+X***		E R R O R   R O U T I N E S
+X**/
+X
+X
+X/*
+X**  Print message with current line and line number.
+X*/
+static void
+Note(text, arg)
+X    char	*text;
+X    char	*arg;
+X{
+X    Fprintf(stderr, "\nIn line %d of %s:\n\t", LineNum, File);
+X    Fprintf(stderr, text, arg);
+X    Fprintf(stderr, "Current line:\n\t%s\n", Text);
+X    (void)fflush(stderr);
+X}
+X
+X
+X/*
+X**  Print syntax message and die.
+X*/
+void
+SynErr(text)
+X    char	*text;
+X{
+X    Note("Fatal syntax error in %s statement.\n", text);
+X    exit(1);
+X}
+X
+X/**
+X***		I N P U T   R O U T I N E S
+X**/
+X
+X
+X/*
+X**  Miniscule regular-expression matcher; only groks the . meta-character.
+X*/
+static int
+Matches(p, text)
+X    REGISTER char	*p;
+X    REGISTER char	*text;
+X{
+X    for (; *p && *text; text++, p++)
+X	if (*p != *text && *p != '.')
+X	    return(FALSE);
+X    return(TRUE);
+X}
+X
+X
+X
+X/*
+X**  Read input, possibly handling escaped returns.  Returns a value so
+X**  we can do things like "while (GetLine(TRUE))", which is a hack.  This
+X**  should also be split into two separate routines, and punt the Flag
+X**  argument, but so it goes.
+X*/
+int
+GetLine(Flag)
+X    REGISTER int	 Flag;
+X{
+X    REGISTER char	*p;
+X    REGISTER char	*q;
+X    char		 buf[LINE_SIZE];
+X
+X    if (Interactive) {
+X	Fprintf(stderr, "Line %d%s>  ", LineNum, Running ? "" : "(SKIP)");
+X	(void)fflush(stderr);
+X    }
+X    Text[0] = '\0';
+X    for (q = Text; fgets(buf, sizeof buf, Input); q += strlen(strcpy(q, buf))) {
+X	LineNum++;
+X	p = &buf[strlen(buf) - 1];
+X	if (*p != '\n') {
+X	    Note("Input line too long.\n", (char *)NULL);
+X	    exit(1);
+X	}
+X	if (!Flag || p == buf || p[-1] != '\\') {
+X	    (void)strcpy(q, buf);
+X	    return(1);
+X	}
+X	p[-1] = '\0';
+X	if (Interactive) {
+X	    Fprintf(stderr, "PS2>  ");
+X	    (void)fflush(stderr);
+X	}
+X    }
+X    Note("RAN OUT OF INPUT.\n", (char *)NULL);
+X    exit(1);
+X    /* NOTREACHED */
+X}
+X
+X
+X/*
+X**  Copy a sub-string of characters into dynamic space.
+X*/
+static char *
+CopyRange(Start, End)
+X    char	*Start;
+X    char	*End;
+X{
+X    char	*p;
+X    int		 i;
+X
+X    i = End - Start + 1;
+X    p = strncpy(NEW(char, i + 1), Start, i);
+X    p[i] = '\0';
+X    return(p);
+X}
+X
+X
+X/*
+X**  Split a line up into shell-style "words."
+X*/
+int
+Argify(ArgV)
+X    char		**ArgV;
+X{
+X    REGISTER char	**av;
+X    REGISTER char	 *p;
+X    REGISTER char	 *q;
+X    
+X    for (av = ArgV, p = Text; *p; p++) {
+X	/* Skip whitespace, but treat "\ " as a letter. */
+X	for (; ISwhit(*p); p++)
+X	    if (ISmeta(*p))
+X		p++;
+X	if (ISterm(*p))
+X	    break;
+X	switch (SynTable[*p]) {
+X	default:
+X	    Note("Bad case %x in Argify.\n", (char *)SynTable[*p]);
+X	    /* FALLTHROUGH */
+X	case C_META:
+X	    p++;
+X	    /* FALLTHROUGH */
+X	case C_WHIT:
+X	case C_LETR:
+X	    for (q = p; ISletr(*++q) || ISmeta(q[-1]); )
+X		;
+X	    *av++ = CopyRange(p, --q);
+X	    p = q;
+X	    break;
+X	case C_DUBL:
+X	    if (*p == p[1]) {
+X		*av++ = CopyRange(p, p + 1);
+X		p++;
+X		break;
+X	    }
+X	    /* FALLTHROUGH */
+X	case C_WORD:
+X	    *av++ = CopyRange(p, p);
+X	    break;
+X	case C_QUOT:
+X	    for (q = p; *++q; )
+X		if (*q == *p && !ISmeta(q[-1]))
+X		    break;
+X	    *av++ = CopyRange(p + 1, q - 1);
+X	    p = q;
+X	    break;
+X	}
+X    }
+X    *av = NULL;
+X    if (av > &ArgV[MAX_WORDS - 1])
+X	SynErr("TOO MANY WORDS IN LINE");
+X    return(av - ArgV);
+X}
+X
+X/**
+X***		V A R I A B L E   R O U T I N E S
+X**/
+X
+X
+X/*
+X**  Return the value of a variable, or an empty string.
+X*/
+static char *
+GetVar(Name)
+X    REGISTER char	*Name;
+X{
+X    REGISTER VAR	*Vptr;
+X
+X    for (Vptr = VarList; Vptr < &VarList[MAX_VARS]; Vptr++)
+X	if (EQ(Vptr->Name, Name))
+X	    return(Vptr->Value);
+X
+X    /* Try the environment. */
+X    return((Name = getenv(Name)) ? Name : "");
+X}
+X
+X
+X/*
+X**  Insert a variable/value pair into the list of variables.
+X*/
+void
+SetVar(Name, Value)
+X    REGISTER char	*Name;
+X    REGISTER char	*Value;
+X{
+X    REGISTER VAR	*Vptr;
+X    REGISTER VAR	*FreeVar;
+X
+X    /* Skip leading whitespace in variable names, sorry... */
+X    while (ISwhit(*Name))
+X	Name++;
+X
+X    /* Try to find the variable in the table. */
+X    for (Vptr = VarList, FreeVar = NULL; Vptr < &VarList[MAX_VARS]; Vptr++)
+X	if (Vptr->Name) {
+X	    if (EQ(Vptr->Name, Name)) {
+X		free(Vptr->Value);
+X		Vptr->Value = COPY(Value);
+X		return;
+X	    }
+X	}
+X	else if (FreeVar == NULL)
+X	    FreeVar = Vptr;
+X
+X    if (FreeVar == NULL) {
+X	Fprintf(stderr, "Overflow, can't do '%s=%s'\n", Name, Value);
+X	SynErr("ASSIGNMENT");
+X    }
+X    FreeVar->Name = COPY(Name);
+X    FreeVar->Value = COPY(Value);
+X}
+X
+X
+X/*
+X**  Expand variable references inside a word that are of the form:
+X**	foo${var}bar
+X**	foo$$bar
+X**  Returns a pointer to a static area which is overwritten every
+X**  other time it is called, so that we can do EQ(Expand(a), Expand(b)).
+X*/
+static char *
+XExpand(p)
+X    REGISTER char	*p;
+X{
+X    static char		 buff[2][VAR_VALUE_SIZE];
+X    static int		 Flag;
+X    REGISTER char	*q;
+X    REGISTER char	*n;
+X    REGISTER char	 Closer;
+X    char		 name[VAR_NAME_SIZE];
+X
+X    /* This is a hack, but it makes things easier in DoTEST, q.v. */
+X    if (p == NULL)
+X	return(p);
+X
+X    /* Pick the "other" buffer then loop over the string to be expanded. */
+X    for (Flag = 1 - Flag, q = buff[Flag]; *p; )
+X	if (*p == '$')
+X	    if (*++p == '$') {
+X		(void)sprintf(name, "%d", Pid());
+X		q += strlen(strcpy(q, name));
+X		p++;
+X	    }
+X	    else if (*p == '?') {
+X		/* Fake it -- all commands always succeed, here. */
+X		*q++ = '0';
+X		*q = '\0';
+X		p++;
+X	    }
+X	    else {
+X		Closer =  (*p == '{') ? *p++ : '\0';
+X		for (n = name; *p && *p != Closer; )
+X		    *n++ = *p++;
+X		if (*p)
+X		    p++;
+X		*n = '\0';
+X		q += strlen(strcpy(q, GetVar(name)));
+X	    }
+X	else
+X	    *q++ = *p++;
+X    *q = '\0';
+X    return(buff[Flag]);
+X}
+X
+X
+X/*
+X**  Do a variable assignment of the form:
+X**	var=value
+X**	var="quoted value"
+X**	var="...${var}..."
+X**	etc.
+X*/
+static void
+DoASSIGN(Name)
+X    REGISTER char	*Name;
+X{
+X    REGISTER char	*Value;
+X    REGISTER char	*q;
+X    REGISTER char	 Quote;
+X
+X    /* Split out into name:value strings, and deal with quoted values. */
+X    Value = IDX(Name, '=');
+X    *Value = '\0';
+X    if (ISquot(*++Value))
+X	for (Quote = *Value++, q = Value; *++q && *q != Quote; )
+X	    ;
+X    else
+X	for (q = Value; ISletr(*q); q++)
+X	    ;
+X    *q = '\0';
+X
+X    SetVar(Name, Expand(Value));
+X}
+X
+X/**
+X***		" O U T P U T "   C O M M A N D S
+X**/
+X
+X
+X/*
+X**  Do a cat command.  Understands the following:
+X**	cat >arg1 <<arg2
+X**	cat >>arg1 <<arg2
+X**	cat >>arg1 /dev/null
+X**  Except that arg2 is assumed to be quoted -- i.e., no expansion of meta-chars
+X**  inside the "here" document is done.  The IO redirection can be in any order.
+X*/
+X/* ARGSUSED */
+static int
+DoCAT(ac, av)
+X    int			 ac;
+X    REGISTER char	*av[];
+X{
+X    REGISTER FILE	*Out;
+X    REGISTER char	*Ending;
+X    REGISTER char	*Source;
+X    REGISTER int	 V;
+X    REGISTER int	 l;
+X
+X    /* Parse the I/O redirecions. */
+X    for (V = TRUE, Source = NULL, Out = NULL, Ending = NULL; *++av; )
+X	if (EQ(*av, ">") && av[1]) {
+X	    av++;
+X	    /* This is a hack, but maybe MS-DOS doesn't have /dev/null? */
+X	    Out = Running ? fopen(Expand(*av), "w") : stderr;
+X	}
+X	else if (EQ(*av, ">>") && av[1]) {
+X	    av++;
+X	    /* And besides, things are actually faster this way. */
+X	    Out = Running ? fopen(Expand(*av), "a") : stderr;
+X	}
+X	else if (EQ(*av, "<<") && av[1]) {
+X	    for (Ending = *++av; *Ending == '\\'; Ending++)
+X		;
+X	    l = strlen(Ending);
+X	}
+X	else if (!EQ(Source = *av, "/dev/null"))
+X	    SynErr("CAT (bad input filename)");
+X
+X    if (Out == NULL || (Ending == NULL && Source == NULL)) {
+X	Note("Missing parameter in CAT command.\n", (char *)NULL);
+X	V = FALSE;
+X    }
+X
+X    /* Read the input, spit it out. */
+X    if (V && Running && Out != stderr) {
+X	if (Source == NULL)
+X	    while (GetLine(FALSE) && !EQn(Text, Ending, l))
+X		(void)fputs(Text, Out);
+X	(void)fclose(Out);
+X    }
+X    else
+X	while (GetLine(FALSE) && !EQn(Text, Ending, l))
+X	    ;
+X
+X    return(V);
+X}
+X
+X
+X/*
+X**  Do a SED command.  Understands the following:
+X**	sed sX^yyyyXX >arg1 <<arg2
+X**	sed -e sX^yyyyXX >arg1 <<arg2
+X**  Where the yyyy is a miniscule regular expression; see Matches(), above.
+X**  The "X" can be any single character and the ^ is optional (sigh).  No
+X**  shell expansion is done inside the "here' document.  The IO redirection
+X**  can be in any order.
+X*/
+X/* ARGSUSED */
+static int
+DoSED(ac, av)
+X    int			 ac;
+X    REGISTER char	*av[];
+X{
+X    REGISTER FILE	*Out;
+X    REGISTER char	*Pattern;
+X    REGISTER char	*Ending;
+X    REGISTER char	*p;
+X    REGISTER int	 V;
+X    REGISTER int	 l;
+X    REGISTER int	 i;
+X
+X    /* Parse IO redirection stuff. */
+X    for (V = TRUE, Out = NULL, Pattern = NULL, Ending = NULL; *++av; )
+X	if (EQ(*av, ">") && av[1]) {
+X	    av++;
+X	    Out = Running ? fopen(Expand(*av), "w") : stderr;
+X	}
+X	else if (EQ(*av, ">>") && av[1]) {
+X	    av++;
+X	    Out = Running ? fopen(Expand(*av), "a") : stderr;
+X	}
+X	else if (EQ(*av, "<<") && av[1]) {
+X	    for (Ending = *++av; *Ending == '\\'; Ending++)
+X		;
+X	    l = strlen(Ending);
+X	}
+X	else
+X	    Pattern = EQ(*av, "-e") && av[1] ? *++av : *av;
+X
+X    /* All there? */
+X    if (Out == NULL || Ending == NULL || Pattern == NULL) {
+X	Note("Missing parameter in SED command.\n", (char *)NULL);
+X	V = FALSE;
+X    }
+X
+X    /* Parse the substitute command and its pattern. */
+X    if (*Pattern != 's') {
+X	Note("Bad SED command -- not a substitute.\n", (char *)NULL);
+X	V = FALSE;
+X    }
+X    else {
+X	Pattern++;
+X	p = Pattern + strlen(Pattern) - 1;
+X	if (*p != *Pattern || *--p != *Pattern) {
+X	    Note("Bad substitute pattern in SED command.\n", (char *)NULL);
+X	    V = FALSE;
+X	}
+X	else {
+X	    /* Now check the pattern. */
+X	    if (*++Pattern == '^')
+X		Pattern++;
+X	    for (*p = '\0', i = strlen(Pattern), p = Pattern; *p; p++)
+X		if (*p == '[' || *p == '*' || *p == '$') {
+X		    Note("Bad meta-character in SED pattern.\n", (char *)NULL);
+X		    V = FALSE;
+X		}
+X	}
+X    }
+X
+X    /* Spit out the input. */
+X    if (V && Running && Out != stderr) {
+X	while (GetLine(FALSE) && !EQn(Text, Ending, l))
+X	    (void)fputs(Matches(Pattern, Text) ? &Text[i] : Text, Out);
+X	(void)fclose(Out);
+X    }
+X    else
+X	while (GetLine(FALSE) && !EQn(Text, Ending, l))
+X	    ;
+X
+X    return(V);
+X}
+X
+X/**
+X***		" S I M P L E "   C O M M A N D S
+X**/
+X
+X
+X/*
+X**  Parse a cp command of the form:
+X**	cp /dev/null arg
+X**  We should check if "arg" is a safe file to clobber, but...
+X*/
+static int
+DoCP(ac, av)
+X    int		 ac;
+X    char	*av[];
+X{
+X    FILE	*F;
+X
+X    if (Running) {
+X	if (ac != 3 || !EQ(av[1], "/dev/null"))
+X	    SynErr("CP");
+X	if (F = fopen(Expand(av[2]), "w")) {
+X	    (void)fclose(F);
+X	    return(TRUE);
+X	}
+X	Note("Can't create %s.\n", av[2]);
+X    }
+X    return(FALSE);
+X}
+X
+X
+X/*
+X**  Do a mkdir command of the form:
+X**	mkdir arg
+X*/
+static int
+DoMKDIR(ac, av)
+X    int		 ac;
+X    char	*av[];
+X{
+X    if (Running) {
+X	if (ac != 2)
+X	    SynErr("MKDIR");
+X	if (mkdir(Expand(av[1]), 0777) >= 0)
+X	    return(TRUE);
+X	Note("Can't make directory %s.\n", av[1]);
+X    }
+X    return(FALSE);
+X}
+X
+X
+X/*
+X**  Do a cd command of the form:
+X**	cd arg
+X**	chdir arg
+X*/
+static int
+DoCD(ac, av)
+X    int		 ac;
+X    char	*av[];
+X{
+X    if (Running) {
+X	if (ac != 2)
+X	    SynErr("CD");
+X	if (chdir(Expand(av[1])) >= 0)
+X	    return(TRUE);
+X	Note("Can't cd to %s.\n", av[1]);
+X    }
+X    return(FALSE);
+X}
+X
+X
+X/*
+X**  Do the echo command.  Understands the "-n" hack.
+X*/
+X/* ARGSUSED */
+static int
+DoECHO(ac, av)
+X    int		 ac;
+X    char	*av[];
+X{
+X    int		 Flag;
+X
+X    if (Running) {
+X	if (Flag = av[1] != NULL && EQ(av[1], "-n"))
+X	    av++;
+X	while (*++av)
+X	    Fprintf(stderr, "%s ", Expand(*av));
+X	if (!Flag)
+X	    Fprintf(stderr, "\n");
+X	(void)fflush(stderr);
+X    }
+X    return(TRUE);
+X}
+X
+X
+X/*
+X**  Generic "handler" for commands we can't do.
+X*/
+static int
+DoIT(ac, av)
+X    int		 ac;
+X    char	*av[];
+X{
+X    if (Running)
+X	Fprintf(stderr, "You'll have to do this yourself:\n\t%s ", *av);
+X    return(DoECHO(ac, av));
+X}
+X
+X
+X/*
+X**  Do an EXIT command.
+X*/
+static int
+DoEXIT(ac, av)
+X    int		 ac;
+X    char	*av[];
+X{
+X    ac = *++av ? atoi(Expand(*av)) : 0;
+X    Fprintf(stderr, "Exiting, with status %d\n", ac);
+X#ifdef	MSDOS
+X    longjmp(jEnv, 1);
+X#endif	/* MSDOS */
+X    return(ac);
+X}
+X
+X
+X/*
+X**  Do an EXPORT command.  Often used to make sure the archive is being
+X**  unpacked with the Bourne (or Korn?) shell.  We look for:
+X**	export PATH blah blah blah
+X*/
+static int
+DoEXPORT(ac, av)
+X    int		 ac;
+X    char	*av[];
+X{
+X    if (ac < 2 || !EQ(av[1], "PATH"))
+X	SynErr("EXPORT");
+X    return(TRUE);
+X}
+X
+X/**
+X***		F L O W - O F - C O N T R O L   C O M M A N D S
+X**/
+X
+X
+X/*
+X**  Parse a "test" statement.  Returns TRUE or FALSE.  Understands the
+X**  following tests:
+X**	test {!} -f arg		Is arg {not} a plain file?
+X**	test {!} -d arg		Is arg {not} a directory?
+X**	test {!} $var -eq $var	Is the variable {not} equal to the variable?
+X**	test {!} $var != $var	Is the variable {not} equal to the variable?
+X**	test {!} ddd -ne `wc -c {<} arg`
+X**				Is size of arg {not} equal to ddd in bytes?
+X**	test -f arg -a $var -eq val
+X**				Used by my shar, check for file clobbering
+X**  These last two tests are starting to really push the limits of what is
+X**  reasonable to hard-code, but they are common cliches in shell archive
+X**  "programming."  We also understand the [ .... ] way of writing test.
+X**  If we can't parse the test, we show the command and ask the luser.
+X*/
+static int
+DoTEST(ac, av)
+X    REGISTER int	  ac;
+X    REGISTER char	 *av[];
+X{
+X    REGISTER char	**p;
+X    REGISTER char	 *Name;
+X    REGISTER FILE	 *DEVTTY;
+X    REGISTER int	  V;
+X    REGISTER int	  i;
+X    char		  buff[LINE_SIZE];
+X
+X    /* Quick test. */
+X    if (!Running)
+X	return(FALSE);
+X
+X    /* See if we're called as "[ ..... ]" */
+X    if (EQ(*av, "[")) {
+X	for (i = 1; av[i] && !EQ(av[i], "]"); i++)
+X	    ;
+X	free(av[i]);
+X	av[i] = NULL;
+X	ac--;
+X    }
+X
+X    /* Ignore the "test" argument. */
+X    av++;
+X    ac--;
+X
+X    /* Inverted test? */
+X    if (EQ(*av, "!")) {
+X	V = FALSE;
+X	av++;
+X	ac--;
+X    }
+X    else
+X	V = TRUE;
+X
+X    /* Testing for file-ness? */
+X    if (ac == 2 && EQ(av[0], "-f") && (Name = Expand(av[1])))
+X	return(GetStat(Name) && Ftype(Name) == F_FILE ? V : !V);
+X
+X    /* Testing for directory-ness? */
+X    if (ac == 2 && EQ(av[0], "-d") && (Name = Expand(av[1])))
+X	return(GetStat(Name) && Ftype(Name) == F_DIR ? V : !V);
+X
+X    /* Testing a variable's value? */
+X    if (ac == 3 && (EQ(av[1], "-eq") || EQ(av[1], "=")))
+X	return(EQ(Expand(av[0]), Expand(av[2])) ? V : !V);
+X    if (ac == 3 && (EQ(av[1], "-ne") || EQ(av[1], "!=")))
+X	return(!EQ(Expand(av[0]), Expand(av[2])) ? V : !V);
+X
+X    /* Testing a file's size? */
+X    if (ac == (av[5] && EQ(av[5], "<") ? 8 : 7) && isdigit(av[0][0])
+X     && (EQ(av[1], "-ne") || EQ(av[1], "-eq"))
+X     && EQ(av[2], "`") && EQ(av[3], "wc")
+X     && EQ(av[4], "-c") && EQ(av[ac - 1], "`")) {
+X	if (GetStat(av[ac - 2])) {
+X	    if (EQ(av[1], "-ne"))
+X		return(Fsize(av[ac - 2]) != atol(av[0]) ? V : !V);
+X	    return(Fsize(av[ac - 2]) == atol(av[0]) ? V : !V);
+X	}
+X	Note("Can't get status of %s.\n", av[ac - 2]);
+X    }
+X
+X    /* Testing for existing, but can clobber? */
+X    if (ac == 6 && EQ(av[0], "-f") && EQ(av[2], "-a")
+X     && (EQ(av[4], "!=") || EQ(av[4], "-ne")))
+X	return(GetStat(Name = Expand(av[1])) && Ftype(Name) == F_FILE
+X	       && EQ(Expand(av[3]), Expand(av[5])) ? !V : V);
+X
+X    /* I give up -- print it out, and let's ask Mikey, he can do it... */
+X    Fprintf(stderr, "Can't parse this test:\n\t");
+X    for (i = FALSE, p = av; *p; p++) {
+X	Fprintf(stderr, "%s ", *p);
+X	if (p[0][0] == '$')
+X	    i = TRUE;
+X    }
+X    if (i) {
+X	Fprintf(stderr, "\n(Here it is with shell variables expanded...)\n\t");
+X	for (p = av; *p; p++)
+X	    Fprintf(stderr, "%s ", Expand(*p));
+X    }
+X    Fprintf(stderr, "\n");
+X
+X    DEVTTY = fopen(THE_TTY, "r");
+X    do {
+X	Fprintf(stderr, "Is value true/false/quit [tfq] (q):  ");
+X	(void)fflush(stderr);
+X	clearerr(DEVTTY);
+X	if (fgets(buff, sizeof buff, DEVTTY) == NULL
+X	 || buff[0] == 'q' || buff[0] == 'Q' || buff[0] == '\n')
+X	    SynErr("TEST");
+X	if (buff[0] == 't' || buff[0] == 'T') {
+X	    (void)fclose(DEVTTY);
+X	    return(TRUE);
+X	}
+X    } while (buff[0] != 'f' && buff[0] != 'F');
+X    (void)fclose(DEVTTY);
+X    return(FALSE);
+X}
+X
+X
+X/*
+X**  Do an IF statement.
+X*/
+static int
+DoIF(ac, av)
+X    REGISTER int	 ac;
+X    REGISTER char	*av[];
+X{
+X    REGISTER char	**p;
+X    REGISTER int	  Flag;
+X    char		 *vec[MAX_WORDS];
+X    char		**Pushed;
+X
+X    /* Skip first argument. */
+X    if (!EQ(*++av, "[") && !EQ(*av, "test"))
+X	SynErr("IF");
+X    ac--;
+X
+X    /* Look for " ; then " on this line, or "then" on next line. */
+X    for (Pushed = NULL, p = av; *p; p++)
+X	if (Flag = EQ(*p, ";")) {
+X	    if (p[1] == NULL || !EQ(p[1], "then"))
+X		SynErr("IF");
+X	    *p = NULL;
+X	    ac -= 2;
+X	    break;
+X	}
+X    if (!Flag) {
+X	(void)GetLine(TRUE);
+X	if (Argify(vec) > 1)
+X	    Pushed = &vec[1];
+X	if (!EQ(vec[0], "then"))
+X	    SynErr("IF (missing THEN)");
+X    }
+X
+X    if (DoTEST(ac, av)) {
+X	if (Pushed)
+X	    (void)Exec(Pushed);
+X	while (GetLine(TRUE)) {
+X	    if ((ac = Argify(vec)) == 1 && EQ(vec[0], "fi"))
+X		break;
+X	    if (EQ(vec[0], "else")) {
+X		DoUntil("fi", FALSE);
+X		break;
+X	    }
+X	    (void)Exec(vec);
+X	}
+X    }
+X    else
+X	while (GetLine(TRUE)) {
+X	    if ((ac = Argify(vec)) == 1 && EQ(vec[0], "fi"))
+X		break;
+X	    if (EQ(vec[0], "else")) {
+X		if (ac > 1)
+X		    (void)Exec(&vec[1]);
+X		DoUntil("fi", Running);
+X		break;
+X	    }
+X	}
+X    return(TRUE);
+X}
+X
+X
+X/*
+X**  Do a FOR statement.
+X*/
+static int
+DoFOR(ac, av)
+X    REGISTER int	  ac;
+X    REGISTER char	 *av[];
+X{
+X    REGISTER char	 *Var;
+X    REGISTER char	**Values;
+X    REGISTER int	  Found;
+X    long		  Here;
+X    char		 *vec[MAX_WORDS];
+X
+X    /* Check usage, get variable name and eat noise words. */
+X    if (ac < 4 || !EQ(av[2], "in"))
+X	SynErr("FOR");
+X    Var = av[1];
+X    ac -= 3;
+X    av += 3;
+X
+X    /* Look for "; do" on this line, or just "do" on next line. */
+X    for (Values = av; *++av; )
+X	if (Found = EQ(*av, ";")) {
+X	    if (av[1] == NULL || !EQ(av[1], "do"))
+X		SynErr("FOR");
+X	    *av = NULL;
+X	    break;
+X	}
+X    if (!Found) {
+X	(void)GetLine(TRUE);
+X	if (Argify(vec) != 1 || !EQ(vec[0], "do"))
+X	    SynErr("FOR (missing DO)");
+X    }
+X
+X    for (Here = ftell(Input); *Values; ) {
+X	SetVar(Var, *Values);
+X	DoUntil("done", Running);
+X	    ;
+X	/* If we're not Running, only go through the loop once. */
+X	if (!Running)
+X	    break;
+X	if (*++Values && (fseek(Input, Here, 0) < 0 || ftell(Input) != Here))
+X	    SynErr("FOR (can't seek back)");
+X    }
+X
+X    return(TRUE);
+X}
+X
+X
+X/*
+X**  Do a CASE statement of the form:
+X**	case $var in
+X**	    text1)
+X**		...
+X**		;;
+X**	esac
+X**  Where text1 is a simple word or an asterisk.
+X*/
+static int
+DoCASE(ac, av)
+X    REGISTER int	 ac;
+X    REGISTER char	*av[];
+X{
+X    REGISTER int	 FoundIt;
+X    char		*vec[MAX_WORDS];
+X    char		 Value[VAR_VALUE_SIZE];
+X
+X    if (ac != 3 || !EQ(av[2], "in"))
+X	SynErr("CASE");
+X    (void)strcpy(Value, Expand(av[1]));
+X
+X    for (FoundIt = FALSE; GetLine(TRUE); ) {
+X	ac = Argify(vec);
+X	if (EQ(vec[0], "esac"))
+X	    break;
+X	/* This is for vi: (-; sigh. */
+X	if (ac != 2 || !EQ(vec[1], ")"))
+X	    SynErr("CASE");
+X	if (!FoundIt && (EQ(vec[0], Value) || EQ(vec[0], "*"))) {
+X	    FoundIt = TRUE;
+X	    if (Running && ac > 2)
+X		(void)Exec(&vec[2]);
+X	    DoUntil(";;", Running);
+X	}
+X	else
+X	    DoUntil(";;", FALSE);
+X    }
+X    return(TRUE);
+X}
+X
+X
+X
+X/*
+X**  Dispatch table of known commands.
+X*/
+static COMTAB	 Dispatch[] = {
+X    {	"cat",		DoCAT		},
+X    {	"case",		DoCASE		},
+X    {	"cd",		DoCD		},
+X    {	"chdir",	DoCD		},
+X    {	"chmod",	DoIT		},
+X    {	"cp",		DoCP		},
+X    {	"echo",		DoECHO		},
+X    {	"exit",		DoEXIT		},
+X    {	"export",	DoEXPORT	},
+X    {	"for",		DoFOR		},
+X    {	"if",		DoIF		},
+X    {	"mkdir",	DoMKDIR		},
+X    {	"rm",		DoIT		},
+X    {	"sed",		DoSED		},
+X    {	"test",		DoTEST		},
+X    {	"[",		DoTEST		},
+X    {	":",		DoIT		},
+X    {	"",		NULL		}
+X};
+X
+X
+X/*
+X**  Dispatch on a parsed line.
+X*/
+int
+XExec(av)
+X    REGISTER char	*av[];
+X{
+X    REGISTER int	 i;
+X    REGISTER COMTAB	*p;
+X
+X    /* We have to re-calculate this because our callers can't always
+X       pass the count down to us easily. */
+X    for (i = 0; av[i]; i++)
+X	;
+X    if (i) {
+X	/* Is this a command we know? */
+X	for (p = Dispatch; p->Func; p++)
+X	    if (EQ(av[0], p->Name)) {
+X		i = (*p->Func)(i, av);
+X		if (p->Func == DoEXIT)
+X		    /* Sigh; this is a hack. */
+X		    return(-FALSE);
+X		break;
+X	    }
+X
+X	/* If not a command, try it as a variable assignment. */
+X	if (p->Func == NULL)
+X	    /* Yes, we look for "=" in the first word, but pass down
+X	       the whole line. */
+X	    if (IDX(av[0], '='))
+X		DoASSIGN(Text);
+X	    else
+X		Note("Command %s unknown.\n", av[0]);
+X
+X	/* Free the line. */
+X	for (i = 0; av[i]; i++)
+X	    free(av[i]);
+X    }
+X    return(TRUE);
+X}
+X
+X
+X/*
+X**  Do until we reach a specific terminator.
+X*/
+static
+DoUntil(Terminator, NewVal)
+X    char	*Terminator;
+X    int		 NewVal;
+X{
+X    char	*av[MAX_WORDS];
+X    int		 OldVal;
+X
+X    for (OldVal = Running, Running = NewVal; GetLine(TRUE); )
+X	if (Argify(av)) {
+X	    if (EQ(av[0], Terminator))
+X		break;
+X	    (void)Exec(av);
+X	}
+X
+X    Running = OldVal;
+X}
+END_OF_FILE
+if test 24206 -ne `wc -c <'parser.c'`; then
+    echo shar: \"'parser.c'\" unpacked with wrong size!
+fi
+# end of 'parser.c'
+fi
+echo shar: End of archive 3 \(of 3\).
+cp /dev/null ark3isdone
+MISSING=""
+for I in 1 2 3 ; do
+    if test ! -f ark${I}isdone ; then
+	MISSING="${MISSING} ${I}"
+    fi
+done
+if test "${MISSING}" = "" ; then
+    echo You have unpacked all 3 archives.
+    echo "See the README"
+    rm -f ark[1-9]isdone
+else
+    echo You still need to unpack the following archives:
+    echo "        " ${MISSING}
+fi
+##  End of shell archive.
+exit 0

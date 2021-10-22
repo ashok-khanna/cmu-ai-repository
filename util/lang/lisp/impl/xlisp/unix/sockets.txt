@@ -1,0 +1,507 @@
+From crabapple.srv.cs.cmu.edu!cantaloupe.srv.cs.cmu.edu!rochester!rutgers!cs.utexas.edu!uunet!newsflash.concordia.ca!nstn.ns.ca!dragon.acadiau.ca!850347s Mon Dec 28 14:48:54 EST 1992
+Article: 8871 of comp.lang.lisp
+Xref: crabapple.srv.cs.cmu.edu comp.lang.lisp:8871 comp.lang.lisp.x:915
+Path: crabapple.srv.cs.cmu.edu!cantaloupe.srv.cs.cmu.edu!rochester!rutgers!cs.utexas.edu!uunet!newsflash.concordia.ca!nstn.ns.ca!dragon.acadiau.ca!850347s
+From: 850347s@dragon.acadiau.ca (Hume Smith)
+Newsgroups: comp.lang.lisp,comp.lang.lisp.x
+Subject: XLisp UNIX sockets
+Message-ID: <1992Dec27.072416.12822@dragon.acadiau.ca>
+Date: 27 Dec 92 07:24:16 GMT
+Organization: Acadia University
+Lines: 493
+
+my christmas present to the lisp world :-)
+a shell script to add tcp socket support to xlisp source.
+run it with the xlisp source directory current and recompile.
+
+
+#!/bin/sh
+# this shell script modifies the UNIX XLisp sources
+# to provide socket support.  execute it in the
+# xlisp/sources directory.
+
+# if you made changes to makebsd, you'll have to
+# move them to the new makebsd.
+
+# moves   makebsd   to makebsd.bak
+# copies  osdefs.h  to osdefs.h.bak
+# copies  osptrs.h  to osptrs.h.bak
+# creates unixsock.c
+# creates socket.txt
+
+
+if test -f unixsock.c; then
+echo 'unixsock.c exists... have you run this before?'
+exit 1
+fi
+
+
+echo "replacing makebsd"
+mv makebsd makebsd.bak
+cat - >makebsd <<ENDOFIT
+# this for SunOS
+CC = /usr/ucb/cc
+
+XLISP=xlisp
+
+OBJ=xlisp.o xlbfun.o xlcont.o xldbug.o xldmem.o xleval.o \
+xlfio.o xlglob.o xlimage.o xlinit.o xlio.o xljump.o xllist.o \
+xlmath.o xlobj.o xlpp.o xlprin.o xlread.o xlstr.o xlsubr.o \
+xlsym.o xlsys.o unixprim.o unixstuf.o xlseq.o xlstruct.o xlftab.o \
+xlmath2.o unixsock.o
+
+CFLAGS = -O -DBSD -DUNIX
+
+$(XLISP): $(OBJ)
+	$(CC) -o $(XLISP) $(OBJ) -lm
+	strip $(XLISP)
+
+$(OBJ): xlisp.h
+
+xlftab.o: osdefs.h osptrs.h
+
+clean:
+	rm -f *.o Make.log
+ENDOFIT
+
+
+echo "changing osptrs.h"
+cp -p osptrs.h osptrs.h.bak
+cat - >> osptrs.h <<ENDOFIT
+
+#ifdef UNIX
+{"CLIENT", S, xclient},
+{"MAKE-SERVER", S, xmakeserver},
+{"DESTROY-SERVER", S, xdestserver},
+{"ACCEPT", S, xaccept},
+{"FLUSH", S, xflush},
+#endif
+ENDOFIT
+
+
+echo "changing osdefs.s"
+cp -p osdefs.h osdefs.h.bak
+cat - >> osdefs.h <<ENDOFIT
+
+#ifdef UNIX
+extern LVAL
+	xclient(V), xmakeserver(V), xdestserver(V), xaccept(V), xflush(V);
+#endif
+ENDOFIT
+
+
+echo "writing socket.txt"
+cat - > socket.txt <<ENDOFIT
+The following are provided by unixsock.c and related modifications.
+
+(client <port> [<host>])                           Connect to a Server
+     <port>   port name or number
+     <host>   hostname, dotted IP number 
+     returns  an IO stream
+
+     Client attempts to establish a TCP stream socket connection to
+     the specified server.  It returns an ordinary two-way XLisp
+     stream if it is successful.  If <host> is missing, the local
+     machine is contacted.  <port> may be a fixnum or a string.
+     <host> must be a string, e.g. "dragon.acadiau.ca" or
+     "47.208.130.26".
+
+(make-server <port> <qlen>)                    Construct a Server Port
+     <port>   port number
+     <qlen>   queue length
+     returns  UNIX file descriptor, fixnum
+
+(accept <fd>)                          Accept a Connection to a Server
+     <fd>     UNIX file descriptor, fixnum
+     returns  an IO stream
+
+(destroy-server <fd>)                                 Destroy a Server 
+     <fd>     UNIX file descriptor, fixnum
+     returns  T on success, NIL on failure
+
+     The server end of a socket is much more complicated than the
+     client end.  I've almost certainly sacrified some elegance and
+     safety here in order to provide as much service as possible.
+
+     Notice that make-server does not establish an actual connection.
+     All it does is set up a contact point for clients that want to
+     connect.  More than one client can attept to connect at one time,
+     and more than one can be connected at one time.  To keep track
+     of those attempting to connect, make-server provides a queue
+     in which up to <qlen> clients may wait.
+
+     To actually connect a client requires accept.  Calling accept
+     takes the next client in the queue and connects it,
+     constructing a new socket separate from the server contact
+     point.  The connection is returned in the form of an XLisp
+     two-way stream.  The client can now read what the server writes
+     and vice versa.
+
+     Once you're done with the contact point, you get rid of it
+     with destroy-server.  Destroy-server rejects any queued clients
+     and causes further connection attempts to be refused.  (Until
+     the contact is rebuilt by another program or another call
+     to make-server, of course; it is not normally necessary to
+     reboot the machine in order to re-use a port.)  Destroy-server
+     does not affect connections; the streams returned from client
+     and accept are completely independent of the contact point
+     itself.  To get rid of them, close them as you would any other
+     XLisp stream.
+
+     The fixnum you get back from make-server is a UNIX file
+     descriptor (an ordinary fixnum).  The OS needs that number to get
+     at the contact point it's built.  You must give it to accept and
+     destroy-server.  You can also have more than one contact point
+     operating at a given time, distinguishing them by file
+     descriptor.
+
+(flush <stream>)                        Force Buffered Data to be Sent
+     <stream> anything but a string stream
+     returns  T on success, NIL on failure
+
+     Data written to a socket are not immediately sent.  They are
+     accumulated in a system buffer, and are not transmitted until
+     - the socket is read from
+     - the socket is closed
+     - the buffer is full
+     - an explicit order to send is given
+     The last is done by flush.  Probably most of the time a write
+     to a socket will be immediately followed by a read anyway, in
+     which case flush won't be needed.  But you may, for example,
+     recieve a command over the socket and wish to acknowledge it
+     before carrying out the order and sending the results.  Then
+     you'd need flush.
+
+     See fflush in the man pages for details.  You may have to be
+     cautious in its application on some systems that buffered unread
+     data are not lost.
+
+Future
+     Adding capability to XLisp for non-blocking IO would
+     be very handy for this application.  Since PCs are XLisps main
+     machine as far as Tom Almy's concerned (profuse apologies if I'm
+     misrepresenting him here), and they're slowly becoming
+     multitasking machines, the file support may be extended in this
+     direction soon anyway.  (Maybe it's in the soon-to-be ANSI
+     standards?)  (Maybe all this stuff's in the standards anyway
+     and all this will go out the proverbial window. :-)
+
+     UNIX's select() would probably be very nice to have for this
+     sort of stuff too.  If I understand the manual, it may well be even
+     better than non-blocking IO.  (And the function itself seems
+     more Lispish than C anyway.)
+
+Acknowledgements
+     Thanks to everyone who worked to build XLisp, of course.
+
+     Particular thanks to James Wilson for writing
+       Berkeley UNIX: A Simple and Comprehensive Guide
+     Self-contradictory as the name may sound :-), it's a good gateway
+     into the innards of UNIX.  It also provided my first pieces of
+     working socket code.
+
+Caveats
+     I make no warrant for the utility or safety of this code.  If
+     a wreck of your network, filesevers, gateways, social life, 
+     bank account, or anything else can be traced to its use or
+     existence, I am not responsible for it.
+ENDOFIT
+
+
+echo writing unixsock.c
+cut '-c2-' > 'unixsock.c' <<'ENDOFIT'
+X/* unixsock - xlisp socket functions
+X *
+X * by hume.smith@acadiau.ca
+X * permission is granted for unrestricted non-commercial use
+X * 1992 Dec 25
+X *
+X * I make no warrant for the utility or safety of this code.  If
+X * a wreck of your network, filesevers, gateways, social life, 
+X * bank account, or anything else can be traced to its use or
+X * existence, I am not responsible for it.
+X */
+X
+X#include "xlisp.h"
+X#include <sys/types.h>
+X#include <sys/socket.h>
+X#include <netdb.h>
+X#include <netinet/in.h>
+X
+Xextern LVAL true;
+X
+X/* set this if you want access to services(5) */
+X#define USESERVICES
+X
+Xextern long strtol();
+Xextern int errno;
+X
+X/* an ANSI function not defined on all machines */
+Xchar *strerror(err)
+Xint err;
+X{
+X	extern int sys_nerr;
+X	extern char *sys_errlist[];
+X	static char buff[64];
+X	
+X	return (0 <= err && err<sys_nerr) 
+X	       ? sys_errlist[err]
+X	       : sprintf(buff, "(Error %d)", err);
+X}
+X
+X/* convert dotted decimal IP address (string)
+X * to struct in_addr.
+X * returns
+X *    0    ok
+X *    1    wrong number of byte fields
+X *    2    out-of-range byte field
+X *    3    bad character
+X *  other  serious problem
+X */
+Xint IPtol(x,z)
+Xchar *x;
+Xstruct in_addr *z;
+X{
+X	u_long r, c;
+X	int f, p;
+X	
+X	for(f=!0, p=r=c=0; ; ++x)
+X		if('0'<=*x && *x<='9') {
+X			f = 0;
+X			c = c*10 + (*x - '0');
+X		}
+X		else if (*x=='.' || !*x) {
+X			if(c&~0xffl || f)
+X				return 2;
+X			r = r<<8 | c;
+X			if(!*x) {
+X				if(p != 3)
+X					return 1;
+X				z->S_un.S_addr = r;
+X				return 0;
+X			}
+X			++p;
+X			c = 0;
+X			f = !0;
+X		}
+X		else
+X			return 3;
+X
+X	/* should never be reached */
+X	return 4;
+X}
+X
+XLVAL xclient()
+X{
+X	LVAL hostarg, portarg;
+X	int port, slot, sd;
+X	struct sockaddr_in sin;
+X	struct hostent *hp;
+X	struct servent *se;
+X	char *portname = 0, *hostname = 0, buff[128];
+X	
+X#ifdef USESERVICES
+X	portarg = xlgetarg();
+X#else
+X	port = (int)getfixnum(xlgafixnum());
+X#endif
+X	if (moreargs()) {
+X		hostname = getstring(hostarg = xlgastring());
+X		xllastarg();
+X	}
+X	
+X#ifdef USESERVICES
+X	if (stringp(portarg)) {
+X		portname = getstring(portarg);
+X		if (!(se = getservbyname(portname, "tcp")))
+X			xlerror("unknown port", portarg);
+X		port = se->s_port;
+X		portname = se->s_name;
+X	}
+X	else if (fixp(portarg)) {
+X		port = (int)getfixnum(portarg);
+X		if (se = getservbyport(port, "tcp"))
+X			portname = se->s_name;
+X	}
+X	else
+X		xlbadtype(portarg);
+X#endif
+X		
+X	/* convert host name / IP address
+X	 * to internal address form
+X	 */
+X
+X	bzero((char *)&sin, sizeof(sin));
+X	sin.sin_port = port;
+X	if (!IPtol(hostname, &sin.sin_addr)) {
+X		/* host is a dotted IP address */
+X		sin.sin_family = AF_INET;
+X
+X		if (hp = gethostbyaddr((char *)&sin.sin_addr, 4, AF_INET)) {
+X			/* frill; use the real host name
+X			 * for a nice file table entry
+X			 */
+X			hostname = hp->h_name;
+X		}
+X	}
+X	else
+X	{
+X		if (!hostname) {
+X			/* host wasn't given... get our own name */
+X			if (gethostname(buff, sizeof(buff)))
+X				xlfail(strerror(errno));
+X			
+X			/* point host to the buffer */
+X			hostname = buff;
+X		}
+X		
+X		/* look up the host name */
+X		if (!(hp = gethostbyname(hostname)))
+X			xlfail(strerror(errno));
+X		
+X		/* set the structure */
+X		bcopy(hp->h_addr, (char *)&sin.sin_addr, hp->h_length);
+X		sin.sin_family = hp->h_addrtype;
+X		
+X		/* use the host's `official' name */
+X		hostname = hp->h_name;
+X	}
+X	
+X	/* build a name for file table */
+X	if (portname)
+X		sprintf(buff, "%s@%s", portname, hostname);
+X	else
+X		sprintf(buff, "%d@%s", port, hostname);
+X
+X	/* obtain an available filetable slot */
+X	slot = getslot();
+X	
+X	/* make, connect, promote, and record the socket */
+X	if (!(filetab[slot].tname = strdup(buff)) ||
+X	    (sd = socket(PF_INET, SOCK_STREAM, 0)) < 0 ||
+X	    connect(sd, (char *)&sin, sizeof(sin)) ||
+X	    !(filetab[slot].fp = fdopen(sd, "r+"))) {
+X		int e = errno;
+X
+X		/* something went wrong, clean up */
+X		if (filetab[slot].tname)
+X			free(filetab[slot].tname);
+X		if (sd >= 0)
+X			close(sd);
+X		xlfail(strerror(e));
+X	}
+X	
+X	return cvfile(slot, S_FORREADING|S_FORWRITING);   
+X}
+X
+X
+XLVAL xmakeserver()
+X{
+X	FIXTYPE port;
+X	struct sockaddr_in ServA;
+X	struct hostent *hp;
+X	int ServFD, length;
+X	char buf[128];
+X
+X	port = getfixnum(xlgafixnum());
+X	length = (int)getfixnum(xlgafixnum());
+X	xllastarg();
+X   
+X	/* get address of local machine */
+X	bzero((char *)&ServA, sizeof(ServA));
+X	if(gethostname(buf, sizeof(buf)) ||
+X	   !(hp = gethostbyname(buf)))
+X		xlfail(strerror(errno));
+X	bcopy(hp->h_addr, (char *)&ServA.sin_addr, hp->h_length);
+X	ServA.sin_family = hp->h_addrtype;
+X	ServA.sin_port = port;
+X	
+X	/* make the socket */
+X	if((ServFD = socket(PF_INET, SOCK_STREAM, 0)) < 0)
+X		xlfail(strerror(errno));
+X	
+X	/* address the socket */
+X	if(bind(ServFD, (char *)&ServA, sizeof(ServA)) ||
+X	   listen(ServFD, length)) {
+X		close(ServFD);
+X		xlfail(strerror(errno));
+X	}
+X	
+X	return cvfixnum((FIXTYPE)ServFD);
+X}
+X
+XLVAL xaccept()
+X{
+X	int ServFD, ConnFD, ConnL, slot;
+X	struct sockaddr_in ConnA;
+X	struct hostent *CHost;
+X	FILE *ConnS;
+X	char buff[128];
+X   
+X	ServFD = (int)getfixnum(xlgafixnum());
+X	xllastarg();
+X
+X	ConnL = sizeof(ConnA);
+X	if((ConnFD = accept(ServFD, (char *)&ConnA, &ConnL)) < 0 ||
+X	   !(ConnS = fdopen(ConnFD, "r+")))
+X		xlfail(strerror(errno));
+X
+X	if(ConnA.sin_family != AF_INET) {
+X		/* we're not really sure where that guy is */
+X		strcpy(buff, "client@somewhere");
+X	}
+X	else if(CHost = gethostbyaddr((char *)&ConnA.sin_addr, 4, AF_INET)) {
+X		/* frill; use the client's real host name
+X		 * for a nice file table entry
+X		 */
+X		sprintf(buff, "%d@%s", ConnA.sin_port, CHost->h_name);
+X	}
+X	else {
+X		/* use the numerical address */
+X		sprintf(buff, "%d@%d.%d.%d.%d",
+X		        ConnA.sin_port,
+X		        ConnA.sin_addr.S_un.S_un_b.s_b1,
+X		        ConnA.sin_addr.S_un.S_un_b.s_b2,
+X		        ConnA.sin_addr.S_un.S_un_b.s_b3,
+X		        ConnA.sin_addr.S_un.S_un_b.s_b4);
+X	}
+X	
+X	slot = getslot();
+X	if(!(filetab[slot].tname = strdup(buff))) {
+X		/* seems a shame to have come so far to
+X		 * fail now, but i don't know if xlisp
+X		 * likes having nothing here
+X		 */
+X		fclose(ConnS);
+X		xlfail("insufficient memory");
+X	}
+X	filetab[slot].fp = ConnS;
+X	return cvfile(slot, S_FORREADING|S_FORWRITING);   
+X}
+X
+X/* returns success */
+XLVAL xdestserver()
+X{
+X   int ServFD;
+X   
+X   ServFD = (int)getfixnum(xlgafixnum());
+X   xllastarg();
+X   
+X   return close(ServFD) ? NIL : true;
+X}
+X
+X/* returns success */
+XLVAL xflush()
+X{
+X   int fp;
+X   
+X   fp = getfile(xlgastream());
+X   xllastarg();
+X   
+X   return (fp == CLOSED || fflush(filetab[fp].fp)) ? NIL : true;
+X}
+ENDOFIT
+
+# this is the end of the script
+
+

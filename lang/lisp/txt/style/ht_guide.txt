@@ -1,0 +1,520 @@
+Newsgroups: comp.lang.lisp
+Path: think.com!sdd.hp.com!wupost!darwin.sura.net!haven.umd.edu!uunet!mcsun!sunic!ugle.unit.no!nuug!ifi.uio.no!si.no!fenrix.si.no!haltraet
+From: haltraet@monsun.si.no (Hallvard Tr{tteberg)
+Subject: style-guide
+Originator: news@fenrix.si.no
+Sender: usenet@si.no (News Poster)
+Message-ID: <HALTRAET.92Aug13043710@monsun.si.no>
+Date: Thu, 13 Aug 1992 03:37:10 GMT
+Nntp-Posting-Host: monsun.si.no
+Organization: Center for Industrial Research, Dept. of Knowledge Based Systems
+Lines: 508
+
+I'm writing a style-guide for a big Lisp project, and would like
+comments on my first draft and suggestion for the empty chapters. It
+would also be fun having a discussion on the topic, I suppose there
+are many personal style-guides in use that we all might learn from. It
+is about 500 lines, I hope you take the time to read it.
+
+Regards, Hallvard
+
+Lisp style guide
+----------------
+
+This describes a style guide for lisp programs, based on my experience
+with Lisp over several years. The purpose of a style guide is to make
+programs easier to write, read and maintain, and secondarily, more
+efficient. A lot of the hints are taken directly from the book Common
+Lisp The Language, second edition, most commonly refered to as CLtL 2.
+The presentation follows this book, as does the chapter numbering
+(that's why a lot of chapters are left out).
+
+The main philosophy is to use the most specific construct that does
+what you want.  This should make it easier for the reader to spot the
+programmer's intentions.  E.g when testing for nil one can use either
+(eq var 'nil), (eq var nil), (eq var ()), (eq var '()), (typep var
+'null), (eq (type-of var) 'null), (not var) or (null var), the choice
+depends, among others, on whether you view nil as a list, a symbol or
+a boolean. Another example is dolist vs. mapc: The most significant
+difference is that you can return from dolist, so therefore you should
+always use mapc when this isn't required. Using the most specific
+construct may seem to sacrifice vulnerablility to change, but by
+'construct' I mean control structure and not datatype. I.e. one can
+use lists instead of vectors in situations where vectors would do the
+job. (My personal opinion is that one should in fact use vectors in
+such cases, but be careful to hide this fact so one can change to
+lists later if necessary.)
+
+The style guide includes idioms that are easily recognized and
+therefore make programs easier to read, although the idioms may be a
+bit strange.
+
+1. Introduction
+
+1.2.2 Use of nil as a symbol, false or the empty list.
+
+When nil is used as the empty list, use '().  When nil is used as a
+symbol, use 'nil.  When nil is used as false, use nil.
+
+Use t as the boolean true, not just any other non-nil object. But,
+when specifying what a function returns, one should consider whether
+one can return other, more useful objects, like member does. If that
+is the case use names that don't sound like predicates.
+
+5. Program Structure
+
+5.2.2 Lambda-expressions
+
+Avoid using non-keyword symbols as &key-words.  Don't use &aux
+variables, these can always be bound by let* instead.
+
+5.3.2 Declaring Global Variables and Named Constants
+
+Naming conventions:
+
+Use * around special variables as in (defvar *special-variable* nil)
+Use + around constants as in (defconstant +the-answer+ 42) (This rule
+was inspired from CLIM). Treat variables defined with defparameter as
+if they were defined as constands. As in (defparameter
++will-maybe-change-to-constant+ t). Quote from CLtL: "The semantic
+distinction [between defparameter and defvar] is that defvar is
+intended to declare a variable changed by the program, whereas
+defparameter is intended to declare a variable that is normally
+constant but can be changed (possibly at run-time), where such a
+change is considered a change _to_ the program."
+
+6. Predicates
+
+Remember the general rule: use the most specific predicate.
+
+Use (null e) when e is used as a list.  Use (not e) when e is used as
+a boolean value.
+
+Use (endp e) instead of (null e) when using ordinary lists.
+
+Remember the difference between (listp e) and (consp e): (listp '()) =
+t, but (consp '()) = nil.
+
+Use (eq e1 e2) when comparing symbols and objects, not eql.  Use (eql
+e1 e2) when comparing e1 and e2 that can also be numbers or
+characters, not equal.  Use (= e1 e2) when e1 and e2 are supposed to
+be numbers.  Use (char??? e1 e2) when e1 and e2 are supposed to be
+characters.  Use (string??? e1 e2) when e1 and e2 are supposed to be
+strings.  Use (equal e1) only when you want structure comparison.
+
+Remember that char= and string= are case-sensitive, whereas char-equal
+and string-equal are not.
+
+Don't rely on the fact that (eq 1 1) = t usually holds. The similar
+relation (eq 268435456 268435456) does not hold in MCL2.0b1p3.  Don't
+expect (eq x x) = t to hold, x may in fact evaluate to different
+number instances each time. Do ask me why.
+
+6.4 Logical operators
+
+Idiom: (or e1 e2) instead of (if e1 e1 e2), e2 is used as a default
+       value for e1.
+
+7. Control Structure
+
+7.1.1
+
+Use the reader macros ' and #', e.g. 'e1 and #'e2 instead of (quote
+e1) and (function e2). Remember that '(lambda (x) x) no longer can not
+be funcalled, use #'(lambda (x) x).
+
+7.1.2
+
+Use (setf ...) instead of (setq ...) and (psetf ...) instead of (psetq
+...). This kind of violates the general rule, but never mind.  Only
+use (psetf ...) instead of (setf ...) when the difference matters.
+Only use (set ...) instead of (setf ...) when the difference matters.
+
+7.2 Generalized variables
+
+Always use the setf-form instead of more specific side-effecting
+functions, e.g. (setf (car x) y) instead of (rplaca x y), (setf (get
+'x 'y) z) instead of (put 'x 'y z) etc.  Use (incf ...), (decf ...),
+(push ...) and (pop ...) instead of the corresponding setf-forms, even
+when the setf-forms will be more practical, e.g. shorter or less
+forms.
+
+Use (defun (setf n) ...) instead of (defsetf n ...) when possible.
+
+7.3 Function invocation
+
+Use #'fun instead of 'fun when possible. Remember that '(lambda ...)
+is illegal, #'(lambda ...) must be used.
+
+7.5 Establishing New Bindings
+
+Use (let ...) instead of (let* ...) when possible. Avoid using long
+let* binding lists, where the dependencies are difficult to spot.
+Sometimes it's better to split a long let*-form into several
+let-forms.  Use (flet ...) instead of (labels ...) when possible.
+
+7.6 Conditionals
+
+All conditionals can be written with (cond ...), but generally the
+most specific form should be used. When choosing a construct, imagine
+the cond-clause you could use to implement your test, and then
+translate it according to the rules below.
+
+Use (when e1 ...)) instead of (cond (e1 ...)), i.e. when there is no
+need for an else-clause or t-clause.  Use (unless e1...) instead of
+(when (not e1) ...), but not instead of (when (null e1) ...).  Use (if
+e1 (progn f1 ... fn) (progn g1 ... g2)), instead of (cond (e1 f1 ...
+fn) (t g1 ... gn)).  Always supply the t-clause when using the
+cond-form.  Use the case-form instead of the cond-form when possible,
+but not instead of the if-form. Remember that (case e (nil ...) ...)
+is quite different from (case e ((nil) ...) ...).  Use the
+typecase-form instead of the case-form.  Also, remember to use ecase
+and ccase, etypecase and ctypecase, to signal errors.
+
+It is common to use the if-form when returning a value to an outer
+construct, instead of using the corresponding when- or unless-form.
+E.g. (setf a (if b 3 nil)) instead of (setf a (when b 3))
+
+7.7 Blocks and exits.
+
+Always supply a value(s) when using the return-from- and return-forms.
+When returning only one value, don't use (values ...), since this
+makes it easier to spot the special cases of zero or more than one
+values
+
+7.8 General iteration
+
+Use (do ...) instead of (do* ...) when possible.  Use (dotimes ...)
+and (dolist ...) instead of (do ...) when possible.
+
+Introduce new bindings inside dotimes- and dolist-forms, instead of
+side-effecting outer bindings with setf, when possible. Be aware of
+the fact that dotimes and dolist usually doesn't make new bindings for
+each iteration, i.e. (let ((l nil)) (dolist (a '(1 2 3) l) (push
+#'(lambda () a l)))) returns a list of three closures closed over the
+same bindings,whereas (mapcar #'(lambda (a) #'(lambda () a)) '(1 2 3))
+closes over distinct bindings.
+
+More on choosing between different iteration-forms or -functions in
+chapter 14 (the sequence functions).
+
+7.8.4 Mapping
+
+Use (mapl ...) and (mapc ...) when no result is needed. Also consider
+using (map 'nil ...) instead of (mapc ...).  Remember that mapcon and
+mapcan use nconc and not append, and therefore sideeffects the lists
+returned from the function argument.  Remember that map and map-into
+can be used for general sequences, not only lists.  If you don't need
+the old list, use (map-into x fun x) to reuse the old list x.
+
+Remember that (apply f (mapcar ...)) may give a "too long parameter
+list"-error.
+
+7.8.5 The "program feature"
+
+Avoid using the tagbody- or prog-form and the related go-form, except
+perhaps when writing macro expanders.
+
+7.10 Multiple values
+
+The values-form is used to return zero, one or several values.
+Sometimes you have to use a values-form to get the desired effect, but
+additional uses can make the code easier to read.
+
+Use (values e) to make the reader of the code aware that a value is
+returned from a construct, especially when returning a value from a
+form normally used for side-effects. I often use the values-form at
+the end of implicit progn-forms, especially when returning the value
+of a variable.
+
+Use (values) to signal that function is used for side-effect only,
+i.e.  like a procedure and not a function.  Use (values (fun ...)) to
+suppress returning multiple values from (fun ...).  Try to always
+return the same number of values from a function, instead of counting
+on the fact that nil is used when values are missing.  Remember to use
+the multiple-value-prog?-forms when needed.  Avoid using the
+multiple-value-setq-from, use multiple-value-bind instead.
+
+Idiom: (multiple-value-bind (...) (values-list ...) ...), used for
+binding elements in a list to variables.  E.g. (setf (get 'sym 'prop)
+(list e1 e2 e3)) and later on
+     (multiple-value-bind (a b c) (values-list (get 'sym 'prop)) ...)
+
+7.11 Dynamic non-local exits
+
+Avoid using the catch- and throw-forms.  Remember to use the
+unwind-protect-form, e.g. when opening temporary windows.
+
+8. Macros
+
+BEWARE OF MACROS! BEWARE OF MACROS! BEWARE OF MACROS! BEWARE OF
+MACROS!
+
+Never make a macro instead of a function for efficiency reasons, use a
+function instead as and declaim it inline as in (declaim (inline f))
+(defun f ...).
+
+Use &body instead of &rest when using implicit or explicit progn-form.
+
+Always use gensyms when establishing bindings with the let-form,
+unless the user of the macro provides the variable. See example below.
+
+Backquote is *very* useful when writing macros.
+
+Use "do-" as a prefix in the macro-name when making iteration
+constructs.  Use "with-" as a prefix in the macro-name when
+establishing dynamic bindings of variable or places.  Use "define-" as
+a prefix when macro expands to defining form or gives similar effect.
+Don't use "map" as a prefix for macro-names, only for function-names.
+
+Example (note use of gensym):
+
+(defmacro do-list ((var list &optional (result nil)) &body body)
+  (let ((v (gensym)))
+    `(do* ((,v ,list (cdr ,v))
+           (,var (car ,v) (car ,v)))
+          ((endp ,v) ,result)
+       . ,body)))
+
+Remember that the destructuring-bind-form may be useful.
+
+9. Declarations
+
+Always remember to declare special variables, both bindings and
+references.
+
+Declarations are used for two purposes (apart from special
+declarations): 1. To document the code 2. To help the compiler
+generate better code.  There are good reasons for always wanting to do
+1.
+
+Remember that Common Lisp has two interpretations of
+type-declarations, depending on the optimization level: 1. That _YOU_
+guarantee that a variable is always bound to value of a
+   certain type.  2. That you would like _LISP_ to guarantee (or
+check) that a variable
+   is always bound to value of a certain type.
+
+Use the declaim-form instead of the proclaim-form.
+
+After you've written a function, use the declaim-form to document the
+function definition and the declare-form to document the variable
+bindings.
+
+Use the locally-form when you can't find an appropriate place to put
+declarations. (locally ...) is equivalent to (let () ...).
+
+Remember ignore-declarations, never ignore "variable not
+used"-warnings, (declare (ignore var)) instead.
+
+Don't try using dynamic-extent-declarations.  Don't bother using
+optimize-declarations until code is tested and profiled.  Don't bother
+using the the-form unless optimizing code.
+
+10. Symbols
+
+Avoid using property-lists too much. They are nice when implementing
+global environments, i.e. a define-ing macro might record the
+definition in a property. The property name should reside in its own
+package to avoid reusing others properties.
+
+11. Packages
+
+Use the defpackage-form and try to list all exported symbols in that
+form.  Put it in its own file that is loaded early. Then use
+in-package later on.  Remember that (in-package package-name) doesn't
+evaluate package-name.
+
+12. Numbers
+
+Avoid making rationals when dividing, i.e. use truncate or round,
+instead of /.  Complex numbers are a nice way of implementing pairs of
+numbers e.g. points.
+
+13. Characters
+
+14. Sequences
+
+There are a lot of useful sequence functions, don't reinvent the
+wheel.  Since there exists so many ways of doing iteration, it's worth
+giving hints to which construct and functions to use.
+
+There are at least 6 techniques for doing iteration:
+      1. sequence functions
+      2. map-ing functions
+      3. loop macro
+      4. do-ing macros
+      5. your own recursive functions
+      6. series and gatherers (I've never used these)
+
+The general rules, when choosing technique, is to use idioms that are
+easy to spot. Try to develop a style where the most specific technique
+is used.  Below I'll give som general rules for each technique:
+
+Sequence function should be used when the name documents the use.
+Map-ing functions are used when all elements must be iterated over.
+Loop is used for complex iteration, e.g. when requiring several
+steppers.  Do-constructs should be avoided in favour of the loop
+macro.  Dolist should be used when it's necessary to stop iteration
+with return.  Dotimes should be used when the counter isn't used in
+the body, i.e. it is only used to control number of iterations.  Write
+own functions to reduce computational complexity.
+
+To illustrate the uses here are 7 ways of find-ing an element in a
+list:
+
+(find element list) or (let ((pos (position element list)))
+                         (and pos (elt list pos)))
+
+(reduce #'(lambda (acc item) (or acc item))
+        list
+        :key #'(lambda (item) (if (eql item element) item nil))
+        :initial-value nil)
+
+(let ((elt nil))
+  (mapc #'(lambda (item)
+            (when (eql item element)
+              (setf elt item)))
+        list)
+  (values elt))
+
+(loop for item in list
+      when (eql item element)
+      return item)
+
+(dolist (item list)
+  (when (eql item element)
+    (return item)))
+
+(labels ((my-find (item list)
+           (cond ((endp list) nil)
+                 ((eql item (car list)) (values item))
+                 (t (my-find item (cdr list))))))
+  (my-find element list))
+                  
+As you see, all techniques can be used, only the first is recommended,
+some are readable, others are not. Following are typical uses or
+idioms:
+
+Straight forward mapping, i.e. for each element in sequence we collect
+one transformed version. Use mapcar or map.
+
+When we want result in place of the argument sequence, use map-into:
+(let ((x (list 1 2 3)))
+  (map-into x #'1+ x)
+  (values x)) => (2 3 4)
+
+When, for each element in list, we want to collect zero or several
+values, use mapcan and list: (mapcan #'(lambda (n) (if (evenp n) (list
+n 0) nil))
+                             '(1 2 3 4))
+                     => (2 0 4 0)
+
+When iterating for side-effect only, use (mapc ...) or (map 'nil ...).
+
+When wanting single value from iteration over all elements, use
+reduce: Max length of strings in list: (reduce #'max '("1" "123" "12")
+:key #'length :initial-value 0) => 3, don't use (apply #'max (mapcar
+#'length '("1" "123" "12"))) But avoid asymetric uses of reduce:
+(reduce #'(lambda (acc item) (nconc acc (list item (length item))))
+        '("1" "123" "12")
+        :initial-value nil) => ("1" 1 "123" 3 "12" 2), instead use:
+(reduce #'nconc '("1" "123" "12")
+        :key #'(lambda (item) (list item (length item)))) => ("1" 1
+"123" 3 "12" 2)
+
+BTW: This should actually be done with mapcan: (mapcan #'(lambda
+(item) (list item (length item)))
+        '("1" "123" "12")) => ("1" 1 "123" 3 "12" 2)
+
+When looking for element with special property, use find, position or
+member.  Use position or member if you need to search further for more
+items, or you want to side-effect that sequence element with (setf
+elt) or (setf car).  Use member when using result in test, as in (if
+(member ...) ...)  Remember member is for lists only.
+
+Filtering is done with remove and delete. CLtL 2, says to avoid using
+the -if-not function and :test-not keyword, use the complement
+function instead:
+   (remove-if-not #'numberp '(a 1 b 2)) = (remove-if (complement
+#'numberp) '(a 1 b 2)) => (1 2)
+
+15. Lists
+
+Lists are easy to use, but consider using vectors, which are faster,
+requires less memory and have true object nature. Remember that
+adjustable vectors can be used as stacks, instead of lists.
+
+Use push, pushnew and pop instead of equivalent setf-forms.  Use acons
+instead of two cons-calls, use (setf place (acons e1 e2 place))
+instead of (push (cons e1 e2) place), to show the use of place as an
+alist.
+
+16. Hash tables
+
+Can often be used instead of alists or property lists.
+
+17. Arrays
+
+Remember that make-sequence often can be used instead of make-array.
+
+18. Strings
+
+The type string-char is removed from the Common Lisp 'standard'.
+
+19. Structures
+
+My opinion: Structures are faster and often easier to use than
+classes, so use structures when the full power of CLOS isn't needed.
+
+Use By Order of Arguments (BOA) constructors for effiency and ease of
+coding.
+
+Use print-unreadable-object when making print-functions.
+
+20. The evaluator
+
+NEVER USE EVAL! NEVER USE EVAL! NEVER USE EVAL! NEVER USE EVAL! NEVER
+USE EVAL!  Usually simpler forms can be used, e.g. apply, funcall and
+symbol-value. When writing macros: The expansion of the macro that
+evaled, so there is seldom correct to use eval in the expander.
+
+21. Streams
+
+22. Input/Output
+
+Readtables are difficult to use.  Format is very powerful, but format
+strings can be hard to understand.  Remember difference between prin1
+and princ, ~s and ~a.  Exploit the difference between ~% and ~&.
+
+23. File system interface
+
+Try using with-open-file instead of directly using open, it will
+automaticely close the file upon exit and unwind.
+
+24. Errors
+
+There is an important difference between handler-bind and
+handler-case: When a handler-case clause is run the stack has already
+unwound so dynamic bindings that existed when the error occured may no
+longer exist when the handler is run.
+
+26. Loop
+
+28. Common Lisp Object System (CLOS)
+
+Around methods when the least specific method want to control the use
+of more specific methods. call-next-method can be used in normal
+primary methods, too.
+
+29. Conditions
+--
+Hallvard Traetteberg
+Dept. of Knowledge Based Systems
+Center for Industrial Research
+Box 124 Blindern, 0314 Oslo 3
+NORWAY
+
+Tlf: +47 2 45 20 10
+Fax: +47 2 45 20 40
+Email: haltraet@si.no

@@ -1,0 +1,230 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node185.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:46:43 GMT -->
+<HEAD>
+<TITLE>21.3. Operations on Streams</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Operations on Streams">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3834 HREF="node186.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3832 HREF="node182.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3828 HREF="node184.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3836 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3837 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3835 HREF="node186.html"> Input/Output</A>
+<B>Up:</B> <A NAME=tex2html3833 HREF="node182.html"> Streams</A>
+<B> Previous:</B> <A NAME=tex2html3829 HREF="node184.html"> Creating New Streams</A>
+<HR> <P>
+<H1><A NAME=SECTION002530000000000000000>21.3. Operations on Streams</A></H1>
+<P>
+This section contains discussion of only those operations that
+are common to all streams.  Input and output is rather complicated
+and is discussed separately in chapter <A HREF="node186.html#IO">22</A>.
+The interface between streams and the file system is discussed
+in chapter <A HREF="node202.html#FILES">23</A>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>streamp <i>object</i></tt><P><tt>streamp</tt> is true if its argument is a stream,
+and otherwise is false.
+<P><pre>
+(streamp x) == (typep x 'stream)
+</pre><P>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(CLOSED-STREAM-OPERATIONS) <A NAME=19653>&#160;</A> 
+to specify that <tt>streamp</tt> is unaffected
+by whether its argument, if a stream, is open or closed.  In either case
+it returns true.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<BR><b>[Function]</b><BR>
+<tt>open-stream-p <i>stream</i></tt><P>
+X3J13 voted in January 1989 (STREAM-ACCESS) <A NAME=19659>&#160;</A> 
+to add the predicate <tt>open-stream-p</tt>.
+It is true if its argument (which must be a stream)
+is open, and otherwise is false.
+<P>
+A stream is always created open; it remains open until closed
+with the <tt>close</tt> function.  The macros <tt>with-open-stream</tt>,
+<tt>with-input-from-string</tt>, <tt>with-output-to-string</tt>,
+and <tt>with-open-file</tt> automatically close the created stream
+as control leaves their bodies, in effect imposing dynamic extent
+on the openness of the stream.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>input-stream-p <i>stream</i></tt><P>This predicate is true if its argument (which must be a stream) can handle
+input operations, and otherwise is false.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>output-stream-p <i>stream</i></tt><P>This predicate is true if its argument (which must be a stream) can handle
+output operations, and otherwise is false.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>stream-element-type <i>stream</i></tt><P>A type specifier is returned to indicate what objects
+may be read from or written to the argument <i>stream</i>, which must be a stream.
+Streams created by <tt>open</tt> will have an element type
+restricted to a subset of <tt>character</tt> or <tt>integer</tt>,
+but in principle a stream may conduct transactions using any
+Lisp objects.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>close <i>stream</i> &amp;key :abort</tt><P>The argument must be a stream.
+The stream is closed.  No further input/output operations may be performed
+on it.  However, certain inquiry operations may still be performed,
+and it is permissible to close an already closed stream.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(CLOSED-STREAM-OPERATIONS) <A NAME=19680>&#160;</A> 
+and revised the vote in March 1989
+to specify that if <tt>close</tt> is called
+on an open stream, the stream is closed and <tt>t</tt> is returned;
+but if <tt>close</tt> is called on a closed stream, it succeeds without
+error and returns an unspecified value.
+(The rationale for not specifying the value returned for a closed stream
+is that in some implementations closing certain streams does not really
+have an effect on them-for example, closing the <tt>*terminal-io*</tt>
+stream might not ``really'' close it-and it is not desirable to force
+such implementations to keep otherwise unnecessary state.  Portable programs
+will of course not rely on such behavior.)
+<P>
+X3J13 also voted in January 1989 to specify exactly which inquiry
+functions may be applied to closed streams:
+<PRE>
+streamp            pathname-host         namestring 
+pathname           pathname-device       file-namestring 
+truename           pathname-directory    directory-namestring 
+merge-pathnames    pathname-name         host-namestring 
+open               pathname-type         enough-namestring 
+probe-file         pathname-version      directory 
+</PRE>
+See the individual descriptions of these functions for more information
+on how they operate on closed streams.
+<P>
+X3J13 voted in January 1989
+(CLOSE-CONSTRUCTED-STREAM) <A NAME=19712>&#160;</A> 
+to clarify the effect of closing various
+kinds of streams.  First some terminology:
+<UL><LI>
+A <i>composite</i> stream is one that was returned by a call to
+<tt>make-synonym-stream</tt>,
+<tt>make-broadcast-stream</tt>,
+<tt>make-concatenated-stream</tt>,
+<tt>make-two-way-stream</tt>,
+or <tt>make-echo-stream</tt>.
+<P>
+<LI>
+The <i>constituents</i> of a composite stream are the streams that were given
+as arguments to the function that constructed it or, in the case of
+<tt>make-synonym-stream</tt>, the stream that is the <tt>symbol-value</tt> of
+the symbol that was given as an argument.  (The constituent of
+a synonym stream may therefore vary over time.)
+<P>
+<LI>
+A <i>constructed</i> stream is either a composite stream or one returned
+by a call to <tt>make-string-input-stream</tt>, <tt>make-string-output-stream</tt>,
+<tt>with-input-from-string</tt>, or
+<tt>with-output-to-string</tt>.
+</UL>
+<P>
+The effect of applying <tt>close</tt> to a constructed stream is to close
+that stream only.  No input/output operations are permitted on the
+constructed stream once it has been closed (though certain inquiry
+functions are still permitted, as described above).
+<P>
+Closing a composite stream has no effect on its constituents;
+any constituents that are open remain open.
+<P>
+If a stream created by <tt>make-string-output-stream</tt> is closed,
+the result of then applying <tt>get-output-stream-string</tt> to the
+stream is unspecified.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+If the <tt>:abort</tt> parameter is not <tt>nil</tt> (it defaults to <tt>nil</tt>), it
+indicates an abnormal termination of the use of the stream.  An attempt
+is made to clean up any side effects of having created the stream in the
+first place.  For example, if the stream performs output to a file
+that was newly created when the stream was created, then if possible the
+file is deleted and any previously existing file is not superseded.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(STREAM-ACCESS) <A NAME=19763>&#160;</A> 
+to add the following accessor functions
+for obtaining information about streams.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>broadcast-stream-streams <i>broadcast-stream</i></tt><P>The argument must be of type <tt>broadcast-stream</tt>.
+A list of the constituent output streams (whether open or not) is returned.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>concatenated-stream-streams <i>concatenated-stream</i></tt><P>The argument must be of type <tt>concatenated-stream</tt>.
+A list of constituent streams (whether open or not) is returned.
+This list represents the ordered set of input streams from which
+the concatenated stream may yet read; the stream from which it is
+currently reading is first in the list.  The list may be empty
+if no more streams remain to be read.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>echo-stream-input-stream <i>echo-stream</i> <BR></tt><tt>echo-stream-output-stream <i>echo-stream</i></tt><P>The argument must be of type <tt>echo-stream</tt>.
+The function <tt>echo-stream-input-stream</tt> returns the constituent
+input stream; <tt>echo-stream-output-stream</tt> returns the constituent
+output stream.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>synonym-stream-symbol <i>synonym-stream</i></tt><P>The argument must be of type <tt>synonym-stream</tt>.  This function returns
+the symbol for whose value the <i>synonym-stream</i> is a synonym.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>two-way-stream-input-stream <i>two-way-stream</i> <BR></tt><tt>two-way-stream-output-stream <i>two-way-stream</i></tt><P>The argument must be of type <tt>two-way-stream</tt>.
+The function <tt>two-way-stream-input-stream</tt> returns the constituent
+input stream; <tt>two-way-stream-output-stream</tt> returns the constituent
+output stream.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>interactive-stream-p <i>stream</i></tt><P>X3J13 voted in June 1989 (STREAM-CAPABILITIES) <A NAME=19819>&#160;</A>  to add the
+predicate <tt>interactive-stream-p</tt>, which returns <tt>t</tt>
+if the <i>stream</i> is interactive and otherwise returns <tt>nil</tt>.
+A <tt>type-error</tt> error is signalled if the argument is not of type <tt>stream</tt>.
+<P>
+The precise meaning of <tt>interactive-stream-p</tt> is implementation-dependent
+and may depend on the underlying operating system.
+The intent is to distinguish between interactive and batch (background,
+command-file) operations.  Some characteristics that might
+distinguish a stream as interactive:
+<UL><LI> The stream is connected to a person (or the equivalent)
+in such a way that the program can prompt for information and
+expect to receive input that might depend on the prompt.<p>
+<LI> The program is expected to prompt for input and to support
+``normal input editing protocol'' for that operating environment.<p>
+<LI> A call to <tt>read-char</tt> might hang waiting for the user to type something
+rather than quickly returning a character or an end-of-file
+indication.<p>
+</UL>
+The value of <tt>*terminal-io*</tt> might or might not be interactive.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>stream-external-format <i>stream</i></tt><P>X3J13 voted in June 1989 (MORE-CHARACTER-PROPOSAL) <A NAME=19837>&#160;</A>  to add the
+function <tt>stream-external-format</tt>, which returns a
+specifier for the implementation-recognized scheme used for
+representing characters in the argument <i>stream</i>.
+See the <tt>:external-format</tt> argument to <tt>open</tt>.
+<P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+	
+<P>
+<BR> <HR><A NAME=tex2html3834 HREF="node186.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3832 HREF="node182.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3828 HREF="node184.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3836 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3837 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3835 HREF="node186.html"> Input/Output</A>
+<B>Up:</B> <A NAME=tex2html3833 HREF="node182.html"> Streams</A>
+<B> Previous:</B> <A NAME=tex2html3829 HREF="node184.html"> Creating New Streams</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

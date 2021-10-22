@@ -1,0 +1,63 @@
+From sef@sef-pmax.slisp.cs.cmu.edu Wed Mar  2 18:52:51 EST 1994
+Article: 14911 of comp.ai.neural-nets
+Xref: glinda.oz.cs.cmu.edu comp.ai.neural-nets:14911
+Newsgroups: comp.ai.neural-nets
+Path: honeydew.srv.cs.cmu.edu!news
+From: sef@sef-pmax.slisp.cs.cmu.edu
+Subject: Re: online cascade-correlation
+Message-ID: <CLMvwu.1Ku.3@cs.cmu.edu>
+Sender: news@cs.cmu.edu (Usenet News System)
+Nntp-Posting-Host: sef-pmax.slisp.cs.cmu.edu
+Organization: School of Computer Science, Carnegie Mellon
+Date: Tue, 22 Feb 1994 16:17:17 GMT
+Lines: 47
+
+
+    From: B35@vm.urz.uni-heidelberg.de (Matthijs Kadijk)
+    
+    In a recent posting by Scott E. Fahlman, he wrote that some people
+    have addapted cascor for online (i.s.o. batch) learning. I would be
+    interested to try this out the learning problem I'm corrently working
+    on.
+     
+I don't have code for this, but what you need to do is the following:
+
+1. Replace the quickprop weight update with simple gradient descent, with
+or without momentum according to taste.
+
+2. Rip out the cacheing mechanism, since it no longer makes sense to cache
+the network's results for a whole epoch.
+
+3. Modify the quiescence tests to keep some kind of running average and to
+stop when there is no net improvement for a long time.  Note that in online
+updating, the error or correlation score does not smoothly approach an
+asymptote, but continues to bounce around as new samples arrive.
+
+4. Optional: In the online case, it may be desirable to run output and
+candidate training concurrently.  Just make sure that candidate training
+continues for some time after the output weights have finally been frozen.
+
+5. If you are running the net for performance and training at the same
+time, introduce new hidden units with a very small initial output weight
+(of the proper sign) so that you don't create too much of a bump in the
+network's performance.
+
+By the way, I have seen a few claims that Cascor runs better if Quickprop
+is replaced by simple gradient descent, even in the batch-training case.  I
+don't believe these claims, and that has not been my experience.  I will
+admit that it can be a bit tricky to adjust the epsilon parameter in
+Quickprop to get best performance, however.
+
+-- Scott
+
+===========================================================================
+Scott E. Fahlman			Internet:  sef+@cs.cmu.edu
+Senior Research Scientist		Phone:     412 268-2575
+School of Computer Science              Fax:       412 681-5739
+Carnegie Mellon University		Latitude:  40:26:33 N
+5000 Forbes Avenue			Longitude: 79:56:48 W
+Pittsburgh, PA 15213
+===========================================================================
+
+
+

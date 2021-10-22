@@ -1,0 +1,59 @@
+; From farrow@stephanie.hc.ti.com Fri May 20 16:52:29 EDT 1994
+; Article: 12861 of comp.lang.lisp
+; Xref: glinda.oz.cs.cmu.edu comp.lang.lisp:12861
+; Newsgroups: comp.lang.lisp
+; Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!newsfeed.pitt.edu!gatech!howland.reston.ans.net!cs.utexas.edu!csc.ti.com!tilde.csc.ti.com!cauldron!ra.csc.ti.com!fstop.csc.ti.com!farrow
+; From: farrow@stephanie.hc.ti.com (Rob Farrow)
+; Subject: Logical pathnames for emacs thru Allegro CL (clarification)
+; Message-ID: <FARROW.94May19143000@stephanie.hc.ti.com>
+; Sender: usenet@csc.ti.com
+; Nntp-Posting-Host: stephanie.hc.ti.com
+; Organization: Texas Instrument SPDC ISL
+; Date: Thu, 19 May 1994 19:30:00 GMT
+; Lines: 42
+; 
+; 
+; This is an approach for using the logical-pathnames from CLtL2 in EMACS
+; find file.  If you like it, you can have it.  But does anyone have a
+; better way?
+; 
+; -- Rob.
+; 
+; ;; Created by Rob Farrow on Fri Nov 12 11:43:30 1993 
+; 
+; 
+;;;------------------------------------------------------------------------------
+;;; Logical pathname find file.
+
+;; Modifies the case of the pathname
+;(defun translate-logical-pathname (string)
+;  (message string)
+;  (fi:eval-in-lisp "(lisp:ignore-errors (lisp:translate-logical-pathname %S))"
+;                   string))
+
+(defun find-logical-file (logical-filename)
+  "Uses logical-pathnames in ACL to findfile.
+Does not do completion...YET!"
+  (interactive "sFile logical file: ")
+  (let ((filename (translate-logical-pathname logical-filename)) )
+    (if (stringp filename)
+	(find-file filename)
+      (error "%s invalid logical pathname." logical-filename))
+    ))
+
+
+(defun translate-logical-pathname (string)
+  (eval-in-lisp-1-arg-with-case-preserved
+   "(lisp:ignore-errors (lisp:namestring (lisp:translate-logical-pathname %s)))"
+   string))
+
+(defun eval-in-lisp-1-arg-with-case-preserved (string arg)
+  (fi::eval-in-lisp-wait-for-connection)
+  (car (lep::eval-session-in-lisp
+	'lep::eval-from-emacs-session
+	':string (format (fi::frob-case-to-lisp string) arg))))
+
+(global-set-key "\C-xf" 'find-logical-file)
+
+
+;;; *EOF*

@@ -1,0 +1,189 @@
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/faqs/lang/lisp/part5/faq-doc-8.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 05:31:23 GMT -->
+<HEAD>
+<TITLE>FAQ: Object-oriented Programming in Lisp 5/7 [Monthly posting] - [5-7] Common CLOS Blunders</TITLE>
+</HEAD>
+<BODY>
+<H1>[5-7] Common CLOS Blunders</H1>
+<PRE>
+
+This question is based on a document written by Marty Hall
+&#60;hall@aplcenmp.apl.jhu.edu&#62;. The full text of Marty's
+"Introduction to CLOS" handout is available by anonymous ftp from
+   <A NAME=id11 HREF="ftp://ftp.cs.cmu.edu/user/ai/lang/lisp/doc/intro/closintr.tgz">ftp.cs.cmu.edu:/user/ai/lang/lisp/doc/intro/closintr.tgz</A>
+
+This question lists a variety of common errors that occur when writing
+CLOS code. It is extremely useful to glance through this list when
+debugging CLOS code.
+
+[A] Omitting a set of parentheses around the arglist in DEFMETHOD.
+
+    For example, writing 
+       (defmethod Area (Sq Square) ...)
+    instead of
+       (defmethod Area ((Sq Square)) ...)
+
+    Lisp will accept the former, and think that you have two
+    unspecialized arguments instead of one argument specialized as a
+    Square. 
+
+[B] Missing parentheses around the slot definition list in DEFCLASS.
+
+    For example, writing
+       (defclass Rectangle (Polygon)
+	 (Width ...)
+	 (Height ...)) 
+    instead of
+       (defclass Rectangle (Polygon)
+	 ((Width ...)
+	  (Height ...)))
+
+    Lisp will not accept the former, but the error message doesn't
+    always clearly identify the problem.
+
+[C] Forgetting to include an empty slot definition list if you don't
+    define local slots in DEFCLASS.
+
+    For example, writing 
+       (defclass Square (Rectangle)) 
+    instead of
+       (defclass Square (Rectangle) ())
+    Lisp will not accept the former.
+
+[D] Referring to the class name instead of the instance variable in
+    DEFMETHOD. 
+
+    For example, writing 
+       (defmethod Area ((Sq Square)) 
+	 (* (Width Square) (Width Square))) 
+    instead of
+       (defmethod Area ((Sq Square)) 
+	 (* (Width Sq) (Width Sq)))
+
+    Lisp may give you a warning about an unknown free variable, but
+    probably won't even do that if you type the defmethod directly into
+    the Lisp Listener (Lucid doesn't). So you might not encounter a
+    problem until run-time.
+
+[E] Forgetting that accessors are functions and thus could conflict
+    with built-in function names.
+
+    For example, writing
+       (defclass Graphical-Object ()
+	 ((Position :accessor Position)))
+    will signal an error, since you cannot redefine the built-in
+    POSITION function.  
+
+[F] Putting the new value last instead of first in the definition of a 
+    SETF method. 
+
+    For example, writing 
+       (defmethod (setf Area) ((Sq Square) (New-Area number))
+	 (setf (Width Sq) (sqrt New-Area))) 
+    instead of
+       (defmethod (setf Area) ((New-Area number) (Sq Square))
+	 (setf (Width Sq) (sqrt New-Area)))
+
+   Lisp will accept the former, causing users to be later puzzled as
+   to why (setf (Area Square-1) 10) doesn't work.
+
+[G] Putting the new value last instead of first in a call to a :writer
+    method.  
+
+    For example, given
+       (defclass Circle () 
+	 ((Radius :reader Radius :writer Set-Radius :initform 5)))
+       (setq Circle-1 (make-instance 'Circle))
+    and writing
+       (Set-Radius Circle-1 10)
+    instead of
+       (Set-Radius 10 Circle-1)
+
+[H] Confusion about documentation strings in DEFMETHOD. 
+
+    People often write code like
+       (defmethod Area ((Rect Rectangle))
+	 "WIDTH times HEIGHT of the rectangle"
+	 (* (Width Rect) (Height Rect)))
+    without clearly thinking about what this might mean.  Some people
+    think it will make a documentation string on the generic function that
+    can be retrieved by calling (DOCUMENTATION 'Area 'function) or the
+    equivalent emacs keystrokes. Others vaguely expect it to make a doc
+    string on each separate method, and that the call to DOCUMENTATION
+    will somehow be able to automagically figure out which method it
+    applies to.
+
+    In fact, Lisp won't complain about this code, with the result that the
+    documentation is added to the method *object*, which beginners
+    probably know nothing about. 
+
+    Use the :documentation entry in defgeneric to add a documentation
+    string to the generic function.
+
+[I] Invalid :initargs are accepted by MAKE-INSTANCE.
+
+    Many Lisp implementations will accept unknown keyword initargs without
+    complaint, even at the highest safety settings. 
+
+    So the following code, which includes a typo of :SLOT1 instead of
+    :SLOT-1 in the call to make-instance
+       (defclass Foo ()
+	((Slot-1 :accessor Slot-1 :initarg :Slot-1 :initform 5)))
+
+       (setq Test (make-instance 'Foo :Slot1 10)) 
+    will not produce an error message, with the result that
+    (Slot-1 Test) returns 5, not 10.
+
+    This is a bug in the implementation; all implementations are
+    supposed to flag this as an error. 
+
+[J] Forgetting the class must exist before any method can specialize upon it. 
+
+    Lisp programmers are used to being able to define functions in any
+    order, where even if FOO calls BAR, FOO can be defined first. But doing
+       (defmethod Area ((Rect Rectangle)) ...)
+       (defclass Rectangle (Polygon) ...)
+    is illegal. You have to define the class first.
+
+    If while trying to debug the problem, you define the class by
+    evaluating the definition without reordering the code to put the
+    class first, you'll only run into problems later the next time you
+    try to recompile the code from scratch.
+
+    Many experienced programmers put each class definition in its own
+    file at the top of the file, with methods for that class after it
+    in the file. Others opt to put all the class definitions for a
+    program in a single file that is loaded first, with methods in files
+    that are loaded later.
+
+[K] Changing a method to apply to a more general class does not
+    supersede previous method. 
+
+    For example, suppose a user writes
+       (defmethod Half-Area ((Rect Filled-Rectangle))
+	 (/ (Area Rect) 2))
+    and then notices that this functionality could apply to all
+    Rectangles, not just Filled-Rectangles. They might then change the
+    class referenced in this method, under the specious intuition that by
+    changing the old defintion, they are replacing it. In fact, they are
+    actually adding a new, less-specific method.
+
+    Now suppose that later on, they change this new method (in this
+    example, by adding a call to FLOAT to avoid returning a ratio),
+       (defmethod Half-Area ((Rect Rectangle))
+	 (float (/ (Area Rect) 2)))
+    If they test it on an instance of Filled-Rectangle, they will be
+    puzzled as to why their new definition appears to have not taken
+    effect. But because the old definition specialized to Filled-Rectangle 
+    still exists, they're actually getting the old, more-specific definition.
+
+    Moreover, the next time they restart a fresh Lisp and recompile
+    the code, the problem will magicly disappear, since the old
+    definition is no longer in the code. 
+
+----------------------------------------------------------------
+;;; *EOF*
+</PRE>
+<A NAME=up HREF="faq.html">Go Back Up</A><P>
+<A NAME=up HREF="faq-doc-7.html">Go To Previous</A><P>
+</BODY>

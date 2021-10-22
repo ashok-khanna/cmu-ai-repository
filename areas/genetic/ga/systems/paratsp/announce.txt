@@ -1,0 +1,276 @@
+From totzke@news.cs.TU-Magdeburg.DE Tue Jun  7 17:29:32 EDT 1994
+Article: 3215 of comp.ai.genetic
+Xref: glinda.oz.cs.cmu.edu comp.ai.genetic:3215
+Path: honeydew.srv.cs.cmu.edu!fs7.ece.cmu.edu!europa.eng.gtefsd.com!howland.reston.ans.net!EU.net!Germany.EU.net!netmbx.de!zib-berlin.de!news.cs.tu-magdeburg.de!news.cs.tu-magdeburg.de!not-for-mail
+From: totzke@news.cs.TU-Magdeburg.DE (Holger Totzke)
+Newsgroups: comp.ai.genetic
+Subject: ParaTSP - a parallel GA and SA to solve TSP's
+Date: 6 Jun 1994 16:07:05 +0200
+Organization: Univ. Magdeburg, Germany
+Lines: 216
+Message-ID: <2svai9$9o5@fichte.cs.tu-magdeburg.de>
+NNTP-Posting-Host: fichte.cs.tu-magdeburg.de
+Keywords: TSP, GA, SA, parallel computer
+
+
+
+Hi,
+
+I wrote a software package to compute Travelling Salesman Problems (TSP)
+with genetic algorithms (GA) and with simulated annealing (SA). The source
+code in C is available by email. The program "ParaTSP" uses source code from
+Baeck's "GeneSyS v1.0". ParaTSP is running under UNIX. A parallel extension
+for the massiv parallel computer Parsytec GC is available (operating system
+is PARIX). The C-source are about 20000 lines of code.
+
+Now the help text for ParaTSP (GA):
+------
+ParaTSP 1.0 is running ...
+ParaTSP 1.0			(c) 1994 by Holger Totzke
+
+Usage: paratsp [Options]
+GA-specific options:
+	-A  tspfi		# TSP input file
+	-B  I,G,R,P,L,N,W,B	# breeder selection scheme
+	    I    		# inverse roulette wheel
+	    G    		# gauss
+	    R    		# random
+	    P    		# proportional
+	    L    		# linear ranking
+	    N    		# inverse linear ranking
+	    W    		# Whitley's index calculation
+	    B    		# Boltzmann
+	-C  xprob		# crossover probability
+	-D  mudim		# mutation step dimension
+	-E  N,M,_		# elitist scheme
+	    N    		# normal
+	    M    		# mutate
+	    _    		# no elitism
+	-F  L,E,_		# fitness scaling type
+	    L    		# linear
+	    E    		# exponential
+	    _    		# no fitness scaling
+	-G  gapsz		# generation gap size
+	-H  elhld		# elite number (hold)
+	-I  R,T,N,C,F,W,A	# population initialization scheme
+	    R    		# random
+	    T    		# tour from input file
+	    N    		# nearest neighbour
+	    C    		# cheapest insertion
+	    F    		# farthest insertion
+	    W    		# random scheme without input (R,N,C,F)
+	    A    		# random scheme (R,T,N,C,F)
+	-L  R,W,F		# elite selection scheme (sacrifice select)
+	    R    		# random
+	    W    		# weakest
+	    F    		# first weaker
+	-M  xy   		# mutation scheme
+	    x={C,A,_}		# possible settings:
+	    y={M,S,I,R}		#
+	    C    		# constant mutation rates
+	    A    		# adapted mutation rates
+	    _    		# no mutation
+	    M    		# move
+	    S    		# swap
+	    I    		# invert
+	    R    		# random (M,S,I)
+	-N  norno		# normalization number (town index)
+	-O  C,N,T		# other GA-specific options
+	    C    		# crossover creates two childs
+	    N    		# normalization of tour
+	    T    		# filter twins
+	-P  popsz		# population size
+	-Q  crowf		# crowding factor
+	-R  R,C  		# replace scheme (dispersal)
+	    R    		# random
+	    C    		# crowding
+	-S  R,P  		# mates selection mechanism
+	    R    		# random
+	    P    		# positional index
+	-T  L,T,Q,A,1,2,3,_	# local tour optimization scheme
+	    L    		# Lin's 2-opt
+	    T    		# 2-opt
+	    Q    		# 2-quick
+	    A    		# sequence of 2-opt and or-opt
+	    1    		# or-opt(1)
+	    2    		# or-opt(2)
+	    3    		# or-opt(3)
+	    _    		# no local tour optimization
+	-W  wdwsz		# window size for scaling
+	-X  E,I,P,O,C,U,N,H,F,	# crossover scheme
+	    R,_  		#
+	    E    		# edge recombination (ERX)
+	    I    		# interval partially matched (IPMX)
+	    P    		# partially matched (PMX)
+	    O    		# order (OX)
+	    C    		# cycle (CX)
+	    U    		# uniform order based (UOBX)
+	    N    		# nearest neighbour
+	    H    		# cheapest insertion
+	    F    		# farthest insertion
+	    R    		# random (E,P,O,C,U,N,H,F)
+	    _    		# no crossover
+	-Y  mprob		# mutation probability
+	-ZA fitpa		# fitness scaling parameter A
+	-ZB fitpb		# fitness scaling parameter B
+	-ZC fitpc		# fitness scaling parameter C
+	-ZD fitpd		# fitness scaling parameter D
+	-ZI chlen		# cooling generations for boltzmann selection
+	-ZL lwidx		# lower index for breeder selection
+	-ZN etamx		# maximum expected value for linear ranking
+	-ZT tmpct		# temperature control for boltzmann selection
+	-ZU upidx		# upper index for breeder selection
+	-ZX xpoin		# number of crossover intervals in IPMX
+
+Parallel options:
+	-pi comin		# communication interval in generations
+	-pm i,t,p,n		# parallel model
+	    i    		# island
+	    t    		# token
+	    p    		# pollen
+	    n    		# neighbour
+	-pn indno		# number of individuals to change
+	-pp popno		# number of populations
+	-pr nproc		# number of processors
+	-ps spdir		# spread direction of pollen
+	-pt r,p,g,o,h,t		# type of communication topology
+	    r    		# ring
+	    p    		# pipe
+	    g    		# 2d-grid
+	    o    		# 2d-torus
+	    h    		# hypercube
+	    t    		# tree
+	-px lwwin		# lower limit to wind force
+	-py upwin		# upper limit to wind force
+
+General options:
+	-a  tourf		# tour input file
+	-b  tdfrq		# tour dump interval in generations
+	-c       		# save tour for XTSP
+	-d       		# show results on display
+	-e  noexp		# total number of experiments
+	-f  dfreq		# dump interval in generations
+	-g  nogen		# total number of generations
+	-h       		# this help information
+	-?       		#
+	-i  infil		# input file
+	-k       		# no output files
+	-m  minqu		# minimal tour length (quality) to abort
+	-n  savno		# number of best individuals to save
+	-o  a,l,n,p,s,t,v	# additional general options
+	-q       		# create directory name and exit
+	-r  m,p  		# random number generator type
+	    m    		# Marsaglia's random number generator
+	    p    		# rand() from programming language C
+	-s  seed 		# seed for random number generator
+	-t  notrl		# total number of trials
+	-u  popno		# population no. to show on display
+	-v  intvl		# number of trials between data collections
+	-w       		# without report
+	-x  suffx		# file suffix
+	-y  maxsp		# number of generations wo. evaluations
+
+Additional options (following the general option -o):
+	 a       		# evaluate all individuals
+	 l       		# dump last generation
+	 n       		# simplified termination
+	 p       		# dump population
+	 s       		# trace schema history
+	 t       		# trace ParaTSP run
+	 v       		# collect tour values (much data !)
+
+------
+
+And the help text for SATSP:
+______
+SATSP is running ...
+ParaTSP 1.0			(c) 1994 by Holger Totzke
+
+Usage: satsp [Options]
+Options:
+	-A tspfi		# TSP input file
+	-F tmpfa		# temperature control factor
+	-J jmax 		# number of steps per temperature levels
+	-N nmax 		# number of temperature levels
+	-S A,T  		# algorithm
+	   A    		# simulated annealing
+	   T    		# threshold accepting
+	-T tmpst		# start temperature
+	-d      		# show results on display
+	-e noexp		# total number of experiments
+	-h      		# this help information
+	-?      		#
+	-i comin		# communication interval in temperature steps
+	-m minqu		# minimal tour length (quality) to abort
+	-p nproc		# number of processors
+	-s seed 		# seed for random number generator
+	-t r,p,g,o,h,t		# type of communication topology
+	   r    		# ring
+	   p    		# pipe
+	   g    		# 2d-grid
+	   o    		# 2d-torus
+	   h    		# hypercube
+	   t    		# tree
+
+______
+
+Sorry for my bad english...
+
+Holger.
+
+-- 
++-----------------------------------------------------------------------------+
+| Holger Totzke        //     Uni      \\                                     |
+| Moskauer Str. 17    //   Magdeburg    \\                                    |
+| 39218 Schoenebeck  // Computer Science \\                                   |
+| Germany           //                    \\ privat voice: +49-3928/66334     |
+|-----------------------------------------------------------------------------|
+| e-mail: totzke@sunpool.cs.TU-Magdeburg.DE                                   |
++-----------------------------------------------------------------------------+
+
+
+
+Article 3238 of comp.ai.genetic:
+Xref: glinda.oz.cs.cmu.edu comp.ai.genetic:3238
+Path: honeydew.srv.cs.cmu.edu!das-news.harvard.edu!noc.near.net!news2.near.net!MathWorks.Com!europa.eng.gtefsd.com!howland.reston.ans.net!spool.mu.edu!umn.edu!zib-berlin.de!news.cs.tu-magdeburg.de!news.cs.tu-magdeburg.de!not-for-mail
+From: totzke@news.cs.TU-Magdeburg.DE (Holger Totzke)
+Newsgroups: comp.ai.genetic
+Subject: ParaTSP - upload on FTP servers
+Date: 10 Jun 1994 13:32:54 +0200
+Organization: Univ. Magdeburg, Germany
+Lines: 29
+Message-ID: <2t9j16$14s@fichte.cs.tu-magdeburg.de>
+NNTP-Posting-Host: fichte.cs.tu-magdeburg.de
+Keywords: GA, SA, ParaTSP, parallel computing, TSP
+
+
+
+Hi,
+
+i have upload ParaTSP on various FTP server:
+
+  * ftp.cs.tu-magdeburg.de:/in.coming/ParaTSP/*   [141.44.21.200]
+  * ftp.uni-paderborn.de:/incoming/unix/ParaTSP/* [131.234.2.32]
+  * ftp.mi.uni-koeln.de:/pub/incoming/ParaTSP/*   [134.95.229.226]
+  * alife.santafe.edu:/pub/incoming/paratsp.*   [192.12.12.99] -> not readable
+
+ParaTSP is a parallel GA & SA for solving TSP.
+It is based on GeneSyS 1.0 from Baeck.
+
+Comments and problems to me via e-mail.
+
+Holger.
+
+-- 
++-----------------------------------------------------------------------------+
+| Holger Totzke        //     Uni      \\                                     |
+| Moskauer Str. 17    //   Magdeburg    \\                                    |
+| 39218 Schoenebeck  // Computer Science \\                                   |
+| Germany           //                    \\ privat voice: +49-3928/66334     |
+|-----------------------------------------------------------------------------|
+| e-mail: totzke@sunpool.cs.TU-Magdeburg.DE                                   |
++-----------------------------------------------------------------------------+
+
+
+
+

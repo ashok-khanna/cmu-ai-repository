@@ -1,0 +1,47 @@
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/faqs/lang/lisp/part3/faq-doc-8.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 17:20:49 GMT -->
+<HEAD>
+<TITLE>FAQ: Lisp Frequently Asked Questions 3/7 [Monthly posting] - [3-7] DEFMACRO doesn't seem to work.  When I compile my file, LISP warns me that my macros are undefined functions, or complains  "Attempt to call <function> which is defined as a macro."</TITLE>
+</HEAD>
+<BODY>
+<H1>[3-7] DEFMACRO doesn't seem to work.  When I compile my file, LISP warns me that my macros are undefined functions, or complains  "Attempt to call <function> which is defined as a macro."</H1>
+<PRE>
+When you evaluate a DEFMACRO form or proclaim a function INLINE, it
+doesn't go back and update code that was compiled under the old
+definition. When redefining a macro, be sure to recompile any
+functions that use the macro. Also be sure that the macros used in a
+file are defined before any forms in the same file that use them.
+
+Certain forms, including LOAD, SET-MACRO-CHARACTER, and
+REQUIRE, are not normally evaluated at compile time. Common Lisp
+requires that macros defined in a file be used when compiling later
+forms in the file. If a Lisp doesn't follow the standard, it may be
+necessary to wrap an EVAL-WHEN form around the macro definition.
+
+Most often the "macro was previously called as a function" problem
+occurs when files were compiled/loaded in the wrong order. For
+example, developers may add the definition to one file, but use it in
+a file which is compiled/loaded before the definition. To work around
+this problem, one can either fix the modularization of the system, or
+manually recompile the files containing the forward references to macros.
+
+Also, if your macro calls functions at macroexpand time, those functions
+may need to be in an EVAL-WHEN. For example,
+
+    (defun some-function (x)
+      x)
+
+    (defmacro some-macro (y)
+      (let ((z (some-function y)))
+        `(print ',z)))
+
+If the macros are defined in a file you require, make sure your
+require or load statement is in an appropriate EVAL-WHEN. Many people
+avoid all this nonsense by making sure to load all their files before
+compiling them, or use a system facility (or just a script file) that
+loads each file before compiling the next file in the system.
+</PRE>
+<A NAME=up HREF="faq.html">Go Back Up</A><P>
+<A NAME=up HREF="faq-doc-7.html">Go To Previous</A><P>
+<A NAME=up HREF="faq-doc-9.html">Go To Next</A><P>
+</BODY>

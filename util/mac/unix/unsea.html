@@ -1,0 +1,1411 @@
+#Received: from mozart.ms.uky.edu by terminator.cc.umich.edu (5.65/1123-1.0)
+#	id AA21965; Sun, 9 Aug 92 17:29:17 -0400
+#Received: from s.ms.uky.edu by mozart.ms.uky.edu id aa29156; 9 Aug 92 21:26 GMT
+#From: "David W. Rankin Jr." <rankin@ms.uky.edu>
+#Date: Sun, 9 Aug 1992 17:26:16 EDT
+#X-Mailer: Mail User's Shell (7.1.2 7/11/90)
+#To: macgifts@terminator.cc.umich.edu
+#Subject: Unsea 1.0 is here
+#Message-Id:  <9208092126.aa06404@s.s.ms.uky.edu>
+#
+#This letter marks the formal release of unsea 1.0. Unsea is a mainframe-
+#level ANSI C program that removes the self-expanding code from MacBinary
+#encoded StuffIt(TM) or Compact Pro(TM) files.
+#Since unsea is ANSI C, you'll have to use an ANSI C compiler (like gcc)
+#to compile it. (The reason for this is that the only C referecnce book
+#is the 2nd edition of the K&R book, so I simply couldn't write it
+#as K&R C code.)
+#
+#To put it on your system, get the shar file(see below for where) and
+#delete anything above the line "#!/bin/sh". Then unarchive it, using
+#"sh <filename>" for UNIX machines or your local shar decoder for other
+#machines. Then follow the instructions in "unsea.txt" and "Makefile"
+#to compile the program.
+#
+#The newest version of unsea will always be available on f.ms.uky.edu,
+#in the /pub/mac/unix directory, as well as anyone who is on the MacGifts
+#list that mac.archive.umich.edu runs.
+#
+#Feel free to send any questions you have about unsea to me at
+#rankin=irc@ms.uky.edu, rankin=irc@ukma.BITNET or rankin=irc@ukma.UUCP.
+#
+#---------------CUT HERE---------------------
+#! /bin/sh
+: This is a shell archive, meaning:
+: 1. Remove everything above the '#! /bin/sh' line.
+: 2. Save the resulting text in a file.
+: 3. Execute the file with /bin/sh '(not csh)' to create the files:
+:	'Makefile'
+:	'convert.c'
+:	'file.c'
+:	'macbin.c'
+:	'unsea.c'
+:	'unsea.h'
+:	'unsea.testers'
+:	'unsea.txt'
+:	'version.c'
+: This archive created: 'Sun Aug  9 15:01:22 1992
+'
+export PATH; PATH=/bin:$PATH
+if test -f 'Makefile'
+then
+	echo shar: will not over-write existing file "'Makefile'"
+else
+sed 's/^X//'  >'Makefile' <<'SHAR_EOF'
+X
+X# Makefile for the unsea program
+X#     Copyright 1992 David W. Rankin, Jr.
+X#
+X# See unsea.txt for all copyright details
+X
+X# Command line syntax:
+X#       make [option]
+X
+X# Options:
+X#
+X#       unsea
+X#         This option is the one you should pick for actually compiling 
+X#         unsea. It uses prepare (see below) to compile the code as needed.
+X#
+X#       prepare
+X#         This option, mainly for the use of the makefile itself, creates
+X#         the object code for the unsea options.
+X#
+X#       clean
+X#         Removes the file "unsea" and all objects from the directory.
+X
+X
+X# Makefile variables:
+X
+X# CC is the variable holding your compiler's name. The values used by a couple
+X# of the systems I know about are here, as well as the default value, GNU's
+X# gcc compiler. If you require a different value here, be sure to include any
+X# flags required to make your compiler ANSI compliant, if necessary.
+X
+X# On NeXTs and AIX, both come with ANSI compatable "cc" compilers standard.
+X# Therefore, they are fine for unsea, although for AIX I still recommend gcc
+X# if you have it. (NeXTs actually use gcc as their standard compiler, so you
+X# don't need to get gcc for them except to upgrade.)
+X
+X#CC=cc
+X
+X# For DYNIX (Sequent), A/UX (Apple UNIX), and SunOS, all the standard "cc"
+X# compilers I've seen are NOT ANSI compliant, so you will have to use gcc or
+X# another ANSI C compiler. I'll default here to "gcc".
+X# I think this is also true for ULTRIX (VAX) and HP-UX, but I wasn't able
+X# to check it out before releasing this version. I have no idea about any
+X# other OSes, so I have to assume they need gcc as well.
+XCC = gcc
+X
+X# CFLAGS specifies whether the compiler should allow for debugging
+X# (-g) or optimization of the code (-O). -O is recommended.
+X# Any other flags your compiler likes or needs should go here.
+X
+XCFLAGS = -O
+X
+X# Some compilers require specific libraries to be added during the program
+X# generation. LIBS should be used for this purpose, as well as any flags
+X# needed during the linking part only. Here are some choices that I know 
+X# work on the machines I've seen so far. (Feel free to change this, I can't
+X# know what libraries you actually have.)
+X
+X#For DYNIX (Sequents):
+X#LIBS= -lseq
+X
+X# For everyone else...
+XLIBS=
+X
+X#                *STOP*
+X# You should not change anything below here.
+X
+XSOURCES = unsea.c convert.c version.c file.c macbin.c
+X
+XOBJECTS = unsea.o convert.o version.o file.o macbin.o
+X
+Xunsea:
+X	@make prepare
+X	@$(CC) $(CFLAGS) -o unsea $(LIBS) $(OBJECTS)
+X
+X
+Xprepare:
+X	@$(CC) -c $(CFLAGS) $(SOURCES)
+X
+Xclean:
+X	rm -fr unsea $(OBJECTS)
+X
+SHAR_EOF
+fi # end of overwriting check
+if test -f 'convert.c'
+then
+	echo shar: will not over-write existing file "'convert.c'"
+else
+sed 's/^X//'  >'convert.c' <<'SHAR_EOF'
+X/* convert.c - Part of the unsea program.
+X *   Copyright 1992 by David W. Rankin, Jr.
+X * 
+X * See "unsea.txt" for full copyright information applying 
+X * to all text in this package. 
+X *
+X *
+X * This file contains the source code for the converters and interpreters
+X * within unsea, including the CRC conversion constants. */
+X 
+X
+X#include "unsea.h"
+X
+X/* crctab based upon BinHex and MacBinary standard CRC "seed" of
+X * 0x1021. */
+Xconst unsigned short crctab[] = { 
+X    0x0000,  0x1021,  0x2042,  0x3063,  0x4084,  0x50a5,  0x60c6,  0x70e7,
+X    0x8108,  0x9129,  0xa14a,  0xb16b,  0xc18c,  0xd1ad,  0xe1ce,  0xf1ef,
+X    0x1231,  0x0210,  0x3273,  0x2252,  0x52b5,  0x4294,  0x72f7,  0x62d6,
+X    0x9339,  0x8318,  0xb37b,  0xa35a,  0xd3bd,  0xc39c,  0xf3ff,  0xe3de,
+X    0x2462,  0x3443,  0x0420,  0x1401,  0x64e6,  0x74c7,  0x44a4,  0x5485,
+X    0xa56a,  0xb54b,  0x8528,  0x9509,  0xe5ee,  0xf5cf,  0xc5ac,  0xd58d,
+X    0x3653,  0x2672,  0x1611,  0x0630,  0x76d7,  0x66f6,  0x5695,  0x46b4,
+X    0xb75b,  0xa77a,  0x9719,  0x8738,  0xf7df,  0xe7fe,  0xd79d,  0xc7bc,
+X    0x48c4,  0x58e5,  0x6886,  0x78a7,  0x0840,  0x1861,  0x2802,  0x3823,
+X    0xc9cc,  0xd9ed,  0xe98e,  0xf9af,  0x8948,  0x9969,  0xa90a,  0xb92b,
+X    0x5af5,  0x4ad4,  0x7ab7,  0x6a96,  0x1a71,  0x0a50,  0x3a33,  0x2a12,
+X    0xdbfd,  0xcbdc,  0xfbbf,  0xeb9e,  0x9b79,  0x8b58,  0xbb3b,  0xab1a,
+X    0x6ca6,  0x7c87,  0x4ce4,  0x5cc5,  0x2c22,  0x3c03,  0x0c60,  0x1c41,
+X    0xedae,  0xfd8f,  0xcdec,  0xddcd,  0xad2a,  0xbd0b,  0x8d68,  0x9d49,
+X    0x7e97,  0x6eb6,  0x5ed5,  0x4ef4,  0x3e13,  0x2e32,  0x1e51,  0x0e70,
+X    0xff9f,  0xefbe,  0xdfdd,  0xcffc,  0xbf1b,  0xaf3a,  0x9f59,  0x8f78,
+X    0x9188,  0x81a9,  0xb1ca,  0xa1eb,  0xd10c,  0xc12d,  0xf14e,  0xe16f,
+X    0x1080,  0x00a1,  0x30c2,  0x20e3,  0x5004,  0x4025,  0x7046,  0x6067,
+X    0x83b9,  0x9398,  0xa3fb,  0xb3da,  0xc33d,  0xd31c,  0xe37f,  0xf35e,
+X    0x02b1,  0x1290,  0x22f3,  0x32d2,  0x4235,  0x5214,  0x6277,  0x7256,
+X    0xb5ea,  0xa5cb,  0x95a8,  0x8589,  0xf56e,  0xe54f,  0xd52c,  0xc50d,
+X    0x34e2,  0x24c3,  0x14a0,  0x0481,  0x7466,  0x6447,  0x5424,  0x4405,
+X    0xa7db,  0xb7fa,  0x8799,  0x97b8,  0xe75f,  0xf77e,  0xc71d,  0xd73c,
+X    0x26d3,  0x36f2,  0x0691,  0x16b0,  0x6657,  0x7676,  0x4615,  0x5634,
+X    0xd94c,  0xc96d,  0xf90e,  0xe92f,  0x99c8,  0x89e9,  0xb98a,  0xa9ab,
+X    0x5844,  0x4865,  0x7806,  0x6827,  0x18c0,  0x08e1,  0x3882,  0x28a3,
+X    0xcb7d,  0xdb5c,  0xeb3f,  0xfb1e,  0x8bf9,  0x9bd8,  0xabbb,  0xbb9a,
+X    0x4a75,  0x5a54,  0x6a37,  0x7a16,  0x0af1,  0x1ad0,  0x2ab3,  0x3a92,
+X    0xfd2e,  0xed0f,  0xdd6c,  0xcd4d,  0xbdaa,  0xad8b,  0x9de8,  0x8dc9,
+X    0x7c26,  0x6c07,  0x5c64,  0x4c45,  0x3ca2,  0x2c83,  0x1ce0,  0x0cc1,
+X    0xef1f,  0xff3e,  0xcf5d,  0xdf7c,  0xaf9b,  0xbfba,  0x8fd9,  0x9ff8,
+X    0x6e17,  0x7e36,  0x4e55,  0x5e74,  0x2e93,  0x3eb2,  0x0ed1,  0x1ef0
+X    };
+X
+Xunsigned short updatecrc(unsigned char i, unsigned short crc)
+X{
+X	extern const unsigned short crctab[];
+X	
+X	return ((crc<<8) ^ crctab[(crc>>8) ^ i]);
+X
+X} /* end of updatecrc() */
+X
+Xvoid convert_mb_header(unsigned char block[])
+X
+X{	
+X	extern struct starting_flags stflags;
+X	
+X	char newfilename[64], oldfilename[64];
+X			/* 64 is one more than the maximum length of a file in a
+X			 * MB archive */
+X	
+X	unsigned short crc = 0;
+X	
+X	int i, j;
+X	
+X	
+X	j= (int) (block[1]);
+X	
+X	for(i=0; i<=j; i++)
+X		oldfilename[i] = block[i+2];
+X	
+X	strcpy(newfilename,"");
+X	
+X	/* Let's get the name converted here... (j is the length of the
+X	 * new file name, which is not necessarily the same size as
+X	 * the old one (but still less than 63 chars long) */
+X	 
+X	convert_file_name(oldfilename, newfilename,FALSE);
+X		/* the FALSE means that cfn() will leave the filename alone if it
+X		 * doesn't have *.sea as its structure (the optimal choice for
+X		 * the internal name of a MacBinary file, since a lot of them have
+X		 * more unconventional names. */
+X	
+X	j=strlen(newfilename);
+X	
+X	block[1] = j; /* put that length in the new block */
+X	
+X	for(i=0;i<j;i++)
+X		block[i+2] = newfilename[i];
+X	
+X	/* Now, we have to \0 the rest of the name space, as per
+X	 * the standard. */
+X	
+X	for(i=(j+2); i<65; i++)
+X		block[i]= '\0';
+X	
+X	/* Let's change the creator and type, as appropriate.*/
+X	
+X	switch (stflags.sea_mode)
+X		{
+X		case 1: /* Compact Pro SEAs */
+X			/* first the type */
+X			restypecopy(block, 65, "PACT");
+X		
+X			/* then the creator */
+X			restypecopy(block, 69, "CPCT");
+X	 		
+X	 		break;
+X	 	
+X	 	case 3: /* StuffIt SEAs */
+X		 	/* first the type */
+X			restypecopy(block, 65, "SITD");
+X		
+X			/* then the creator */
+X			restypecopy(block, 69, "SIT!");
+X			
+X			break;
+X		
+X		}
+X		
+X	/* Now, let's tell the Finder that the SEA doesn't have an icon, by
+X	 * zeroing the BNDL flag bit. */
+X	 
+X	block[73] = block[73] & 0xdf;
+X	
+X	/* Need to make the resource block into length 0 */
+X	block[87]=block[88]=block[89]=block[90]=0;
+X
+X/* The MB2 parts of unsea don't work right, so I am making all unsea
+X * files MB1. The MB2 code is left in here for copyright's sake, however. *	
+X	/* for safety's sake, let's upgrade all MB files to MB 2 status *
+X	
+X	block[122]=block[123]=129;
+X	
+X	/* finally, we need to redo the CRC blocks for the header *
+X	
+X	for(i=0;i<124;i++)
+X		
+X		crc = updatecrc(block[i], crc);
+X		
+X	block[124] = (char) ((crc&0xff00)>>8); /* high byte of the CRC-16 *
+X	
+X	block[125] = (char) (crc&0xff); /* the low order of the CRC-16 *
+X	
+X	/* now we are done [CRC stuff] */
+X/* Here's the MB1 hack code. */
+X	block[122]=block[123]=block[124]=block[125]=0;	
+X/* End of MB1 hack */	
+X	
+X	return;
+X	
+X} /* end of convert_mb_header() */
+X
+Xunsigned long int getforksize(unsigned char block[4])
+X{ /* This routine takes 4 type unsigned char #s and makes them into
+X   * a type unsigned long. Used mainly to determine the length of the
+X   * two forks of the MacBinary and BinHex files. */
+X   
+X	unsigned long int x;
+X	
+X	x=((unsigned long)(block[0])<<24)|((unsigned long)(block[1])<<16);
+X	
+X	x+=((unsigned long)(block[2])<<8)|((unsigned long) (block[3]));
+X	
+X	return x;
+X	
+X} /* end of getforksize() */
+X
+Xunsigned long getblocksize(unsigned long x)
+X{ /* Converts an unsigned long byte count into an unsigned byte block
+X   * count. Used by unsea_mb() */
+X   
+X	unsigned long y;
+X	
+X	y = (x / 128);
+X	
+X	if (x % 128)
+X		
+X		y++;
+X	
+X	return y;
+X
+X} /* End of getblocksize() */
+X
+Xint convert_file_name(char *oldfname, char *newfname, const int convert_all)
+X
+X{
+X	/* NOTE: This routine either assumes the file is of form *.sea.bin
+X	 * or of form *.sea. If neither, then it names the file "new_*",
+X	 * with a maximum length of the lesser of FILENAME_MAX and 63. */
+X	
+X	extern struct starting_flags stflags;
+X	
+X	int i;
+X		
+X	strcpy(newfname, oldfname);
+X	
+X	i = strlen(newfname);
+X	
+X	if((!strncmp(&newfname[i-3],"bin",3))||(!strncmp(&newfname[i-3],"BIN",3)))
+X		{
+X		/* if the file has the suffix *.bin, check if it has the form
+X		 * *.sea.bin.  */
+X		if((!strncmp(&newfname[i-7],"sea",3))||(!strncmp(&newfname[i-7],"SEA",3)))
+X			
+X			switch (stflags.sea_mode) {
+X			case 1:
+X				strncpy(&newfname[i-7],"cpt",3);
+X				break;
+X			
+X			case 3:
+X				strncpy(&newfname[i-7],"sit",3);
+X				break;
+X			
+X			default:
+X				printf("Catastrophic value error in sea_mode.\n");
+X				return 1;
+X			}
+X		else /* It doesn't have *.sea.bin, so make it new_*.bin */
+X			{
+X			strcpy(newfname, "new_");
+X			strcat(newfname, oldfname);
+X			newfname[63]= '\0'; /* Maximum length is 63 characters, if it
+X			                     * does not know better. (see below) */
+X			}
+X		
+X		} 
+X	/* it doesn't have *.bin, so convert from there */
+X	/* Here if of form *.sea*/
+X	else if((!strncmp(&newfname[i-3],"sea",3))||(!strncmp(&newfname[i-3],"SEA",3)))
+X			{
+X			switch (stflags.sea_mode)
+X				{
+X				case 1:
+X					strncpy(&newfname[i-3],"cpt",3);
+X					break;
+X			
+X				case 3:
+X					strncpy(&newfname[i-3],"sit",3);
+X					break;
+X			
+X				default:
+X					printf("Catastrophic value error in sea_mode\n");
+X					return 1;
+X				}
+X			
+X			}
+X		
+X	else if (convert_all)
+X		/* If none of these, and the calling routine desires all file
+X		 * names to be converted... */
+X			{
+X			
+X			strcpy(newfname, "new_");
+X		
+X			strcat(newfname, oldfname);
+X		
+X			newfname[63]= '\0'; /* see comment at last newfname[63]='\0' */
+X			
+X			}
+X		/* end of if statements */
+X	
+X	return 0;
+X	
+X} /* end of convert_file_name() */
+SHAR_EOF
+fi # end of overwriting check
+if test -f 'file.c'
+then
+	echo shar: will not over-write existing file "'file.c'"
+else
+sed 's/^X//'  >'file.c' <<'SHAR_EOF'
+X/* block.c - Part of the unsea program.
+X *   Copyright 1992 by David W. Rankin, Jr.
+X * 
+X * See "unsea.txt" for full copyright information applying 
+X * to all text in this package. 
+X *
+X *
+X * Contains ANSI C library functions for reading blocks of chars,
+X * along with normal paranoia about error checking. :) */
+X 
+X#include "unsea.h"
+X
+Xint getfileblock(FILE *fp, unsigned char block[], const int blocksize)
+X
+X{	size_t i=0;
+X
+X	i = fread(block, 1, blocksize, fp);
+X	
+X	if ( (i != blocksize) || ferror(fp) || feof(fp) )
+X		return 1; /* something bad happened... */
+X	
+X	else return 0; /* This went OK... */
+X	
+X} /* end of getfileblock() */
+X
+Xint sendfileblock(FILE *fp, unsigned char block[], const int blocksize)
+X
+X{	size_t i;
+X
+X	i = fwrite(block, 1, blocksize, fp);
+X	
+X	if ( (i != blocksize) || ferror(fp) || feof(fp) )
+X		return 1; /* there was a file error, so tell it... */
+X	
+X	else return 0; /* a spotless finish.. */
+X
+X} /* end of sendfileblock() */
+SHAR_EOF
+fi # end of overwriting check
+if test -f 'macbin.c'
+then
+	echo shar: will not over-write existing file "'macbin.c'"
+else
+sed 's/^X//'  >'macbin.c' <<'SHAR_EOF'
+X/* macbin.c - Part of the unsea program.
+X *   Copyright 1992 by David W. Rankin, Jr.
+X * 
+X * See "unsea.txt" for full copyright information applying 
+X * to all text in this package. 
+X *
+X *
+X * macbin.c holds the unsea_mb() and associated routines. */
+X 
+X #include "unsea.h"
+X 
+Xint unsea_mb(char *oldfilename, char *newfilename)
+X{
+X	/* start of declared variables */
+X	
+X	extern struct starting_flags stflags;
+X	
+X	FILE *oldfilep; /* the original SEA MacBinary file */
+X	
+X	FILE *newfilep; /* the new non-SEA MacBinary file */
+X	
+X	unsigned long int i, /* general counter */
+X
+X		datablock,
+X			/* holds the number of blocks in the data fork of the sea */
+X
+X		resblock;
+X			/* same as datablock, except for the resource fork */
+X	
+X	unsigned char fileblock[128];  /* storage area for blocks in the MacBinary file */
+X	
+X	unsigned char *kfileblock; /* This pointer is for kblock transmission, if needed. */
+X	
+X	int j, kblocks;      /* other counters */
+X	    
+X	/* start of code */
+X	
+X	/* Let's see if the file even exists */
+X	if ( (oldfilep=fopen(oldfilename,"rb") ) == NULL)
+X		{
+X		 fprintf(stderr, "Cannot open %s to convert.\n", oldfilename);
+X		 
+X		 return 1; /* Standard error return */
+X		}
+X	
+X	/* Can I read the file?? */
+X	if (getfileblock(oldfilep,fileblock,128) ) /* getfileblock() 
+X	                                          returns 1 as an error */
+X		{ ERROR("Unable to read %s.\n", oldfilename);
+X		
+X		  return 1;
+X		}
+X		
+X	/* Is it a SEA, and if so what kind? Let's check. */
+X	if ((!check_mb_sea(fileblock))||(!stflags.sea_mode))
+X		/* if check_mb_sea or sea_mode == 0, then the file is not
+X		 * an mb_sea.*/
+X	
+X		{ ERROR("%s is not a valid file for unsea.\n", oldfilename);
+X		
+X		  return 1;  /* spit it back */
+X		
+X		}
+X	
+X	/* Get a new filename for the file if one was not provided */
+X	
+X	if (!strlen(newfilename))
+X		
+X		convert_file_name(oldfilename, newfilename, TRUE);
+X			/* The TRUE says that a "new_" prefix is to be used
+X			 * if necessary */
+X	
+X	/* Can we open the new file?? If there is one there by the
+X	 * same name, the answer is no, unless option 'o' has
+X	 * been selected. In that case, it is yes, no matter what.*/
+X	   			
+X	if(!(stflags.overwrite)&&((newfilep=fopen(newfilename,"r"))!=NULL))
+X	
+X		{ ERROR3("New file %s for converting %s already exists.\n", newfilename, oldfilename);
+X	
+X		  return 1;
+X		}
+X	
+X	/* Now let's see if the new file can be created... */
+X	if ( (newfilep=fopen(newfilename,"wb") ) == NULL) /* UNSEA can't open the output file */
+X	
+X		{ printf("File error opening file %s for converting %s.\n", newfilename, oldfilename);
+X	
+X		  fclose(oldfilep);
+X		
+X		  return 1;
+X		}
+X	/* how long are the two forks of the Mac SEA file?? Note that
+X	 * getforksize() produces a figure in x bytes, while getblocksize()
+X	 * produces the number of 128 byte blocks in said number. */
+X	 
+X	datablock=getblocksize(getforksize(&fileblock[83]));
+X	
+X	resblock=getblocksize(getforksize(&fileblock[87]));
+X	
+X	/* Let's now let the user know about what this SEA is like,
+X	 * unless he already told us not to, via the b option. */
+X	if(!stflags.less_talk)
+X		{
+X		
+X		printf("Opening %s for MacBinary conversion.\n\t SEA type:",oldfilename);
+X	
+X		switch (stflags.sea_mode){
+X		
+X			case 1:
+X				printf("Compact Pro. \n");
+X				break;
+X		
+X			case 3:
+X				printf("StuffIt Deluxe/Lite\n");
+X				break;
+X			}
+X		printf("\t Output file: %s \n\t\
+X Output file size (in bytes): %ld \n",newfilename,((datablock+1)*128));
+X 
+X		}
+X	/* Let's produce a block header for "newfilename" */
+X	convert_mb_header(fileblock);
+X	
+X	/* now, push the converted header into the new file, dealing
+X	   gracefully (at least somewhat gracefully...) with any
+X	   file errors. */
+X	if (sendfileblock(newfilep,fileblock,128) )
+X		{
+X		 ERROR3("File error accessing file %s for converting %s.\n", newfilename, oldfilename);
+X		 
+X		 DELETE_FILE(newfilename);
+X		 	/* Let's clean up the newly-generated file, as well. */
+X		 return 1;
+X		}
+X	
+X	/* Send the data block through unmolested, if it exists at all. */
+X	if (datablock)
+X		{
+X		
+X		if(((datablock/8)>2)&&((kfileblock=calloc(1024,1))!=NULL))
+X			{ /* Basically, is the "fast" method worth the effort, and if
+X			   * so, can we get space for it?? */
+X			
+X			kblocks = (datablock / 8);
+X			
+X			for(i=1;i<= kblocks;i++)
+X				{
+X				if((getfileblock(oldfilep,kfileblock,1024))||(sendfileblock(newfilep,kfileblock,1024)))
+X					{
+X					 ERROR3("File error during conversion of %s into %s.\n", oldfilename,newfilename);
+X				 
+X					 DELETE_FILE(newfilename);
+X		 			/* Let's clean up the newly-generated file, as well. */
+X		 			 return 1;
+X					}
+X				datablock -= 8;
+X				}
+X				
+X			free(kfileblock);
+X			}/* There, the "big" parts are out of the way... */
+X	
+X
+X/* Now, let's get the leftovers... */
+X		for(i=1;i<=datablock;i++)
+X		{
+X			if((getfileblock(oldfilep,fileblock,128))||(sendfileblock(newfilep,fileblock,128)))
+X				{
+X				 ERROR3("File error during conversion of %s into %s.\n", oldfilename,newfilename);
+X				 
+X				 DELETE_FILE(newfilename);
+X		 			/* Let's clean up the newly-generated file, as well. */
+X		 			return 1;
+X				 }
+X				 
+X		}
+X		
+X	} /* End of datablock sending */
+X	
+X	/* Now that we have sent the data block, we can trash the old res fork */
+X	if(((resblock/8)>2)&&((kfileblock=calloc(1024,1))!=NULL))
+X			{ /* Again, is the "fast" method worth the effort, and if
+X			   * so, can we get space for it?? */
+X			
+X			kblocks = (resblock / 8);
+X			
+X			for(i=1;i<= kblocks;i++)
+X				{
+X				if(getfileblock(oldfilep,kfileblock,1024))
+X					{
+X					 ERROR3("File error during conversion of %s into %s.\n", oldfilename,newfilename);
+X				 
+X					 DELETE_FILE(newfilename);
+X		 			/* Let's clean up the newly-generated file, as well. */
+X		 			 return 1;
+X					}
+X				resblock -= 8;
+X				}
+X				
+X			free(kfileblock);
+X			}/* There, the "big" parts are out of the way... */
+X	for(i=1;i<=resblock;i++)
+X		{
+X		/* Again, let's check for errors (my, aren't we being paranoid
+X		 * about errors.. ;) */
+X		if (getfileblock(oldfilep,fileblock,128) )
+X			{
+X			 ERROR3("File error during conversion of %s into %s.\n", oldfilename,newfilename);
+X			  
+X			 DELETE_FILE(newfilename);
+X		 		/* Let's clean up the newly-generated file, as well. */
+X			 return 1;
+X			 }
+X		}
+X
+X	/* Send the rest of oldfile over, if any. (for compatability with
+X	 * standard, which allows Info block after the two forks.) */
+X	
+X	while ( (j=fgetc(oldfilep) ) != EOF)
+X		{
+X		  fputc(j,newfilep);
+X		}
+X	
+X	ERROR3("%s successfully converted to %s.\n\n", oldfilename, newfilename);
+X	
+X	return 0; /* a job well done :) */
+X	
+X}  /* end of unsea_mb() */
+X
+Xint check_mb_sea(unsigned char block[])
+X{
+X	extern struct starting_flags stflags;
+X	
+X	int i;   /* counter, both general and specific */
+X	
+X	char restype[5]; /* 4 byte length, for file type and creator */
+X	
+X	int j;
+X
+X	stflags.sea_mode = 0;
+X	
+X	if (block[0] || block[74] || block[82])
+X		return 0;  /* If any of these are != 0, this is NOT a MB file */
+X	
+X	/* From this point on, cmb() should return 1, to indicate that this
+X	 * is a MB file, simply not a MB SEA*/
+X	
+X	for(i=0;i<4;i++)
+X		restype[i]=block[65+i];
+X
+X	restype[4] = 0;
+X	
+X	if (strcmp(restype, "APPL")) /* This is TRUE if restype != "APPL" */
+X		return 1;  /* Can add "appe" here if needed later... */
+X	
+X	/* Time to do the same thing with the creator type */
+X	
+X	for(i=0; i<4; i++)
+X		restype[i]=block[69+i];
+X	
+X	if ((!stflags.ignore_cpt_seas)&&(!strcmp(restype, "EXTR")))
+X		/* If we can even read CompactPro SEAs, is it one? */
+X		{
+X		stflags.sea_mode = 1;
+X		
+X		return 1; /* it is */}
+X		
+X	else if ((!stflags.ignore_sitd_seas)&&(!strcmp(restype, "aust")))
+X		/* Can we read StuffIt SEAs, and if so is this file one? */
+X		{
+X		stflags.sea_mode = 3;
+X		
+X		return 1; /* Yep. :) */}
+X	
+X	return 1;
+X	/* None of these is true, so instead, let's just return 
+X	 * that it's a MacBinary file. */
+X
+X} /* end of check_mb_sea() */
+SHAR_EOF
+fi # end of overwriting check
+if test -f 'unsea.c'
+then
+	echo shar: will not over-write existing file "'unsea.c'"
+else
+sed 's/^X//'  >'unsea.c' <<'SHAR_EOF'
+X/* unsea.c - Part of the unsea program.
+X *   Copyright 1992 by David W. Rankin, Jr.
+X * 
+X * See "unsea.txt" for full copyright information applying 
+X * to all text in this package. 
+X *
+X *
+X * This file holds main(), and other main parts of unsea. */
+X
+X/* include statements */
+X
+X#include "unsea.h"
+X
+X/* Beginning of code */
+X
+Xstruct starting_flags stflags;
+X
+Xvoid main(int argc, char *argv[])
+X{
+X	extern struct starting_flags stflags;
+X	
+X	char newfilename[FILENAME_MAX+1];/* the place for the file to be created */
+X
+X	int i, j, /* generic counters */
+X		
+X		arg_per_file; /* see its use */
+X	
+X	/* start of code */
+X
+X	strcpy(newfilename,""); /* This initializes this string */
+X	
+X/* This is for use on THINK_C compilers only. */
+X#ifdef THINK_C
+X    argc=ccommand(&argv);
+X#endif /*THINK_C*/
+X	
+X	startupmesg();
+X
+X	if (argc==1)
+X		{
+X		help();  /* tell basics, then quit */
+X		
+X		exit(EXIT_SUCCESS); }
+X		
+X	/* implied "else if (argc>=2)" */
+X		
+X	
+X	 for(i=1;i<argc;i++)
+X	 	{ /* Is argv[i] "--"? If so, quit looking for options
+X	 	   * completely. */ 
+X	 	if(!strncmp(argv[i],"--",2))
+X	 		{
+X	 		i++;
+X
+X	 		break;  }
+X		 	/* If argv[i] doesn't have '-' at the beginning, quit looking
+X		 	 * as well, but make no incrementation */
+X
+X	 	if(argv[i][0] != '-')
+X	 		break;
+X		 	
+X		if(check_startup_flags(argv[i]))
+X			{
+X			fprintf(stderr,"\
+XFatal error within option flags. Unable to proceed with conversion \n");
+X
+X	 		help();
+X
+X	 		exit(EXIT_FAILURE);
+X
+X	 		}
+X	 	} /* end of for() loop */
+X	if (stflags.name_given && ((argc-i) % 2) )
+X			/* If there are supposed to be an even # of arguments,
+X			 * but aren't, then spit it back... */
+X		{ fprintf(stderr, "Improper number of arguments for -n flag.\n");
+X
+X	 	  exit(EXIT_FAILURE);
+X	 	}
+X
+X	if(i==argc)
+X		{ /* this sees if no files were selected for conversion.
+X		   * If so, give help and error out. */
+X		help();
+X
+X		exit(EXIT_FAILURE);
+X		}
+X
+X	arg_per_file = (stflags.name_given) ? 2 : 1;
+X
+X	while(i<argc)
+X		{
+X		if(stflags.name_given)
+X			strcpy(newfilename, argv[i+1]);
+X
+X		unsea_mb(argv[i], newfilename);
+X
+X		strcpy(newfilename, "");
+X
+X		i += arg_per_file;
+X
+X		}
+X		 	  	
+X}  /* end of main() */
+X
+Xvoid restypecopy(unsigned char block[], const int startint, char s[])
+X
+X{	int i;
+X
+X	for (i=0;i<4;i++)
+X		block[startint+i] = s[i];
+X	
+X} /* end of restypecopy() */
+X
+Xint check_startup_flags(char *string)
+X{
+X	extern struct starting_flags stflags;
+X	int i, len,bad_flag=FALSE;
+X	
+X	len = strlen(string);
+X	
+X	for(i=0; i<len; i++)
+X		{
+X		switch (string[i]) {
+X			
+X			case 'B': /* 'b'rief descriptions mode. */
+X			case 'b':
+X				stflags.there = TRUE;
+X
+X				stflags.less_talk = TRUE;
+X					/* less talk is what happens... */
+X				break;
+X			
+X			
+X		
+X		/* This case is put in for future versions of unsea, but is
+X		 * dunsel for now. */
+X			case 'D': /* ignore 'D'iskDoubler SEAs */
+X			case 'd':
+X				stflags.there = TRUE;
+X
+X				stflags.ignore_dd_seas = TRUE;
+X
+X				break;
+X			
+X			case 'C': /*ignore 'C'ompact Pro SEAs */
+X			case 'c':
+X				stflags.there = TRUE;
+X
+X				stflags.ignore_cpt_seas = TRUE;
+X
+X				break;
+X			
+X			case 'S': /* Ignore 'S'tuffIt SEAs /*
+X			case 's':
+X				stflags.there = TRUE;
+X
+X				stflags.ignore_sitd_seas = TRUE;
+X
+X				break;
+X			
+X			case 'N': /* new 'n'ame given */
+X			case 'n':
+X				stflags.there = TRUE;
+X
+X				stflags.name_given = TRUE;
+X
+X				break;
+X			
+X			case 'O': /* 'O'verwrite "newfilename" */
+X			case 'o':
+X				stflags.there = TRUE;
+X
+X				stflags.overwrite = TRUE;
+X					/* Overwrite any file in the way of the new file */
+X				break;
+X			
+X			case '-': /* Ignore '-', as per UNIX custom */
+X				break;
+X			
+X			default:  /* when a bad flag is found, let main() know*/
+X				bad_flag=TRUE; 
+X				break;
+X			}
+X		
+X		}
+X		return bad_flag;
+X} /* End of check_startup_flags() */
+SHAR_EOF
+fi # end of overwriting check
+if test -f 'unsea.h'
+then
+	echo shar: will not over-write existing file "'unsea.h'"
+else
+sed 's/^X//'  >'unsea.h' <<'SHAR_EOF'
+X/* unsea.h - Part of the unsea program.
+X *   Copyright 1992 by David W. Rankin, Jr.
+X * 
+X * See "unsea.txt" for full copyright information applying 
+X * to all text in this package. 
+X *
+X *
+X * Header file for the rest of unsea. */
+X
+X#include <stdio.h>
+X
+X#include <stdlib.h>
+X
+X#include <stddef.h>
+X
+X#include <string.h>
+X
+X/* USER DEFINABLE FLAGS 
+X * The flags in this area can be changed by the user to customize
+X * the way unsea works. */
+X
+X#undef UNIX_DELETE
+X	/* If this is defined, unlink() is used instead of remove().
+X	 * For compiler libraries that aren't 100% ANSI compatable */
+X
+X/* End of user definable flags
+X * You SHOULD NOT change any of the statements below this line */
+X 
+X/* required define statements */
+X#undef TRUE
+X#define TRUE	1
+X
+X#undef FALSE
+X#define FALSE	0
+X
+X/* The next 2 defines are for use with exit(), to show explicitely
+X * whether the exit was successful or not. These should be defined
+X * in the C libraries, but I have grown not to trust the libraries
+X * a lot in things like this... */
+X
+X#ifndef EXIT_FAILURE
+X#	define EXIT_FAILURE 1
+X#endif
+X
+X#ifndef EXIT_SUCCESS
+X#	define EXIT_SUCCESS 0
+X#endif
+X
+X#ifndef FILENAME_MAX
+X#	define FILENAME_MAX 63
+X/* This is for the drain-bramaged compilers that refuse to 
+X * define all the constants. */
+X#endif /* FILENAME_MAX */
+X
+X#ifdef THINK_C /* This is true for THINK C compilers, usually */
+X#	define MACINTOSH
+X#	include <console.h>
+X#endif  /* THINK_C */
+X
+X#define ERROR(ARGUMENT1, ARGUMENT2) fprintf(stderr,ARGUMENT1, ARGUMENT2);\
+Xfclose(oldfilep)
+X#define ERROR3(ARGUMENT1, ARGUMENT2,ARGUMENT3) fprintf(stderr,ARGUMENT1,\
+XARGUMENT2,ARGUMENT3);fclose(oldfilep);fclose(newfilep)
+X
+X	/* WARNING: This routine is unsea_mb specific!!! *
+X	   ERROR() allows the program to neatly deal with errors, by simply *
+X	   stating it in the code, and then the preprocessor comes along later *
+X	   and adds the rest. */
+X
+X#ifdef UNIX_DELETE
+X#	define DELETE_FILE(arg) unlink(arg)
+X/* Use the UNIX standard delete file routine */
+X#else
+X#	define DELETE_FILE(arg) remove(arg)
+X/* Use the ANSI C standard delete file routine. The recommended 
+X * macro */
+X#endif /*UNIX_DELETE */
+X
+X/* end of definitions */
+X
+X/* start of struct definitions */
+X
+Xstruct starting_flags
+X		{
+X		char there,
+X				/* This is TRUE if there are flags in the first place */
+X
+X			name_given,
+X				/* This flag is true if each file has a "child" file name */
+X
+X			ignore_sitd_seas,
+X				/* Used to record status of StuffIt SEAs, as decided on
+X				 * the command line. */
+X
+X			ignore_cpt_seas,
+X				/* Same as ignore_sitd_seas, except for Compact Pro SEAs. */
+X
+X			ignore_dd_seas,
+X				/* At this time, unsea will not convert DiskDoubler SEAs. When
+X				 * it does, this will be the boolean for allowing or preventing
+X				 * conversion. */
+X
+X			less_talk,
+X				/* when the 'b'rief mode is selected, unsea will refrain
+X				 * from printing out a detailed analysis of the SEA being
+X				 * converted. */
+X
+X			overwrite;
+X				/* When selected, unsea will overwrite when it finds
+X				 * a file with the same name as the new file to be
+X				 * generated. */
+X
+X		int sea_mode;
+X			/* This int will hold the type of SEA that the file is. */
+X
+X		}; /* end of struct starting_flags */
+X
+X/*  function declarations */
+X
+Xvoid main(int argc, char *argv[]);
+X
+Xvoid startupmesg(void);
+X
+Xvoid help(void);
+X
+Xvoid restypecopy(unsigned char block[], const int startint, char s[]);
+X
+Xint unsea_mb(char *oldfilename, char *newfilename);
+X
+Xint getfileblock(FILE *fp, unsigned char block[], const int blocksize);
+X
+Xint convert_file_name(char *oldfilename, char *newfilename, const int convert_all);
+X
+Xint check_mb_sea(unsigned char block[]);
+X
+Xvoid convert_mb_header(unsigned char block[]);
+X
+Xint sendfileblock(FILE *fp, unsigned char block[], const int blocksize);
+X
+Xunsigned long int getforksize(unsigned char block[]);
+X
+Xunsigned long int getblocksize(unsigned long int bytes);
+X
+Xunsigned short updatecrc(unsigned char c, unsigned short crc);
+X
+Xint check_startup_flags(char *argv);
+X
+X/* end of function prototypes */
+SHAR_EOF
+fi # end of overwriting check
+if test -f 'unsea.testers'
+then
+	echo shar: will not over-write existing file "'unsea.testers'"
+else
+sed 's/^X//'  >'unsea.testers' <<'SHAR_EOF'
+Xunsea.testers - Part of the unsea program.
+X  Copyright 1992 by David W. Rankin, Jr.
+X
+X	I again want to thank everyone on this list for beta testing unsea,
+Xbeta testing my programs is not at all an easy task. :) 
+X
+XBeta testers for unsea(by version)
+X<1.0
+XAlan D. Danziger
+XKelvin Edmison
+XAlan R. Fry
+XJoey Gibson
+XMarco Gonzalez of Aladdin Systems, Inc.
+XKen Hancock
+XBryan M. Kearney
+XZeke Koch
+XAnand C. Patel
+XGreg Rabanes
+XLeonard Rosenthol of Aladdin Systems, Inc.
+XEdward John Sabol
+XChris Schwenda
+XJustin Sullivan
+XMatthias Weismann
+XKurt D. Whitmore
+SHAR_EOF
+fi # end of overwriting check
+if test -f 'unsea.txt'
+then
+	echo shar: will not over-write existing file "'unsea.txt'"
+else
+sed 's/^X//'  >'unsea.txt' <<'SHAR_EOF'
+X"Unsea 1.0 Release Version"
+XAll parts of this package
+X     Copyright 1992 David W. Rankin, Jr.
+X
+XDESCRIPTION:
+X     Unsea is a "charityware" (see "CHARITYWARE" below) routine for removing
+Xthe self-expanding code from MacBinary coded self-expanding archives ("SEAs").
+XIt works with most SEAs created by Compact Pro(TM) 1.33 and compatable versions
+Xand with StuffIt Classic(TM) 1.6, StuffIt Deluxe(TM) 1.0-3.0 and StuffIt
+XLite(TM) 3.0 SEAs. (see "Non-Compatable SEAs" below.)
+X
+X     WARNING: This program uses techniques which remove all code from the
+Xresource fork of the file converted. Therefore, you should not attempt
+Xto use it on any file that requires data to remain in the resource fork.
+XThis is especially important with StuffIt(TM) SEAs with encrypted files. (See
+Xbelow.)
+X
+XLEGAL STUFF:
+X     Unsea is NOT in the public domain; the copyright remains the property of
+XDavid W. Rankin, Jr. (hereafter "I" or "me"). I hereby grant permission to
+Xany group wishing to distribute the unsea package in a completly unmodified
+Xform for no cost (not including on-line services that only charge per hour
+Xconnection charges). Any group wishing to distribute unsea while charging any
+Xfee not covered under the above exceptions for said distribution, especially
+X"media" or "handling" charges, must obtain written permission from me before
+Xso distributing this package.
+X    This package contains material covered by a registered Copyright on
+X"Unsea 1.0", as well as all copyrights on this version and copyrights on
+Xany earlier versions of unsea.
+X    I have made every effort to ensure that this package works and is safe
+Xto use under normal operating conditions. However, I cannot and do not warrant
+Xthis product to be free from defects, or that it will operate as advertised.
+XUse at your own risk.
+X    Any use of the names of any individuals, groups or companies within this
+Xtext is for informational purposes only, and does not represent an endorsement
+Xof unsea by any party so mentioned.
+X    All trademarks presented are the property of their respective owners.
+X
+XCHARITYWARE:
+X     Unsea is "charityware." If you like and use unsea, I ask that you make a
+Xcontribution of $15 US or more to the Christian Appalachian Project (CAP) in
+Xlieu of any payments to me. CAP is an inter-denominational Christian group
+Xdedicated to helping the people of Appalachia help themselves out of the
+Xcycle of poverty that has such a strong grip on that region.
+X     CAP's address is:
+X	
+X	Christian Appalachian Project
+X	322 Crab Orchard Road
+X	Lancaster, KY 40446
+X	US Phone Number: (606)792-3051
+X
+X     Whether or not you chose to donate to CAP, I also ask that you contact me,
+Xso that I may add your name to my mailing lists for unsea. I will try to
+Xcontact unsea users about new versions, bugs, etc. directly, in addition to
+Xposting to Usenet. My addresses are at the end of this file.
+X
+XCOMPILING UNSEA:
+X     Unsea uses parts of the ANSI standard that are not covered under the
+Xoriginal Kernighan and Ritchie (K&R) standard of C. Therefore, you will have
+Xto compile this program with an ANSI compliant compiler. If your system's "cc"
+Xcompiler is not ANSI C compliant and you are on a UNIX machine, I suggest that
+Xyou obtain GNU's C compiler, gcc.
+X     If you are on a UNIX machine, you may simply use the command "make unsea"
+Xto create the unsea program. (See the instructions inside "Makefile" for
+Xmore information in that regard.) If you do not have the "make" program, then
+Xyou will need to compile each .c file in this package into a program named
+X"unsea", following the instructions that come with your compiler.
+X     One problem that has come to my attention already is that some compiler
+Xlibraries do not support the remove() function, which deletes files. If you
+Xencounter an error mentioning _remove failing to link, then this is the
+Xcase. To correct this, you can change "#undef UNIX_DELETE" in unsea.h to
+X"#define UNIX_DELETE." This changes the remove() command to unlink(), a library
+Xfunction common to UNIX compilers and often in other libraries, but not in the
+XANSI C standard libraries.
+X	
+XUSE OF UNSEA:
+X   Syntax for calling unsea:
+X   unsea [-bcnos] oldfile1.sea.bin [newfile1.name.bin] [oldfile2.sea.bin ... ]
+X	
+XCommand Line Syntax:
+X     Starting with the second word of the command line (unsea assumes the first
+Xis its own name), unsea searches the command line for option flags starting
+Xwith '-', up to either a file name not starting with '-', or the string "--"
+X(for when you have a file name with '-' in it).
+X     If unsea encounters an option flag it does not know [see below for a list
+Xof legitimate option flags], it will report an error to the user and abort.
+X     Once unsea has reached the end of the flags, it begins converting each
+Xfile name given. If the n option has been selected (see below), it processes
+Xthe filenames in the command line as pairs, with the first of the pair as the
+Xname of the SEA file and the latter as the name of the unSEAed output file.
+XIt continues processing these names until the end of the command line is
+Xreached. Therefore, unsea is capable of converting multiple files during one
+Xrun.
+X
+X     Option Flags:
+X     b:   Normally unsea gives detailed information about a SEA as it is
+X          being converted. However, this option places unsea into its
+X          "brief descriptions" mode, in which only a small amount of
+X          information is printed to the screen.
+X
+X     c:   This flag will cause any Compact Pro SEAs to be ignored by unsea
+X          during its conversion of the named files. It is good for aliases
+X          where you have a reason to not unSEA a Compact Pro file. The
+X          default is to unSEA Compact Pro SEAs
+X
+X     n:   When this option is selected, unsea uses the string coming after
+X          the SEA file name as the output for the unSEAed file. If the file
+X          name already exists, it will NOT be overwritten, unless the "o"
+X          option is selected. When this option is not selected, unsea
+X          creates a name for the new file using an internal name generator.
+X
+X     o:   unsea will overwrite any file named the same as the new file it
+X          will generate (either through the n option or its internal name
+X          generator.) This option is not recommended except for use with
+X          the n option, since the internal name generator might produce a
+X          name that you did not anticipate. Unsea will not overwrite a
+X          file by default.
+X
+X     s:   This option causes unsea to ignore StuffIt Deluxe SEAs that it
+X          encounters. This option too is good for an alias to unsea. By
+X          default, unsea converts StuffIt Deluxe SEAs.
+X
+X   Note on Options:
+X       While unsea does not presently use option flag 'd', it also will not
+X     report its use as an error. The code recognizing d as the option flag for
+X     surpressing unseaing of DiskDoubler SEAs was added when I added other
+X     code to unsea, even though DiskDoubler SEAs are not yet supported.
+X
+XNON-COMPATABLE SEAs
+X     There are several types of self-expanding archives that unsea is presently
+Xincapable of converting. The main one among these is SEAs generated by
+XDiskDoubler(TM). I will attempt to correct this in the future, but, as I do not
+Xown DiskDoubler, this will take time. (Anyone want to buy me a copy of
+XDiskDoubler so I can try it?? ;).
+X     On the other hand, unsea does not and will not support SEAs made by more
+Xesoteric compressors, such as More Disk Space(TM). I am a college student with
+Xa GPA that has to stay up, so I only have so much spare time.
+X     Also, encrypted StuffIt SEAs use information in the resource fork to
+Xdefine the encryption, so when unsea removes the resource fork, it corrupts the
+Xencryption in the process. Unsea is not capable of detecting such encryption,
+Xso it will blindly proceed to corrupt the archive. There is no practical way
+Xthat I know of to fix this either, since even a checker would have to do
+Xa lot of manipulations of the resource fork, something rather hard for
+XMacBinary but almost impossible for BinHex.
+X
+XACKNOWLEDGEMENTS:
+X     There are several people I want to thank for their help with unsea. First,
+XMarco Gonzalez of Aladdin Systems, Inc. for the information about encrypted
+XStuffIt SEAs, Bill Goodman for pointing out that the BNDL bit had to be
+Xcleared and confirming my data on Compact Pro SEAs, Ken Hancock, for warning
+Xme about funny things inside DiskDoubler SEAs and for help straightening out
+Xmy #define statements, Justin Sullivan, for the original push to start unsea
+Xand beta testing above and beyond the call of duty, and Greg Rabanes for
+Xalpha testing and encouragement.
+X     Next, the beta testers who took some of their valuable time to make unsea
+Xbetter. It comforts a programmer to know there are always people out there
+Xwilling to show you all of your stupid mistakes. ;) Seriously, I appreciate
+Xthe help of all the testers. [A full list of all of unsea's beta testers is
+Xin the file "unsea.testers".] 
+X     Finally, I want to thank the Lord for giving me this knack called
+Xprogramming.
+X     If I left anyone out, feel free to complain to me, and I'll put in a
+Xspecial mention in the next version. 
+X
+XCONTACTING THE AUTHOR:
+X     The best way to contact me is through Electronic Mail, since I check it
+Xoften. Please use the backup addresses only if you cannot get to reach the
+Xprimary address for each net mentioned. Here are the addresses:
+X     INTERNET: rankin=unsea@ms.uky.edu
+X               Backup: rankin@mik.uky.edu, djrank00@ukpr.uky.edu
+X     BITNET: rankin=unsea@ukma.BITNET
+X               Backup: rankin%ms.uky.edu@ukcc.BITNET, djrank00@ukpr.BITNET
+X     UUCP: rankin=unsea@ukma.UUCP or {uunet, gatech}!ukma!rankin=unsea
+X               Backup: uunet!mik.uky.edu!rankin, uunet!ukpr.uky.edu!djrank00
+X     US Postal Service:
+X      As an absolute last resort, you may write to:
+X           David W. Rankin, Jr.
+X           Boyd Hall
+X           University of Kentucky
+X           Lexington, KY 40526-0008
+X     However, please consider that this is not a complete address, so the post
+Xoffice will have to process it. That means it will take a while to get to me.
+XI hope to have a permanent mailing address by the time I have finished unsea
+X1.1, at which time I will put it in this document.
+X
+XCOMING ATTRACTIONS
+X     I am presently working on unsea 1.1, which will have any necessary bug
+Xfixes for 1.0 (hopefully none :) and support for BinHex archives. Also, I
+Xwill make unsea's CRC generator work right, so that it makes correct
+XMacBinary 2 files (it will now only make MacBinary 1 files.) DiskDoubler
+Xsupport is likely to take a while longer, especially since I have other irons
+XREFERENCES:
+X
+XMacBinary Standard, Dennis F. Brothers. This is the original proposal outlining
+X     the MacBinary format, and was the working document created by the original
+X     MacBinary Working Group.
+X
+X"MacBinary II Standard", MacBinary II Conference. This document reflects the
+X     concensus of the MacBinary II Conference, as to extending the MacBinary
+X     standard to cover changes in the Macintosh Finder data and to add CRC
+X     protection to the header of the file.
+X
+Xmcvert 1.65 and mcvert 1.70, Doug Moore et al. UNIX program that converts
+X     MacBinary to BinHex and vice versa, in addition to UnPacking PackIt files
+X     and neato conversions of text files. A prime example of durable code at
+X     it's best. (Better than mine, that's for sure. :)
+X
+XBinHex 4.0 Definition, Peter N. Lewis. This document was created by Mr. Lewis
+X     during the creation of DeHQX, and is a clear definition of the BinHex 4.0
+X     standard, as far as I can tell. Unsea will be 100% compatable with the
+X     BinHex format as described in this document and mcvert.
+X
+XThe C Programming Language, Second Edition, Kernighan and Ritchie. This is
+X     the main code reference that I have used for unsea, especially for being
+X     ANSI C compliant. I do reccomend this book.
+X
+XTHINK C(tm) 5.0, Symantec. During the development and early beta stages, all
+X     of my programming for unsea was on THINK C. Also, I used the Standard
+X     Libraries Reference included with the compiler as an additional reference
+X     for the ANSI C library functions. 
+SHAR_EOF
+fi # end of overwriting check
+if test -f 'version.c'
+then
+	echo shar: will not over-write existing file "'version.c'"
+else
+sed 's/^X//'  >'version.c' <<'SHAR_EOF'
+X/* version.c - Part of the unsea program.
+X *   Copyright 1992 by David W. Rankin, Jr.
+X * 
+X * See "unsea.txt" for full copyright information applying 
+X * to all text in this package. 
+X *
+X *
+X * version.c holds the version-dependant info as well as the
+X * in-program help. */
+X
+X#include "unsea.h"
+X
+X
+X#define VERSION "Unsea 1.0 Release Version"
+X
+X
+X/* HELP CODE!!! */
+X
+Xvoid startupmesg(void)
+X{
+X	printf(VERSION "\n\
+XCopyright 1992 David W. Rankin, Jr.\n\n\
+X  WARNING: unsea will corrupt encrypted StuffIt SEAs. Do not use\n\
+Xunsea to convert these files. \n\n");
+X		
+X}
+X
+Xvoid help(void)
+X{
+X	/* here I'll put the ever-helpful tips to those who need help */
+X
+X	printf("Syntax for calling unsea: \n\
+Xunsea [-bcnos] [--] archive1.name [new.archive1.name] [archive2.name] ... \n\
+XOptions:[None of these are defaults]\n\
+X   b: This option places unsea in \"brief descriptions\" mode, surpressing\n\
+X      the verbose descriptions of the SEA being converted that unsea\n\
+X      normally gives.\n\
+X   c: When selected, this flag surpresses conversion of Compact Pro files.\n\
+X      By default, Compact Pro files are converted.\n\
+X   n: For every original file, a file name is given for the\n\
+X      output file. If this isn't selected, unsea generates\n\
+X      a name using its internal naming algorithms.\n");   printf("\
+X   o: Overwrite any file with the same name as the converted file.\n\
+X      If not selected, unsea will not overwrite files.\n\
+X   s: Surpress conversion of StuffIt Deluxe SEAs. By default, StuffIt SEAs\n\
+X      are converted.\n\
+XAfter the options, list the files you wish to convert, along\n\
+Xwith the converted file's name, if using the -n option. \n");
+X}
+SHAR_EOF
+fi # end of overwriting check
+:	End of shell archive
+exit 0

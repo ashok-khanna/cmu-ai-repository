@@ -1,0 +1,247 @@
+Sun Feb  7 19:10:36 1993  Cesar Quiroz  (quiroz@lemon.cs.rochester.edu)
+
+        * cl.el(cl-version)
+        3.0.
+
+Mon Nov 16 21:08:33 1992  Cesar Quiroz  (quiroz@cyan.cs.rochester.edu)
+
+        * cl.el(passim)
+        Formatting changes needed for standardization in v19.
+
+Sun Nov  1 22:18:29 1992  Cesar Quiroz  (quiroz@cyan.cs.rochester.edu)
+
+        * cl.el (cl-version)
+        3.0 beta.
+        
+        Removed the handlers for the old bytecompiler.  Converted to work
+        with the version 19 compiler.  (The bugs below were discovered by
+        the new compiler.)
+
+        * cl.el (reduce)
+        :initial-value needed a defkeyword
+
+        * cl.el (elt-satisfies-if[-not]-p)
+        The variable `elt' should have been the argument `item'.  Also, the
+        funcall was wrong: it was using `item' twice.
+
+Sat Oct  5 23:45:45 1991  Cesar Quiroz  (quiroz at lemon.cs.rochester.edu)
+
+        * cl.el (defstruct, build$hints$for)
+        Now defstruct hints the compiler about inlining the member
+        functions.  The accessors should experience a nice speedup.
+        The other functions tend to be too trivial and so I expect that
+        the new compiler would inline them anyway, or leave them alone if
+        no gains are expected.
+
+        The output of build$hints$for is used to implement a suggestion
+        of Jamie Zawinski <jwz%thalidomide@lucid.com>.
+
+Sun Sep 15 17:30:33 1991  Cesar Quiroz  (quiroz at lime.cs.rochester.edu)
+
+        * cl.el (list*, progv)
+        New function and macro, due to Aaron Larson.
+
+        * cl.el (psetq)
+        Replaced with version suggested by Hallvard Furuseth.
+
+        * cl.el (various)
+        Added speedups from Rob Austein.
+
+Sat Oct 27 22:19:39 1990  Cesar Quiroz  (quiroz at slate.cs.rochester.edu)
+
+        * cl.el (mod, rem)
+        They now access the representation of multiple value returns
+        directly, for a serious speed improvement.
+
+        * cl.el (butlast)
+        Stavros Macrakis <macrakis@diderot.gr.osf.org> noticed that
+        butlast could use a final nreverse, because the inner reverse
+        created a fresh list.
+
+        * cl.el (safe-idiv)
+        Removed redundant domain checks; / would likely complain now.
+        Tightened the code a bit too.  It is important to speed up integer
+        arithmetic, even at the cost of poorer error messages.  This
+        function should be implemented in C.
+
+        * cl.el (setnthcdr)
+        Recursion hand-replaced by iteration.
+
+Fri Jun  8 20:40:19 1990  Cesar Quiroz  (quiroz at lemon.cs.rochester.edu)
+
+        * cl.el (defstruct)
+        The copier function invoked the non-existent copy-vector.  Calling
+        copy-sequence does the job.
+        Noted by Bruce Cohen (brucec@labs.tek.com).
+
+Sun Dec 17 23:24:41 1989  Cesar Quiroz  (quiroz at pear.cs.rochester.edu)
+
+        * cl.el (defsetf for point)
+        Point's inverse is goto-char.  Mentioned by R. Potter.  Of course,
+        what do we do with the other basic types of Emacs Lisp?
+
+Thu Dec  7 21:26:19 1989  Cesar Quiroz  (quiroz at lemon.cs.rochester.edu)
+
+        * cl.el (member)
+        Another, perhaps counterproductive, speed hack.  When test or
+        testnot are symbols (hopefully, non-null), they are replaced by
+        their symbol-function slots.  This presumably reduces one
+        indirection per each funcall in the inner loop.  
+        I got this idea while responding a question from David Stampe
+        <stampe@uhccux.uhcc.Hawaii.Edu>, about the general obscurity of
+        member.
+
+Mon Nov 27 00:43:03 1989  Cesar Quiroz  (quiroz at lemon.cs.rochester.edu)
+
+        * cl.el (byte-compile-named-list-accessors)
+        Another byte-compile handler, this one eliminates the extra call
+        incurred when using first, ..., tenth, or rest.  This makes those
+        list accessors essentially as primitive as car, cdr, or nth.
+
+Wed Nov 15 03:06:49 1989  Cesar Quiroz  (quiroz at lemon.cs.rochester.edu)
+
+        * cl.el (with-keyword-args)
+        Macro that simplifies most of the handling of klists.  The only
+        neglected functionality is that no supplied-p forms exist
+        (although that is true also of lambda lists in Emacs Lisp).
+        Suggestion of Robert Potter.
+
+Sat Nov  4 18:08:39 1989  Cesar Quiroz  (quiroz at lemon.cs.rochester.edu)
+
+        * cl.el (cl-eval-print-last-sexp)
+        Added half-hearted support for -, +, ++, +++, *, **, ***, /, //,
+        ///; and cleared the mvalues mechanism at every call.
+
+Sun Oct 29 00:10:33 1989  Cesar Quiroz  (quiroz at lemon.cs.rochester.edu)
+
+        * cl.el (declare, proclaim, the)
+        Old suggestion of phr%widow.Berkeley.EDU@lilac.berkeley.edu, to
+        make some more CL codes easy to load.  These are dummies, and have
+        no effect whatsoever.  (Perhaps `the' could be made to check in
+        the interpreter, and to ignore in the compiler.  Then again,
+        writing `typecase' would be also useful and I haven't done it yet.)
+
+        * cl.el (byte-compile-ca*d*r)
+        New function, used as a handler from byte-compile-form to
+        eliminate the extra call to the c*r functions in compiled code.
+        For instance, (defun f1 (x) (cadadr x)) compiles to:
+
+                byte code for f1:
+                 args: (x)
+
+                0   varref   x
+                1   cdr
+                2   car
+                3   cdr
+                4   car
+                5   return
+
+                nil
+
+        * cl.el (adjoin, map)
+        Changed to use `memq' instead of `member', too.
+
+        * cl.el (case, ecase)
+        Via a change in case-clausify, these macros now generate tests
+        using the primitive `memq', instead of the heavier `member'.
+
+        * cl.el (member)
+        Rewrote it to exploit the keyword argument machinery.  It also
+        tries to call memq whenever possible.
+
+Fri Oct 27 01:21:57 1989  Cesar Quiroz  (quiroz at lemon.cs.rochester.edu)
+
+        * cl.el
+        Two-branch conds changed into simple ifs here and there, minor
+        layout changes all over.
+
+        * cl.el (defsetf)
+        `Puts' occur in the generated code, not in the macro expander.
+        (Didn't we fix this long ago?)
+
+        * cl.el (setf)
+        Comment disagreed with the code.  Code was right.
+
+        * cl.el (defkeyword)
+        Was dropping the DOCSTRING.
+
+        * cl.el (reduce)
+        New function.  Presented as an example of how to use KLISTs to
+        parse calls in functions that take keyword arguments.
+
+        * cl.el (concatenate, map)
+        New functions.
+
+        * cl.el (extract-from-klist)
+        Swapped arguments for convenience.
+
+        * cl.el (keyword-argument-supplied-p, cl$subseq-as-list)
+        New auxiliary functions.
+
+        * cl.el (build-klist)
+        Better error messages.
+
+Thu Oct  5 14:27:12 1989  Cesar Quiroz  (quiroz at slate.cs.rochester.edu)
+
+        * cl.el (psetf)
+        Rewrote, patterned after the new psetq.
+
+        * cl.el (psetq)
+        Added early check for even number of arguments.  This causes a
+        better error message than previously.
+
+Wed Oct  4 21:34:44 1989  Cesar Quiroz  (quiroz at lemon.cs.rochester.edu)
+
+        * cl.el (cl-version)
+        "2.0 beta" installed in Rochester, offered for ftp.
+
+        * cl.el (defstruct, parse$defstruct$options)
+        asp@CS.CMU.EDU (James Aspnes) reported that defstruct wasn't
+        handling properly the use of accessors of an :included definition
+        applied to instances of the :including structure.  Indeed, the old
+        version was implementing a (rather useless) sense of
+        multiple-inheritance that was inimical to the Common Lisp sense.
+        Fixed here by adding properties :structure-includes and
+        :structure-included-in to the struct name.  They keep track of the
+        graph of inclusions.
+
+Sun Oct  1 23:13:11 1989  Cesar Quiroz  (quiroz at lemon.cs.rochester.edu)
+
+        * cl.el (mapc, maplist, mapl, mapcan, mapcon)
+        * cl.el (copy-list, copy-tree, revappend, nreconc, nbutlast)
+        * cl.el (subst, subst-if, subst-if-not, sublis)
+        * cl.el (member-if, member-if-not, tailp)
+        New functions, developed apart and now merged with the main file.
+        They still don't take :keyword arguments.
+
+Mon Sep 18 10:41:14 1989  Cesar Quiroz  (quiroz at lemon.cs.rochester.edu)
+
+        * cl.el (safe-idiv)
+        The signum calculation overflowed at times. Better expression was
+        suggested by mad@math.keio.JUNET (MAEDA Atusi), in connection
+        with getris.el
+
+        * cl.el (psetq)
+        A better definition, suggested by comparison with macroexpansions
+        observed in several other lisps (Zeta, Xerox Common and Interlisp,
+        TI).
+
+Tue Aug 29 17:06:36 1989  Cesar Quiroz  (quiroz at ash.cs.rochester.edu)
+
+        * cl.el (floor, ceiling, truncate)
+        Jeff Peck (peck@sun.com) noticed bugs in FLOOR when dealing with
+        negatives.  Similar bugs affected ceiling and truncate.
+
+        * cl.el (cl-eval-print-last-sexp)
+        New function, of use mainly to developers/maintainers of cl.el.
+        Can replace eval-print-last-sexp in lisp-interaction-mode, so that
+        multiple values are reported (almost) correctly.  Do not
+        advertise.
+
+Sun May 21 14:27:22 1989  Cesar Quiroz (quiroz at lesath.cs.rochester.edu)
+
+        * cl.el (isqrt)
+        Philippe Schnoebelen <phs@lifia.imag.fr> suggested a new
+        termination condition.  The old one was too conservative, which
+        forced special cases for n=0,1,2,3.  The new termination condition
+        is simpler, and only n=0 is treated especially.

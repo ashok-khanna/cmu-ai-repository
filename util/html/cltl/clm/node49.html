@@ -1,0 +1,468 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node49.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 10:08:47 GMT -->
+<HEAD>
+<TITLE>4.5. Type Specifiers That Specialize</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Type Specifiers That Specialize">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2115 HREF="node50.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2113 HREF="node44.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2107 HREF="node48.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2117 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2118 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2116 HREF="node50.html"> Type Specifiers That </A>
+<B>Up:</B> <A NAME=tex2html2114 HREF="node44.html"> Type Specifiers</A>
+<B> Previous:</B> <A NAME=tex2html2108 HREF="node48.html"> Type Specifiers That </A>
+<HR> <P>
+<H1><A NAME=SECTION00850000000000000000>4.5. Type Specifiers That Specialize</A></H1>
+<P>
+<A NAME=SPECIALIZEDTYPESPECIFIERSECTION>Some</A>
+type specifier lists denote <i>specializations</i> of
+data types named by symbols.  These specializations may be
+reflected by more efficient representations in the underlying
+implementation.  As an example, consider the type <tt>(array short-float)</tt>.
+Implementation A may choose to provide a specialized representation
+for arrays of short floating-point numbers, and implementation B
+may choose not to.
+<P>
+If you should want to create an array for the
+express purpose of holding only short-float objects, you may
+optionally specify to <tt>make-array</tt> the element type
+<tt>short-float</tt>.  This does not <i>require</i> <tt>make-array</tt> to create
+an object of type <tt>(array short-float)</tt>; it merely <i>permits</i> it.  The
+request is construed to mean ``Produce the most specialized array
+representation capable of holding short-floats that the implementation
+can provide.''  Implementation A will then produce a specialized
+array of type <tt>(array short-float)</tt>, and implementation B
+will produce an ordinary array of type <tt>(array t)</tt>.
+<P>
+If one were then to ask whether the array were actually of type
+<tt>(array short-float)</tt>, implementation A would say ``yes,'' but
+implementation B would say ``no.''  This is a property of <tt>make-array</tt>
+and similar functions: what you ask for is not necessarily what you get.
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+Types can therefore be used for two different purposes:
+<i>declaration</i> and <i>discrimination</i>.  Declaring to <tt>make-array</tt>
+that elements will always be of type <tt>short-float</tt> permits
+optimization.  Similarly, declaring that a variable takes on
+values of type <tt>(array short-float)</tt> amounts to saying that
+the variable will take on values that might be produced by specifying
+element type <tt>short-float</tt> to <tt>make-array</tt>.
+On the other hand, if the predicate <tt>typep</tt> is used to test
+whether an object is of type <tt>(array short-float)</tt>,
+only objects actually of that specialized type can satisfy the test;
+in implementation B no object can pass that test.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(ARRAY-TYPE-ELEMENT-TYPE-SEMANTICS) <A NAME=2237>&#160;</A> 
+to eliminate the differing treatment of types
+when used ``for discrimination'' rather than ``for declaration'' on the grounds
+that implementors have not treated the distinction consistently
+and (which is more important) users have found the distinction confusing.
+<P>
+As a consequence of this change, the behavior of <tt>typep</tt> and <tt>subtypep</tt>
+on <tt>array</tt> and <tt>complex</tt> type specifiers must be modified.
+See the descriptions of those functions.  In particular, under their new
+behavior, implementation B would say ``yes,'' agreeing with implementation A,
+in the discussion above.
+<P>
+Note that the distinction between declaration and discrimination remains
+useful, if only so that we may remark that the specialized (list)
+form of the
+<tt>function</tt> type specifier may still be used only for declaration and
+not for discrimination.
+<P>
+X3J13 voted in June 1988 (FUNCTION-TYPE) <A NAME=2245>&#160;</A>  to clarify that
+while the specialized form of the <tt>function</tt> type specifier
+(a list of the symbol <tt>function</tt> possibly followed by
+argument and value type specifiers)
+may be used only for declaration, the symbol form (simply the name
+<tt>function</tt>) may be used for discrimination.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+The valid list-format names for data types are as follows:
+<DL COMPACT><DT><tt>(array <i>element-type</i> <i>dimensions</i>)</tt>
+<DD>
+This denotes the set
+of specialized arrays
+whose elements are all members of the type <i>element-type</i>
+and whose dimensions match <i>dimensions</i>.
+For declaration purposes, this type encompasses those arrays
+that can result by specifying <i>element-type</i> as the element type
+to the function <tt>make-array</tt>; this may be different
+from what the type means for discrimination purposes.
+<i>element-type</i> must be a valid type specifier or unspecified.
+<i>dimensions</i> may be a non-negative integer, which is the number
+of dimensions, or it may be a list of non-negative integers
+representing the length of each dimension (any dimension
+may be unspecified instead), or it may be unspecified.
+For example:
+<P><pre>
+(array integer 3)           ;Three-dimensional arrays of integers 
+(array integer (* * *))     ;Three-dimensional arrays of integers 
+(array * (4 5 6))           ;4-by-5-by-6 arrays 
+(array character (3 *))     ;Two-dimensional arrays of characters 
+                            ; that have exactly three rows 
+(array short-float <tt>()</tt>)      ;Zero-rank arrays of short-format 
+                            ; floating-point numbers
+</pre><P>
+Note that <tt>(array t)</tt> is a proper subset of <tt>(array *)</tt>.
+The reason is that <tt>(array t)</tt> is the set of arrays that can
+hold any Common Lisp object (the elements are of type <tt>t</tt>,
+which includes all objects).  On the other hand, <tt>(array *)</tt>
+is the set of all arrays whatsoever, including, for example,
+arrays that can hold only characters.  Now
+<tt>(array character)</tt> is not a subset of <tt>(array t)</tt>; the two sets
+are in fact disjoint because <tt>(array character)</tt> is not the
+set of all arrays that can hold characters but rather the set of
+arrays that are specialized to hold precisely characters and no
+other objects.  To test whether an array <tt>foo</tt> can hold a character,
+one should not use
+<P><pre>
+(typep foo '(array character))
+</pre><P>
+but rather
+<P><pre>
+(subtypep 'character (array-element-type foo))
+</pre><P>
+See <tt>array-element-type</tt>.
+<p>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(ARRAY-TYPE-ELEMENT-TYPE-SEMANTICS) <A NAME=2284>&#160;</A> 
+to change <tt>typep</tt> and <tt>subtypep</tt>
+so that the specialized <tt>array</tt> type specifier
+means the same thing for discrimination
+as for declaration: it encompasses those arrays
+that can result by specifying <i>element-type</i> as the element type
+to the function <tt>make-array</tt>.
+Under this interpretation <tt>(array character)</tt> might be
+the same type as <tt>(array t)</tt>
+(although it also might not be the same).
+See <tt>upgraded-array-element-type</tt>.
+However,
+<P><pre>
+(typep foo '(array character))
+</pre><P>
+is still not a legitimate test of whether the array
+<tt>foo</tt> can hold a character; one must still say
+<P><pre>
+(subtypep 'character (array-element-type foo))
+</pre><P>
+to determine that question.
+<P>
+X3J13 also voted in January 1989
+(DECLARE-ARRAY-TYPE-ELEMENT-REFERENCES) <A NAME=2298>&#160;</A> 
+to specify that within the lexical scope of an array type declaration,
+it is an error for an array element, when referenced, not to be
+of the exact declared element type.  A compiler may, for example,
+treat every reference to an element of a declared array as if
+the reference were surrounded by a <tt>the</tt> form mentioning the
+declared array element type (<i>not</i> the upgraded array element type).  Thus
+<P><pre>
+(defun snarf-hex-digits (the-array) 
+  (declare (type (array (unsigned-byte 4) 1) the-array)) 
+  (do ((j (- (length array) 1) (- j 1)) 
+       (val 0 (logior (ash val 4) 
+                      (aref the-array j)))) 
+      ((&lt; j 0) val)))
+</pre><P>
+may be treated as
+<P><PRE>
+(defun snarf-hex-digits (the-array) 
+  (declare (type (array (unsigned-byte 4) 1) the-array)) 
+  (do ((j (- (length array) 1) (- j 1)) 
+       (val 0 (logior (ash val 4) 
+                      (the (unsigned-byte 4) 
+                           (aref the-array j))))) 
+      ((&lt; j 0) val)))
+</PRE><P>
+The declaration amounts to a promise by the user that the <tt>aref</tt>
+will never produce a value outside the interval 0 to 15, even if
+in that particular implementation the array element type
+<tt>(unsigned-byte 4)</tt> is upgraded to, say, <tt>(unsigned-byte 8)</tt>.
+If such upgrading does occur, then values outside that range may in fact
+be stored in <tt>the-array</tt>, as long as the code in <tt>snarf-hex-digits</tt>
+never sees them.
+<P>
+As a general rule, a compiler would be justified in transforming
+<P><PRE>
+(aref (the (array <i>elt-type</i> ...) <i>a</i>) ...)
+</PRE><P>
+into
+<P><PRE>
+(the <i>elt-type</i> (aref (the (array <i>elt-type</i> ...) <i>a</i>) ...)
+</PRE><P>
+It may also make inferences involving more complex functions,
+such as <tt>position</tt> or <tt>find</tt>.
+For example, <tt>find</tt> applied to an array always returns either <tt>nil</tt>
+or an object whose type is the element type of the array.
+</dl>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<dl compact>
+<DT><tt>(simple-array <i>element-type</i> <i>dimensions</i>)</tt>
+<DD>
+This is equivalent
+to <tt>(array <i>element-type</i> <i>dimensions</i>)</tt> except that it additionally
+specifies that objects of the type are <i>simple</i> arrays
+(see section <A HREF="node29.html#ARRAYTYPESECTION">2.5</A>).
+<P>
+<DT><tt>(vector <i>element-type</i> <i>size</i>)</tt>
+<DD>
+This denotes the set of
+specialized one-dimensional arrays whose elements are all of type <i>element-type</i> and whose lengths match <i>size</i>.  This is entirely equivalent to
+<tt>(array <i>element-type</i> (<i>size</i>))</tt>.
+For example:
+<P><PRE>
+(vector double-float)     ;Vectors of double-format <BR>                          ; floating-point numbers <BR>(vector * 5)              ;Vectors of length 5 <BR>(vector t 5)              ;General vectors of length 5 <BR>(vector (mod 32) *)       ;Vectors of integers between 0 and 31
+</PRE><P>
+</dl>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<dl compact><dd>
+The specialized types <tt>(vector string-char)</tt> and <tt>(vector bit)</tt> are so
+useful that they have the special names <tt>string</tt> and <tt>bit-vector</tt>.
+Every implementation of Common Lisp must provide distinct representations for
+these as distinct specialized data types.
+</dl>
+<img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<dl compact><dd>
+X3J13 voted in March 1989 (CHARACTER-PROPOSAL) <A NAME=2350>&#160;</A> 
+to eliminate the type <tt>string-char</tt> and to redefine the type
+<tt>string</tt> to be the union of one or more specialized vector
+types, the types of whose elements are subtypes of the type <tt>character</tt>.
+</dl>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+
+<P>
+<dl compact><dd>
+<DT><tt>(simple-vector <i>size</i>)</tt>
+<DD>
+This is the same
+as <tt>(vector t <i>size</i>)</tt> except that it additionally specifies
+that its elements are <i>simple</i> general vectors.
+<P>
+<DT><tt>(complex <i>type</i>)</tt>
+<DD>
+Every element of this type is a
+complex number whose real part
+and imaginary part are each of type <i>type</i>.
+For declaration purposes, this type encompasses those complex numbers
+that can result by giving numbers of the specified type
+to the function <tt>complex</tt>; this may be different
+from what the type means for discrimination purposes.
+As an example, Gaussian integers might be
+described as <tt>(complex integer)</tt>, even in implementations
+where giving two integers to the function <tt>complex</tt> results
+in an object of type <tt>(complex rational)</tt>.
+</dl>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<dl compact><dd>
+X3J13 voted in January 1989
+(ARRAY-TYPE-ELEMENT-TYPE-SEMANTICS) <A NAME=2365>&#160;</A> 
+to change <tt>typep</tt> and <tt>subtypep</tt>
+so that the specialized <tt>complex</tt>
+type specifier means the same thing for discrimination purposes
+as for declaration purposes.
+See <tt>upgraded-complex-part-type</tt>.
+</dl>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+
+<P>
+<dl compact><dd>
+<DT><tt>(function (<i>arg1-type</i> <i>arg2-type</i> ...) <i>value-type</i>)</tt>
+<DD>
+This type may be used only for declaration and not for
+discrimination; <tt>typep</tt> will signal an error if it encounters a specifier of
+this form. Every element of this type is
+a function that accepts arguments at <i>least</i> of the
+types specified by the <i>argj-type</i> forms and returns a value that is a
+member of the types specified by the <i>value-type</i> form.  The
+<tt>&amp;optional</tt>, <tt>&amp;rest</tt>, and <tt>&amp;key</tt> markers
+may appear in the list of argument types.
+The <i>value-type</i> may be a <tt>values</tt> type specifier
+in order to indicate the types of multiple values.
+</dl>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<dl compact><dd>
+X3J13 voted in January 1989
+(FUNCTION-TYPE-REST-LIST-ELEMENT) <A NAME=2384>&#160;</A> 
+to specify that the <i>arg-type</i> that
+follows a <tt>&amp;rest</tt> marker indicates the type of each actual argument
+that would be gathered into the list for a <tt>&amp;rest</tt> parameter,
+and not the type of the <tt>&amp;rest</tt> parameter itself (which is always
+<tt>list</tt>).  Thus one might declare the function <tt>gcd</tt> to
+be of type <tt>(function (&amp;rest integer) integer)</tt>, or
+the function <tt>aref</tt> to be of type
+<tt>(function (array &amp;rest fixnum) t)</tt>.
+<P>
+X3J13 voted in March 1988 (FUNCTION-TYPE-KEY-NAME) <A NAME=2396>&#160;</A> 
+to specify that, in a <tt>function</tt> type specifier,
+an argument type specifier following <tt>&amp;key</tt>
+must be a list of two items, a keyword and a type specifier.
+The keyword must be a valid keyword-name symbol that may be
+supplied in the actual arguments of a call to the function,
+and the type specifier indicates the permitted type of
+the corresponding argument value.  (The keyword-name symbol
+is typically a keyword,
+but another X3J13 vote (KEYWORD-ARGUMENT-NAME-PACKAGE) <A NAME=2399>&#160;</A> 
+allows it to be any symbol.)
+Furthermore, if <tt>&amp;allow-other-keys</tt> is not present,
+the set of keyword-names mentioned in the <tt>function</tt>
+type specifier may be assumed to be exhaustive;
+for example, a compiler would be justified in issuing
+a warning for a function call using a keyword argument name
+not mentioned in the type declaration for the function being called.
+If <tt>&amp;allow-other-keys</tt>
+is present in the <tt>function</tt>
+type specifier, other keyword arguments may be supplied
+when calling a function of the indicated type, and if supplied such
+arguments may possibly be used.
+</dl>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<dl compact><dd>
+As an example, the function <tt>cons</tt> is of type <tt>(function (t t) cons)</tt>,
+because it can accept any two arguments and always returns a cons.
+The function <tt>cons</tt> is
+also of type <tt>(function (float string) list)</tt>, because it can certainly
+accept a floating-point number and a string (among other things), and its
+result is always of type <tt>list</tt> (in fact a <tt>cons</tt> is never <tt>null</tt>,
+but that does not matter for this type declaration).
+The function <tt>truncate</tt> is of type
+<tt>(function (number number) (values number number))</tt>, as well as of type
+<tt>(function (integer (mod 8)) integer)</tt>.
+</dl>
+<img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif">
+<dl compact><dd>
+X3J13 voted in January 1989
+(FUNCTION-TYPE-ARGUMENT-TYPE-SEMANTICS) <A NAME=2418>&#160;</A> 
+to alter the meaning of the
+<tt>function</tt> type specifier when used in <tt>type</tt> and <tt>ftype</tt>
+declarations.  While the preceding formulation may be theoretically
+elegant, they have found that it is not useful to compiler implementors
+and that it is not the interpretation that users expect.  X3J13 prescribed instead the
+following interpretation of declarations.
+<P>
+A declaration specifier of the form
+<P><PRE>
+(ftype (function (<i>arg1-type</i> <i>arg2-type</i> ... <i>argn-type</i>) <i>value-type</i>) <i>fname</i>)
+</PRE><P>
+implies that any function call of the form
+<P><PRE>
+(<i>fname</i> <i>arg1</i> <i>arg2</i> ...)
+</PRE><P>
+within the scope of the declaration can be treated as if it were
+rewritten to use <tt>the</tt>-forms in the following manner:
+<P><PRE>
+(the <i>value-type</i> 
+     (<i>fname</i> (the <i>arg1-type</i> <i>arg1</i>) 
+            (the <i>arg2-type</i> <i>arg2</i>) 
+            ... 
+            (the <i>argn-type</i> <i>argn</i>)))
+</PRE><P>
+That is, it is an error for any of the actual arguments not to be of
+its specified type <i>arg-type</i> or for the result not to be of the specified
+type <i>value-type</i>.  (In particular, if any argument is not of
+its specified type, then the result is not guaranteed to be of the
+specified type-if indeed a result is returned at all.)
+<P>
+Similarly, a declaration specifier of the form
+<P><PRE>
+(type (function (<i>arg1-type</i> <i>arg2-type</i> ... <i>argn-type</i>) <i>value-type</i>) <i>var</i>)
+</PRE><P>
+is interpreted to mean that any reference to the variable <i>var</i>
+will find that its value is a function, and that
+it is an error to call this function with any actual argument not of
+its specified type <i>arg-type</i>.
+Also, it is an error for the result not to be of the specified
+type <i>value-type</i>.
+For example, a function call of the form
+<P><PRE>
+(funcall <i>var</i> <i>arg1</i> <i>arg2</i> ...)
+</PRE><P>
+could be rewritten to use <tt>the</tt>-forms as well.
+If any argument is not of
+its specified type, then the result is not guaranteed to be of the
+specified type-if indeed a result is returned at all.
+<P>
+Thus, a <tt>type</tt> or <tt>ftype</tt> declaration specifier describes type
+requirements imposed on calls to a function
+as opposed to requirements imposed on the definition of the function.
+This is analogous to the treatment of type declarations of variables
+as imposing type requirements on references to variables, rather than
+on the contents of variables.  See the vote of X3J13 on <tt>type</tt>
+declaration specifiers in general, discussed
+in section <A HREF="node105.html#DECLARATIONSPECIFIERSSECTION">9.2</A>.
+<P>
+In the same manner as for variable type declarations in general,
+if two or more
+of these declarations apply to the same function call (which can
+occur if declaration scopes are suitably nested), then they all apply;
+in effect, the types for each argument or result are intersected.
+For example, the code fragment
+<P><PRE>
+(locally (declare (ftype (function (biped) digit) 
+                         butcher-fudge)) 
+  (locally (declare (ftype (function (featherless) opposable) 
+                           butcher-fudge)) 
+    (butcher-fudge sam)))
+</PRE><P>
+may be regarded as equivalent to
+<P><PRE>
+(the opposable 
+     (the digit (butcher-fudge (the featherless 
+                                    (the biped sam)))))
+</PRE><P>
+or to
+<P><PRE>
+(the (and opposable digit) 
+     (butcher-fudge (the (and featherless biped) sam)))
+</PRE><P>
+That is, <tt>sam</tt> had better be both <tt>featherless</tt> and a <tt>biped</tt>,
+and the result of <tt>butcher-fudge</tt> had better be both
+<tt>opposable</tt> and a <tt>digit</tt>; otherwise the code is in error.
+Therefore a compiler may generate code that relies on these type assumptions,
+for example.
+</dl>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<dl compact><dd>
+<DT><tt>(values <i>value1-type</i> <i>value2-type</i> ...)</tt>
+<DD>
+This type specifier is extremely restricted: it may be used <i>only</i>
+as the <i>value-type</i> in a <tt>function</tt> type specifier or in
+a <tt>the</tt> special form.  It is used to specify individual types when
+multiple values are involved.
+The
+<tt>&amp;optional</tt>, <tt>&amp;rest</tt>, and <tt>&amp;key</tt> markers may appear in the <i>value-type</i> list;
+they thereby indicate the parameter list of a
+function that, when given to <tt>multiple-value-call</tt> along with
+the values, would be suitable for receiving those values.
+<P>
+ </DL>
+<P>
+<BR> <HR><A NAME=tex2html2115 HREF="node50.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2113 HREF="node44.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2107 HREF="node48.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2117 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2118 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2116 HREF="node50.html"> Type Specifiers That </A>
+<B>Up:</B> <A NAME=tex2html2114 HREF="node44.html"> Type Specifiers</A>
+<B> Previous:</B> <A NAME=tex2html2108 HREF="node48.html"> Type Specifiers That </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

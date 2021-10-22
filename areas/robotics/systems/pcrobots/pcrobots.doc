@@ -1,0 +1,2203 @@
+
+
+
+
+
+
+
+            PCROBOTS V1.3 By P.D.Smith (psmithb@CIX) 1992
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+            Introduction
+            ~~~~~~~~~~~~~
+
+            PCROBOTS is an adaptation of CROBOTS by Tom Poindexter. This
+            version has more features, and allows for much more
+            intelligent robots. It is not limited to any particular
+            language; C, Pascal,Compiled Basic, 8086 Assembler etc are
+            all possible. The only limitation is that it must be run on
+            an IBM PC Compatible.
+
+            PCRobots uses 'robots' which are actually MsDos .COM or .EXE
+            programs. Each program is allocated 64k for data, program &
+            stack requirements. This is the main limiting factor for the
+            number of robots being run at once. If only conventional RAM
+            is used a maximum of 7-8 robots is possible, depending on
+            your system. However, with V1.3, EMS memory can be used.
+            This allows up to 20 robots at once.
+
+            PCRobots allows a large user defined arena, with obstacles
+            in it, it also allows inter-robot communication to allow
+            teamwork between robots. PCROBOTS uses a cooperative
+            multitasker to share the processor between the robots, the
+            way this works means that robots can do lots of calculations
+            and planning without being penalised.
+
+            Robots are configurable, this means that if your program
+            suits a fast agile robot, but one which doesn't need a long
+            cannon range, then you can configure the robot to make use
+            of this. Alternatively, you may want a slow robot with lots
+            of armour, this is also possible
+
+            Hardware Requirements
+            ~~~~~~~~~~~~~~~~~~~~~~
+            PCROBOTS can only be run on a PC with an EGA or VGA monitor.
+
+            A coprocessor is optional, but it will speed up processing
+            of functions like scans.
+
+            PCROBOTS supports an Adlib compatible soundcard for (very)
+            basic sound effects.
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            How to run PCROBOTS
+            ~~~~~~~~~~~~~~~~~~~~
+
+            To run the program, use a command line like:
+
+            PCROBOTS robot1 robot1 robot2
+
+            This will run the 'robot1' program twice, and the
+            'robot2' program once.
+
+            You can also specify groups of robots to operate as teams.
+            To do this you use the name <team>.TM (eg 'myteam.tm')
+            instead of a robot name. This file should be a text file
+            with a separate line for each robot in the team.
+
+            There are also optional parameters which can be used:
+
+                 -d - this lets you run PCROBOTS in 'debugging' mode.
+                      Normally PCROBOTS will stop running as soon as
+                      there is only one robot left. Using this switch
+                      will make PCROBOTS keep running until you manually
+                      stop it by pressing the ESC key.
+
+                 -l<n> - this lets you set the maximum number of 'ticks'
+                      that a game will run. A tick is not a fixed time
+                      interval, instead it is a complete turn for all
+                      the robots. There must not be a space between the
+                      'l' and the number to be used. Eg '-l5000' will
+                      run the game for 5000 ticks.
+
+                 -f<name> - this will append a summary of the game
+                      results to the file specified after the 'f'. Again
+                      there must be no space between the 'f' and the
+                      filename which follows. If no filename is
+                      specified, then the name 'PCROBOTS.LOG' is used.
+
+                 -s - this will run PCROBOTS in 'slow' mode to help you
+                      see what a robot is doing. Pressing the spacebar
+                      will toggle 'single step' mode on and off (the
+                      'enter' key will single step). Pressing the '0' to
+                      '9' keys will set the speed.
+
+                 -q - this will run PCROBOTS in 'quick' mode. In this
+                      mode, certain features such as explosions, and
+                      sound effects are disabled to increase game speed.
+
+                 -a - this allows you to specify an alternative arena
+                      file, rather than the default of PCROBOTS.RNA.
+
+                 -m - this redirects STDOUT output to a monochrome
+                      monitor if you have one fitted to your PC (used
+                      for debugging robots).
+
+
+
+
+
+            ============================================================
+                                                               Page No 2
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+                 -v - this gives a 'verbose' output, both at startup,
+                      and in the results phase.
+
+                 -r - this lets you set the random number generator seed
+                      to allow identical runs to be made.
+
+            The parameters can be placed anywhere on the command line
+            following the PCROBOTS name.
+
+            Errorlevel values
+            ~~~~~~~~~~~~~~~~~~
+            When PCRobots exits it sets the DOS errorlevel value to
+            allow testing from batch files. The values are:
+
+             -1     = Error
+             0 -> n = Winning robot
+             100    = Draw (>=2 left alive)
+             101    = Draw (0 left alive)
+             200    = Esc pressed
+
+            The PCROBOTS Arena
+            ~~~~~~~~~~~~~~~~~~~
+
+            The 'Arena' is a large 1000x1000 area. Each robot can move a
+            maximum of 1 square per move. This is unlike the original
+            CROBOTS where a robot could move 100 square per move.
+
+            The arena is displayed as a large white box occupying most
+            of the screen.Inside this box you will see any obstacles
+            that have been placed on the map (see later section for a
+            description of the map file). All obstacles have a white
+            border displayed around the square, and are defined as
+            below:
+                 White - A wall - Robots can see through this, but they
+                      can't move or fire shells through it. If a robot
+                      collides with a wall it will lose 1 armour point.
+                 Red - A damage trap - A robot loses 1 armour point for
+                      every turn it is on one of these squares.
+                 Green - A refueling point - If a robot comes to rest on
+                      one of these points, it will regain some battery
+                      power (see later section for more details). There
+                      can be up to 10 refueling points per arena.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            ============================================================
+                                                               Page No 3
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            The Robots
+            ~~~~~~~~~~~
+
+            The robots will be displayed on the arena as small 5x5 pixel
+            shapes in a particular colour. The actual shape can be
+            defined in the robot program, but the default is a small
+            'smiley'.
+
+            Down the right hand side of the screen there will be a list
+            of robots. For each entry down the right, the robot shape
+            and colour match the robot in the arena. Underneath the
+            robot are two bars. The top bar indicates the armour level
+            of the robot - the longer the bar the more armour there is
+            left, the shorter the bar, the more the robot is damaged.
+            The bottom bar indicates the battery level of the robot -
+            again, the longer the bar, the more battery power exists. A
+            rapidly moving robot will quickly exhaust its battery power,
+            meaning that it will have to wait a while until the battery
+            has been recharged slightly before moving on.
+
+            If a robot has fired a cannon shell, this will be displayed
+            as a simple white pixel. Cannon shells move twice as fast as
+            the fastest robot can go, which is four times as fast as a
+            normal robot.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            ============================================================
+                                                               Page No 4
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            Teams
+            ~~~~~~~~~
+
+            Starting with PCRobots V1.3, proper robot teams are
+            supported.
+
+            Team starting locations are defined in the arena map - if a
+            starting location for a certain team isn't specified, then
+            the robots will be placed randomly.
+
+            A team is a group of robots which the PCRobots kernel
+            recognises as being together. The robots have to work
+            together as well, as it's entirely possible for a team to
+            wipe itself out without any help from anyone else!
+
+            To define a team you make a file with an extension .TM .
+            This file should contain a list of robot names with one name
+            per line.
+
+            All the robots in a specified team will start in the map
+            square which is defined in the arena file. Their actual
+            positions on that map square are random.
+
+            It is possible to mix teams and 'loners' on any run.
+
+            Teams will be given a score after a run.
+
+            The score is currently obtained from the number of robots
+            which are killed by that team.
+
+                 100 points - enemy robot killed
+                -500 points - friendly robot killed.
+
+            Coordinates
+            ~~~~~~~~~~~~
+            The arena is defined with the coordinate 0,0 being at the
+            top left of the screen, and 999,999 being at the bottom
+            right of the screen.
+            Angles are defined as 0 degrees pointing to the right and
+            angles increase in a clockwise direction - so 90 degrees is
+            pointing straight down. (This allows the use of programs for
+            the original CRobots - the only difference being that 0,0 is
+            at the top left now, instead of the bottom right - this
+            means the robot will do a mirror image of its previous
+            action.
+
+            The Map
+            ~~~~~~~~
+            The robot combat arena is defined in the file PCROBOTS.RNA
+            (if the file doesn't exist, then the arena is empty).
+
+            The arena is divided into 10x10 pixel squares (that's
+            100x100 squares in the whole arena). The contents of each
+
+
+
+
+            ============================================================
+                                                               Page No 5
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            square are defined by a single character in the PCROBOTS.RNA
+            file.
+
+            Each line of PCROBOTS.RNA defines a line in the arena, and
+            each character defines a square on that line.
+
+            Ideally, a complete map will consist of 100 lines of 100
+            characters each. However, any lines which are not 100 lines
+            long will be assumed to be padded with empty area. If 100
+            lines don't exist, then the last lines will be padded with
+            empty area.
+
+            The possible characters (at the moment) are:
+
+             '.' - this is an empty square - internally has the value
+            set by 'ARENA_FREE' in pcrobots.h
+
+             'X' - this is a wall - internally has the value set by
+            'ARENA_WALL' in pcrobots.h
+
+             'D' - this is a damaging trap - internally has the value
+            set by 'ARENA_DAMAGE' in pcrobots.h
+
+             'R' - this is a refueling point - internally has the value
+            set by 'ARENA_REFUEL' in pcrobots.h
+
+             'A' -> 'C' - these are the starting positions for robot
+            teams A -> C. They are not marked on the maps.
+
+            The robot's scanner will see straight through walls, so to
+            avoid collisions, the robot should periodically call
+            'get_local_map' to see a 9x9 area around the robot (this
+            will be quite a slow call, so shouldn't be called more than
+            necessary).
+
+            Shells will not pass through walls, so although another
+            robot may see you hiding behind a wall, it will not be able
+            to damage you unless it moves around the wall. To see if a
+            shell has hit a wall you'll have to call the
+            'get_shell_status' routine, which will tell you if the last
+            shell to land hit a wall or a robot.
+
+
+            Robot Batteries
+            ~~~~~~~~~~~~~~~~
+            As of version 0.2 robots are powered by electrical
+            batteries.
+            These batteries are constantly being charged by a solar
+            panel, and are constantly being discharged by robot motion.
+
+            The battery starts off being charged with 1000 units of
+            energy.
+            Each turn the battery will be charged by 4 units. Each turn
+            that the robot moves the battery will be discharged by the
+
+
+
+            ============================================================
+                                                               Page No 6
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            current speed / 10. The battery can not be charged above the
+            1000 unit level.
+
+            If the battery is flat, the robot will come to a
+            standstill,until the battery is charged again. This means
+            that the robot must issue a 'move' command to start the
+            robot moving again.
+
+            Battery power may be traded to buy more shells, or more
+            armour.
+            Alternatively, armour may be traded to buy more battery
+            power.
+
+            If a robot is destroyed, any battery power remaining is
+            transferred to the robot which dealt the death blow.
+
+            Recharging Stations
+            ~~~~~~~~~~~~~~~~~~~~
+            A map may contain between 0 and 10 refueling stations where
+            robots can replenish their batteries.
+
+            These refueling stations are simply large quick charging
+            batteries themselves. They recharge at a rate of 5 units per
+            turn, as long as no robot is currently being recharged from
+            them. Recharging units may not acquire more than 2000 units
+            of charge.
+
+            A robot must be stationary and visible on a refueling
+            station in order to recharge its batteries. It will take 10
+            units of charge from the refueling station as long as there
+            is sufficient charge in the refueling station's batteries.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            ============================================================
+                                                               Page No 7
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            Robot Configuration
+            ~~~~~~~~~~~~~~~~~~~~
+
+            Robots may now be customised to suit a specific task, you do
+            this by calling the configure routine, with the appropriate
+            parameters.
+
+            The configuration call *must* be the first call in the
+            program. If you do not call it, all the parameters will be
+            set to their '2' value in the table below.
+
+            Value  Speed Manouevre Range Armour Acceleration
+              0      50     20%     300     50      5
+              1      75     35%     500     75      7
+              2     100     50%     700    100     10
+              3     150     75%    1000    150     15
+              4     200    100%    1500    200     20
+
+            You have a maximum of 10 points to allocate to the robot. If
+            you try to allocate more points to the robot, some items
+            will have a value of '0'.
+
+            It is also possible to buy an 'invisibility' device using
+            this function. Normally a robot will start with 1000 shells
+            at the beginning of a game. If you take the invisibility
+            device this will be reduced to 900 shells.
+
+            Invisibility
+            ~~~~~~~~~~~~~
+
+            Invisibility is a purely defensive system, and will be of
+            negligible use in a 'dumb' robot.
+
+            When your robot goes invisible it will be undetectable by
+            other robots' scanners, however, shells landing in the
+            vicinity will still damage the robot.
+
+            Also, invisibility places the following limitations on your
+            robot:
+
+                 - Scanning is not possible
+                 - Firing the cannon is not possible
+                 - The battery will *NOT* be recharged while invisible
+
+            The main use of invisibility would be to hide while running
+            to a safer location (to stop some 'chase' robots from
+            following you there). When there it would be possible to
+            become visible to recharge the batteries.
+
+            When the robot is invisible an 'I' will appear next to the
+            robot's name.
+
+            A robot can only stay invisible for a maximum of 100 turns,
+            it will then automatically become visible again. After a
+
+
+
+            ============================================================
+                                                               Page No 8
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            robot has become visible it must remain visible for as many
+            turns as it was invisible before it can turn invisible
+            again. Thus, if a robot was invisible for 50 turns, it must
+            be visible for at least 50 turns before it can go invisible
+            again.
+
+            ROBOT DAMAGE
+            ~~~~~~~~~~~~~
+            When a robot collides with the outside of the arena, or is
+            hit by a shell then it is damaged. The values of damage are:
+
+            Collision with edge of arena - 1 point
+            Explosion within 50 squares  - 2 points
+            Explosion within 25 squares  - 8 points
+            Explosion within 5 squares   - 25 points
+
+            The explosion displayed on the screen has 3 coloured areas
+            corresponding to these radii: 50 squares is red, 25 squares
+            is yellow, and 5 squares is white.
+
+            Debugging Aids
+            ~~~~~~~~~~~~~~~
+            There are several features to help you to debug robots.
+
+            The most basic is the use of the 'debug flags'. These can
+            indicate certain 'modes' of operation of the robot, for
+            instance a robot may have a 'running' mode and an 'attack'
+            mode. A debug flag indicator could be used to let you see at
+            a glance which mode the robot is in.
+
+            Writing to files is allowed during the debug stages of
+            writing a robot, but any code to do this should be removed
+            or disabled before allowing the robot out in public. Reading
+            from files is not allowed at any stage.
+
+            It is also possible to send output to the 'stdout' file. In
+            C you do this by using any of the standard output routine
+            such as 'printf'. In Pascal you do it by using
+            WRITE/WRITELN, and in Assembler you simply send output to a
+            file with handle=1.
+
+            This output will be ignored unless you give the '-s' or '-m'
+            options on the PCROBOTS command line.
+
+            If you use '-m' the output will be displayed on an MDA
+            monitor attached to your PC in addition to the EGA/VGA
+            display. Don't use this option unless you have an MDA
+            adaptor fitted, as it may cause unpredictable results.
+
+            If you use '-s' (without '-m') then the first 19 columns of
+            the output will be displayed in the right hand column of the
+            display (under the robot names and status indicators).
+
+
+
+
+
+            ============================================================
+                                                               Page No 9
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            The output drivers understand certain special characters:
+
+                 \n = 0ah = 10 - Line feed - the print position goes
+                      down a line
+                 \r = 0dh = 13 - Carriage Return - the print position
+                      goes to the left hand side of the current line
+                 \b = 08h = 8  - Backspace - the print position goes
+                      back one space
+                 \f = 0ch = 12 - Formfeed - the screen is cleared and
+                      the print position goes to the start of the screen
+                 <Esc>Y<y><x> - This is the VT52 cursor position code. y
+                      and x are specified by using the character which
+                      has the ASCII character of the required position
+                      plus 32. 1,1 is the top left of the screen. Thus
+                      <esc>Y!! will move the cursor to the top left of
+                      the screen.
+
+            Most standard cursor positioning command will also work (for
+            instance 'gotoxy(x,y)' in Turbo C).
+
+            Special Keys
+            ~~~~~~~~~~~~~
+            If during operation you wish to stop a game, pressing ESC
+            will cause it to stop at the next movement turn.
+
+            Pressing Ctrl-Brk will cause all the robots to be killed
+            instantly (even if one of them is stuck in an internal
+            loop), and the program will exit.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            ============================================================
+                                                              Page No 10
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+
+            The ROBOT programs
+            ~~~~~~~~~~~~~~~~~~~
+            Each 'robot' program consists of a single .COM or small .EXE
+            file. These programs must obey certain rules for the program
+            to work correctly.
+
+             - no standard I/O functions (such as printf) are allowed.
+
+             - The program must *never* finish - the main program should
+            consist of an infinite loop. The PCRobots executive program
+            will kill the program when the robot is destroyed.
+
+             - The program must not use any memory outside the 64k
+            segment which it is allocated.
+
+             - The PSP is not completely created (and may be erroneous -
+            I have to create it in the PCRobots program, and it may not
+            match the proper definition - let me know if you find a
+            problem).
+             The sections which should be correct are:
+              - INT 20h
+              - Segment of end of allocation block
+              - Previous contents of ints 22,23,24
+              - Env block pointer (points to offset 0x90 of PSP which
+            contains a 00h,00h value).
+              - Command tail - contains 00h,0dh,00h.
+             The FCBs & Long call to function dispatcher aren't created.
+
+             - Floating point maths are not allowed.
+
+             - It must make sure that it always passes control back to
+            the executive program when it is idling.
+
+            DOS Functions
+            ~~~~~~~~~~~~~~
+            In V1.3 a lot of DOS functions are disabled to prevent their
+            use in robot programs (using certain functions may be
+            construed as 'cheating').
+
+            Basically all DOS functions will cause the robot to be
+            instantly killed, except for the following:
+
+            AH=  9h - Display String (as normal)
+            AH= 25h - Set Int Vector (filtered)
+            AH= 2ah - Get date (as normal)
+            AH= 2bh - Set date (dummy - does nothing)
+            AH= 2ch - Get time (as normal)
+            AH= 2dh - Set time (dummy - does nothing)
+            AH= 30h - Get DOS Version (as normal)
+            AH= 35h - Get Int Vector (as normal)
+            AH= 3ch - Create file (as normal)
+            AH= 3eh - Close file (as normal)
+            AH= 40h - Write file or device (filtered)
+
+
+
+            ============================================================
+                                                              Page No 11
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            AH= 43h - Get/Set file attributes (as normal)
+            AH= 44h - I/O Ctl (as normal)
+            AH= 45h - Duplicate handle (as normal)
+            AH= 46h - Force Duplicate handle (as normal)
+            AH= 4ah - Resize memory block (redefined)
+            AH= 59h - Get extended error info (as normal)
+            AH= 5ah - Create Temp file (as normal)
+            AH= 5bh - Create new file (as normal)
+
+            Many of these are allowed so that compiler startup code can
+            operate properly.
+
+            If you see a message such as
+            'killed by System Violation (4c00)' when PCRobots finishes,
+            then it means that a robot tried to call int 21h with AX set
+            to 4c00h.
+
+            A couple of these functions are filtered or redefined. These
+            are:
+
+            Set Int Vector
+            ===============
+            In this case all vector changes are ignored, except for
+            changes to int e0h (in which case the current robot is
+            instantly killed!), or int 34h -> int 3fh (in which case
+            alterations are made to a local interrupt vector table for
+            that task).
+
+            Int e0h is also constantly being checked to prevent direct
+            tampering with the interrupt vector table.
+
+            Write File or Device
+            =====================
+            Writes to stdout (file handle 1) are redirected to the
+            debugging output routines, other writes pass through as
+            normal.
+
+            Resize Memory Block
+            ====================
+            DOS memory blocks are simulated by PCRobots to enforce a 64k
+            memory limit per robot. This is necessary for the EMS
+            operating mode.
+
+            Robot Time Limit
+            ~~~~~~~~~~~~~~~~~
+            As of V1.3 a time limit is enforced for a move by a robot.
+            This time limit adjusts for the speed of the computer, and
+            should be around 3 seconds on a 33MHz 386.
+
+            This time limit is not meant to seriously limit robots, it
+            is merely meant as a protection against robots getting stuck
+            in a loop like:
+
+             do
+
+
+
+            ============================================================
+                                                              Page No 12
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+             {
+              getxy(&x,&y);
+             }
+             while (x>100);
+
+            Special Functions
+            ~~~~~~~~~~~~~~~~~~
+            Special 'robot' functions such as movement, scanning,
+            statusreports etc, are accessed by using software interrupt
+            0E0h.
+
+            The function number is placed in the AX register, and
+            anyrequired parameters are placed in the BX & CX registers.
+            Values are returned in these registers as appropriate.
+
+            Function numbers less than 10h cause a task switch to occur.
+            This will end the current robot's 'turn' and give the next
+            robot a chance.
+
+            There are several methods of using the special robot
+            functions. These are for Assembler language, C/C++, and
+            Turbo Pascal. There is a section on each of these below,
+            C/C++/Pascal are all included together as they are very
+            similar to use.
+
+            C, C++ and Pascal Functions
+            ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+            For C and C++ there are two methods of using these
+            functions, via PCROBOTS.LIB or via PCROBOTS.OBJ.
+            PCROBOTS.LIB is a Borland Library, so it may not work with
+            non-Borland languages, whereas PCROBOTS.OBJ is a standard
+            .OBJ file, so it should work with any language which can
+            link an object file with the C parameter passing protocol.
+
+            To use either of these routine you should
+            '#include "pcrobots.h" ' in your C/C++ program. The source
+            code for the library is supplied in PCROBOTS.C.
+
+            For Turbo Pascal you can use the PCROBOTS.TPU unit. This was
+            compiled with Turbo Pascal V5.5, but it should work with
+            other versions of Turbo Pascal.
+
+            Add 'uses pcrobots;' to your source code.
+
+
+
+
+
+
+
+
+
+
+
+
+
+            ============================================================
+                                                              Page No 13
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            Function names
+            ~~~~~~~~~~~~~~~
+
+            void swaptask(void);
+            procedure swaptask;
+            ====================
+
+                 This procedure will simply end the current robot's turn
+                 if it has nothing else to do. Use this if, for
+                 instance, you're waiting for the robot to move to a
+                 certain location.
+
+            void movement(int speed, int angle);
+            procedure movement(speed,angle:integer);
+            ========================================
+
+                 This procedure will cause the robot to start moving in
+                 the specified direction at the specified speed.
+
+                 speed = 0 - max speed of robot (<=200)
+                 angle = 0 - 359 degrees
+
+                 The speed will change to the target speed at the
+                 maximum acceleration rate specified for this robot.
+
+                 If the robot is going above its manouvrability speed,
+                 then it will not be able to change direction. It must
+                 slow down first.
+
+                 This procedure will cause the current robot's turn to
+                 end.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            ============================================================
+                                                              Page No 14
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            int scan(int angle,int res,int *range);
+            Function scan(angle,res:integer;var range:integer):integer;
+            ===========================================================
+
+                 This function will cause the robot to scan for other
+                 robots in the specified direction.
+
+                 angle = 0 - 359 degrees
+                 res   = 0 - 45 degrees
+
+                 returns the id number of the robot which was detected,
+                 or -1 if no robot was detected.
+
+                 The range value is set to the range to the detected
+                 robot, if no robot was detected, the range is
+                 unspecified.
+
+                 The scan function will scan along a specified direction
+                 with the specified resolution. For instance a
+                 scan(300,5,....) will look at the angles from 295
+                 degrees to 305 degrees.
+
+                 This function will cause the current robot's turn to
+                 end.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            ============================================================
+                                                              Page No 15
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            int shoot(int angle,int range);
+            Function shoot(angle,range:integer):integer;
+            ============================================
+
+                 This function causes the robot to fire a shell in the
+                 specified direction for the specified range. The shell
+                 will be fired into the air, so it will not hit any
+                 targets before the range is reached.
+
+                 angle = 0 - 359 degrees
+                 range = 0 - max range of robot's cannon
+
+                 if the robot was able to fire a shell then the function
+                 will return 1, if it was unable to fire a shell for any
+                 reason, then it will return 0.
+
+                 The robot's turret is independant of the robot's
+                 heading, so shells can be fired in any direction.
+
+                 Seven shells per robot are allowed in the air at once.
+                 Also, the cannon takes 50 ticks to reload.
+
+                 The robot normally starts with only 1000 shells, if
+                 these all run out (very unusual!), then the robot will
+                 be unable to fire its cannon, unless it purchases more
+                 shells (see 'buy_shells' function).
+
+                 This function will cause the current robot's turn to
+                 end.
+
+            void get_remote_map(char far *buffer,int x,int y);
+            procedure get_remote_map(ptr:MapBuf_ptr;x,y:integer);
+            ========================================
+
+                 This procedure lets you obtain a map of any area of the
+                 map. This function is similar to 'get_local_map', but
+                 the x and y coordinates of the map centre can be
+                 arbitrarily specified.
+
+                 x and y are values 0-99 as they specify the position on
+                 the map, not on the arena.
+
+
+            void getxy(int near *x,int near *y);
+            procedure getxy(var x,y:integer);
+            =================================
+
+                 This function will return the current position of the
+                 robot.
+
+                 The x and y coordinates of the robots are returned in
+                 the x and y parameters (possible values are 0 - 999).
+
+
+
+
+
+            ============================================================
+                                                              Page No 16
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            int transmit(int target,int data);
+            function transmit(target,data:integer):integer;
+            ===============================================
+
+                 This function will transmit the specified data to the
+                 specified robot.
+
+                 target = target robot id - as obtained from the scan
+                           function.
+                 data   = data word to send to the robot.
+
+                 If the data could not be sent for any reason, the
+                 function will return 0, otherwise it will return 1.
+
+                 It costs one battery unit to transmit a word of data.
+
+                 Robots have a 20 word FIFO receive queue where received
+                 data is stored until it is read. If this buffer is
+                 full, or the target robot does not exist, then this
+                 function will return a 0. Success of the call does
+                 *not* mean that the target robot has actually looked at
+                 the received data.
+
+            int receive(int *source,int *data);
+            function receive(var source,data:integer):integer;
+            ==================================================
+
+                 This function allows a robot to see if any data has
+                 been sent to it by another robot.
+
+                 The function will return 1 if data exists, or 0 if the
+                 receive buffer is empty.
+
+                 If data exists, then source will be set to the id
+                 number of the sending robot, and data will be set to
+                 the data which was sent.
+
+                 If the receive buffer was empty, then source and data
+                 will be undefined.
+
+                 Because this function does not cause the current
+                 robot's turn to end, it is recommended that this
+                 function is called periodicallyto clear up the robot's
+                 input buffer, even if the data is subsequently ignored.
+
+
+
+
+
+
+
+
+
+
+
+
+
+            ============================================================
+                                                              Page No 17
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            int damage(void);
+            function damage:integer;
+            ========================
+
+                 This function will return the current damage status of
+                 the robot.
+
+                 The lower the value, the more damaged the robot is. The
+                 initial value depends on the robot's configuration, but
+                 is normally 100.
+
+            int speed(void);
+            function speed:integer;
+            =======================
+
+                 This function will return the current speed of the
+                 robot.
+
+
+            int battery(void);
+            function battery:integer;
+            =========================
+
+                 This function will return the current status of the
+                 battery.
+
+            long ticks(void);
+            function ticks:longint;
+            =======================
+
+                 This function will return the number of game ticks
+                 since the beginning of the game. This is not related to
+                 real time, just the number of complete turns that have
+                 elapsed.
+
+            long l_sin(int angle);
+            function l_sin(angle:integer):longint;
+            ======================================
+
+                 This function will return the sine of the requested
+                 angle, scaled up by a factor of 100,000.
+
+                 angle = 0 - 359
+
+                 This function is supported because it is not advisable
+                 to use floating point numbers in the robot programs.
+                 Scaled integer values should be used instead.
+
+
+
+
+
+
+
+
+
+
+            ============================================================
+                                                              Page No 18
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            long l_cos(int angle);
+            function l_cos(angle:integer):longint;
+            ======================================
+
+                 This function will return the cosine of the requested
+                 angle, scaled up by a factor of 100,000.
+
+                 angle = 0 - 359
+
+                 This function is supported because it is not advisable
+                 to use floating point numbers in the robot programs.
+                 Scaled integer values should be used instead.
+
+            long l_tan(int angle);
+            function l_tan(angle:integer):longint;
+            ======================================
+
+                 This function will return the tangent of the requested
+                 angle, scaled up by a factor of 100,000.
+
+                 angle = 0 - 359
+
+                 This function is supported because it is not advisable
+                 to use floating point numbers in the robot programs.
+                 Scaled integer values should be used instead.
+
+            int l_atan(long ratio);
+            function l_atan(ratio:longint):integer;
+            =======================================
+
+                 This function will return the arctangent of the
+                 requested value.
+
+                 The value should be scaled up by 100,000 times.
+
+                 The return value is the angle in the range -90 degrees
+                 to +90 degrees.
+
+            long l_sqrt(long square);
+            function l_sqrt(square:longint):longint;
+            ========================================
+
+                 This function will return the square root of a number.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            ============================================================
+                                                              Page No 19
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+
+            void set_pattern(const char far *pattern);
+            procedure set_pattern(Buffer:Patbuf_ptr);
+            ==========================================
+
+                 This procedure will set the current pattern used to
+                 draw the robot on the display.
+
+                 C/C++
+                 ======
+                 The pattern array should consist of 5 bytes. The lower
+                 5 bits of each byte will be used as a bit pattern for
+                 the appropriate line of the robot's icon.
+
+                 PASCAL
+                 =======
+
+                 There are 2 type definitions:
+
+                 Pattern_buffer=array[0..5] of shortint;
+                 Patbuf_ptr=^Pattern_buffer;
+
+                 Pattern_buffer should be filled with 5 bytes. The lower
+                 5 bits of each byte will be used as a bit pattern for
+                 the appropriate line of the robot's icon.
+
+                 The pointer value of this array should be used as the
+                 parameter to the procedure call.
+
+            void debug_flag(int flag_no,int flag_set);
+            procedure debug_flag(flag_no,flag_set:integer);
+            ===============================================
+
+                 This procedure allows you to set or clear two flag
+                 markers by the side of the robot's name down the right
+                 hand side of the screen.
+
+                 flag_no = 0 or 1
+                 flag_set= 0 or 1
+
+                 These two flags may be used for whatever purpose you
+                 want, but they are often useful for debugging purposes.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            ============================================================
+                                                              Page No 20
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            void buy_armour(int units);
+            procedure buy_armour(units:integer);
+            ====================================
+
+                 This procedure lets your robot buy or sell armour.
+
+                 units = number of units to buy.
+
+                 If 'units' is negative, then armour will be sold.
+
+                 Armour units currently are worth 50 battery units, so
+                 if a robot has a high battery charge it is possible to
+                 sell some units to repair damaged armour. Also, if a
+                 robot needs some battery power, it can sell armour in
+                 exchange for some more battery power.
+
+                 The armour rating can not go above the robot's initial
+                 armour rating, any extra purchased units will be
+                 wasted.
+
+                 NB. It is quite possible to commit suicide using this
+                 call.
+
+
+            void buy_shells(unsigned int units);
+            procedure buy_shells(units:word);
+            ====================================
+
+                 This procedure lets you purchase more cannon shells.
+
+                 units = number of shells to buy.
+
+                 It is not possible to sell shells in exchange for
+                 battery power. Shells cost 10 battery units each.
+
+            int shells_left(void);
+            function shells_left:integer;
+            =============================
+
+                 This function lets your robot determine how many cannon
+                 shells it has remaining.
+
+                 Returns the number of shells remaining.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            ============================================================
+                                                              Page No 21
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            void get_local_map(char far *buffer);
+            procedure get_local_map(ptr:MapBuf_ptr);
+            ========================================
+
+                 This procedure lets you obtain a map of the area local
+                 to the robot. You will receive a 9x9 square map of the
+                 local area, the robot's current position will be in the
+                 centre square of the map. See the section on the map
+                 for details of the contents of the map.
+
+                 C/C++
+                 ======
+                 The map array should be 81 bytes long.
+
+                 PASCAL
+                 =======
+
+                 There are 2 type definitions:
+
+                 Map_buffer=array[0..8,0..8] of shortint;
+                 Mapbuf_ptr=^Map_buffer;
+
+                 Pass the pointer to a type of Map_buffer to the
+                 procedure.
+
+            void invisibility(int invis_flag);
+            procedure invisibility(invis_flag:integer);
+            ===========================================
+
+                 This procedure allow the robot to become invisible or
+                 visible.
+
+                 invis_flag = 0 - robot is visible,
+                            = 1 - robot is invisible.
+
+                 If the robot isn't capable of becoming invisible, then
+                 this procedure will do nothing.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            ============================================================
+                                                              Page No 22
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            int get_shell_status(void);
+            function get_shell_status:integer;
+            ==================================
+
+                 This function will return a status value reporting what
+                 happened to the last shell to land.
+
+                 Return value:  0 - shell missed totally
+                                1 - shell hit a wall
+                                2 - shell hit a robot within a 50 square
+                                     radius
+                                3 - shell hit a robot within a 25 square
+                                     radius
+                                4 - shell hit a robot within a 5 square
+                                     radius
+
+                 This can be useful to see if a shell is firing at a
+                 robot which is hiding behind a wall.
+
+            int isinvisible(void);
+            function isinvisible:integer;
+            =============================
+
+                 This function will return a flag indicating whether the
+                 robot is invisible or not.
+
+                 Return value:  0 - robot is visible,
+                                1 - robot is invisible.
+
+            int atan2(int y,int x);
+            function atan2(y,x:integer):integer;
+            ====================================
+
+                 This function will return the arctangent of y/x, giving
+                 the correct value even if x is near 0. If both x and y
+                 are 0, then this function will return 0.
+
+            int get_robot_id(void);
+            function get_robot_id:integer;
+            ==============================
+
+                 This function will return the robot ID of the current
+                 robot.
+
+            void register_iff(char far *iff_string);
+            =============================================
+
+                 This function will inform PCRobots of the 'IFF' string
+                 for this particular robot. The IFF string may only be
+                 set once.
+
+                 The 'iff_string' parameter is a C format zero-
+                 terminated string.
+
+
+
+
+            ============================================================
+                                                              Page No 23
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            int check_iff(int id);
+            function check_iff(id:integer):integer;
+            =======================================
+
+                 This function will check to see if the robot with id
+                 'id' has the same 'IFF' string as the current robot. It
+                 will return 1 if the strings match, or 0 otherwise.
+
+            void register_name(char far *name_string);
+            ==============================================
+
+                 This function will inform PCRobots of the name of this
+                 robot. The name may only be set once.
+
+                 The 'name_string' parameter is a C format zero-
+                 terminated string.
+
+            int find_name(int id,char far *name_string);
+            ================================================
+
+                 This function will search for a specified name. The
+                 search will start at 'id' and end when there are no
+                 more robots to check.
+
+                 If no robot is found, it will return -1, otherwise it
+                 will return the robot id.
+
+                 The 'name_string' parameter is a C format zero-
+                 terminated string.
+
+            int get_team_id(void);
+            function get_team_id:integer;
+            =============================
+
+                 This function will return the team which the current
+                 robot is on. -1 will be returned if it is a 'loner',
+                 otherwise the team number (0-2) will be returned.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            ============================================================
+                                                              Page No 24
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            int configure(int speed,int manouevre,int range,int
+                           armour,int acceleration,int invisibility);
+            function configure(speed,manouevre,range, armour,
+                           acceleration,invisibility:integer):integer;
+            ==========================================================
+
+                 This function allows you to configure the robot to suit
+                 the program. It *must* be called as the first thing in
+                 the program.
+
+                 For values of the parameters, look at the 'robot
+                 configuration' section.
+
+                 This function returns 0 if it was not the first
+                 PCRobots call in the program (in which case it was
+                 ignored).
+
+                 If this function was called as the first thing in the
+                 program, then it will return the PCRobots version
+                 number in the two bytes of the return value. The high
+                 byte will be the 'major' version number, and the low
+                 byte will be the 'minor' version number. For instance
+                 V1.30 will return 0x0130.
+
+
+
+            Assembler functions
+            ~~~~~~~~~~~~~~~~~~~~
+
+            An 8086 assembler program will normally call the functions
+            directly, via an INT 0E0h software interrupt.
+
+            The details below specify what parameters to place in which
+            registers, and what the returned values are.
+
+            Look at the C/C++ and Pascal functions above for
+            descriptions of the functions themselves.
+
+            The PCROBOTS.INC file may be used to specify the values to
+            place in AX.
+
+            SWAPTASK
+            ========
+
+            Call with:     AX = 00
+
+            MOVEMENT
+            ========
+
+            Call with:     AX = 01
+                           BX = speed 0-100
+                           CX = direction 0-359
+
+
+
+
+
+            ============================================================
+                                                              Page No 25
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            SCAN
+            =====
+
+            Call with:     AX = 02
+                           BX = direction 0-359 degrees
+                           CX = resolution 0-45 degrees
+
+            Returns value  AX = -1 if nothing detected
+                              = robot id if a robot is detected
+                                (robot id's are 0-19)
+                           BX = range to the detected robot.
+
+            SHOOT
+            ======
+
+            Call with:     AX = 03
+                           BX = direction 0-359
+                           CX = range 0-700
+
+            Returns value in AX = 1 if shell fired, 0 otherwise.
+            GET REMOTE MAP
+            ==============
+
+            Call with:     AX = 21h
+                           BX = segment of map buffer
+                           CX = offset of map buffer
+                           DH = x of map centre
+                           DL = y of map centre
+
+                 The map buffer must be at least 81 bytes long, and will
+                 be filled with a 9x9 area of the map, with the
+                 specified position in the centre.
+
+            GETXY
+            ======
+
+            Call with:     AX = 10h
+
+            Returns values BX = Current X coordinate (0-999)
+                           CX = Current Y coordinate (0-999)
+
+            TRANSMIT
+            =========
+
+            Call with:     AX = 11h
+                           BX = target robot ID
+                           CX = data to be sent
+
+            Returns value  AX = 0 if data could not be sent,
+                              = 1 otherwise.
+
+
+
+
+
+
+
+            ============================================================
+                                                              Page No 26
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            RECEIVE
+            ========
+
+            Call with:     AX = 12h
+
+            Returns values AX = 1 if data exists,
+                              = 0 if the buffer is empty
+                 If AX=1
+                           BX = sender's ID ('reply to' address)
+                           CX = data
+
+            DAMAGE
+            =======
+
+            Call with:     AX = 13h
+
+            Returns value  BX = damage status
+
+            SPEED
+            ======
+
+            Call with:     AX = 14h
+
+            Returns value  BX = current speed
+
+            BATTERY
+            ========
+
+            Call with:     AX = 15h
+
+            Returns value  BX = battery charge
+
+            TICKS
+            ======
+
+            Call with:     AX = 16h
+
+            Returns value  BX = Most significant 16 bits
+                           CX = Least significant 16 bits
+
+            SIN
+            ====
+
+            Call with:     AX = 17h
+                           BX = angle (0-359 degrees)
+
+            Returns value of 100,000 x the sine of the angle
+                           BX = Most significant 16 bits
+                           CX = Least significant 16 bits
+
+
+
+
+
+
+
+
+            ============================================================
+                                                              Page No 27
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            COS
+            ====
+
+            Call with:     AX = 18h
+                           BX = angle (0-359 degrees)
+
+            Returns value of 100,000 x the cosine of the angle
+                           BX = Most significant 16 bits
+                           CX = Least significant 16 bits
+
+            TAN
+            ====
+
+            Call with:     AX = 19h
+                           BX = angle (0-359 degrees)
+
+            Returns value of 100,000 x the tangent of the angle
+                           BX = Most significant 16 bits
+                           CX = Least significant 16 bits
+
+            ATAN
+            =====
+
+            Call with:     AX = 1Ah
+                           BX = Most significant 16 bits
+                           CX = Least significant 16 bits
+
+            Returns value  AX = angle (-90 to +90 degrees)
+
+                 The BX,CX parameters make up a 32 bit value that is
+                 scaled up by 100,000. Hence a BX,CX of 100,000 will
+                 return an angle of 45 degrees.
+
+            SQRT
+            =====
+
+            Call with:     AX = 1Bh
+                           BX = Most significant 16 bits of value
+                           CX = Least significant 16 bits of value
+
+            Returns value  BX = Most significant 16 bits of square root
+                           CX = Least significant 16 bits
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            ============================================================
+                                                              Page No 28
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            SET_PATTERN
+            ============
+            his call will change the robot's displayed picture.
+
+            Call with:     AX = 1Ch
+                           BX = segment of pattern array
+                           CX = offset of pattern array
+
+            The pattern array should consist of 5 bytes. The lower 5
+            bits of each byte are used as a bit pattern for the
+            appropriate line of the robot's picture.
+
+
+            DEBUG_FLAG
+            ===========
+
+            Call with:     AX = 1Dh
+                           BX = flag number to set (0 or 1)
+                           CX = set/reset flag (0=reset, 1=set)
+
+            BUY ARMOUR
+            ===========
+
+            Call with:     AX = 1Eh
+                           BX = number of armour units to buy.
+
+            BUY SHELLS
+            ===========
+
+            Call with:     AX = 1Fh
+                           BX = number of shells to buy
+
+            SHELLS LEFT
+            ============
+
+            Call with:     AX = 20h
+
+            Returns value  BX = number of shells remaining
+
+            GET LOCAL MAP
+            ==============
+
+            Call with:     AX = 21h
+                           BX = segment of map buffer
+                           CX = offset of map buffer
+
+                 The map buffer must be at least 81 bytes long, and will
+                 be filled with a 9x9 area of the map, with the robot's
+                 position in the centre.
+
+
+
+
+
+
+
+
+            ============================================================
+                                                              Page No 29
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            INVISIBILITY
+            =============
+
+            Call with:     AX = 22h
+                           BX = 0 - become visible
+                              = 1 - become invisible
+
+             GET SHELL STATUS
+            ==================
+
+            Call with:     AX = 23h
+
+            Returns value  BX = 0 - shell missed totally
+                                1 - shell hit a wall
+                                2 - shell hit a robot within a 50 square
+                                     radius
+                                3 - shell hit a robot within a 25 square
+                                     radius
+                                4 - shell hit a robot within a 5 square
+                                     radius
+
+            IS INVISIBLE
+            =============
+
+            Call with:     AX = 24h
+
+            Returns value  BX = 0 - robot is visible
+                                1 - robot is invisible
+
+            ATAN2
+            =====
+
+            Call with:     AX = 25h
+                           BX = y
+                           CX = x
+
+            Returns value  AX = angle - arctangent of y/x.
+
+            GET_ROBOT_ID
+            =============
+
+            Call with:     AX = 26h
+
+            Returns value  AX = robot id
+
+            REGISTER_IFF
+            =============
+
+            Call with:     AX = 27h
+                           BX = segment of iff_string
+                           CX = offset of iff_string
+                                (string is zero terminated)
+
+            CHECK_IFF
+
+
+
+            ============================================================
+                                                              Page No 30
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            ==========
+
+            Call with:     AX = 28h
+                           BX = Robot Id to test
+
+            Returns value  AX = 1 - IFF strings match
+                                0 - IFF strings don't match (or invalid
+                                     robot ID)
+
+            REGISTER_NAME
+            ==============
+
+            Call with:     AX = 29h
+                           BX = segment of name_string
+                           CX = offset of name_string
+                                (string is zero terminated)
+
+            FIND_NAME
+            ==========
+
+            Call with:     AX = 2Ah
+                           BX = segment of name_string
+                           CX = offset of name_string
+                                (string is zero terminated)
+                           DX = Start ID
+
+            Returns value  AX = Found Robot ID (-1 if no robot with that
+                                name)
+
+            GET_TEAM_ID
+            ============
+
+            Call with:     AX = 2Bh
+
+            Returns value  AX = Team ID value (0-2) or -1 if a 'loner'.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            ============================================================
+                                                              Page No 31
+
+
+
+            PCROBOTS V1.3 - P.D.Smith 29 October, 1992
+            ============================================================
+
+            CONFIGURE
+            ==========
+
+            Call with:     AX = 80h
+                           BX,CX = configuration details:
+
+                           BX bits    0-3  = max speed
+                                      4-7  = manouevrability
+                                      8-11 = cannon range
+                                     12-15 = robot armour
+
+                           CX bits   0-2   = robot acceleration
+                                     3     = invisiblity capability
+
+            Returns value  AX = 1 - Configuration OK
+                              = 0 - Call was not first thing in program
+
+            Values of BX,CX bitmapped values:
+
+            Value  Speed Manouevre Range Armour Acceleration
+              0      50     20%     300     50      5
+              1      75     35%     500     75      7
+              2     100     50%     700    100     10
+              3     150     75%    1000    150     15
+              4     200    100%    1500    200     20
+
+                 You have a maximum of 10 points to allocate to the
+                 robot. If you try to allocate more points to the robot,
+                 some items will have a value of '0'.
+
+
+
+            ============================================================
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            ============================================================
+                                                              Page No 32
+
+
+
+
+
+
+
+            Introduction                                 1
+
+            Hardware Requirements                               1
+
+            How to run PCROBOTS                                 2
+                 -d command line option                         2
+                 -l command line option                         2
+                 -f command line option                         2
+                 -s command line option                         2
+                 -q command line option                         2
+                 -a command line option                         2
+                 -m command line option                         2
+                 -v command line option                         3
+                 -r command line option                         3
+
+            Errorlevel values                                   3
+
+            The PCROBOTS Arena                                  3
+
+            The Robots                                          4
+
+            Teams                                               5
+
+            Coordinates                                         5
+
+            The Map                                             5
+
+            Robot Batteries                                     6
+
+            Recharging Stations                                 7
+
+            Robot Configuration                                 8
+
+            Invisibility                                        8
+
+            ROBOT DAMAGE                                        9
+
+            Debugging Aids                                      9
+
+            Special Keys                                       10
+
+            The ROBOT programs                                 11
+
+            DOS Functions                                      11
+
+            Robot Time Limit                                   12
+
+            Special Functions                                  13
+
+            C, C++ and Pascal Functions                        13
+
+            Function names                                     14
+                 swaptask                                      14
+
+
+
+
+
+
+                 movement                                      14
+                 scan                                          15
+                 shoot                                         16
+                 getxy                                         16
+                 transmit                                      17
+                 receive                                       17
+                 damage                                        18
+                 speed                                         18
+                 battery                                       18
+                 ticks                                         18
+                 l_sin                                         18
+                 l_cos                                         19
+                 l_tan                                         19
+                 l_atan                                        19
+                 l_sqrt                                        19
+                 set_pattern                                   20
+                 debug_flag                                    20
+                 buy_armour                                    21
+                 buy_shells                                    21
+                 shells_left                                   21
+                 get_local_map                                 22
+                 invisibility                                  22
+                 get_shell_status                              23
+                 isinvisible                                   23
+                 atan2                                         23
+                 get_robot_id                                  23
+                 register_iff                                  23
+                 register_name                                 24
+                 find_name(int id,char far *name_string)       24
+                 get_team_id                                   24
+                 configure                                     25
+
+            Assembler functions                                25
+                 SWAPTASK                                      25
+                 MOVEMENT                                      25
+                 SCAN                                          26
+                 SHOOT                                         26
+                 GETXY                                         26
+                 TRANSMIT                                      26
+                 RECEIVE                                       26
+                 DAMAGE                                        27
+                 SPEED                                         27
+                 BATTERY                                       27
+                 TICKS                                         27
+                 SIN                                           27
+                 COS                                           27
+                 TAN                                           28
+                 ATAN                                          28
+                 SQRT                                          28
+                 SET_PATTERN                                   28
+                 DEBUG_FLAG                                    28
+                 BUY ARMOUR                                    28
+                 BUY SHELLS                                    29
+                 SHELLS LEFT                                   29
+
+
+
+
+
+
+                 GET LOCAL MAP                                 29
+                 INVISIBILITY                                  29
+                 GET SHELL STATUS                              29
+                 IS INVISIBLE                                  30
+                 ATAN2                                         30
+                 GET_ROBOT_ID                                  30
+                 REGISTER_IFF                                  30
+                 CHECK_IFF                                     30
+                 REGISTER_NAME                                 30
+                 FIND_NAME                                     31
+                 GET_TEAM_ID                                   31
+                 CONFIGURE                                     31

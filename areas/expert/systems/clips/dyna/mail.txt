@@ -1,0 +1,1069 @@
+Return-Path: <cengelog@sunny.DAB.GE.COM>
+Received: from CS.CMU.EDU by A.GP.CS.CMU.EDU id aa27236; 18 Mar 94 9:16:07 EST
+Received: from ns.ge.com by CS.CMU.EDU id aa17102; 18 Mar 94 9:15:22 EST
+Received: from [3.2.28.27] by ns.ge.com (5.65/GE Gateway 1.18) with SMTP
+	 id AA29526; Fri, 18 Mar 94 09:11:15 -0500
+Received: from cambridge.scsd (cambridge.DAB.GE.COM) by sunny.DAB.GE.COM (4.1/GEA Sun server 2.7)id AA21776; Fri, 18 Mar 94 09:15:02 EST
+Date: Fri, 18 Mar 94 09:15:02 EST
+From: cengelog@sunny.dab.ge.com (Yilmaz Cengeloglu)
+Message-Id: <9403181415.AA21776@sunny.DAB.GE.COM>
+To: mkant@cs.cmu.edu
+Subject: Re: DYNACLIPS
+
+
+(((((((((((((((((((((((((((((((((((
+(( I would not like to BOTHER you. 
+(( If you do NOT want to receive
+(( mail related with DYNACLIPS,
+(( please send me a empty mail.
+(((((((((((((((((((((((((((((((((((
+
+
+This mail contains following: 
+ 1- Possible extentions for next Versions
+ 2- Most common errors/warnings  when you use DYNACLIPS. 
+
+I have tried to compile all mails I have received 
+related with Version 1.0 and 2.0.
+
+Yilmaz Cengeloglu
+
+
+
+-----------------------------------------
+1-) Possible extentions for  NEXT Versions of DYNACLIPS.
+-----------------------------------------
+
+** Ability to send message to group of agents.
+     Currently DYNACLIPS sends message to all
+     agents or one agents. 
+     Following will be in next Version.
+        Loading an Agent 
+             dynaclips <agent.clp> <agentID> [groupID]
+
+       Syntax for AD_BB_STR and DEL_BB_STR will be
+        ADD_BB_STR "ALL  ................."
+                   "<groupID> ............"
+                   "<agentID> ............"
+
+       (member of group <groupID>) will be a fact
+       If agent needs to know its parent. you can get
+       group name from this fact.
+
+    (It is DONE, on TEST). 
+
+
+** Improve C/C++ interface..
+     Currently, you can use 
+        sendbb  "message" 
+     program to  add/delete message to blackboard.
+     Many people asked for libraries that can be linked
+     with C/C++ therefore they can call functions rather
+     than executing sendbb with system command. 
+  
+    (I am considering to do it) 
+
+
+** DISTRIBUTED  DYNACLIPS ?
+   
+    It is not a big deal to distribute to different computers.
+    New communication protocol should be set up and new utilities 
+    for communication should be written. It takes time and requireds 
+    hardware. Distributed CLIPS would have limited usage.
+
+   (I have no plan to work on it)
+
+
+** Improve Error messages.
+   For instance,
+       Control: WARNING, Fact is already in the Backboard
+    Specify which  fact ?
+ 
+   (It  is partly DONE)
+
+
+** DYNACLIPS for PC, MAC, etc. 
+  I do not have access to different platforms at this time. 
+
+
+
+
+
+************
+If you have anything to add this list
+plase, let me know..
+***********
+ 
+                
+
+
+
+
+
+-------------------------------------------------------
+ 2- Most common errors/warnings  when you use DYNACLIPS.
+-------------------------------------------------------
+
+
+**  " ...msgsnd failed!!!: No more processes"
+-------------------------------------------------------
+
+This error means that Queue is in Operating system is full.
+Control is not fast enough to handle incoming requiests from
+agents.
+   Possible reasons ... 
+     -- One of the agents continuously sends add/or delete
+        request  to control. When you design your system you should
+        not add something to blackboard if it is already there 
+        by other agents. Also you should not try to delete something
+        if it is not in blackboard.
+        Following is one of the  possible solutions. 
+       
+            If   not (hi there) 
+                  then ADD_BB_STR (ALL FACT (hi there) )
+
+            if   (hi there)
+                  then DEL_BB_STR (ALL FACT (hi there) )
+
+     -- Your computer system is slow. 
+
+
+
+** What is the best way for one-to-one communications. 
+-------------------------------------------------------
+
+You can send a assert command to other agents. In
+that case you do not have to waste space in the blackboard..
+   
+for instance, agent2 calls:
+
+ADD_BB_STR "agent1 COMMAND ( assert (xxxx) )"
+
+(xxxx) will be a fact in the agent1 and it will 
+not stay in the blackboard. Therefore you do not
+need to remove it from BB. Also you do not need to
+specify destination in the fact..
+
+
+** Following is one of the most common mistakes.
+-------------------------------------------------------
+
+  (xxxx) is a fact in the blackboard..
+
+ An agent has following rule
+     
+    (defrule CCC
+        ?msg <- (xxxx)
+        =>
+        (retract ?msg)
+         )
+
+You should NOT retract a fact which is a member of blackboard..
+If you need to retract it you should remove it from BB using
+DEL_BB_STR. 
+after CCC is  rule excuted,  (xxxx)  will be in fact list again.
+You can not remove it with retract.
+
+     
+*** I'd like to use this <agent id> in the clips code  
+-------------------------------------------------------
+(knowledge source name is <agentID>) is an initial fact
+in all agents. 
+
+
+
+** Following is one of the most common mistake.
+-------------------------------------------------------
+In order to exit from system properly, 
+you should have following rule in all agents.
+
+(defrule exit-all
+(all exit)
+=>
+(EXIT_CLIPS))
+
+
+** Following is one of the most common mistake.
+-------------------------------------------------------
+ DYNACLIPS (DYNAmic CLIPS Utilities)  Version 2.0 (TEST VERSION)
+ Copyright 1994 by Yilmaz Cengeloglu
+
+ control for DYNACLIPS .....msg: msgget failed!!!
+: Invalid argument
+msg: msgget failed!!!
+: Invalid argument
+msg: msgget failed!!!
+: Invalid argument
+ ERROR! create: Invalid argument
+
+ Control: Control is ready
+---------------------------------------------------
+ 
+
+IPC is not set in your computer. When you enter ipcs command
+from unix shell, you should see following
+-------------------
+[cambridge]3: ipcs
+IPC status from cambridge as of Fri Mar 18 08:12:31 1994
+T     ID     KEY        MODE       OWNER    GROUP
+Message Queues:
+Shared Memory:
+Semaphores:
+[cambridge]4:
+----------------------
+If you do not see this message, you need to ask your system
+administrator to set it. You need to be root to set it.
+
+
+
+
+
+  ** Following is one of the most common mistake.
+-------------------------------------------------------s
+
+Control: WARNING, Some KS did not READ,STATUS= 6 
+
+Control broadcasts the blackboard and wait acknowledge
+signal from each agent. If there is any agent  that does not 
+send acknowledge signal. (agent exited improperly)
+Control waits certain time  and gives a this warning.
+
+
+
+
+  ** Following is one of the most common mistake.
+-------------------------------------------------------s
+main.c:  If you integrate dynaclips into a clips system where you have
+already added extensions, you must put the DEFINE_DYNACLIPS_FUNCTIONS
+statement AFTER the extensions you have already.
+
+I have no idea WHY ?
+
+> ----------------- FAILS ------------------------
+> VOID UserFunctions()
+> {
+> DEFINE_DYNACLIPS_FUNCTIONS();
+>
+> extern int dec();
+> DefineFunction ("dec", 'i', PTIF dec, "dec");
+> }
+> 
+
+> ----------------- COMPILES ------------------------
+> VOID UserFunctions()
+> {
+> extern int dec();
+> DefineFunction ("dec", 'i', PTIF dec, "dec");
+> 
+> DEFINE_DYNACLIPS_FUNCTIONS();
+> }
+
+
+
+
+
+Return-Path: <cengelog@sunny.dab.ge.com>
+Received: from RI.CMU.EDU by A.GP.CS.CMU.EDU id aa11528; 22 Mar 94 15:11:08 EST
+Received: from crdems.GE.COM by RI.CMU.EDU id aa12411; 22 Mar 94 15:10:45 EST
+Received:  from sunny.DAB.GE.COM by crdems.ge.com (5.65/GE 1.76) id AA27514; Tue, 22 Mar 94 15:07:54 -0500
+Received: from cambridge.scsd (cambridge.DAB.GE.COM) by sunny.DAB.GE.COM (4.1/GEA Sun server 2.7)id AA08913; Tue, 22 Mar 94 15:06:23 EST
+Date: Tue, 22 Mar 94 15:06:23 EST
+From: Yilmaz Cengeloglu <cengelog@sunny.dab.ge.com>
+Message-Id: <9403222006.AA08913@sunny.DAB.GE.COM>
+To: mkant@cs.cmu.edu
+Subject: Re: DYNACLIPS
+
+(((((((((((((((((((((((((((((((((((
+(( I would not like to BOTHER you.
+(( If you do NOT want to receive
+(( mail related with DYNACLIPS,
+(( please send me a empty mail.
+(((((((((((((((((((((((((((((((((((
+ 
+ 
+This mail contains following:
+ 
+  1- Problem with deleting fact from Blackboard
+  2- Speed of Control and Agents.
+ 
+ 
+ 1- Problem with deleting fact from Blackboard
+------------------------------------------------
+ 
+causse@vision.auc.dk is reported following problem..
+ 
+add A FACT (xx)  --> insert this fact (xx) to agent A
+del A FACT (xx)  --> delete this fact (xx) from agent A
+ 
+It is deleting fact (xx) from agent A  BUT all other
+agents are reseting their fact base.
+ 
+if you bradcast the fact  and delete, there is no problem.
+ 
+add ALL FACT (xx)  --> insert this fact (xx) to all agent
+del ALL FACT (xx)  --> delete this fact (xx) from all agent
+ 
+ 
+I have fixed this problem. It will be release soon.
+If you are not deleting a fact from specific agent
+you should not have any problem.
+ 
+ 
+ 
+2- Speed of Control and Agents .
+-----------------------
+>> from gmoore@macktech.com
+>>It appears that the control program is polling the blackboard.  When
+>>control is started, cpu utilization jumps to 100% and stays there.
+>>Are there any plans to fix this (using signals, etc) so that it doesn't
+>>chew up all the cpu cycles?
+ 
+It is true.
+ 
+If there is no requests from agents, control is still
+is polling message queues.
+ 
+If there is no rule to fire, agents  are still polling the blackbord.
+ 
+ 
+I have partly solve this problem...
+ 
+ if there is no request,  control is sleeping until any
+                 agents make requests.
+ 
+ if there is no rule to fire, agent is sleeping until
+                 something is changed in the blackbord.
+ 
+This one is  realy need good testing before release. Results were
+OK in my internal testing.
+ 
+It might be something that I have missed which might
+be cause for a deadlock.
+ 
+-------------
+Both problems are also exists in DYNACLIPS Version 1.0 for CLIPS 5.1.
+Currently, I have no plan to make work on version 1.0.
+I might change my mind depending on number of requests.
+ 
+I will be needing couple of people before making next relase,
+please let me know if you are interested.
+ 
+Thanks
+Yilmaz
+
+Return-Path: <cengelog@sunny.DAB.GE.COM>
+Received: from EDRC.CMU.EDU by A.GP.CS.CMU.EDU id aa03215; 24 Mar 94 9:35:32 EST
+Received: from ns.ge.com by EDRC.CMU.EDU id aa25786; 24 Mar 94 9:34:57 EST
+Received: from [3.2.28.27] by ns.ge.com (5.65/GE Gateway 1.18) with SMTP
+	 id AA29182; Thu, 24 Mar 94 09:30:40 -0500
+Received: from cambridge.scsd (cambridge.DAB.GE.COM) by sunny.DAB.GE.COM (4.1/GEA Sun server 2.7)id AA08651; Thu, 24 Mar 94 09:34:26 EST
+Date: Thu, 24 Mar 94 09:34:26 EST
+From: cengelog@sunny.dab.ge.com (Yilmaz Cengeloglu)
+Message-Id: <9403241434.AA08651@sunny.DAB.GE.COM>
+To: mkant@cs.cmu.edu
+Subject: Re: DYNACLIPS
+
+
+(((((((((((((((((((((((((((((((((((
+(( I would not like to BOTHER you. 
+(( If you do NOT want to receive
+(( mail related with DYNACLIPS,
+(( please send me a empty mail.
+(((((((((((((((((((((((((((((((((((
+
+
+This mail contains following: 
+ 1- DYNACLIPS Version 3.0 for CLIPS 5.1 and CLIPS 6.0 
+
+
+
+
+------------------------------------------------------
+ 1- DYNACLIPS Version 3.0 for CLIPS 5.1 and CLIPS 6.0 
+------------------------------------------------------
+
+
+I have found out that there are too many people who
+are using DYNACLIPS for CLIPS 5.1.
+
+DYNACLIPS Version 3.0 will support both CLIPS 5.1 and CLIPS 6.0.
+It is almost ready. I am doing my internal testing. 
+
+In case, it would be some bug, I will not add this version
+to CMU AI Repository for a while. 
+
+If you not want to wait to FTP, You can request a copy from me now.
+I will begin to distrubute within a week or less.
+
+Please continue to make comments.
+
+
+
+
+What is new ..
+--------------------------------------------------------------
+
+** All necessary libraries to link with CLIPS 5.1 and CLIPS 6.0
+   are included. You can set it up for both version of CLIPS. 
+
+** Ability to send message to group of agents.
+     Currently DYNACLIPS sends message to all
+     agents or one agents. 
+
+     Following is in Version 3.0.
+        Loading an Agent 
+             dynaclips <agent.clp> <agentID> [groupID]
+
+       Syntax for AD_BB_STR and DEL_BB_STR will be
+        ADD_BB_STR "ALL  ................."
+                   "<groupID> ............"
+                   "<agentID> ............"
+        New Command :
+         CHANGE_GROUP_NAME "groupID"
+
+       (member of group <groupID>) will be a fact
+       If agent needs to know its parent. you can get
+       group name from this fact.
+
+
+
+** Improve C/C++ interface..
+     Currently, you can use 
+        sendbb  "message" 
+     program to  add/delete message to blackboard.
+     Many people asked for libraries that can be linked
+     with C/C++ therefore they can call functions rather
+     than executing sendbb with system command. 
+
+     This library is included in Version 3.0. You can only 
+     add/delete something to blackboard with C program. 
+     You are not able to read contents of blackboard .
+  
+
+
+** Improve Error messages.
+ 
+** Problem with deleting a fact from Blackboard
+   This problem is fixed.  
+
+
+** Speed of Control and Agents.
+  
+ if there is no request,  control is sleeping until any
+                 agents make requests.
+
+ if there is no rule to fire, agent is sleeping until
+                 something is changed in the blackbord.
+
+
+
+
+Return-Path: <cengelog@sunny.DAB.GE.COM>
+Received: from EDRC.CMU.EDU by A.GP.CS.CMU.EDU id aa24712;
+          11 Apr 94 10:11:30 EDT
+Received: from ns.ge.com by EDRC.CMU.EDU id aa23193; 11 Apr 94 10:11:11 EDT
+Received: from [3.2.28.27] by ns.ge.com (5.65/GE Gateway 1.18) with SMTP
+	 id AA01236; Mon, 11 Apr 94 10:06:18 -0400
+Received: from cambridge.scsd (cambridge.DAB.GE.COM) by sunny.DAB.GE.COM (4.1/GEA Sun server 2.7)id AA03211; Mon, 11 Apr 94 10:10:26 EDT
+Date: Mon, 11 Apr 94 10:10:26 EDT
+From: cengelog@sunny.dab.ge.com (Yilmaz Cengeloglu)
+Message-Id: <9404111410.AA03211@sunny.DAB.GE.COM>
+To: mkant@cs.cmu.edu
+Subject: Re: DYNACLIPS MAILING LIST
+
+
+((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((
+(( You are in DYNACLIPS Mailing list. If you do NOT want to receive
+(( mail related with DYNACLIPS, please send me a empty mail.
+((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((
+
+This mail contains following:
+ 1- Why DYNACLIPS 3.0  is not in CMU AI Repository.
+ 2- Some comments on speed.
+
+
+Yilmaz Cengeloglu
+
+
+--------------------------------------------------
+1- Why DYNACLIPS 3.0  is not in CMU AI Repository.
+--------------------------------------------------
+DYNACLIPS 3.0  has a major changes. 
+I was not able to test it myself very well.  I will wait
+for a while. As of today, there is no problem reported.
+
+
+-------------------------------------- 
+2- Some comments on speed.
+-------------------------------------- 
+
+There are still complains about speed of DYNACLIPS. I have done
+my best to get speed up on DYNACLIPS. If you have any suggestions
+please let me know.
+
+
+Followings are reason why DYNACLIPS would be slow. 
+-------------- 
+** Some of you use several agents (10 or more)  in their project.
+Each agent is a CLIPS shell and they all run simultaneously. 
+You need a faster CLIPS and/or faster workstation. 
+I have add an  a algorithm that
+if any agents does not have any rule to fire, it will sleep. 
+Agent will wake up if there would be any change in the blackboard.
+There is nothing else  I can do in this case. If you have any 
+comment let me know.
+
+
+-------------- 
+** You have some agent that continously sending request to control. 
+
+For instance, 
+   (yyyy)  and (mmmm) are  facts in the blackbord. 
+
+Agent 1 has following rule
+  
+  if (mmmm) insert (yyyy) to blackboard. 
+
+  This rule will slow down whole system because agents 1
+will continously send that request to control which is not
+necessary to handle at all. 
+
+One of the solution would be. 
+  
+ if (mmmm) and  ( not (yyyy) ) insert (yyyy) to blackboard. 
+
+
+-------------- 
+**   You have too many one to one continous communication. You should 
+try to use blackboard for exchanging common information. For
+one to one communication you may want to use other approaches
+such as IPC message queues, etc. 
+
+ 
+-------------- 
+** Some of you are suggested that Each agents should run on
+separate CPU ( Distributed DYNACLIPS). Of course this the best
+solution for speed up  but not everyone has access to  distributed
+hardware.  Number of distributed DYNACLIPS  user is not good enough for me
+to make work on it. 
+
+ 
+
+
+
+
+Return-Path: <cengelog@sunny.DAB.ge.com>
+Received: from EDRC.CMU.EDU by A.GP.CS.CMU.EDU id aa05163;
+          27 Apr 94 12:24:15 EDT
+Received: from crdems.GE.COM by EDRC.CMU.EDU id aa14782; 27 Apr 94 12:23:17 EDT
+Received:  from sunny.DAB.GE.COM by crdems.ge.com (5.65/GE 1.76) id AA01115; Wed, 27 Apr 94 11:26:21 -0400
+Received: from cambridge.scsd (cambridge.DAB.GE.COM) by sunny.DAB.GE.COM (4.1/GEA Sun server 2.7)id AA03543; Wed, 27 Apr 94 11:24:12 EDT
+Date: Wed, 27 Apr 94 11:24:12 EDT
+From: cengelog@sunny.dab.ge.com (Yilmaz Cengeloglu)
+Message-Id: <9404271524.AA03543@sunny.DAB.GE.COM>
+To: mkant@cs.cmu.edu
+Subject: Re: DYNACLIPS MAILING LIST
+
+((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((
+(( You are in DYNACLIPS Mailing list. If you do NOT want to receive
+(( mail related with DYNACLIPS, please send me a empty mail.
+((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((
+ 
+ 
+ 
+> From causse@vision.auc.dk Wed Apr 27 10:34:30 1994
+> From: causse@vision.auc.dk (Olivier Causse)
+> Subject: WARNING, Some KS did not READ Blackboard
+> To: cengelog@sunny.dab.ge.com (Yilmaz Cengeloglu)
+> Date: Wed, 27 Apr 1994 16:32:25 +0200 (MET DST)
+> X-Mailer: ELM [version 2.4 PL21]
+> Content-Type> : > text>
+> Content-Length: 404
+>
+> Hi Yilmaz,
+>
+> I haven't mail you for a while but I'm still using DYNACLIPS (3.0) and
+> I have some problems. Would it be possible for the control message :
+>
+>       Control: WARNING, Some KS did not READ Blackboard
+>
+> to know which KS did not read the blackboard, because
+> sometimes it's hard to guess.
+ 
+ 
+This is not not easy to fix immediately. Each agent sends a acknowledge
+signal to control when it reads blackboard succesfully. They do not send
+their ID.
+ 
+Control only knows number of active agent in the system and does not
+keep names of the agents in the system.  If number of incoming acknowledge
+signal less than number of agent, it will give a warning.
+ 
+I have not passed Agent ID  because it was bringing additional job
+to control and it would slow down whole system. Control has to keep
+list of active agent in the system and has to compare with incoming
+signals each time blackboard broadcasted.
+ 
+I am not really sure that this is really necessary to implement.
+ 
+ 
+Control: WARNING, Some KS did not READ Blackboard means following :
+        1- an agent is in indefinite loop can not read blackboard
+        2- an agent exits from system without caling EXIT_CLIPS command.
+        3- an agent is waiting input from user.
+        4- an agent is to slow to respond to control.
+ 
+ 
+ 
+>
+> By the way, are you still working on Dynaclips. Have you any
+> plans for a version 4.0 ?
+>
+ 
+I am not working on Version 4.0 at this time.  I might work depending
+on number of problems/suggestions reported. As of today I have only
+one suggestions.
+ 
+ 
+> Best regards,
+>
+>       Olivier.
+>
+ 
+From cengelog@cambridge.dab.ge.com Thu Jul 14 22:12:41 EDT 1994
+Article: 23126 of comp.ai
+Xref: glinda.oz.cs.cmu.edu comp.ai:23126
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!godot.cc.duq.edu!news.duke.edu!zombie.ncsc.mil!cs.umd.edu!news.coop.net!news.den.mmc.com!iplmail.orl.mmc.com!cambridge!cengelog
+From: cengelog@cambridge.dab.ge.com (Yilmaz Cengeloglu)
+Newsgroups: comp.ai
+Subject: DYNACLIPS Ver 3.1 for CLIPS 6.02 is ready.
+Date: 13 Jul 1994 12:18:59 GMT
+Organization: Martin Marietta, Daytona Beach, Florida
+Lines: 35
+Distribution: world
+Message-ID: <300m3j$gee@theopolis.orl.mmc.com>
+NNTP-Posting-Host: cambridge.dab.ge.com
+
+
+
+    DYNACLIPS Version 3.1 is ready for distributions.
+    This version can also be used with CLIPS 6.02.
+
+    You do not need a copy if you are using DYNACLIPS version 3.0
+    with CLIPS 5.1 or CLIPS 6.0
+
+    DYNACLIPS Version 3.1 will not be at CMU AI repository couple
+    of weeks.
+
+    Let me know if you want a copy of DYNACLIPS Version 3.1.
+
+
+Thanks in advance,
+Yilmaz Cengeloglu
+
+------------------------------
+
+DYNACLIPS (DYNAamic CLIPS Utilities), is a set of blackboard, dynamic
+knowledge exchange, and agent tools for CLIPS 5.1 and 6.0.  It is
+implemented as a set of libraries that can be linked with CLIPS 5.1 or
+CLIPS 6.0. Version 1 should be used with CLIPS 5.1 and version 2 with
+CLIPS 6.0.  Source code is not available. Agents use the blackboard to
+communicate with other intelligent agents in the framework.  Each
+intelligent agent can send and receive facts, rules, and commands.
+Rules and facts are inserted and deleted dynamicly while the agents
+are running. Knowledge can be transfered on a temporary or permanent
+basis. For more information, please contact Yilmaz Cengeloglu, PO Box
+il to
+cengelog@dab.ge.com or 73313.775@compuserve.com.
+It is available from the CMU AI Repository in
+   ftp.cs.cmu.edu:/user/ai/areas/expert/clips/dyna/
+
+
+
+
+Return-Path: <cengelog@sunny.DAB.GE.COM>
+Received: from EDRC.CMU.EDU by A.GP.CS.CMU.EDU id aa29789; 13 Jul 94 8:29:31 EDT
+Received: from ns.ge.com by EDRC.CMU.EDU id aa01228; 13 Jul 94 8:28:53 EDT
+Received: from [3.2.28.27] by ns.ge.com (5.65/GE Gateway 1.23) with SMTP
+	 id AA25085; Wed, 13 Jul 94 08:21:02 -0400
+Received: from cambridge.scsd (cambridge.DAB.GE.COM) by sunny.DAB.GE.COM (4.1/GEA Sun server 2.7)id AA25131; Wed, 13 Jul 94 08:27:02 EDT
+Date: Wed, 13 Jul 94 08:27:00 EDT
+From: cengelog@escmail.orl.mmc.com (Yilmaz Cengeloglu)
+Message-Id: <9407131227.AA25131@sunny.DAB.GE.COM>
+To: mkant@cs.cmu.edu
+Subject: Re: DYNACLIPS MAILING LIST
+
+((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((
+(( You are in DYNACLIPS Mailing list. If you do NOT want to receive
+(( mail related with DYNACLIPS, please send me a empty mail.
+((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((
+
+
+    DYNACLIPS Version 3.1 is ready for distributions.
+    This version can also be used with CLIPS 6.02.
+
+    You do not need a copy if you are using DYNACLIPS version 3.0
+    with CLIPS 5.1 or CLIPS 6.0
+
+    DYNACLIPS Version 3.1 will not be at CMU AI repository couple
+    of weeks.
+
+    Let me know if you want a copy of DYNACLIPS Version 3.1.
+
+
+Thanks in advance,
+Yilmaz Cengeloglu
+
+
+Return-Path: <cengelog@sunny.DAB.GE.COM>
+Received: from RI.CMU.EDU by A.GP.CS.CMU.EDU id aa16233; 22 Jul 94 11:07:01 EDT
+Received: from ns.ge.com by RI.CMU.EDU id aa19560; 22 Jul 94 11:06:00 EDT
+Received: from [3.2.28.27] by ns.ge.com (5.65/GE Gateway 1.23) with SMTP
+	 id AA29810; Fri, 22 Jul 94 10:57:41 -0400
+Received: from cambridge.scsd (cambridge.DAB.GE.COM) by sunny.DAB.GE.COM (4.1/GEA Sun server 2.7)id AA20201; Fri, 22 Jul 94 11:03:47 EDT
+Date: Fri, 22 Jul 94 11:03:45 EDT
+From: cengelog@escmail.orl.mmc.com (Yilmaz Cengeloglu)
+Message-Id: <9407221503.AA20201@sunny.DAB.GE.COM>
+To: mkant@cs.cmu.edu
+Subject: Re: DYNACLIPS MAILING LIST
+
+
+((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((
+(( You are in DYNACLIPS Mailing list. If you do NOT want to receive
+(( mail related with DYNACLIPS, please send me a empty mail.
+((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((
+
+SUBJECTS
+
+
+1- DYNACLIPS 3.1 for CLIPS 6.02
+
+2- Publication.
+
+3- USING DYNACLIPS in DIS and IST applications.
+
+
+
+_________________________________________________________
+_________________________________________________________
+
+1- DYNACLIPS 3.1 for CLIPS 6.02
+----------------------------------------------------
+DYNACLIPS 3.1 for CLIPS 6.02 is being distributed. 
+you need to request from me. 
+
+2- Publication.
+----------------------------------------------------
+It will be a publication at Third CLIPS conference in 
+September. 
+
+
+
+3- USING DYNACLIPS in DIS and IST applications.
+----------------------------------------------------
+
+There has been several questions regarding on using DYNACLIPS
+in DIS and IST applications. Followings are my opinions.  
+
+
+DIS:
+
+Currently, DYNACLIPS  can  NOT be connected to DIS network
+because it does not understand DIS protocol. 
+
+DYNACLIPS can be used as an intelligent forces in the military 
+simulation network. For instance, officers and soldiers can be modelled
+as intelligent agents and an intelligent agent representing an 
+officer can dynamically transfer appropriate knowledge to each
+soldier according to each soldier's specific condition at the time.
+Another example, an aircraft can be modelled as an DYNACLIPS, each agent
+is representing a complex behavior in the aircraft. Such as, 
+one agent for take off/landing, one agent for escaping, one agent for
+attack, etc. In this case,  unnecessary knowledge would be sleep, 
+if it is not being used. Also you can re-use knowledge bases that are
+similar in different simulators. Such as, you may be able to use same
+escaping knowledge base for  different flight simulators.
+
+
+IST:
+
+DYNACLIPS can be used for Intelligent Simulation and Training applications.
+As I have done in my thesis, ATC can be modelled, each agent represent
+a plane.  This would increase the reality  of the simulation. ATC person
+can be trained using more real simulations.
+
+The most difficult  part is someone needs to write knowledge bases for
+each complex behaviors in DIS or IST applications.
+
+Using different technique DYNACLIPS can be enhanced. DYNACLIPS is still 
+prototype.  
+
+
+From cengelog@escmail.orl.mmc.com Fri Jul 22 18:55:58 EDT 1994
+Article: 23392 of comp.ai
+Xref: glinda.oz.cs.cmu.edu comp.ai:23392
+Path: honeydew.srv.cs.cmu.edu!das-news.harvard.edu!news2.near.net!MathWorks.Com!europa.eng.gtefsd.com!howland.reston.ans.net!cs.utexas.edu!not-for-mail
+From: cengelog@escmail.orl.mmc.com (Yilmaz Cengeloglu)
+Newsgroups: comp.ai
+Subject: USING DYNACLIPS in DIS and IST applications
+Date: 22 Jul 1994 08:30:07 -0500
+Organization: UTexas Mail-to-News Gateway
+Lines: 67
+Sender: nobody@cs.utexas.edu
+Message-ID: <9407221325.AA19335@sunny.DAB.GE.COM>
+NNTP-Posting-Host: news.cs.utexas.edu
+
+USING DYNACLIPS in DIS and IST applications.
+--------------------------------------------
+
+There has been several questions regarding on using DYNACLIPS
+in DIS and IST applications. Followings are my opinions.  
+
+
+DIS:
+
+Currently, DYNACLIPS  can  NOT be connected to DIS network
+because it does not understand DIS protocol. 
+
+DYNACLIPS can be used as an intelligent forces in the military 
+simulation network. For instance, officers and soldiers can be modelled
+as intelligent agents and an intelligent agent representing an 
+officer can dynamically transfer appropriate knowledge to each
+soldier according to each soldier's specific condition at the time.
+Another example, an aircraft can be modelled as an DYNACLIPS, each agent
+is representing a complex behavior in the aircraft. Such as, 
+one agent for take off/landing, one agent for escaping, one agent for
+attack, etc. In this case,  unnecessary knowledge would be sleep, 
+if it is not being used. Also you can re-use knowledge bases that are
+similar in different simulators. Such as, you may be able to use same
+escaping knowledge base for  different flight simulators.
+
+
+IST:
+
+DYNACLIPS can be used for Intelligent Simulation and Training applications.
+As I have done in my thesis, ATC can be modelled, each agent represent
+a plane.  This would increase the reality  of the simulation. ATC person
+can be trained using more real simulations.
+
+The most difficult  part is someone needs to write knowledge bases for
+each complex behaviors in DIS or IST applications.
+
+Using different technique DYNACLIPS can be enhanced. DYNACLIPS is still 
+prototype.  
+
+
+Yilmaz Cengeloglu
+
+        cengelog@escmail.orl.mmc.com
+        cengelog@dab.ge.com
+
+-----------------------------------------------------
+---Rest  is information about DYNACLIPS --------------
+
+DYNACLIPS can be used as a Dynamic Knowledge Exchange
+tool for Intelligent Agents. It is a basic Blackboard
+Architecture. Each intelligent agent in DYNACLIPS is a
+CLIPS shell and runs a separate process under SunOS
+operating system. Intelligent agents can exchange facts,
+rules, and CLIPS commands at run time. System V  IPC
+facilities (shared memory, message queues, semaphores)
+are used for interprocess communication. DYNACLIPS is
+FREE and several people are currently using it.
+
+DYNACLIPS for CLIPS 5.1 and 6.0 can be
+downloaded from ftp.cs.cmu.edu. Files are in
+user/ai/software/expert/clips/dyna directory.
+
+DYNACLIPS for CLIPS 6.02 can be requested from me.
+
+-----------
+
+
+
+
+Return-Path: <cengelog@escmail.orl.mmc.com>
+Received: from CS.CMU.EDU by A.GP.CS.CMU.EDU id aa18912; 7 Sep 94 12:42:17 EDT
+Received: from sunny.orl.mmc.com by CS.CMU.EDU id aa15326; 7 Sep 94 12:40:43 EDT
+Received: from cambridge.DAB.GE.COM by sunny.orl.mmc.com (4.1/GEA Sun server 2.7)
+	id AA26805; Wed, 7 Sep 94 12:38:59 EDT
+Received: by cambridge.DAB.GE.COM (4.1/1.34.a)
+	id AA06997; Wed, 7 Sep 94 12:37:35 EDT
+Date: Wed, 7 Sep 94 12:37:35 EDT
+From: cengelog@escmail.orl.mmc.com
+Message-Id: <9409071637.AA06997@cambridge.DAB.GE.COM>
+To: mkant@CS.CMU.EDU
+Subject: Re: DYNACLIPS MAILING LIST
+
+
+((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((
+(( You are in DYNACLIPS Mailing list. If you do NOT want to receive
+(( mail related with DYNACLIPS, please send me a empty mail.
+((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((
+
+
+1- I have received couple of mails asking about status of
+   DYNACLIPS. 
+ 
+  As you know, latest version is 3.1 and runs with CLIPS
+  5.1, 6.0 and 6.02. 
+ 
+  Lately, I have not receive any serious bug report. Therefore
+  I am not working on another version at this time.
+ 
+  It will be a publication at CLIPS conference on September 14.
+ 
+ 
+ 
+2- Please update my address in your file.
+ 
+        Yilmaz Cengeloglu
+        PO Box 4142     
+        Winter Park, FL 32793-4142, USA
+ 
+ 
+        E-mail : cengelog@escmail.orl.mmc.com
+                 yil@engr.ucf.edu
+                 73313.775@compuserve.com
+Return-Path: <cengelog@escmail.orl.mmc.com>
+Received: from CS.CMU.EDU by A.GP.CS.CMU.EDU id aa16676; 23 Sep 94 13:17:24 EDT
+Received: from sunny.orl.mmc.com by CS.CMU.EDU id aa07640;
+          23 Sep 94 13:15:11 EDT
+Received: from cambridge.DAB.GE.COM ([3.2.136.47]) by sunny.orl.mmc.com (4.1/GEA Sun server 2.7)
+	id AA07606; Fri, 23 Sep 94 13:15:00 EDT
+Received: by cambridge.DAB.GE.COM (4.1/1.34.a)
+	id AA04068; Fri, 23 Sep 94 13:14:59 EDT
+Date: Fri, 23 Sep 94 13:14:59 EDT
+From: cengelog@escmail.orl.mmc.com
+Message-Id: <9409231714.AA04068@cambridge.DAB.GE.COM>
+To: mkant@CS.CMU.EDU
+Subject: Re: DYNACLIPS MAILING LIST
+
+
+
+((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((
+(( You are in DYNACLIPS Mailing list. If you do NOT want to receive
+(( mail related with DYNACLIPS, please send me a empty mail.
+((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((((
+
+
+
+> From clips-list-request@cosmic.uga.edu Fri Sep 23 11:29:29 1994
+> Date: Fri, 23 Sep 1994 08:55:27 -0600 (CST)
+> From: Tom Ottaway <ONOTT@ttacs1.ttu.edu>
+> Subject: DYNACLIPS
+> To: clips-list@cosmic.uga.edu
+> X-Vms-To: IN%"<clips-list@cossack.cosmic.uga.edu>"
+> Mime-Version: 1.0
+> Content-Type> : > TEXT/PLAIN> ; > CHARSET=US-ASCII> 
+> Content-Transfer-Encoding: 7BIT
+> Content-Length: 469
+> 
+> 
+> Hello,
+>   Has anyone, other than the author, used DYNACLIPS for developing a distributedexpert system based on the intelligent agent paradigm?  I need to develop such
+> an expert system for my dissertation and DYNACLIPS looks like the right tool
+> for the job.  I am concerned though, is it a robust set of development tools?
+> 
+> 
+> 						Thanks,
+> 						Tom Ottaway
+> 						Information Systems and
+> 						Quantitative Sciences
+> 						Texas Tech University
+> 						onott@ttacs1.ttu.edu
+>
+>
+
+from  author, 
+---------------
+
+	DYNACLIPS is still a prototype tool and there are several
+limitations. I am still working on DYNACLIPS whenever I have chance.
+Since I am working on it as a hobby,  it is going to slow.
+	
+	It used to be cases that some people asked special functionality
+and I was not able to respond.   It is really hard to make a tool that
+makes everyone happy.  
+
+	My intention to develop this tool was to be able to use dynamic 
+rule exchange.  I think %90 of people who tried DYNACLIPS are interested 
+to use as a BBA tool.
+
+	I think DYNACLIPS is good enough for quick prototyping at this
+time. Couple of people tried symbolic version of GBB and they did claim 
+that they have to learn several new things to be able use GBB. Since
+unix version of GBB is too expensive, most people do not prefer to buy 
+it unless they really need a BBA tool. 
+ 		
+	There are also other tools that are presented at CLIPS conference, 
+you might want to make some research on them.
+
+
+	I also would not mind to get copy of responses you will get. 
+
+
+Yilmaz Cengeloglu
+
+
+Date: Mon, 19 Dec 94 21:04 EST
+From: Yilmaz Cengeloglu <yil@engr.ucf.edu>
+To: mkant@cs.cmu.edu
+Subject: Re:  DYNACLIPS MAILING LIST
+
+
+FROM DYNACLIPS MAILING LIST
+
+
+Subject 	: AGENT_CLIPS  (Multi-Agent tool)  will be implemented.
+Date		: 12-17-94
+From		: 73313.775@compuserve.com  (Yilmaz Cengeloglu)
+
+AGENT_CLIPS is a multi-agent tool for Macintosh. 
+Multiple copies of CLIPS runs at the same time on 
+MACINTOSH.  Each Agent (CLIPS) can send commands 
+to other active agents at run time.  AGENT_CLIPS 
+will be handling  incoming commands automaticly.
+ 
+Command transfer is also mean that you can  exchange
+facts, rules at run time.   This is a form of Knowledge
+Exchange Among Intelligent Agents. I am also author of
+DYNACLIPS which is a similar tool for UNIX.  AGENT_CLIPS
+will NOT use blackboard for communication. That is the reason
+I am using different name.  I might add BBA functionality in 
+the future.
+
+If you are interested  with this tool  please send me a mail. 
+If there would be enough interest,  I will make this tool
+available  to  other people.  Otherwise  I will be implemeted
+for only  my  own usage.  Version 1.0  might  be FREE. 
+
+Please feel free to make any comment. 
+
+(PLEASE MAKE ALL YOUR COMMENT TO MY COMPUSERVE ACCOUNT )
+
+Yilmaz Cengeloglu
+73313.775@compuserve.com
+
+PO BOX 4142, 
+Winter Park, FL 32793, USA
+
+
+AGENT_CLIPS Version 1.0 will have at list following commands:
+---------------------------------------------------------
+SET_AGENT_NAME (<agent name>)
+	will be called once to join agents network.
+
+RUN_AGENT
+	Will be use to run AGENT_CLIPS.
+
+SEND_MESSAGE_TO_AGENT ( "<destination>"  "<command>")
+	<destination> can be an agent or "ALL"  to broadcast the message
+	all agents. 
+	<command> can be any  CLIPS command. 
+
+EXIT_AGENT_CLIPS
+	will be called to exit from agents network.
+
+It will be sloow but I can make it fast  in the future.
+

@@ -1,0 +1,636 @@
+; Title: A Metacircular Evaluator for a Logical Extension of Scheme
+ 
+; Author: P. Bonzon
+;         University of Lausanne
+;         1015 Lausanne, Switzerland
+ 
+; Email: pbonzon@clsuni51.bitnet
+ 
+; Reference: LISP AND SYMBOLIC COMPUTATION, 3, 113-133, 1990
+ 
+ 
+ 
+; Loop driver
+ 
+ 
+  (define logscheme (lambda ()
+    (let ((new-env (cons(cons (cons 'nil nil) nil) nil)))
+      (read-eval-print-loop new-env))))
+ 
+  (define read-eval-print-loop (lambda (env)
+    (newline)
+    (display ">> ")
+    (let ((exp (read)))
+      (newline)
+      (cond ((eq? exp 'exit) "Exit")
+            (t (newline)
+               (user-print (eval exp env))
+               (newline)
+               (read-eval-print-loop env))))))
+ 
+  (define user-print (lambda (exp)
+    (cond ((atom? exp) (display exp))
+          ((closure? exp) (user-print (closure-exp exp)))
+          (t (display "(")
+             (user-list-print exp)
+             (display ")")))))
+ 
+  (define user-list-print (lambda (exp)
+    (user-print (car exp))
+    (cond ((cdr exp)
+           (cond ((or (atom? (cdr exp)) (closure? (cdr exp)))
+                  (display " . ")
+                  (user-print (cdr exp)))
+                 (t (display " ")
+                    (user-list-print (cdr exp))))))))
+ 
+ 
+ 
+; Top level eval functions
+ 
+ 
+  (define eval (lambda (exp env)
+    (cond ((self-evaluating? exp) exp)
+          ((quoted? exp) (text-of-quotation exp env))
+          ((logical-variable? exp) (eval-log-var exp env))
+          ((variable? exp) (lookup-variable-value exp env))
+          ((definition? exp) (eval-definition exp env))
+          ((assignment? exp) (eval-assignment exp env))
+          ((lambda? exp) (make-procedure exp env))
+          ((clause? exp) (make-predicate exp env))
+          ((conditional? exp) (eval-cond (clauses exp) env))
+          ((application? exp)
+           (let ((procedure (eval (operator exp) env)))
+             (cond ((functional-operator? procedure)
+                    (apply procedure
+                           (list-of-values (operands exp) env)))
+                   ((logical-operator? procedure)
+                    (search (make-query exp env)
+                            (make-single-call exp env))))))
+          (t "Illegal Expression"))))
+ 
+ 
+  (define eval-sequence (lambda (exps env)
+    (cond ((null? (cdr exps))
+           (eval (car exps) env))
+          (t (eval (car exps) env)
+             (eval-sequence (cdr exps) env)))))
+ 
+  (define list-of-values (lambda (exps env)
+    (cond ((null? exps) nil)
+          (t (cons (eval (car exps) env)
+                   (list-of-values (cdr exps) env))))))
+ 
+ 
+ 
+; Evaluation functions
+ 
+ 
+  (define text-of-quotation (lambda (exp env)
+    (instance (car (cdr exp)) env)))
+ 
+  (define lookup-variable-value (lambda (var env)
+    (cond ((global-bound? var env)
+           (instance (global-value var env) env))
+          (t (instance (new-logical-variable var) env)))))
+ 
+  (define eval-log-var (lambda (exp env)
+    (instance exp env)))
+ 
+  (define eval-definition (lambda (exp env)
+    (let ((var (car (cdr exp)))
+          (val (eval (car (cdr (cdr exp))) env)))
+      (cond ((atom? var)
+             (let ((binding (binding-in-frame var (car env))))
+               (cond ((null? binding)
+                      (set-car! env (cons (cons var val) (car env))))
+                     (t (cond ((defined-predicate? val)
+                               (cond ((defined-predicate? (cdr binding))
+                                      (append! binding (cdr val)))
+                                     (t (set-cdr! binding val))))
+                              (t (set-cdr! binding val))))))
+             var)
+            (t "Illegal Definition")))))
+ 
+ 
+  (define eval-assignment (lambda (exp env)
+    (let ((var (car (cdr exp)))
+          (val (eval (car (cdr (cdr exp))) env)))
+      (cond ((atom? var)
+             (let ((binding (binding-in-env var env)))
+               (cond ((null? binding)
+                      "Undefined Variable")
+                     (t (set-cdr! binding val)
+                        val))))
+            (t "Illegal Definition")))))
+ 
+  (define make-procedure (lambda (exp env)
+    (cons 'procedure
+          (cons (new-closure exp env) nil))))
+ 
+  (define make-predicate (lambda (exp env)
+    (cons 'predicate
+          (cons (new-closure exp env) nil))))
+ 
+  (define eval-cond (lambda (clauses env)
+    (cond ((null? clauses) nil)
+          ((null? (atom? clauses))
+           (cond ((null? (atom? (car clauses)))
+                  (cond ((eval (car (car clauses)) env)
+                         (cond ((cdr (car clauses))
+                                (eval-sequence (cdr (car clauses)) env))
+                               (t "Illegal Conditional Expression")))
+                        (t (eval-cond (cdr clauses) env))))
+                 (t "Illegal Conditional Expression")))
+          (t "Illegal Conditional Expression"))))
+ 
+ 
+  (define apply (lambda (procedure arguments)
+    (cond ((primitive-procedure? procedure)
+           (apply-primitive-procedure procedure arguments))
+          ((compound-procedure? procedure)
+           (eval-sequence (procedure-body procedure)
+                          (extend-environment (parameters procedure)
+                                              arguments
+                                              (procedure-env procedure))))
+          (t "Illegal Application"))))
+ 
+  (define apply-primitive-procedure (lambda (proc args)
+    (cond ((eq? proc 'car)
+           (cond ((logical-variable-closure? (car args))
+                  "Non Ground Car Argument")
+                 (t (car (car args)))))
+          ((eq? proc 'cdr)
+           (cond ((logical-variable-closure? (car args))
+                  "Non Ground Cdr Argument")
+                 (t (cdr (car args)))))
+          ((eq? proc 'cons)
+           (cons (car args) (car (cdr args))))
+          ((eq? proc 'atom?)
+           (cond ((logical-variable-closure? (car args))
+                  "Non Ground Atom? Argument")
+                 (t (atom? (car args)))))
+          ((eq? proc 'eq?)
+           (cond ((or (logical-variable-closure? (car args))
+                      (logical-variable-closure? (car (cdr args))))
+                  "Non Ground Eq? Argument")
+                 (t (eq? (car args) (car (cdr args))))))
+          ((eq? proc 'null?)
+           (cond ((logical-variable-closure? (car args))
+                  "Non Ground Null? Argument")
+                 (t (null? (car args)))))
+          ((eq? proc 'not)
+           (cond ((logical-variable-closure? (car args))
+                  "Non Ground Not Argument")
+                 (t (null? (car args)))))
+          ((eq? proc 'or)
+           (cond ((or (logical-variable-closure? (car args))
+                      (logical-variable-closure? (car (cdr args))))
+                  "Non Ground Eq? Argument")
+                 (t (or (car args) (car (cdr args))))))
+          ((eq? proc 'and)
+           (cond ((or (logical-variable-closure? (car args))
+                      (logical-variable-closure? (car (cdr args))))
+                  "Non Ground Eq? Argument")
+                 (t (and (car args) (car (cdr args))))))
+ 
+          ((eq? proc '+)
+           (cond ((and (number? (car args)) (number? (car (cdr args))))
+                  (+ (car args) (car (cdr args))))
+                 (t "Non Numeric Argument")))
+          ((eq? proc '-)
+           (cond ((and (number? (car args)) (number? (car (cdr args))))
+                  (- (car args) (car (cdr args))))
+                 (t "Non Numeric Argument")))
+          ((eq? proc '*)
+           (cond ((and (number? (car args)) (number? (car (cdr args))))
+                  (* (car args) (car (cdr args))))
+                 (t "Non Numeric Argument")))
+          ((eq? proc '/)
+           (cond ((and (number? (car args)) (number? (car (cdr args))))
+                  (/ (car args) (car (cdr args))))
+                 (t "Non Numeric Argument")))
+          ((eq? proc '>)
+           (cond ((and (number? (car args)) (number? (car (cdr args))))
+                  (> (car args) (car (cdr args))))
+                 (t "Non Numeric Argument")))
+          ((eq? proc '<)
+           (cond ((and (number? (car args)) (number? (car (cdr args))))
+                  (< (car args) (car (cdr args))))
+                 (t "Non Numeric Argument")))
+          ((eq? proc '=)
+           (cond ((and (number? (car args)) (number? (car (cdr args))))
+                  (= (car args) (car (cdr args))))
+                 (t "Non Numeric Argument")))
+          ((eq? proc 'read)
+           (read))
+          ((eq? proc 'write)
+           (write (car args)))
+          ((eq? proc 'newline)
+           (newline))
+          (t "Illegal Primitive Operator"))))
+ 
+ 
+  (define search (lambda (query calls)
+    (cond ((null? calls)
+           (cons (cons (operator-part query)
+                       (list-of-values (operands-part query)
+                                       (query-env query)))
+                 nil))
+          ((functional-operator? (first-call-operator calls))
+           (cond ((null? (apply (first-call-operator calls)
+                                (list-of-values
+                                 (first-call-args calls)
+                                 (first-call-args-env calls))))
+                  nil)
+                 (t (search query (remaining-calls calls)))))
+          ((logical-operator? (first-call-operator calls))
+           (cond ((defined-predicate? (first-call-operator calls))
+                  (try-each query
+                            (first-call-clause-closures calls)
+                            (first-call-args-closure calls)
+                            (remaining-calls calls)))
+                 (t nil)))
+          (t (display  "Illegal Call ")
+             (user-print (first-call-operator calls))
+             (newline)
+             nil))))
+ 
+  (define try-each (lambda (query clauses args cont)
+    (cond ((null? clauses) nil)
+          (t (append
+              (try query (car clauses) args cont)
+              (try-each query (cdr clauses) args cont))))))
+ 
+  (define try (lambda (query clause args cont)
+    (let* ((search-env (new-search-env (clause-env clause)))
+           (trail (new-trail))
+           (result (cond ((unify-list (application-args args)
+                                      (application-env args)
+                                      (clause-args clause)
+                                      search-env
+                                      trail)
+                          (search query
+                                  (append (make-calls (clause-body clause)
+                                                      search-env)
+                                          cont)))
+                         (t nil))))
+      (restore! trail)
+      result)))
+ 
+  (define unify-list (lambda (list1 env1 list2 env2 trail)
+    (cond ((or (null? list1) (null? list2)) (eq? list1 list2))
+          (t (and (unify (eval (car list1) env1)
+                         (eval (car list2) env2) trail)
+                  (unify-list (cdr list1) env1 (cdr list2) env2 trail)))))  )
+ 
+ 
+ 
+; System's constructors
+ 
+ 
+  (define new-logical-variable (lambda (var)
+    (string->symbol (string-append "?" (symbol->string var)))))
+ 
+  (define new-closure (lambda (exp env)
+    (cons 'closure (cons exp env))))
+ 
+  (define make-query (lambda (exp env)
+    (new-closure exp env)))
+ 
+  (define make-single-call (lambda (exp env)
+    (cons (cons (eval (car exp) env)
+                (cons (new-closure (cdr exp) env)
+                      nil))
+          nil)))
+ 
+  (define make-calls (lambda (exp env)
+    (cond ((null? exp) nil)
+          (t (append
+              (make-single-call (car exp) env)
+              (make-calls (cdr exp) env))))))
+ 
+  (define new-search-env (lambda (env)
+    (cons nil env)))
+ 
+  (define make-frame (lambda (variables values)
+    (cond ((null? variables) nil)
+          (t (cons (cons (car variables) (car values))
+                   (make-frame (cdr variables) (cdr values)))))))
+ 
+  (define extend-environment (lambda (variables values base-env)
+    (cons (make-frame variables values) base-env)))
+ 
+  (define new-trail (lambda ()
+    (cons nil nil)))
+ 
+ 
+ 
+; System's mutators
+ 
+ 
+  (define bind! (lambda (var env value trail)
+    (let ((binding (cons var value)))
+      (set-car! env (cons binding (car env)))
+      (set-car! trail (cons env (car trail)))
+      t)))
+ 
+  (define restore! (lambda (trail)
+    (cond ((null? (car trail)) nil)
+          (t (let ((env (car (car trail))))
+               (set-car! env (cdr (car env)))
+               (set-car! trail (cdr (car trail)))
+               (restore! trail))))))
+ 
+ 
+ 
+; System's values and instance functions
+ 
+ 
+  (define global-value (lambda (var env)
+    (cdr (binding-in-env var env))))
+ 
+  (define local-value (lambda (var env)
+    (cdr (binding-in-frame var (car env)))))
+ 
+  (define bound-value (lambda (exp)
+    (cond ((bound-logical-variable-closure? exp)
+           (bound-value (local-value (closure-exp exp) (closure-env exp))))
+          (t exp))))
+ 
+  (define binding-in-env (lambda (var env)
+    (cond ((null? env) nil)
+          (t (let ((binding (binding-in-frame var (car env))))
+               (cond ((null? binding) (binding-in-env var (cdr env)))
+                     (t binding)))))))
+ 
+  (define binding-in-frame (lambda (var frame)
+    (cond ((null? frame) nil)
+          ((eq? var (car (car frame))) (car frame))
+          (t (binding-in-frame var (cdr frame))))))
+ 
+  (define instance (lambda (exp env)
+    (cond ((atom? exp)
+           (cond ((logical-variable? exp)
+                  (cond ((local-bound? exp env)
+                         (instance (local-value exp env) env))
+                        (t (new-closure exp env))))
+                 (t exp)))
+          ((closure? exp)
+           (cond ((logical-variable-closure? exp)
+                  (cond ((local-bound? (closure-exp exp) (closure-env exp))
+                         (instance (local-value (closure-exp exp)
+                                                (closure-env exp))
+                                   env))
+                        (t exp)))
+                 (t exp)))
+          (t (cons (instance (car exp) env)
+                   (instance (cdr exp) env))))))
+ 
+ 
+ 
+ 
+; Unification procedure
+ 
+ 
+  (define unify (lambda (exp1 exp2 trail)
+    (let ((e1 (bound-value exp1))
+          (e2 (bound-value exp2)))
+      (cond ((logical-variable-closure? e1)
+             (substitute e1 e2 trail))
+            ((logical-variable-closure? e2)
+             (substitute e2 e1 trail))
+            ((or (atom? e1) (atom? e2))
+             (eq? e1 e2))
+            (t (and (unify (car e1) (car e2) trail)
+                    (unify (cdr e1) (cdr e2) trail)))))))
+ 
+ 
+  (define substitute (lambda (var exp trail)
+    (cond ((null? (logical-variable-closure? exp))
+           (bind! (closure-exp var) (closure-env var) exp trail))
+          ((null? (and (eq? (closure-exp var)
+                            (closure-exp exp))
+                       (eq? (closure-env var)
+                            (closure-env exp))))
+           (bind! (closure-exp var) (closure-env var) exp trail))
+          (t t))))
+ 
+ 
+ 
+; System's predicates
+ 
+ 
+  (define self-evaluating? (lambda (exp)
+    (cond ((null? exp) t)
+          ((atom? exp)
+           (cond ((number? exp) t)
+                 ((string? exp) t)
+                 ((eq? exp 'car) t)
+                 ((eq? exp 'cdr) t)
+                 ((eq? exp 'cons) t)
+                 ((eq? exp 'eq?) t)
+                 ((eq? exp 'atom?) t)
+                 ((eq? exp 'null?) t)
+                 ((eq? exp '+) t)
+                 ((eq? exp '-) t)
+                 ((eq? exp '/) t)
+                 ((eq? exp '*) t)
+                 ((eq? exp '<) t)
+                 ((eq? exp '>) t)
+                 ((eq? exp '=) t)
+                 ((eq? exp 'not) t)
+                 ((eq? exp 'or) t)
+                 ((eq? exp 'and) t)
+                 ((eq? exp 't) t)
+                 ((eq? exp 'read) t)
+                 ((eq? exp 'write) t)
+                 ((eq? exp 'newline) t)
+                 (t nil)))
+          (t nil))))
+ 
+  (define quoted? (lambda (exp)
+    (cond ((atom? exp) nil)
+          ((eq? (car exp) 'quote) t)
+          (t nil))))
+ 
+  (define variable? (lambda (exp)
+   (cond ((atom? exp)
+           (cond ((self-evaluating? exp) nil)
+                 ((logical-variable? exp) nil)
+                 (t t)))
+          (t nil))))
+ 
+  (define logical-variable? (lambda (exp)
+    (cond ((null? exp) nil)
+          ((symbol? exp) (eqv? (substring (symbol->string exp) 0 1) "?"))
+          (t nil))))
+ 
+  (define logical-variable-closure? (lambda (exp)
+    (cond ((closure? exp)
+           (logical-variable? (closure-exp exp)))
+          (t nil))))
+ 
+  (define bound-logical-variable-closure? (lambda (exp)
+    (cond ((logical-variable-closure? exp)
+           (local-bound? (closure-exp exp)
+                         (closure-env exp)))
+          (t nil))))
+ 
+  (define definition? (lambda (exp)
+    (cond ((atom? exp) nil)
+          ((eq? (car exp) 'define) t)
+          (t nil))))
+ 
+  (define assignment? (lambda (exp)
+    (cond ((atom? exp) nil)
+          ((eq? (car exp) 'set!) t)
+          (t nil))))
+ 
+  (define lambda? (lambda (exp)
+    (cond ((atom? exp) nil)
+          ((eq? (car exp) 'lambda) t)
+          (t nil))))
+ 
+  (define clause? (lambda (exp)
+    (cond ((atom? exp) nil)
+          ((eq? (car exp) 'clause) t)
+          (t nil))))
+ 
+  (define conditional? (lambda (exp)
+    (cond ((atom? exp) nil)
+          ((eq? (car exp) 'cond) t)
+          (t nil))))
+ 
+  (define application? (lambda (exp)
+    (cond ((atom? exp) nil)
+          (t t))))
+ 
+ (define functional-operator? (lambda (exp)
+    (cond ((primitive-procedure? exp) t)
+          ((compound-procedure? exp) t)
+          (t nil))))
+ 
+  (define logical-operator? (lambda (exp)
+    (cond ((logical-variable-closure? exp) t)
+          ((defined-predicate? exp) t)
+          (t nil))))
+ 
+  (define primitive-procedure? (lambda (exp)
+    (cond ((atom? exp)
+           (cond ((eq? exp 'car) t)
+                 ((eq? exp 'cdr) t)
+                 ((eq? exp 'cons) t)
+                 ((eq? exp 'eq?) t)
+                 ((eq? exp 'atom?) t)
+                 ((eq? exp 'null?) t)
+                 ((eq? exp '+) t)
+                 ((eq? exp '-) t)
+                 ((eq? exp '/) t)
+                 ((eq? exp '*) t)
+                 ((eq? exp '<) t)
+                 ((eq? exp '>) t)
+                 ((eq? exp '=) t)
+                 ((eq? exp 'not) t)
+                 ((eq? exp 'or) t)
+                 ((eq? exp 'and) t)
+                 ((eq? exp 'read) t)
+                 ((eq? exp 'write) t)
+                 ((eq? exp 'newline) t)
+                 (t nil)))
+          (t nil))))
+ 
+  (define compound-procedure? (lambda (exp)
+    (cond ((atom? exp) nil)
+          ((eq? (car exp) 'procedure) t)
+          (t nil))))
+ 
+  (define defined-predicate? (lambda (exp)
+    (cond ((atom? exp) nil)
+          ((eq? (car exp) 'predicate) t)
+          (t nil))))
+ 
+  (define closure? (lambda (exp)
+    (cond ((atom? exp) nil)
+          ((eq? (car exp) 'closure) t)
+          (t nil))))
+ 
+  (define global-bound? (lambda (var env)
+    (binding-in-env var env)))
+ 
+  (define local-bound? (lambda (var env)
+    (binding-in-frame var (car env))))
+ 
+ 
+ 
+; System's access functions
+ 
+ 
+  (define closure-exp (lambda (exp)
+    (car (cdr exp))))
+ 
+  (define closure-env (lambda (exp)
+    (cdr (cdr exp))))
+ 
+  (define clauses (lambda (exp)
+    (cdr exp)))
+ 
+  (define operator (lambda (exp)
+    (car exp)))
+ 
+  (define operands (lambda (exp)
+    (cdr exp)))
+ 
+  (define procedure-body (lambda (proc)
+    (cdr (cdr (closure-exp (car (cdr proc)))))))
+ 
+  (define parameters (lambda (proc)
+    (car (cdr (closure-exp (car (cdr proc)))))))
+ 
+  (define procedure-env (lambda (proc)
+    (closure-env (car (cdr proc)))))
+ 
+  (define query-env (lambda (query)
+    (closure-env query)))
+ 
+  (define operator-part (lambda (query)
+    (car (closure-exp query))))
+ 
+  (define operands-part (lambda (query)
+    (cdr (closure-exp query))))
+ 
+  (define first-call (lambda (calls)
+    (car calls)))
+ 
+  (define remaining-calls (lambda (calls)
+    (cdr calls)))
+ 
+  (define first-call-operator (lambda (calls)
+    (car( car calls))))
+ 
+  (define first-call-args (lambda (calls)
+    (closure-exp (car (cdr (car calls))))))
+ 
+  (define first-call-args-env (lambda (calls)
+    (closure-env (car (cdr (car calls))))))
+ 
+  (define first-call-clause-closures (lambda (calls)
+    (cdr (car (car calls)))))
+ 
+  (define first-call-args-closure (lambda (calls)
+    (car (cdr (car calls)))))
+ 
+  (define application-args (lambda (args)
+    (closure-exp args)))
+ 
+  (define application-env (lambda (args)
+    (closure-env args)))
+ 
+  (define clause-args (lambda (clause)
+    (car (cdr (closure-exp clause)))))
+ 
+  (define clause-body (lambda (clause)
+    (cdr (cdr (closure-exp clause)))))
+ 
+  (define clause-env (lambda (clause)
+    (closure-env clause)))

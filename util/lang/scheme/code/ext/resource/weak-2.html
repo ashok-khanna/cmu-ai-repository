@@ -1,0 +1,192 @@
+#!/bin/sh
+# This is a shell archive, meaning:
+# 1. Remove everything above the #!/bin/sh line.
+# 2. Save the resulting text in a file.
+# 3. Execute the file with /bin/sh (not csh) to create the files:
+#	scm/pool
+#	lib/weak.c
+cat >scm/pool <<'------ EOF ------'
+;;; -*-Scheme-*-
+;;; 
+;;; Scheme provides automatic garbage collection.  However, sometimes
+;;; you know early that an object of a particular type will not be
+;;; used again, so you would like to make it available for re-use.
+;;; 
+;;; This file provides three functions:
+;;;	(make-pool allocator) => pool
+;;;	(allocate pool) => object
+;;;	(release pool object) => unspecified
+;;; The idea is that a pool consists of a list of available objects and
+;;; a function (the allocator) for allocating and initialising new ones.
+;;; When you try to allocate an object from the pool, if there are any
+;;; available objects it will return one of them.  If there aren't any,
+;;; it will call the allocator to make a new one.
+;;; When you have finished with an object, you can add it to the pool
+;;; by calling release.
+;;; When a garbage collection occurs, every pool is forcibly emptied.
+;;; If there are other references to an object in a pool, it will
+;;; survive, so this is quite safe.
+;;; Using this package can save a fair bit of garbage collection.
+;;; You will never get your hands on invalid pointers.  On the other
+;;; hand, you had better be *sure* that you have finished with an
+;;; object before putting it back in a pool.
+
+;;; The representation of a pool is a pair
+;;;	(<allocation function> . <weak reference to list of objects>)
+
+(define (make-pool allocator)
+    (cons allocator (cons-weak-ref '() '()) ))
+
+(define (pool? object)
+    (and (pair? object)
+	 (procedure? (car object))
+	 (weak-ref? (cdr object))
+	 (null? (weak-default (cdr object)) )) )
+
+(define (allocate pool)
+    (let ((available (weak-contents (cdr pool))))
+	(if (null? available) ((car pool))
+	    (begin (weak-set-contents! (cdr pool) (cdr available))
+		   (car available)) )))
+
+(define (release pool object)
+    (weak-set-contents! (cdr pool)
+	(cons object (weak-contents (cdr pool)) )))
+
+------ EOF ------
+ls -l scm/pool
+cat >lib/weak.c <<'------ EOF ------'
+#include <scheme.h>
+
+/*  weak.c defines a type "weak-reference" with operations
+    (cons-weak-ref [default [initial]])
+	-- if initial is omitted, it is the same as default
+	-- if default is omitted, it is #F
+    (weak-ref? object)
+    (weak-contents weak-ref)
+	-- returns the current value of the weak-ref
+    (weak-default weak-ref)
+	-- returns the default value of the object
+    (weak-set-contents! weak-ref value)
+	-- updates the current value of the object
+    (weak-set-default! weak-ref value)
+	-- updates the default value of the object
+    A weak reference is just like a pair except that when a garbage
+    collection occurs, the current value is replaced by the default
+    value.  The point of this is to let you define "pools".
+*/
+
+static int T_Weak;
+
+#define WEAK(x)   ((struct S_Weak *)POINTER(x))
+
+struct S_Weak {
+    Object defalt;
+    Object curval;
+};
+
+static Object P_Weak_Cons(argc, argv)
+    int argc;
+    Object *argv;
+    {
+	Object defalt = argc < 1 ? False : argv[0];
+	Object curval = argc < 2 ? defalt : argv[1];
+	register char *p;
+	Object h;
+	GC_Node2;
+
+	GC_Link2(defalt, curval);
+	p = Get_Bytes(sizeof (struct S_Weak));
+	SET(h, T_Weak, (struct S_Weak *)p);
+	WEAK(h)->defalt = defalt;
+	WEAK(h)->curval = curval;
+	GC_Unlink;
+	return h;
+    }
+
+static Object P_Weakp(x)
+    Object x;
+    {
+	return TYPE(x) == T_Weak ? True : False;
+    }
+
+static Object P_Weak_Contents(h)
+    Object h;
+    {
+	Check_Type(h, T_Weak);
+	return WEAK(h)->curval;
+    }
+
+static Object P_Weak_Default(h)
+    Object h;
+    {
+	Check_Type(h, T_Weak);
+	return WEAK(h)->defalt;
+    }
+
+static Object P_Weak_Set_Cont(h, val)
+    Object h, val;
+    {
+	Check_Type(h, T_Weak);
+	WEAK(h)->curval = val;
+	return h;
+    }
+
+static Object P_Weak_Set_Dflt(h, val)
+    Object h, val;
+    {
+	Check_Type(h, T_Weak);
+	WEAK(h)->defalt = val;
+	return h;
+    }
+
+
+static int Weak_Eqv(a, b)
+    Object a, b;
+    {
+	return EQ(a, b);
+    }
+
+static int Weak_Equal(a, b)
+    Object a, b;
+    {
+	return	Equal(WEAK(a)->defalt, WEAK(b)->defalt)  &&
+		Equal(WEAK(a)->curval, WEAK(b)->curval);
+    }
+
+static Weak_Print(h, port, raw, depth, length)
+    Object h, port;
+    int raw, depth, length;
+    {
+	Printf(port, "#[hunk3 %u: ", POINTER(h));
+	Print_Object(WEAK(h)->defalt, port, raw, depth-1, length);
+	Printf(port, "]");
+    }
+
+static Weak_Visit(hp, f)
+    Object *hp;
+    int (*f)();
+    {
+	struct S_Weak *p = WEAK(*hp);
+	p->curval = p->defalt;
+	(*f)(&(p->defalt));
+    }
+
+init_lib_weak()
+    {
+	T_Weak = Define_Type(0, "weak-ref", NOFUNC, sizeof (struct S_Weak),
+			     Weak_Eqv, Weak_Equal, Weak_Print, Weak_Visit);
+	Define_Primitive(P_Weak_Cons,	  "cons-weak-ref",      0, 2, VARARGS);
+	Define_Primitive(P_Weakp,	  "weak-ref?",	        1, 1, EVAL);
+	Define_Primitive(P_Weak_Contents, "weak-contents",      1, 1, EVAL);
+	Define_Primitive(P_Weak_Default,  "weak-default",       1, 1, EVAL);
+	Define_Primitive(P_Weak_Set_Cont, "weak-set-contents!", 2, 2, EVAL);
+	Define_Primitive(P_Weak_Set_Dflt, "weak-set-default!",  2, 2, EVAL);
+    }
+
+------ EOF ------
+ls -l lib/weak.c
+exit
+
+
+

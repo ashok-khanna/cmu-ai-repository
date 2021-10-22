@@ -1,0 +1,399 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node43.html by HTTrack Website Copier/3.x [XR&CO'2014], Thu, 21 Oct 2021 14:57:11 GMT -->
+<HEAD>
+<TITLE>3. Scope and Extent</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Scope and Extent">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2033 HREF="node44.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2031 HREF="clm.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2025 HREF="node42.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2035 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2036 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2034 HREF="node44.html"> Type Specifiers</A>
+<B>Up:</B> <A NAME=tex2html2032 HREF="clm.html">Common Lisp the Language</A>
+<B> Previous:</B> <A NAME=tex2html2026 HREF="node42.html"> OverlapInclusion, and </A>
+<HR> <P>
+<H1><A NAME=SECTION00700000000000000000>3. Scope and Extent</A></H1>
+<P>
+<A NAME=SCOPE>In</A>
+describing various features of the Common Lisp language, the notions of
+<i>scope</i> and <i>extent</i> are frequently useful.  These notions arise when
+some object or construct must be referred to from some distant part of a
+program.  <i>Scope</i> refers to the spatial or textual region of the
+program within which references may occur.  <i>Extent</i> refers to the
+interval of time during which references may occur.
+<P>
+As a simple example, consider this program:
+<P><pre>
+(defun copy-cell (x) (cons (car x) (cdr x)))
+</pre><P>
+The scope of the parameter named <tt>x</tt> is the body of the <tt>defun</tt> form.
+There is no way to refer to this parameter from any other place but within
+the body of the <tt>defun</tt>.  Similarly, the extent of the parameter <tt>x</tt>
+(for any particular call to <tt>copy-cell</tt>) is the interval from the time
+the function is invoked to the time it is exited.  (In the general case,
+the extent of a parameter may last beyond the time of function exit,
+but that cannot occur in this simple case.)
+<P>
+Within Common Lisp, a referenceable entity is <i>established</i> by the execution
+of some language construct, and the scope and extent of the entity are
+described relative to the construct and the time (during execution of the
+construct) at which the entity is established.
+For the purposes of this discussion, the term ``entity'' refers not only
+to Common Lisp data objects, such as symbols and conses, but also to
+variable bindings (both ordinary and special), catchers,
+and <tt>go</tt> targets.  It is important to distinguish between
+an entity and a name for the entity.  In a function definition
+such as
+<P><pre>
+(defun foo (x y) (* x (+ y 1)))
+</pre><P>
+there is a single name, <tt>x</tt>, used to refer to the first parameter
+of the procedure whenever it is invoked; however, a new binding
+is established on every invocation.  A <i>binding</i> is a particular
+parameter instance.  The value of a reference to the name <tt>x</tt>
+depends not only on the scope within which it occurs (the one in
+the body of <tt>foo</tt> in the example occurs in the scope of the
+function definition's parameters) but also on the particular
+binding or instance involved.  (In this case, it depends on the
+invocation during which
+the reference is made).  More complicated examples
+appear at the end of this chapter.
+<P>
+There are a few kinds of scope and extent that are particularly useful
+in describing Common Lisp:
+<UL><LI>
+<i>Lexical scope</i>.  Here references to the established
+entity can occur only within certain program portions that are
+lexically (that is, textually) contained within the establishing construct.
+Typically the construct will have a part designated the <i>body</i>,
+and the scope of all entities established will be (or include) the body.
+<P>
+Example: the names of parameters to a function normally are lexically scoped.
+<P>
+<LI>
+<i>Indefinite scope</i>.  References may occur anywhere, in any program.
+<P>
+<LI>
+<i>Dynamic extent</i>.  References may occur at any time in the interval
+between establishment of the entity and the explicit disestablishment
+of the entity.  As a rule, the entity is disestablished when execution
+of the establishing construct completes or is otherwise terminated.
+Therefore entities with dynamic extent obey a stack-like discipline,
+paralleling the nested executions of their establishing constructs.
+<P>
+Example: the <tt>with-open-file</tt> construct opens a connection to a file
+and creates a stream object to represent the connection.  The stream object
+has indefinite extent, but the connection to the open file has dynamic extent:
+when control exits the <tt>with-open-file</tt> construct, either normally
+or abnormally, the stream is automatically closed.
+<P>
+Example: the binding of a ``special'' variable has dynamic extent.
+<P>
+<LI>
+<i>Indefinite extent</i>.  The entity continues to exist as long as the
+possibility of reference remains.  (An implementation is free to
+destroy the entity if it can prove that reference to it is no longer possible.
+Garbage collection strategies implicitly employ such proofs.)
+<P>
+Example: most Common Lisp data objects have indefinite extent.
+<P>
+Example: the bindings of lexically scoped parameters of a function have
+indefinite extent.  (By contrast, in Algol the bindings of lexically scoped
+parameters of a procedure have dynamic extent.)
+The function definition
+<P><pre>
+(defun compose (f g) 
+  #'(lambda (x) 
+      (funcall f (funcall g x))))
+</pre><P>
+when given two arguments, immediately returns a function as its value.
+The parameter bindings for <tt>f</tt> and <tt>g</tt> do not disappear because the
+returned function, when called, could still refer to those bindings.
+Therefore
+<P><pre>
+(funcall (compose #'sqrt #'abs) -9.0)
+</pre><P>
+produces the value <tt>3.0</tt>.  (An analogous procedure would not necessarily work
+correctly in typical Algol implementations or, for that matter,
+in most Lisp dialects.)
+</UL>
+<P>
+In addition to the above terms, it is convenient to define <i>dynamic scope</i>
+to mean <i>indefinite scope and dynamic extent</i>.  Thus we speak of
+``special'' variables as having dynamic scope, or being dynamically scoped,
+because they have indefinite scope and dynamic extent: a special variable
+can be referred to anywhere as long as its binding is currently
+in effect.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+The term ``dynamic scope'' is a misnomer.  Nevertheless
+it is both traditional and useful.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+The above definitions do not take into account the possibility of
+<i>shadowing</i>.  Remote reference of entities is accomplished by using
+<i>names</i> of one kind or another.  If two entities have the same name,
+then the second may shadow the first, in which case an occurrence
+of the name will refer to the second and cannot refer to the first.
+<P>
+In the case of lexical scope,
+if two constructs that establish entities
+with the same name are textually nested, then references within the inner
+construct refer to the entity established by the inner one; the inner one
+shadows the outer one.  Outside the inner construct but inside the outer one,
+references refer to the entity established by the outer construct.
+For example:
+<P><pre>
+(defun test (x z) 
+  (let ((z (* x 2))) (print z)) 
+  z)
+</pre><P>
+The binding of the variable <tt>z</tt> by the <tt>let</tt> construct shadows
+the parameter binding for the function <tt>test</tt>.  The reference to the
+variable <tt>z</tt> in the <tt>print</tt> form refers to the <tt>let</tt> binding.
+The reference to <tt>z</tt> at the end of the function refers to the parameter
+named <tt>z</tt>.
+<P>
+In the case of dynamic extent, if the time intervals of two entities
+overlap, then one interval will necessarily be nested within the
+other one.  This is a property of the design of Common Lisp.
+<P>
+<hr>
+<b>Implementation note:</b> Behind the assertion that dynamic extents nest properly
+is the assumption that there is only a single program or process.
+Common Lisp does not address the problems of multiprogramming
+(timesharing) or
+multiprocessing (more than one active processor)
+within a single Lisp environment.  The documentation for
+implementations that extend Common Lisp for multiprogramming or
+multiprocessing should
+be very clear on what modifications are induced by such extensions
+to the rules of extent and scope.
+Implementors should note that Common Lisp has been carefully designed
+to allow special variables to be implemented using either
+the ``deep binding'' technique or the ``shallow binding'' technique,
+but the two techniques have different semantic
+and performance implications for multiprogramming and multiprocessing.
+<hr>
+<P>
+A reference by name to an entity with dynamic extent
+will always refer to the entity of that name
+that has been most recently established
+that has not yet been disestablished.
+For example:
+<P><pre>
+(defun fun1 (x) 
+  (catch 'trap (+ 3 (fun2 x)))) 
+
+(defun fun2 (y) 
+  (catch 'trap (* 5 (fun3 y)))) 
+
+(defun fun3 (z) 
+  (throw 'trap z))
+</pre><P>
+Consider the call <tt>(fun1 7)</tt>.  The result will be <tt>10</tt>.  At the time
+the <tt>throw</tt> is executed, there are two outstanding catchers with the
+name <tt>trap</tt>: one established within procedure <tt>fun1</tt>, and the other
+within procedure <tt>fun2</tt>.  The latter is the more recent, and so the
+value <tt>7</tt> is returned from the <tt>catch</tt> form in <tt>fun2</tt>.
+Viewed from within <tt>fun3</tt>, the <tt>catch</tt> in <tt>fun2</tt> shadows the one in <tt>fun1</tt>.
+Had <tt>fun2</tt>
+been defined as
+<P><PRE>
+(defun fun2 (y) 
+  (catch 'snare (* 5 (fun3 y))))
+</PRE><P>
+then the two catchers would have different names, and therefore the one
+in <tt>fun1</tt> would not be shadowed.  The result would then have been <tt>7</tt>.
+<P>
+As a rule, this book simply speaks of the scope or extent of an entity;
+the possibility of shadowing is left implicit.
+<P>
+The important scope and extent rules in Common Lisp follow:
+<UL><LI>
+Variable bindings normally have lexical scope and indefinite extent.
+</UL>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<UL><LI> Variable bindings for which there is a <tt>dynamic-extent</tt>
+declaration also have lexical scope and indefinite extent,
+but objects that are the values of such bindings may have
+dynamic extent.
+(The declaration is the programmer's guarantee that
+the program will behave correctly even if certain of the data objects have only
+dynamic extent rather than the usual indefinite extent.)
+<P>
+<LI> Bindings of variable names to symbol macros by
+<tt>symbol-macrolet</tt> have lexical scope and indefinite extent.
+</UL>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<UL><LI>
+Variable bindings that are declared to be <tt>special</tt> have dynamic scope
+(indefinite scope and dynamic extent).
+</UL>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<P>
+<UL><LI> Bindings of function names established, for example, by <tt>flet</tt> and
+<tt>labels</tt> have lexical scope and indefinite extent.
+<P>
+<LI> Bindings of function names for which there is a <tt>dynamic-extent</tt>
+declaration also have lexical scope and indefinite extent,
+but function objects that are the values of such bindings may have
+dynamic extent.
+<P>
+<LI> Bindings of function names to macros as established by
+<tt>macrolet</tt> have lexical scope and indefinite extent.
+<P>
+<LI> Condition handlers and restarts have dynamic scope
+(see chapter <A HREF="node312.html#CONDITION">29</A>).
+</UL>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<UL><LI>
+A catcher established by a <tt>catch</tt>
+or <tt>unwind-protect</tt> special form has dynamic
+scope.
+<P>
+<LI>
+An exit point established by a <tt>block</tt> construct has lexical
+scope and dynamic extent.  (Such exit points are also established
+by <tt>do</tt>, <tt>prog</tt>, and other iteration constructs.)
+<P>
+<LI>
+The <tt>go</tt> targets
+established by a <tt>tagbody</tt>, named by the tags in the <tt>tagbody</tt>,
+and referred to by <tt>go</tt>
+have lexical scope and dynamic extent.  (Such <tt>go</tt> targets
+may also appear as tags in the bodies of
+<tt>do</tt>, <tt>prog</tt>, and other iteration constructs.)
+<P>
+<LI>
+Named constants such as <tt>nil</tt> and <tt>pi</tt> have indefinite
+scope and indefinite extent.
+</UL>
+<P>
+The rules of lexical scoping imply that lambda-expressions
+appearing in the <tt>function</tt> construct will,
+in general, result in ``closures''
+over those non-special variables visible to the lambda-expression.
+That is, the function represented by a lambda-expression
+may refer to any lexically apparent non-special variable and get the
+correct value, even if the construct that established the binding
+has been exited in the course of execution.
+The <tt>compose</tt> example shown earlier in this chapter
+provides one illustration of this.
+The rules also imply that special variable bindings are not
+``closed over'' as they may be in certain other dialects of Lisp.
+<P>
+Constructs that use lexical scope effectively
+generate a new name for each established entity on each execution.
+Therefore dynamic shadowing cannot occur (though lexical shadowing may).
+This is of particular importance when dynamic extent is involved.
+For example:
+<P><PRE>
+(defun contorted-example (f g x) 
+  (if (= x 0) 
+      (funcall f) 
+      (block here 
+         (+ 5 (contorted-example g 
+                                 #'(lambda () 
+                                     (return-from here 4)) 
+                                 (- x 1))))))
+</PRE><P>
+Consider the call <tt>(contorted-example nil nil 2)</tt>.  This produces
+the result <tt>4</tt>.  During the course of execution, there are three
+calls on <tt>contorted-example</tt>, interleaved with two establishments
+of blocks:
+<P><PRE>
+(contorted-example nil nil 2) 
+
+  (block here<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43885.gif"> ...) 
+
+    (contorted-example nil #'(lambda () (return-from here<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43885.gif"> 4)) 1) 
+
+      (block here<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43891.gif"> ...) 
+
+        (contorted-example #'(lambda () (return-from here<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43885.gif"> 4)) 
+                           #'(lambda () (return-from here<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43891.gif"> 4)) 
+                           0) 
+          (funcall f) 
+                where f => #'(lambda () (return-from here<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43885.gif"> 4)) 
+
+            (return-from here<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43885.gif"> 4)
+</PRE><P>
+At the time the <tt>funcall</tt> is executed
+there are two <tt>block</tt> exit points outstanding, each apparently
+named <tt>here</tt>.  In the trace above, these exit points are distinguished
+for expository purposes by subscripts.
+The <tt>return-from</tt> form executed as a result of the <tt>funcall</tt>
+operation
+refers to the <i>outer</i> outstanding exit point
+(<tt>here<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43885.gif"></tt>), not the
+inner one (<tt>here<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43891.gif"></tt>).
+This is a consequence of the rules of lexical scoping: it
+refers to that exit point textually visible at the point of
+execution of the <tt>function</tt>
+construct (here abbreviated by the <tt>#'</tt> syntax) that resulted
+in creation of the function object actually invoked by the <tt>funcall</tt>.
+<P>
+If, in this example, one were to change the form <tt>(funcall f)</tt> to
+<tt>(funcall g)</tt>, then the value of the call <tt>(contorted-example nil nil 2)</tt>
+would be <tt>9</tt>.  The value would change because the <tt>funcall</tt> would cause the
+execution of <tt>(return-from here<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43891.gif"> 4)</tt>, thereby causing
+a return from the inner exit point (<tt>here<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43891.gif"></tt>).
+When that occurs, the value <tt>4</tt> is returned from the
+middle invocation of <tt>contorted-example</tt>, <tt>5</tt> is added to that
+to get <tt>9</tt>, and that value is returned from the outer block
+and the outermost call to <tt>contorted-example</tt>.  The point
+is that the choice of exit point returned from has nothing to do with its
+being innermost or outermost; rather,
+it depends on the lexical scoping information
+that is effectively packaged up with a lambda-expression when the
+<tt>function</tt> construct is executed.
+<P>
+This function <tt>contorted-example</tt> works only because the
+function named by <tt>f</tt> is invoked during the extent of the exit point.
+Block exit points are like non-special variable bindings in having
+lexical scope, but they differ in having dynamic extent rather than indefinite
+extent.  Once the flow of execution has left the block construct,
+the exit point is disestablished.  For example:
+<P><PRE>
+(defun illegal-example () 
+  (let ((y (block here #'(lambda (z) (return-from here z))))) 
+    (if (numberp y) y (funcall y 5))))
+</PRE><P>
+One might expect the call <tt>(illegal-example)</tt> to produce <tt>5</tt>
+by the following incorrect reasoning:
+the <tt>let</tt> statement binds the variable <tt>y</tt> to the
+value of the <tt>block</tt> construct; this value is a function resulting
+from the lambda-expression.  Because <tt>y</tt> is not a number, it is
+invoked on the value <tt>5</tt>.  The <tt>return-from</tt> should then
+return this value from the exit point named <tt>here</tt>, thereby
+exiting from the block <i>again</i> and giving <tt>y</tt> the value <tt>5</tt>
+which, being a number, is then returned as the value of the call
+to <tt>illegal-example</tt>.
+<P>
+The argument fails only because exit points are defined in Common Lisp
+to have dynamic extent.  The argument is correct up to the execution
+of the <tt>return-from</tt>.  The execution of the <tt>return-from</tt> is
+an error, however, <i>not</i> because it cannot refer to the exit point,
+but because it does correctly refer to an exit point <i>and</i>
+that exit point has been disestablished.
+		
+<P>
+<BR> <HR><A NAME=tex2html2033 HREF="node44.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2031 HREF="clm.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2025 HREF="node42.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2035 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2036 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2034 HREF="node44.html"> Type Specifiers</A>
+<B>Up:</B> <A NAME=tex2html2032 HREF="clm.html">Common Lisp the Language</A>
+<B> Previous:</B> <A NAME=tex2html2026 HREF="node42.html"> OverlapInclusion, and </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

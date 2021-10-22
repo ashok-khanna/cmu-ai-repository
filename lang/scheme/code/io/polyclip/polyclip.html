@@ -1,0 +1,155 @@
+; From: shivers@BRONTO.SOAR.CS.CMU.EDU (Olin Shivers)
+; Newsgroups: comp.lang.scheme
+; Subject: programming with user-level continuations
+; Message-ID: <9003220542.AA25231@bronto.soar.cs.cmu.edu>
+; Date: 22 Mar 90 05:42:59 GMT
+; 
+; Aamod Sane wrote:
+;     I would also like examples/references on the Continuation
+;     Passing style (just building of lambdas, not the call/cc variety). 
+;     I know of examples such as gcd of a list where you can escape
+;     if a 1 is encountered without doing any computation, by building lambdas
+;     and using them only if 1 is not found.
+; 
+; I think the Sutherland-Hodgmann polygon clipping algorithm is a lovely
+; example. Here is one I wrote in T in 1983 for part of an object-oriented
+; graphics system in T. The clipper itself is in GEN-POLYGON-CLIPPER.
+; The rest of the code is auxiliaries and clients. MAKE-CAMERA-CLIPPER
+; shows how to build up a pipeline of clippers.
+; 
+; Dialect/ideolect specifics:
+;     fl+, fl-, and friends are T's floating-point specific math functions.
+;     ? means COND; := means SET or SET! in my personal ideolect.
+;     I assume T is a constant bound to a true value and NIL is a constant
+;         bound to the the empty list/false value. This code was written in
+;         1983. There was no #T, or #F; () was the false value.
+;     FOR is the UCI Lisp FOR macro, ported to T.
+; 	-Olin
+
+
+(herald planeint (env t (graphics points) (tlib hacks) (tutil for)))
+
+;(require hacks  (tlib hacks))
+;(require points (graphics points))
+;;; This file contains functions for doing operations on points and
+;;; planes.
+
+;;; plane-sign tells which side of a plane the point is on. It is negative
+;;; if the pt is on the negative side, 0 if it is in the plane, and positive
+;;; if the pt is on the positive side.
+(define-integrable (plane-sign plane pt)
+  (fl+ (plane:d plane) (dot-prod plane pt)))
+
+;;; crosses-plane? returns true <==> pt0 and pt1 are on opposite sides of
+;;; the plane. (minus? (* (plane-sign plane pt0) (plane-sign plane pt1)))
+(define (crosses-plane? plane pt0 pt1)
+   (fl> 0.0 (fl* (plane-sign plane pt0) (plane-sign plane pt1))))
+
+
+;;; plane-intersect gives the point which is the intersection of plane and
+;;; the line running through pt0 and pt1. If the plane is (P; d) and
+;;; the points are A and B, the intersection parameter s is
+;;;      P.A - d
+;;; s =  -------
+;;;      P.(A-B)
+
+(define (plane-intersect plane pt0 pt1)
+  (let ((delta (pt- pt1 pt0)))
+    (if (pt-zero? delta)
+      (error "plane-intersect: degenerate line segment (~s,~s)~%" pt0 pt1)
+      (let ((denom (fl- 0.0 (dot-prod plane delta))))
+	(if (fl= 0.0 denom)
+	  (error "plane-intersect: line (~s,~s) is parallel to plane ~s~%"
+		 pt0 pt1 plane)
+	  (let ((s (fl/ (fl- (dot-prod plane pt0) (plane:d plane)) denom)))
+	    (pt+ pt0 (pt* delta s))))))))
+
+
+;;; gen-polygon-clipper takes a plane and a continuation as args. It
+;;; returns a closure that, when called on successive points in a polygon,
+;;; clips them against the plane and sends them on to the continuation.
+;;; The end of the polygon is signalled by calling the clipper on T or nil.
+;;; If the closure is called on T, the polygon is closed, i.e. the previous
+;;; point is connected to the first point of the polygon. In either case,
+;;; the terminal T/nil is passed along, in case the continuation is another
+;;; clipping stage.
+
+(define (gen-polygon-clipper plane cont)
+  (let ((first-pt nil) (pt0 nil))
+
+    (lambda (x)
+      (? ((eq? x t) ;x=t means time to close the polygon
+	   (if (and first-pt (crosses-plane? plane pt0 first-pt))
+	       (cont (plane-intersect plane pt0 first-pt)))
+	   (set first-pt nil)
+	   (cont t)) ;pass along the close signal
+
+	 (x ;x is the next point in the polygon
+	  (if (not first-pt) (set first-pt x)
+	      (if (crosses-plane? plane pt0 x)              ;edge crosses ==>
+		  (cont (plane-intersect plane x pt0))))    ;output intersection
+	  (set pt0 x)
+	  (if (fl<= 0.0 (plane-sign plane pt0)) (cont pt0)))
+
+	 (t ;null x means the stream is done, but do not close back to first-pt
+	  (set first-pt nil)
+	  (cont nil) ;pass along the close signal
+	  )))))
+
+(define (gen-polygon-splitter plane cont1 cont2)
+  (let ((first-pt nil) (pt0 nil))
+    (lambda (x)
+      (? ((eq? x t) ;x=t means time to close the split polys
+	  (if (crosses-plane? plane pt0 first-pt)
+	    (let ((i (plane-intersect plane pt0 first)))
+	      (cont1 i)
+	      (cont2 i)))
+	  (set first-pt nil)
+	  (cont1 t)             ;pass along the close signal
+	  (cont2 t))
+
+	 (x
+	  (if (null? first-pt) (set first-pt x)
+	    (if (crosses-plane? plane pt0 x)
+	      (let ((i (plane-intersect plane pt0 x)))
+		(cont1 i)
+		(cont2 i))))
+	  (set pt0 x)
+	  (let ((s (plane-sign plane pt0)))
+	    (if (fl<= 0.0 s) (cont1 pt0))
+	    (if (fl>= 0.0 s) (cont2 pt0))))
+
+	 (t ;null x means the stream is done, but do not close back to first-pt
+	  (set first-pt nil)
+	  (cont1 nil)           ;pass along the done signal
+	  (cont2 nil)
+	  )))))
+
+(define (clip-polygon polygon plane)
+  (let ((pts (disclose-pts polygon))
+	(newpts nil))
+    (let ((clipper (gen-polygon-clipper plane (lambda (x) (push newpts x)))))
+      ;;feed the points to the polygon clipper
+      (for (x in pts)
+	   (do (clipper x)))
+      ;;close the polygon
+      (clipper t)
+      ;;return the polygon whose points are newpts
+      (polygon:new (reverse! (cdr newpts))))))
+
+(define-integrable (make-camera-clipper top bot left right)
+  (let* ( (clipped-pts nil)
+	  (clipper (gen-polygon-clipper top
+		       (gen-polygon-clipper bot
+			   (gen-polygon-clipper left
+			       (gen-polygon-clipper right
+				   (gen-polygon-clipper *hither-plane*
+				       (gen-polygon-clipper *yon-plane*
+					   (lambda (p)
+					       (push clipped-pts p))))))))) )
+    (lambda (pts close?)
+      (:= clipped-pts nil)
+      (for (p in pts) (do (clipper p)))
+      (clipper close?)
+      (reverse! (cdr clipped-pts))) ))
+

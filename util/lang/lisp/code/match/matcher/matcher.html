@@ -1,0 +1,341 @@
+;;; Mon Jan 21 14:17:49 1991 by Mark Kantrowitz <mkant@GLINDA.OZ.CS.CMU.EDU>
+;;; matcher.lisp
+
+;;; ****************************************************************
+;;; Matcher ********************************************************
+;;; ****************************************************************
+;;;
+;;; This matcher defines simple regexp-type matching of a pattern
+;;; against a list expression. (Note: This is not a full regular expression
+;;; matcher.)
+;;;
+;;; For example,
+;;;    (match-p '((:star :wild) b :wild d) '(a b c d)) ==> t
+;;;    (match-p '(b (:star :wild) d (:star :wild)) '(a b c d)) ==> nil
+;;;    (match-p '(:wild b :wild d) '(a b c d)) ==> t
+;;;
+;;;
+;;; Written by Mark Kantrowitz, January 18, 1991. 
+;;; Address:   School of Computer Science
+;;;            Carnegie Mellon University
+;;;            Pittsburgh, PA 15213
+;;;
+;;; Copyright (c) 1991. All rights reserved.
+;;;
+;;; See general license below.
+;;;
+
+;;; ****************************************************************
+;;; General License Agreement and Lack of Warranty *****************
+;;; ****************************************************************
+;;;
+;;; This software is distributed in the hope that it will be useful (both
+;;; in and of itself and as an example of lisp programming), but WITHOUT
+;;; ANY WARRANTY. The author(s) do not accept responsibility to anyone for
+;;; the consequences of using it or for whether it serves any particular
+;;; purpose or works at all. No warranty is made about the software or its
+;;; performance. 
+;;; 
+;;; Use and copying of this software and the preparation of derivative
+;;; works based on this software are permitted, so long as the following
+;;; conditions are met:
+;;; 	o  The copyright notice and this entire notice are included intact
+;;; 	   and prominently carried on all copies and supporting documentation.
+;;; 	o  No fees or compensation are charged for use, copies, or
+;;; 	   access to this software. You may charge a nominal
+;;; 	   distribution fee for the physical act of transferring a
+;;; 	   copy, but you may not charge for the program itself. 
+;;; 	o  If you modify this software, you must cause the modified
+;;; 	   file(s) to carry prominent notices (a Change Log)
+;;; 	   describing the changes, who made the changes, and the date
+;;; 	   of those changes.
+;;; 	o  Any work distributed or published that in whole or in part
+;;; 	   contains or is a derivative of this software or any part 
+;;; 	   thereof is subject to the terms of this agreement. The 
+;;; 	   aggregation of another unrelated program with this software
+;;; 	   or its derivative on a volume of storage or distribution
+;;; 	   medium does not bring the other program under the scope
+;;; 	   of these terms.
+;;; 	o  Permission is granted to manufacturers and distributors of
+;;; 	   lisp compilers and interpreters to include this software
+;;; 	   with their distribution. 
+;;; 
+;;; This software is made available AS IS, and is distributed without 
+;;; warranty of any kind, either expressed or implied.
+;;; 
+;;; In no event will the author(s) or their institutions be liable to you
+;;; for damages, including lost profits, lost monies, or other special,
+;;; incidental or consequential damages arising out of or in connection
+;;; with the use or inability to use (including but not limited to loss of
+;;; data or data being rendered inaccurate or losses sustained by third
+;;; parties or a failure of the program to operate as documented) the 
+;;; program, even if you have been advised of the possibility of such
+;;; damanges, or for any claim by any other party, whether in an action of
+;;; contract, negligence, or other tortious action.
+;;; 
+;;; The current version of this software and a variety of related
+;;; utilities may be obtained by anonymous ftp from 
+;;;    ftp.cs.cmu.edu:user/ai/lang/lisp/code/match/
+;;; 
+;;; Please send bug reports, comments, questions and suggestions to
+;;; mkant@cs.cmu.edu. We would also appreciate receiving any changes
+;;; or improvements you may make. 
+;;; 
+;;; If you wish to be added to the Lisp-Utilities@cs.cmu.edu mailing list, 
+;;; send email to Lisp-Utilities-Request@cs.cmu.edu with your name, email
+;;; address, and affiliation. This mailing list is primarily for
+;;; notification about major updates, bug fixes, and additions to the lisp
+;;; utilities collection. The mailing list is intended to have low traffic.
+;;;
+
+;;; ****************************************************************
+;;; Documentation **************************************************
+;;; ****************************************************************
+;;;
+;;; MATCH-P (pattern expression &key (test #'eql) (key #'identity))
+;;;    Main routine for matching a pattern against an expression.
+;;;    One may specify the test and key using keyword arguments, or
+;;;    by using the :test and :key patterns.
+;;;
+;;; DEFINE-PATTERN-VARIABLE (name pattern)
+;;;    Defines NAME as a synonym for PATTERN. NAME and PATTERN do not
+;;;    need to be quoted.
+;;;
+;;;
+;;; Pattern elements:
+;;;    :wild                    Matches any single element.
+;;;    (:star :wild)            Matches any number of elements, including zero.
+;;;    (:and <pattern>*)        Each of the specified patterns must match.
+;;;    :every                   Synonym for :and.
+;;;    (:or <pattern>*)         At least one of the patterns must match.
+;;;    :some                    Synonym for :or.
+;;;    (:not <pattern>)         The specified pattern must not match.
+;;;    (:notevery <pattern>*)   True if not every pattern matches. Equivalent
+;;;                             to (:not (:and <pattern>*)).
+;;;    (:notany <pattern>*)     True if no pattern matches. Equivalent to
+;;;                             (:not (:or <pattern>*)).
+;;;    (:typep <type>)          True if the expression is of type <type>.
+;;;    (:test <test> <pattern>) Changes the test for the specified pattern
+;;;                             to <test>. Allows local changes in the test
+;;;                             specified in match-p. For example,
+;;;                             (:test #'eq <pattern>).
+;;;    (:key <key> <pattern>)   Changes the key for the specified pattern to
+;;;                             <key>. Allows local changes in the key 
+;;;                             specified in match-p. For example,
+;;;                             (:key #'symbol-name <pattern>).
+;;;    (:star <pattern>)        Allows the specified pattern to match
+;;;                             any number of times, including zero.
+;;;    (:plus <pattern>)        May match any number of times, but must
+;;;                             match at least once.
+;;;    (:optional <pattern>)    May optionally skip over the pattern.
+;;;    <pattern-variable>       Substitutes the value of the pattern
+;;;                             variable in the pattern and matches it
+;;;                             against the expression.
+;;;
+;;; One may define pattern variables using define-pattern-variable.
+;;; For example, (define-pattern-variable :wild-inferiors (:star :wild))
+;;; defines :wild-inferiors as a synonym for (:star :wild):
+;;;    (match-p '(:wild-inferiors b :wild d) '(a b c d)) ==> t
+;;;
+;;;
+;;; Notes:
+;;;    Match-p* maintains a continuation stack in addition to being 
+;;;    recursive (which implicitly also maintains a stack). So lisp
+;;;    compilers should have fun optimizing this code. A better implementation
+;;;    would use an array for the continuation stack (pro: less consing;
+;;;    con: limited stack depth) and implement match-p and match-p*
+;;;    iteratively (avoid function call overhead, though a decent
+;;;    lisp compiler should do this optimization anyway).
+;;;
+
+;;; ********************************
+;;; To Do **************************
+;;; ********************************
+;;;
+;;; Parametrized pattern macros?
+;;;
+;;; Match variables?
+;;;
+;;; The optimization (null expression) in :star and :optional does not
+;;; work because it ignores the continuation stack. Replacing it with
+;;;       (and (null expression)
+;;;            (match-p* nil expression test key continuation))
+;;; should probably work, but isn't really necessary. Commenting out
+;;; (null expression) is equivalent, and my bias is the less code, the
+;;; easier to maintain.
+;;; 
+;;; 
+
+
+;;; ********************************
+;;; Matcher ************************
+;;; ********************************
+(export '(match-p define-pattern-variable))
+
+(defvar *pattern-variables* (make-hash-table :test #'equal)
+  "Hash table mapping from pattern variables to pattern definitions.")
+(defun lookup-pattern-variable (name)
+  (gethash name *pattern-variables*))
+(defmacro define-pattern-variable (name pattern)
+  `(setf (gethash ',name *pattern-variables*)
+	 ',pattern))
+(define-pattern-variable :wild-inferiors (:star :wild))
+(define-pattern-variable :* (:star :wild))
+(define-pattern-variable :? :wild)
+
+(defun match-p (pattern expression &key (test #'eql) (key #'identity))
+  (cond ((null pattern)
+	 ;; We've hit the end of the pattern, so we must also 
+	 ;; hit the end of the expression.
+	 (null expression))
+	((atom pattern)
+	 ;; We're a symbol, string or some such thing.
+	 (or (eq pattern :wild)		; Wildcard always matches.
+	     ;; Handling pattern variables probably isn't necessary here,
+	     ;; but it doesn't hurt.
+	     (let ((new-pattern (lookup-pattern-variable pattern)))
+	       (if new-pattern
+		   ;; Handle the pattern variable:
+		   (match-p new-pattern expression :test test :key key)
+		   ;; Do a normal comparison.
+		   (funcall test pattern (funcall key expression))))))
+	((consp pattern)
+	 (case (car pattern)
+	   (:typep
+	    ;; (:typep <type>)
+	    ;; Test to see that the expression is of the specified type.
+	    (typep expression (second pattern)))
+	   (:test
+	    ;; (:test <test> <pattern>)
+	    ;; Changes the test for the specified <pattern> to <test>.
+	    ;; For example (:test #'eq <pattern>). Allows local changes
+	    ;; in the test.
+	    (match-p (third pattern) expression 
+		     :test (second pattern) :key key))
+	   (:key
+	    ;; (:key <key> <pattern>)
+	    ;; Changes the key for the specified <pattern> to <key>.
+	    ;; For example (:key #'car <pattern>). Allows local changes
+	    ;; in the key.
+	    (match-p (third pattern) expression 
+		     :test test :key (second pattern)))
+	   (:not
+	    ;; (:not <pattern>)
+	    ;; The specified pattern must not match.
+	    (not (match-p (second pattern) expression :test test :key key)))
+	   ((:or :some)
+	    ;; (:or <pattern>*)
+	    ;; At least one of the specified patterns must match.
+	    (dolist (subpattern (rest pattern) nil)
+	      (when (match-p subpattern expression :test test :key key)
+		(return t))))
+	   ((:and :every)
+	    ;; (:and <pattern>*)
+	    ;; Each of the specified patterns must match.
+	    (dolist (subpattern (rest pattern) t)
+	      (unless (match-p subpattern expression :test test :key key)
+		(return nil))))
+	   (:notany
+	    ;; (:notany <pattern>*)
+	    ;; Equivalent to (:not (:or <pattern>*)). True if no pattern
+	    ;; matches.
+	    (dolist (subpattern (rest pattern) t)
+	      (when (match-p subpattern expression :test test :key key)
+		(return nil))))
+	   (:notevery
+	    ;; (:notevery <pattern>*)
+	    ;; Equivalent to (:not (:and <pattern>*)). True if not
+	    ;; every pattern matches.
+	    (dolist (subpattern (rest pattern) nil)
+	      (unless (match-p subpattern expression :test test :key key)
+		(return t))))
+	   (otherwise
+	    ;; We're :star, :plus, :optional, or a plain list
+	    (match-p* pattern expression test key))))))
+
+(defun car-eq (list item)
+  (and (consp list)
+       (eq (car list) item)))
+
+(defun match-p* (pattern expression test key &optional continuation)
+  ;; continuation is a stack we maintain for the rest of the pattern.
+  (if (null pattern)
+      (cond ((null continuation)
+	     ;; If there's no more patterns to process, expression must
+	     ;; be nill too.
+	     (null expression))
+	    (t
+	     ;; Continue with the pattern on the top of the
+	     ;; continuation stack.
+	     (match-p* (car continuation) expression
+		       test key (cdr continuation))))
+      (let ((pattern-elt (car pattern))
+	    (new-pattern nil))
+	;; Perhaps we should allow (:optional <pattern>*) and
+	;; (:star <pattern>*) to allow a sequence of patterns
+	;; repeated? Naw. Hmmm... I think this is working anyway.
+	(cond ((car-eq pattern-elt :optional)
+	       ;; (:optional <pattern>). Either match it or skip over it.
+	       (or ;(null expression)	; Optionals may match against nothing.
+		   ;; Test the value of the optional.
+		   (match-p* (cdr pattern-elt) expression
+			     test key (cons (cdr pattern) continuation))
+		   ;; Skip over the optional.
+		   (match-p* (cdr pattern) expression
+			     test key continuation)))
+	      ((car-eq pattern-elt :star)
+	       ;; (:star <pattern>). May match any number of times,
+	       ;; including zero.
+	       ;; The (null expression) does not work properly because
+	       ;; it ignores the continuation stack. Commenting it out
+	       ;; should work fine.
+	       (or ;(null expression)	; Star may match against nothing.
+		   ;; Test the value of the :star, and repeat
+		   ;; with the same pattern again.
+		   (match-p* (cdr pattern-elt) expression
+			     test key (cons pattern continuation))
+		   ;; Skip over the :star.
+		   (match-p* (cdr pattern) expression
+			     test key continuation)))
+	      ((car-eq pattern-elt :plus)
+	       ;; (:plus <pattern>). May match any number of times,
+	       ;; but must match at least once.
+	       (match-p* (cdr pattern-elt) expression
+			 test key (cons (cons (cons :star (cdr pattern-elt))
+					      (cdr pattern))
+					continuation)))
+	      ((and (atom pattern-elt) 
+		    (setq new-pattern (lookup-pattern-variable pattern-elt)))
+	       ;; The pattern elt is a pattern variable.
+	       (match-p* (cons new-pattern (cdr pattern)) expression
+			 test key continuation))
+	      ((consp expression)
+	       ;; Pattern is a straight list of patterns. The car is
+	       ;; either regular stuff or nested list structure, so
+	       ;; test it against the car of the expression, and continue
+	       ;; with the rest of the pattern.
+	       (and (match-p pattern-elt (car expression)
+			     :test test :key key)
+		    (match-p* (cdr pattern) (cdr expression)
+			      test key continuation)))))))
+
+
+;;; ********************************
+;;; Tests **************************
+;;; ********************************
+#|
+;;; NIL
+(match-p '((:star :wild) a (:star :wild) a) '(a a a b))
+(match-p '((:star :wild) n) '())
+(match-p '(:wild n) '())
+(match-p '((:plus :wild) n) '())
+(match-p '(:* (:or a b)) '(c))
+(match-p '(b (:star :wild) d (:star :wild)) '(a b c d))
+(match-p '(:wild-inferiors b :wild ) '(a b c d))
+;;; T
+(match-p '((:star :wild) b :wild d) '(a b c d))
+(match-p '(:wild b :wild d) '(a b c d))
+(match-p '(:wild-inferiors b :wild d) '(a b c d))
+
+|#
+;;; *EOF*

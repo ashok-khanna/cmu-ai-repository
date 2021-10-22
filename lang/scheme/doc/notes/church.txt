@@ -1,0 +1,562 @@
+Notes on Church Numerals
+
+----------------------------------------------------------------------
+From: Jesse
+Subject: Summary on Church numeral
+Message-ID: <cyen.713594637@ponder>
+Organization: Computer Science Dept .of UNT
+Date: Wed, 12 Aug 1992 04:43:57 GMT
+Lines: 231
+
+ posted a question about Church numeral and received lots of
+answers from many friends.  Thank you all.
+
+My question is:
+Suppose lambda=\
+0'=\f.\x.x
+1'=\f.\x.f x
+2'=\f.\x.f (f x)
+...
+n'=\f.\x.f^n x
+(0',1',2'.....n' are so called Church numerals)
+How to define mult,which multiplies m' and n', and expt, which raises m'
+to the power n'?
+
+(1) A good algorithm from John Lamping:
+
+>One way that I find useful for thinking about Church numerals is as
+>iteration forms.  That is, (n f x) is equivalent to:
+>
+>temp := x
+>for i = 1 to n
+>  temp := f(temp)
+>endfor
+>return temp
+>
+>So if you can write a computation in terms of those kinds of iterations,
+>then you can translate that to operations with Church numerals.
+>
+>For example, a+b can be computed by
+>
+>temp := a
+>for i = 1 to b
+>  temp := temp + 1
+>endfor
+>return temp
+>
+>Now, reconizing that temp, a, and the answer are Church numerals, halfway
+>translate this to the lambda calculus:
+>
+>lambda f. lambda x.
+>temp := (a f x)
+>for i = 1 to b
+>  temp := (f temp)
+>end for
+>
+>Now, translate the inner loop based on b's being a Church numberal:
+>
+>lambda f. lambda x.
+>(b f (a f x))
+>
+>and finally put lambdas for the free variables (which I probably should
+>have done at the start:
+>
+>lambda a. lambda b. lambda f. lambda x. (b f (a f x))
+>
+
+
+
+Then,
+mult=\m.\n.\f.\x. m (n f) x
+expt=\m.\n.\f.\x. n (m f) x
+
+But I think it goes wrong when m=zero, and <ad@cs.st-andrews.ac.uk> mail
+me to agree my idea.
+
+>Yes: If ci is the ith Church numeral, c0cn = I . A special case. See
+>Barendregt's book (revised edn.) p149, Ex 6.8.6
+
+I also implement mult and exp function in ML language to test :
+
+val zero=fn f=>( fn x=>x );
+val one=fn f=>( fn x=>f(x) );
+val two=fn f=>( fn x=>f(f(x)) );
+val three=fn f=>( fn x=>f(f(f(x))) );
+val four=fn f=>( fn x=>f(f(f(f(x)))) );
+val five=fn f=>( fn x=>f(f(f(f(f(x))))) );
+
+fun plus1(n)=fn f=>(fn x=>f(n(f)(x)));
+
+fun plus(m,n)=fn f=>(fn x=> m f (n f x));
+
+fun mult(m,n)=fn f=>(fn x=> m (n f) x);
+
+fun exp(m,n)=fn f=>(fn x=> n (m f) x);
+
+The result is:
+
+- mult(zero,one);
+val it = fn : ('a -> 'b) -> 'c -> 'c
+(* when m=zero the result is not zero *)
+
+- mult(one,zero);
+val it = fn : 'a -> 'b -> 'b
+(* when n=zero the result is zero *)
+
+- mult(two,one);
+val it = fn : ('a -> 'a) -> 'a -> 'a
+(* the result is two *)
+
+- exp(zero,one);
+val it = fn : 'a -> 'b -> 'b
+(* the result is zero *)
+
+- exp(zero,zero);
+val it = fn : 'a -> 'b -> 'b
+(* the result is zero *)
+
+- exp(one,zero);
+val it = fn : ('a -> 'b) -> 'c -> 'c
+(* the result is not one *)
+
+BUT the mult and exp function do good and are very clear in lambda expression.
+If we don't care the special case, they are good examples to see how
+lambda calculua works.
+
+(2) Scheme implementation on Church numerals from  Mr. Taj Khattra:
+( The definition below I have not tested yet, but there should be no
+error. )
+
+>;; Here's a few defns I've translated (almost) verbatim into Scheme from
+>;;
+>;;  Gordon, M.J.C, _Programming Language Theory and its Implementation_,
+>;;                 (Prentice Hall International series in computer science),
+>;;                 New York, Prentice Hall, 1988.
+>;;
+>;; Read chaps 4 and 5 for an explanation of what's going on below.
+>
+>
+>
+>;; NOTE
+>;;   we use builtin false/true/if/cond, but these could be defined
+>;;   in the lambda-calculus as well
+>
+>;;
+>;; NUMBERS
+>;;
+>
+>(define zero
+>     (lambda (f x) x))
+>
+>(define one
+>     (lambda (f x) (f x)))
+>
+>(define two
+>     (lambda (f x) (f (f x))))
+>
+>;; etc etc
+>
+>
+>;;
+>;; HELPERS
+>;;
+>
+>;; successor
+>(define suc
+>     (lambda (n)
+>          (lambda (f x) (n f (f x)))))
+>
+>
+>
+>(define iszero
+>     (lambda (n)
+>          (n (lambda (x) false) true)))
+>
+>(define prefn
+>
+>     (lambda (f)
+>          (lambda (p)
+>               (cons false
+>                    (if (car p) (cdr p) (f (cdr p)))))))
+>
+>;; predecessor
+>(define pre
+>     (lambda (n)
+>          (lambda (f x) (cdr (n (prefn f) (cons true x))))))
+>
+>
+>;;
+>;; THE MIGHTY Y
+>;;
+>
+>(define Y
+>     (lambda (g)
+>          ((lambda (f) (g (lambda (x y) ((f f) x y))))
+>            (lambda (f) (g (lambda (x y) ((f f) x y)))))))
+>
+>
+>;;
+>;; ARITHMETIC FNS
+>;;
+>
+>;; addition
+>(define add
+>     (lambda (m n)
+>          (lambda (f x) (m f (n f x)))))
+>
+>;; multiplication
+>(define mult
+>     (Y (lambda (f)
+>             (lambda (m n)
+>                  (if (iszero m) zero (add n (f (pre m) n)))))))
+>
+>;; our eq function for numbers
+>(define *eq*
+>     (Y (lambda (eq)
+>             (lambda (m n)
+>                  (cond ((iszero m) (iszero n))
+>                        ((iszero n) false)
+>                        (t (eq (pre m) (pre n))))))))
+>
+>  (define expt
+>       (Y (lambda (f)
+>               (lambda (m n)
+>                    (if (iszero n) one (mult m (f m (pre n))))))))
+>
+>where we define (expt zero zero) = one
+>
+>If you want to define (expt zero zero) = zero then use
+>
+>  (define expt
+>       (Y (lambda (f)
+>               (lambda (m n)
+>                    (cond ((iszero m) zero)
+>                          ((iszero n) one)
+>                          (t (mult m (f m (pre n)))))))))
+>
+>
+--
+Dept. of CS of UNT
+cyen@cs.unt.edu
+jh33@sol.acs.unt.edu
+
+----------------------------------------------------------------------
+
+From: blume@news@informatik.hu-berlin.de (Matthias Blume)
+Subject: Re: Summary on Church numeral
+Message-ID: <AJZ5DY@hp832.informatik.hu-berlin.de>
+Organization: Humbolt University, Department of Computer Science
+Date: Wed, 12 Aug 1992 10:57:31 GMT
+Lines: 89
+
+
+Hi,
+
+after returning from vacation I saw the Church-numeral-questions and the many
+responses, but I'm not happy with them.  I didn't find any hint about the
+fact, that EVERY computable arithmetic function can be represented by a
+lambda-expression, operating on Church-Numerals.
+[Read ``->'' as ``can be represented as'']
+The fact, that 
+
+add ->  \a\b\f\x (b f (a f x))
+mult -> \a\b\f\x (b (a f) x)
+and
+pow ->  \a\b\f\x (b a f x)
+
+must be considered a conincidence.  If you're trying to understand WHY
+EVERY computable function might be represented, you should have a closer look
+at the problem.  I don't want to give a proof (this includes reasoning about
+confluency etc.), but I want to give you an idea, how things work:
+
+We show, that every mu-recursive function can be represented as \-expression:
+
+1. 0 -> 0' = \f\xx
+2. succ -> SUCC = \a\f\x (f (a f x))
+3. c[m,n](x1,...,xn) = xm ; c[m,n] -> \x1...\xn xm
+4. h(x1,...xn) = f (g1 (x1,...,xn), ..., gm (x1,...,xn))
+   if f -> f' and gi -> gi', then
+   h -> h' = \x1...\xn (f' (g1' x1 ... xn) (gm' x1 ... xm))
+
+if(c,t,e) = e, iff c = 0
+if(c,t,e) = t, otherwise
+
+if -> IF = \c\t\e (c \it e)
+
+[If the condition c is the Church-numeral 0', then (c \it) becomes \xx, which is
+the identity function yielding e, otherwise (c \it) becomes a constant function
+yielding t, no matter what argument given]
+
+pseudo-numerals:
+-1* -> (Z 0' 1')
+0* -> (Z 0' 0')
+1* -> (Z 1' 0')
+2* -> (Z 2' 0')
+...
+n* -> (Z n' 0')
+...
+where 
+Z = \a\b\s (IF s a b)
+
+[Z is much like cons in Lisp, 'cause it constructs something from two parts
+while the parts remain easily accessible (by applying the thing to 0' or 1')]
+
+S = \z (IF (z 0') 0* (Z (SUCC (z 1')) 0'))
+
+pred -> PRED = \n (n S -1* 1')
+
+[We compute the predecessor of a Church-Numeral n' by computing n-times
+the successor of -1; therefore we need a number representation, which includes
+-1; our pseudo-numerals serve for this purpose]
+
+5. h (0, x1, ... xn) = g (x1, ..., xn)
+   h (n', x1, ..., xn) = f (h (n, x1, ..., xn), n, x1, ..., xn)
+   if g -> g' and f-> f', then
+     hh = \h\n\x1...\xn
+            (IF n
+                (f' (h h (PRED n) x1 ... xn) (PRED n) x1 ... xn)
+                (g' x1 ... xn))
+   h -> (hh hh)
+
+6. h (x1, ..., xn) = %y g(y, x1, ..., xn) = 0
+       [the least y, where g(y, x1, ..., xn) gives zero]
+
+   if g -> g', then
+     hh = \h\y\x1...\xn
+            (IF (g' y x1 ... xn)
+                (h h (SUCC y) x1 ... xn)
+                 y)
+   h -> (hh hh 0')
+
+[5. and 6. make use of a trick: here we apply hh to itself to obtain
+recursion without the need of syntactic recursion (this is what the magic
+Y does)]
+
+Please, don't flame at me, if I made some typo, 'cause the're so many lambdas etc.
+
+-- 
+-- m.b
+Matthias Blume, blume@informatik.hu-berlin.de,
+Humboldt-Uni zu Berlin, FB 16 (Informatik), [Dept. of Computer Science]
+
+----------------------------------------------------------------------
+
+From: Mayer Goldberg <mayer@moose.cs.indiana.edu>
+Subject: church numerals ...
+Message-ID: <1992Aug12.201701.18392@news.cs.indiana.edu>
+Organization: Computer Science, Indiana University
+Date: Wed, 12 Aug 1992 20:16:55 -0500
+Lines: 91
+
+Here are my 2 cents worth of church numeral stuff:
+
+It would really be neat if we had a successor and a zero. If we did,
+we could say the following (in either LC or Scheme):
+
+Let z be our zero combinator; let s be our successor combinator:
+
+zero == z
+one == (s z)
+two == (s (s z))
+etc.
+
+But unfortunately we con't have s and z in any obvious way, and so we
+abstract over the two, defining our numerals as follows:
+
+zero == \sz.z
+one == \sz.(s z) == \x.x
+two == \sz.(s (s z))
+
+etc.
+
+We want a successor.
+If we had a successor "add1" combinator, we could have: (add1 five) -> six.
+and in general (add1 'n') -> 'n+1', where 'n' is our church numeral
+representation for n, and 'n+1' is our church numeral rep for n+1,
+both quasi-quoted. If we had s and z, all we'd need is one more
+application of s:
+
+(s ('n' s z))   or the less obvious:
+('n' s (s z))
+
+where 'n' is the rep for our n'th church numeral.
+But we don't have s and z and so we abstract them out, getting:
+
+'n+1' == \sz.(s ('n' s z)) or the less obvious:
+'n+1' == \sz.('n' s (s z))
+
+By abstracting over 'n' we can define add1 as follows:
+
+add1_version1 == \nsn.(s (n s z)) or the less obvious:
+add1_version2 == \nsz.(n s (s z)).
+
+We'll use version1 here because it's the easiest to prove things
+about.
+
+A church numeral is an abstraction over the n'th composition of a
+function, hence for some function f: ('n' f) -> f^n
+(right-associated).
+
+This means that for example (three add1) is just: 
+                    \x.(add1 (add1 (add1 x)))
+So so we clearly have:
+         ('n' add1 'm') -> 'n+m'.
+Remeber that in LC and CL we auto-left-associate, and so (a b c)
+is really ((a b) c) ... side note ...
+
+So we get addition by abstracting over 'n' and 'm':
+add == \nm.(n add1 m)
+where add1 is just a placeholder for the text of the add1 combinator,
+and a simple substitution can take place, yielding a formal mess.
+
+(add five) is the procedure which adds 5 to anything ...
+(four (add five)) is thus: \x.(add5 (add5 (add5 (add5 x)))). If
+we apply it to zero we get twenty. In general:
+                        ('n' (add 'm') zero) -> 'n*m'
+so we abstract over 'n' and 'm' getting:
+mul == \nm.(n (add m) zero)
+
+(mul three) is the procedure which multiplies something by three ...
+(two (mul three)) is thus: \x.(mul3 (mul3 x)). If we apply this to one
+we get 3^2 -> 9. In general:
+                          ('m' (mul 'n')) -> 'n^m'
+We abstract over 'n' and 'm' and thus get exponentiation:
+exp == \nm.(m (mul n) one)
+
+This can go on all the way to ackerman and above. Ackermann is gotten
+through exponentiating the lambda expression taking the
+super-n-exponent and returning the super-n+1-exponent and applying it
+to exponentiation ... :)
+
+Another interesting point is that exponentiation on church numerals is
+just \nm.(m n) or if you are willing to cope with a change of order in
+the arguments, it's just the identity \x.x. This is so because composition
+and exponentiation are governed by a similar algebraic structure.
+
+Church numerals are a lot of fun!
+
+Mayer.
+
+----------------------------------------------------------------------
+
+From: stone@hilbert.math.grin.EDU (John David Stone)
+Subject: Church numerals
+Message-ID: <9208131348.AA08840@HILBERT.MATH.GRIN.EDU>
+Date: 13 Aug 92 13:48:34 GMT
+Lines: 114
+
+
+        Here's the classic approach to arithmetic with Church numerals:
+
+(define zero
+  (lambda (x)
+    (lambda (y) y)))
+
+(define successor
+  (lambda (u)
+    (lambda (x)
+      (lambda (y) (x ((u x) y))))))
+
+(define one (successor zero))
+
+(define add
+  (lambda (m)
+    (lambda (n)
+      (lambda (f)
+        (lambda (x) ((m f) ((n f) x)))))))
+
+(define mult
+  (lambda (m)
+    (lambda (n)
+      (lambda (f) (m (n f))))))
+
+(define power
+  (lambda (m)
+    (lambda (n) (n m))))
+
+        And for direct definition of recursive functions (without Y,
+incidentally!):
+
+(define constant
+  (lambda (x)
+    (lambda (y) x)))
+
+(define ordered-pair
+  (lambda (x)
+    (lambda (y)
+      (lambda (z) ((z (constant y)) x)))))
+
+The idea of the ordered-pair notation is that ((ordered-pair x) y) is a
+function that yields x when applied to zero and y when applied to any other
+Church numeral, thus giving the effect of a test for equality with zero.
+
+(define extender
+  (lambda (y)
+    (lambda (v)
+      ((ordered-pair (successor (v zero))) ((y (v zero)) (v one))))))
+
+You can think of extender as a function that takes a function y and an
+ordered pair v, where v's two elements are a counter and a previously
+generated value, and yields an ordered pair consisting of the counter
+incremented once and a value obtained by applying y to the old value of
+the counter and the previously generated value.
+
+(define recurser
+  (lambda (x)
+    (lambda (y)
+      (lambda (u)
+        (((u (extender y)) ((ordered-pair zero) x)) one)))))
+
+Recurser takes an initial value x, a transition function y, and a Church
+numeral u and delivers the result of applying the transition function to
+the initial value u times in succession.  (Actually, you think of y as
+applying to two arguments to give its value -- the count of the number
+of times it's been applied previously, and the value resulting from those
+earlier applications.)
+
+        Now recursive definitions simply fall out of applications of
+recurser:
+
+(define recursive-add
+  (lambda (n) ((recurser n) (constant successor))))
+
+(define recursive-multiply
+  (lambda (n) ((recurser zero) (constant (recursive-add n)))))
+
+(define recursive-power
+  (lambda (m)
+    (lambda (n) (((recurser one) (constant (recursive-multiply m))) n))))
+
+(define factorial
+  ((recurser one) (lambda (x) (recursive-multiply (successor x)))))
+
+        In testing these, you may find the following Scheme procedures
+useful:
+
+(define int->Church
+  (lambda (n)
+    (if (zero? n)
+        zero
+        (successor (int->Church (- n 1))))))
+
+(define Church->int
+  (lambda (numeral)
+    ((numeral (lambda (x) (+ 1 x))) 0)))
+
+as in:
+
+(Church->int (factorial (int->Church 4)))
+
+(Church->int ((recursive-power (int->Church 5)) (int->Church 3)))
+
+which yield 24 and 125 respectively.
+
+        I found the idea behind extender and recurser in Hindley and
+Seldin's _Introduction to Combinators and the Lambda-Calculus_, where it is
+ascribed to the logician P. Bernays.
+
+------  John David Stone - Lecturer in Computer Science and Philosophy  -----
+--------------  Manager of the Mathematics Local-Area Network  --------------
+--------------  Grinnell College - Grinnell, Iowa 50112 - USA  --------------
+--------  stone@math.grin.edu - (515) 269-3181 - stone@grin1.bitnet  --------
+

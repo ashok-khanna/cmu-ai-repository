@@ -1,0 +1,244 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;;     A simple 3-layer back propagation learning program.
+;;;
+;;; This code is a direct implementation of the backpropagation
+;;; learning algorithm of Rumelhart, Hinton, and Williams, for
+;;; networks with a single hidden layer.
+;;;
+;;; David S. Touretzky
+;;; Carnegie Mellon University
+;;; September, 1987
+;;;
+
+(defvar *eta* 0.1)		;learning rate
+(defvar *alpha* 0.9)		;weight change momentum
+(defvar *rand-limit* 2.0)
+
+(defvar *input-size*)
+(defvar *hidden-size*)
+(defvar *output-size*)
+
+(defvar *input-states*)
+(defvar *hidden-states*)
+(defvar *output-states*)
+
+(defvar *i-h-weights*)
+(defvar *h-o-weights*)
+
+(defvar *output-errors*)
+(defvar *hidden-errors*)
+(defvar *i-h-deltas*)
+(defvar *h-o-deltas*)
+(defvar *i-h-prev-deltas*)
+(defvar *h-o-prev-deltas*)
+
+(defvar *training-set*)
+(defvar *training-set-size*)
+
+(defvar *epoch-counter* 0)
+(defvar *total-error*)
+
+(defun build-network (i-size h-size o-size)
+  (setf *input-size* i-size)
+  (setf *hidden-size* h-size)
+  (setf *output-size* o-size)
+  (setf *input-states*  (make-array (1+ *input-size*) :element-type 'short-float))
+  (setf *hidden-states* (make-array (1+ *hidden-size*) :element-type 'short-float))
+  (setf *output-states* (make-array *output-size* :element-type 'short-float))
+  (setf *output-errors* (make-array *output-size* :element-type 'short-float))
+  (setf *hidden-errors* (make-array *hidden-size* :element-type 'short-float))
+  (setf *i-h-weights* (make-array (list (1+ *input-size*) *hidden-size*)
+				  :element-type 'short-float))
+  (setf *h-o-weights* (make-array (list (1+ *hidden-size*) *output-size*)
+				  :element-type 'short-float))
+  (setf *i-h-deltas* (make-array (list (1+ *input-size*) *hidden-size*)
+				 :element-type 'short-float))
+  (setf *h-o-deltas* (make-array (list (1+ *hidden-size*) *output-size*)
+				 :element-type 'short-float))
+  (setf *i-h-prev-deltas* (make-array (list (1+ *input-size*) *hidden-size*)
+				      :element-type 'short-float))
+  (setf *h-o-prev-deltas* (make-array (list (1+ *hidden-size*) *output-size*)
+				      :element-type 'short-float))
+  (setf (svref *input-states* *input-size*) 1.0)
+  (setf (svref *hidden-states* *hidden-size*) 1.0)
+  (initialize-weights))
+
+(defun initialize-weights ()
+  (setf *epoch-counter* 0)
+  (dotimes (i (1+ *input-size*))
+    (dotimes (j *hidden-size*)
+      (setf (aref *i-h-weights* i j) (random-around *rand-limit*))
+      (setf (aref *i-h-prev-deltas* i j) 0.0)))
+  (dotimes (j (1+ *hidden-size*))
+    (dotimes (i *output-size*)
+      (setf (aref *h-o-weights* j i) (random-around *rand-limit*))
+      (setf (aref *h-o-prev-deltas* j i) 0.0))))
+
+(defun random-around (x)
+  (- x (random (* x 2.0))))
+
+
+
+;;; Forward propagation pass.
+
+(defun forward-pass (i)
+  (replace *input-states* (svref *training-set* i))
+  (forward-input-to-hidden)
+  (forward-hidden-to-output))
+
+(defun forward-input-to-hidden ()
+  (dotimes (j *hidden-size*)
+    (do ((sum 0.0 (+ sum (* (svref *input-states* i) (aref *i-h-weights* i j))))
+	 (i 0 (1+ i)))
+	((> i *input-size*) (setf (svref *hidden-states* j) (sigmoid sum))))))
+
+(defun forward-hidden-to-output ()
+  (dotimes (k *output-size*)
+    (do ((sum 0.0 (+ sum (* (svref *hidden-states* j) (aref *h-o-weights* j k))))
+	 (j 0 (1+ j)))
+	((> j *hidden-size*) (setf (svref *output-states* k) (sigmoid sum))))))
+
+(defun sigmoid (x)
+  (max 1.0e-30 (/ (1+ (exp (- x))))))  ;the MAX helps prevent floating underflows
+
+(defun sigmoid-prime (x)
+  (* x (- 1.0 x)))
+
+
+;;; Backward propagation pass.
+
+(defun backward-pass (i)
+  (compute-output-unit-error (svref *training-set* i))
+  (backward-output-to-hidden)
+  (accumulate-weight-deltas))
+
+(defun compute-output-unit-error (training-vector)
+  (dotimes (i *output-size*)
+    (let* ((actual-error (- (svref training-vector i) (svref *output-states* i)))
+	   (effective-error (if (< (abs actual-error) 0.1) 0.0 actual-error)))
+      (setf (svref *output-errors* i)
+	    (* effective-error (sigmoid-prime (svref *output-states* i))))
+      (incf *total-error* (* effective-error effective-error)))))
+
+(defun backward-output-to-hidden ()
+  (dotimes (j *hidden-size*)
+    (do ((i 0 (1+ i))
+	 (delta 0.0 (+ delta (* (svref *output-errors* i)
+				(aref *h-o-weights* j i)))))
+	((= i *output-size*)
+	 (setf (svref *hidden-errors* j)
+	       (* delta (sigmoid-prime (svref *hidden-states* j))))))))
+
+
+(defun accumulate-weight-deltas ()
+  (accumulate-h-o-deltas)
+  (accumulate-i-h-deltas))
+
+(defun accumulate-h-o-deltas ()
+  (dotimes (i *output-size*)
+    (let ((output-error (svref *output-errors* i)))
+      (dotimes (j (1+ *hidden-size*))
+	(incf (aref *h-o-deltas* j i)
+	      (* output-error *eta* (svref *hidden-states* j)))))))
+
+(defun accumulate-i-h-deltas ()
+  (dotimes (j *hidden-size*)
+    (let ((hidden-error (svref *hidden-errors* j)))
+      (dotimes (i (1+ *input-size*))
+	(incf (aref *i-h-deltas* i j)
+	      (* hidden-error *eta* (svref *input-states* i)))))))
+
+
+;;; Update weights once per epoch.
+
+(defun one-epoch ()
+  (clear-all-weight-deltas)
+  (setf *total-error* 0)
+  (dotimes (i *training-set-size*)
+    (forward-pass i)
+    (backward-pass i))
+  (update-weights)
+  (incf *epoch-counter*))
+
+(defun clear-all-weight-deltas ()
+  (dotimes (i (1+ *input-size*))
+    (dotimes (j *hidden-size*)
+      (setf (aref *i-h-deltas* i j) 0.0)))
+  (dotimes (i (1+ *hidden-size*))
+    (dotimes (j *output-size*)
+      (setf (aref *h-o-deltas* i j) 0.0))))
+
+(defun update-weights ()
+  (update-i-h-weights)
+  (update-h-o-weights))
+
+(defun update-i-h-weights ()
+  (dotimes (i (1+ *input-size*))
+    (dotimes (j *hidden-size*)
+      (incf (aref *i-h-weights* i j)
+	    (setf (aref *i-h-prev-deltas* i j)
+		  (+ (aref *i-h-deltas* i j)
+		     (* (aref *i-h-prev-deltas* i j) *alpha*)))))))
+
+(defun update-h-o-weights ()
+  (dotimes (i (1+ *hidden-size*))
+    (dotimes (j *output-size*)
+      (incf (aref *h-o-weights* i j)
+	    (setf (aref *h-o-prev-deltas* i j)
+		  (+ (aref *h-o-deltas* i j)
+		     (* (aref *h-o-prev-deltas* i j) *alpha*)))))))
+
+
+
+
+
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; Tools.
+;;;
+
+(defun train ()
+  (dotimes (i 200)
+    (one-epoch)
+    (when (zerop (rem i 10))
+      (format t "~%Epoch ~4D  Total error = ~S" *epoch-counter* *total-error*)))
+  (show-behavior)
+  (if (y-or-n-p "Continue? ") (train)))
+
+(defun show-behavior ()
+  (dotimes (i *training-set-size*)
+    (forward-pass i)
+    (format t "~%-->  ")
+    (dotimes (j *output-size*)
+      (format t "~8f   " (svref *output-states* j)))))
+
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;;
+;;; Specific applications.
+;;;
+;;; Try (build-encoder 4 2) to build a 4-2-4 encoder network, as
+;;; described by Rumelhart, Hinton, and Williams.  Turning on one
+;;; input unit should cause the corresponding output unit to come on.
+;;; This requires the network to learn a binary code for the hidden
+;;; layer.  Try (build-encoder 8 3) for a harder version.  Type
+;;; (train) to actually train the network.
+
+(defun build-encoder (n b)
+  (build-network n b n)
+  (generate-one-on-training-set))
+
+(defun generate-one-on-training-set (&aux ts)
+  (setf *training-set-size* *input-size*)
+  (dotimes (i *input-size*)
+    (let ((v (make-array *input-size*
+		  :element-type 'short-float
+		  :initial-element 0.0)))
+      (setf (svref v i) 1.0)
+      (push v ts)))
+  (setf *training-set* (coerce (nreverse ts) 'simple-vector)))

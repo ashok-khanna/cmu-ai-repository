@@ -1,0 +1,410 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node190.html by HTTrack Website Copier/3.x [XR&CO'2014], Thu, 21 Oct 2021 14:58:19 GMT -->
+<HEAD>
+<TITLE>22.1.3. Macro Characters</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Macro Characters">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3915 HREF="node191.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3913 HREF="node187.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3907 HREF="node189.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3917 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3918 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3916 HREF="node191.html"> Standard Dispatching Macro </A>
+<B>Up:</B> <A NAME=tex2html3914 HREF="node187.html"> Printed Representation of </A>
+<B> Previous:</B> <A NAME=tex2html3908 HREF="node189.html"> Parsing of Numbers </A>
+<HR> <P>
+<H2><A NAME=SECTION002613000000000000000>22.1.3. Macro Characters</A></H2>
+<P>
+<A NAME=MACROCHARACTERSSECTION>If</A>
+<A NAME=20903>the</A>
+<A NAME=20904>reader</A>
+encounters a macro
+character, then the function associated with that macro character is
+invoked and may produce an object to be returned.  This function may read
+following characters in the stream in whatever syntax it likes (it may
+even call <tt>read</tt> recursively) and return the object represented by
+that syntax.  Macro characters may or may not be recognized, of course,
+when read as part of other special syntaxes (such as for strings).
+<P>
+The reader is therefore organized into two parts: the basic dispatch loop,
+which also distinguishes symbols and numbers, and the collection
+of macro characters.  Any character can be reprogrammed as a macro character;
+this is a means by which the reader can be extended.
+The macro characters normally defined are as follows:
+<DL COMPACT><DT><tt>(</tt>
+<DD>
+The left-parenthesis character initiates reading of a pair or list.
+The function <tt>read</tt> is called recursively to read successive objects
+until a right parenthesis is found to be next in the input stream.
+A list of the objects read is returned.  Thus the input sequence
+<P><pre>
+(a b c)
+</pre><P>
+is read as a list of three objects (the symbols <tt>a</tt>, <tt>b</tt>, and <tt>c</tt>).
+The right parenthesis need not immediately follow the printed representation of
+the last object; whitespace
+characters and comments may precede it.
+This can be useful for putting one object
+on each line and making it easy to add new objects:
+<P><pre>
+(defun traffic-light (color) 
+  (case color 
+    (green) 
+    (red (stop)) 
+    (amber (accelerate))     ;Insert more colors after this line 
+    ))
+</pre><P>
+<P>
+It may be that <i>no</i> objects precede the right parenthesis, as in <tt>()</tt>
+or <tt>( )</tt>; this reads as a list of zero objects (the empty list).
+<P>
+If a token that is just a dot,
+not preceded by an escape character,
+is read after some object,
+then exactly one more object must follow the dot,
+possibly followed by whitespace,
+followed by the right parenthesis:
+<P><pre>
+(a b c . d)
+</pre><P>
+This means that the <i>cdr</i> of the last pair in the list is not <tt>nil</tt>,
+but rather the object whose representation followed the dot.
+The above example might have been the result of evaluating
+<P><pre>
+(cons 'a (cons 'b (cons 'c 'd))) => (a b c . d)
+</pre><P>
+Similarly, we have
+<P><pre>
+(cons 'znets 'wolq-zorbitan) => (znets . wolq-zorbitan)
+</pre><P>
+It is permissible for the object following the dot to be a list:
+<P><pre>
+(a b c d . (e f . (g)))
+</pre><P>
+is the same as
+<P><pre>
+(a b c d e f g)
+</pre><P>
+but a list following a dot
+is a non-standard form that <tt>print</tt> will never produce.
+<P>
+<DT><tt>)</tt>
+<DD>
+The right-parenthesis character is part of various constructs
+(such as the syntax for lists) using the left-parenthesis character and
+is invalid except when used in such a construct.
+<A NAME=25485>&#160;</A>
+<P>
+<DT><tt>'</tt>
+<DD>
+The single-quote (accent acute) character provides
+an abbreviation to make it easier to put constants in programs.
+The form
+<tt>'<i>foo</i></tt> reads the same as <tt>(quote <i>foo</i>)</tt>: a list of the symbol
+<tt>quote</tt> and <i>foo</i>.
+<P>
+<DT><tt>;</tt>
+<DD>
+Semicolon is used to write comments.
+<A NAME=25489>&#160;</A>
+<A NAME=20942>&#160;</A>
+The semicolon and all characters
+up to and including the next newline are ignored.
+Thus a comment can be put at
+the end of any line without affecting the reader.
+(A comment will terminate a token, but a newline would terminate the
+token anyway.)
+</dl>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif">
+<dl compact><dd>
+There is no functional difference between using one semicolon and using
+more than one, but the conventions shown here are in common use.
+</dl>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<dl compact><dd>
+<P>
+<P><pre>
+;;;; COMMENT-EXAMPLE function. 
+;;; This function is useless except to demonstrate comments. 
+;;; (Actually, this example is much too cluttered with them.) 
+
+(defun comment-example (x y)      ;X is anything; Y is an a-list. 
+  (cond ((listp x) x)             ;If X is a list, use that. 
+        ;; X is now not a list.  There are two other cases. 
+        ((symbolp x) 
+         ;; Look up a symbol in the a-list. 
+         (cdr (assoc x y)))       ;Remember, (cdr <tt>nil</tt>) is <tt>nil</tt>. 
+        ;; Do this when all else fails: 
+        (t (cons x                ;Add x to a default list. 
+                 '((lisp t)       ;LISP is okay. 
+                   (fortran nil)  ;FORTRAN is not. 
+                   (pl/i -500)    ;Note that you can put comments in 
+                   (ada .001)     ; &quot;data&quot; as well as in &quot;programs&quot;. 
+                   ;; COBOL?? 
+                   (teco -1.0e9))))))
+</pre><P>
+In this example, comments may begin with one to four semicolons.<p>
+<UL><LI>
+Single-semicolon comments are all aligned to the same column at
+the right; usually each comment concerns only the code it is next to.
+Occasionally a comment is long enough to occupy two or three
+lines; in this case, it is conventional to indent the
+continued lines of the comment one space (after the
+semicolon).
+<P>
+<LI>
+Double-semicolon comments are aligned to the level of indentation
+of the code.  A space conventionally follows the two semicolons.
+Such comments usually describe the state of the program at that point
+or the code section that follows the comment.
+<P>
+<LI>
+Triple-semicolon comments are aligned to the left margin.
+They usually document whole programs or large code blocks.
+<P>
+<LI>
+Quadruple-semicolon comments usually indicate titles of whole programs or large code blocks.
+</UL>
+<P>
+</dl>
+<hr>
+<b>Compatibility note:</b> These conventions arose among users of MacLisp
+and have been found to be very useful.
+The conventions are conveniently exploited by certain software tools,
+such as the EMACS editor and the
+ATSIGN listing program developed at MIT.
+<p>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+The ATSIGN listing program, alas, is no longer in use, but EMACS is
+widely available, especially the GNU EMACS implementation, which is available
+from the Free Software Foundation, 675 Massachusetts Avenue,
+Cambridge, Massachusetts 02139.
+Remember, <b>G</b>NU's <b>N</b>ot <b>U</b>NIX.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<hr>
+<dl compact>
+<DT><tt>&quot;</tt>
+<DD>
+The double quote character begins the printed representation
+of a string.
+Successive characters are read from the input stream and accumulated until
+another double quote is encountered.
+An exception to this occurs if a <i>single escape</i> character
+is seen; the escape character is discarded,
+the next character is accumulated, and accumulation
+continues.  When a matching double quote is seen, all the accumulated
+characters up to but not including the matching double quote are
+made into a simple string and returned.
+<P>
+<DT><tt>`</tt>
+<DD>
+The backquote (accent grave) character
+makes it easier to write programs to construct complex data structures by
+using a template.
+<A NAME=BACKQUOTE>&#160;</A>
+</dl>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif">
+<dl compact><dd>
+<i>Notice of correction.</i>
+In the first edition, the backquote character <b>&lt;</b><tt>`</tt><b>&gt;</b>
+appearing at the left margin above was inadvertently omitted.
+</dl>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<dl compact><dd>
+As an example, writing
+<P><pre>
+`(cond ((numberp ,x) ,@y) (t (print ,x) ,@y))
+</pre><P>
+is roughly equivalent to writing
+<P><pre>
+(list 'cond  
+      (cons (list 'numberp x) y)  
+      (list* 't (list 'print x) y))
+</pre><P>
+The general idea is that the backquote is followed by a template,
+a picture of a data structure to be built.  This template is copied,
+except that within the template commas can appear.  Where a comma
+occurs, the form following the comma is to be evaluated to produce an object to
+be inserted at that point.  Assume <tt>b</tt> has the value <tt>3</tt>; then
+evaluating the form denoted by <tt>`(a b ,b ,(+ b 1) b)</tt> produces
+the result <tt>(a b 3 4 b)</tt>.
+<P>
+If a comma is immediately followed by an at-sign (<tt>@</tt>), then the
+form following the at-sign is evaluated to produce a <i>list</i> of objects.
+These objects are then ``spliced'' into place in the template.  For
+example, if <tt>x</tt> has the value <tt>(a b c)</tt>, then
+<P><pre>
+`(x ,x ,@x foo ,(cadr x) bar ,(cdr x) baz ,@(cdr x)) 
+   => (x (a b c) a b c foo b bar (b c) baz b c)
+</pre><P>
+<P>
+The backquote syntax can be summarized formally as follows.
+For each of several situations in which backquote can be used,
+a possible interpretation of that situation as an equivalent form
+is given.  Note that the form is equivalent only
+in the sense that when it is evaluated it will calculate the
+correct result.
+An implementation is quite free to interpret backquote in any way
+such that a backquoted form, when evaluated, will produce a result
+<tt>equal</tt> to that produced by the interpretation shown here.<p>
+<UL><LI>
+<tt>`<i>basic</i></tt> is the same as <tt>'<i>basic</i></tt>,
+that is, <tt>(quote <i>basic</i>)</tt>, for any form <i>basic</i> that is not a
+list or a general vector.
+<P>
+<LI>
+<tt>`,<i>form</i></tt> is the same as <i>form</i>, for any <i>form</i>, provided
+that the representation of <i>form</i> does not begin with ``<tt>@</tt>''
+or ``<tt>.</tt>''.  (A similar caveat holds for all occurrences of a form
+after a comma.)
+<P>
+<LI>
+<tt>`,@<i>form</i></tt> is an error.
+<P>
+<LI>
+<tt>`(<i>x1</i> <i>x2</i> <i>x3</i> ... <i>xn</i> . <i>atom</i>)</tt> may be interpreted to mean
+<P><pre>
+(append [<i>x1</i>] [<i>x2</i>]
+    [<i>x3</i>] ... [<i>xn</i>] (quote <i>atom</i>))
+</pre><P>
+where the brackets are used to indicate
+a transformation of an <i>xj</i> as follows:
+<UL><LI>
+[<i>form</i>] is interpreted as <tt>(list `<i>form</i>)</tt>, which
+contains a backquoted form that must then be further interpreted.
+<P>
+<LI>
+[<tt>,<i>form</i></tt>] is interpreted as <tt>(list <i>form</i>)</tt>.
+<P>
+<LI>
+[<tt>,@<i>form</i></tt>] is interpreted simply as <i>form</i>.
+</UL>
+<P>
+<LI>
+<tt>`(<i>x1</i> <i>x2</i> <i>x3</i> ... <i>xn</i>)</tt> may be interpreted to mean
+the same as the backquoted form
+<tt>`(<i>x1</i> <i>x2</i> <i>x3</i> ... <i>xn</i> . <tt>nil</tt>)</tt>,
+thereby reducing it to the previous case.
+<P>
+<LI>
+<tt>`(<i>x1</i> <i>x2</i> <i>x3</i> ... <i>xn</i> . ,<i>form</i>)</tt> may be interpreted to mean
+<P><pre>
+(append [<i>x1</i>] [<i>x2</i>]
+    [<i>x3</i>] ... [<i>xn</i>] <i>form</i>)
+</pre><P>
+where the brackets indicate a transformation of an <i>xj</i> as described above.
+<P>
+<LI>
+<tt>`(<i>x1</i> <i>x2</i> <i>x3</i> ... <i>xn</i> . ,@<i>form</i>)</tt> is an error.
+<P>
+<LI>
+<tt>`#(<i>x1</i> <i>x2</i> <i>x3</i> ... <i>xn</i>)</tt> may be interpreted to mean
+<P><pre>
+(apply #'vector `(<i>x1</i> <i>x2</i> <i>x3</i> ... <i>xn</i>))
+</pre><P>
+</UL>
+<P>
+No other uses of comma are permitted; in particular, it may not appear within
+the <tt>#A</tt> or <tt>#S</tt> syntax.
+<P>
+Anywhere ``<tt>,@</tt>'' may be used, the syntax ``<tt>,.</tt>'' may be used instead
+to indicate that it is permissible to destroy the list produced by the form
+following the ``<tt>,.</tt>''; this may permit more efficient code, using
+<tt>nconc</tt> instead of <tt>append</tt>, for example.
+<P>
+If the backquote syntax is nested, the innermost backquoted form
+should be expanded first.  This means that if several commas occur
+in a row, the leftmost one belongs to the innermost backquote.
+<P>
+Once again, it is emphasized that an implementation is free to interpret
+a backquoted form as any form that, when evaluated, will produce a result
+that is <tt>equal</tt> to the result implied by the above definition.
+In particular, no guarantees are made as to whether the constructed
+copy of the template will or will not share list structure with the
+template itself.  As an example, the above definition implies that
+<P><pre>
+`((,a b) ,c ,@d)
+</pre><P>
+will be interpreted as if it were
+<P><pre>
+(append (list (append (list a) (list 'b) '<tt>nil</tt>)) (list c) d '<tt>nil</tt>)
+</pre><P>
+but it could also be legitimately interpreted to mean any of the following.
+<P><pre>
+(append (list (append (list a) (list 'b))) (list c) d) 
+(append (list (append (list a) '(b))) (list c) d) 
+(append (list (cons a '(b))) (list c) d) 
+(list* (cons a '(b)) c d) 
+(list* (cons a (list 'b)) c d) 
+(list* (cons a '(b)) c (copy-list d))
+</pre><P>
+(There is no good reason why <tt>copy-list</tt> should be performed, but
+it is not prohibited.)
+<P>
+
+</dl>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif">
+<dl compact><dd>
+Some users complain that backquote syntax is difficult to read,
+especially when it is nested.  I agree that it can get complicated,
+but in some situations (such as writing macros that expand into
+definitions for other macros) such complexity is to be expected,
+and the alternative is much worse.
+<P>
+After I gained some experience in writing nested backquote forms,
+I found that I was not stopping to analyze the various patterns
+of nested backquotes and interleaved commas and quotes; instead, I was
+recognizing standard idioms wholesale, in the same manner that I recognize <tt>cadar</tt>
+as the primitive for ``extract the lambda-list from the
+form <tt>((lambda ...) ...)</tt>)'' without stopping to analyze it into
+``<tt>car</tt> of <tt>cdr</tt> of <tt>car</tt>.''  For example, <tt>,x</tt> within
+a doubly-nested backquote form means ``the value of <tt>x</tt> available
+during the second evaluation
+will appear here once the form has been twice
+evaluated,'' whereas <tt>,',x</tt> means ``the value of <tt>x</tt> available during the
+first evaluation will appear here once the form has been twice
+evaluated'' and <tt>,,x</tt> means ``the value of the value of <tt>x</tt> will appear here.''
+<P>
+See appendix <A HREF="node367.html#BACKQUOTESIMULATOR">C</A> for a systematic set of examples
+of the use of nested backquotes.
+</dl>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<dl compact>
+<DT><tt>,</tt>
+<DD>
+The comma character is part of the backquote syntax
+and is invalid if used other than inside the body of a backquote
+construction as described above.
+<A NAME=25510>&#160;</A>
+<P>
+<DT><tt>#</tt>
+<DD>
+This is a <i>dispatching</i> macro character.
+It reads an optional digit string and then one more character,
+and uses that character to select a function to run as a macro-character
+function.
+<P>
+The <tt>#</tt> character also happens to be a non-terminating
+macro character.  This is completely independent of the fact that
+it is a dispatching macro character; it is a coincidence that
+the only standard dispatching macro character in Common Lisp is
+also the only standard non-terminating macro character.
+<P>
+See the next section for predefined <tt>#</tt> macro-character constructions.
+<P>
+ </DL>
+<P>
+<BR> <HR><A NAME=tex2html3915 HREF="node191.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3913 HREF="node187.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3907 HREF="node189.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3917 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3918 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3916 HREF="node191.html"> Standard Dispatching Macro </A>
+<B>Up:</B> <A NAME=tex2html3914 HREF="node187.html"> Printed Representation of </A>
+<B> Previous:</B> <A NAME=tex2html3908 HREF="node189.html"> Parsing of Numbers </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

@@ -1,0 +1,350 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node96.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:46:45 GMT -->
+<HEAD>
+<TITLE>7.11. Dynamic Non-Local Exits</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Dynamic Non-Local Exits">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2717 HREF="node97.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2715 HREF="node76.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2711 HREF="node95.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2719 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2720 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2718 HREF="node97.html"> Macros</A>
+<B>Up:</B> <A NAME=tex2html2716 HREF="node76.html"> Control Structure</A>
+<B> Previous:</B> <A NAME=tex2html2712 HREF="node95.html"> Rules Governing the </A>
+<HR> <P>
+<H1><A NAME=SECTION0011110000000000000000>7.11. Dynamic Non-Local Exits</A></H1>
+<P>
+<A NAME=CATCHTHROWSECTION>Common</A>
+<A NAME=7947>Lisp</A>
+<A NAME=7948>provides</A>
+<A NAME=7949>a</A>
+<A NAME=7950>facility</A>
+for exiting from a complex process
+in a non-local, dynamically scoped manner.  There are two classes of
+special forms for this purpose, called <i>catch</i> forms and <i>throw</i>
+forms, or simply <i>catches</i> and <i>throws</i>.  A catch form evaluates some
+subforms in such a way that, if a throw form is executed during such
+evaluation, the evaluation is aborted at that point and the catch form
+immediately returns a value specified by the throw.  Unlike <tt>block</tt>
+and <tt>return</tt> (section <A HREF="node85.html#BLOCKRETURNSECTION">7.7</A>),
+which allow for exiting a <tt>block</tt> form from any
+point lexically within the body of the <tt>block</tt>, the catch/throw
+mechanism works even if the throw form is not textually within the body
+of the catch form.  The throw need only occur within the extent (time
+span) of the evaluation of the body of the catch.  This is analogous to
+the distinction between dynamically bound (special) variables and
+lexically bound (local) variables.
+<P>
+<BR><b>[Special Form]</b><BR>
+<tt>catch</tt> <tt><i>tag</i></tt> <tt>{<i>form</i>}*</tt><P>The <tt>catch</tt> special form serves as a target for transfer
+of control by <tt>throw</tt>.
+The form <i>tag</i> is evaluated first to produce an object
+that names the catch; it may be any Lisp object.
+A catcher is then established with the object as the tag.
+The <i>form</i>s are evaluated as an implicit <tt>progn</tt>,
+and the results of the last form are returned,
+except that if during the evaluation of the <i>form</i>s
+a throw should be executed such that the tag
+of the throw matches (is <tt>eq</tt> to) the tag of the <tt>catch</tt>
+and the catcher is the most recent outstanding catcher with that tag,
+then the evaluation of the <i>form</i>s is aborted and the results
+specified by the throw
+are immediately returned from the <tt>catch</tt> expression.
+The catcher established by the <tt>catch</tt> expression is disestablished
+just before the results are returned.
+<P>
+The tag is used to match throws with catches.
+<tt>(catch 'foo <i>form</i>)</tt> will catch a <tt>(throw 'foo <i>form</i>)</tt> but
+not a <tt>(throw 'bar <i>form</i>)</tt>.  It is an error if <tt>throw</tt> is done
+when there is no suitable <tt>catch</tt> ready to catch it.
+<P>
+Catch tags are compared using <tt>eq</tt>,
+not <tt>eql</tt>; therefore numbers and characters
+should not be used as catch tags.
+<P>
+<hr>
+<b>Compatibility note:</b> The name <tt>catch</tt> comes from MacLisp,
+but the syntax of <tt>catch</tt> in Common Lisp is different.
+The MacLisp syntax was <tt>(catch <i>form</i> <i>tag</i>)</tt>,
+where the <i>tag</i> was not evaluated.
+<hr>
+<P>
+<A NAME=7988>&#160;</A>
+<A NAME=7989>&#160;</A>
+<BR><b>[Special Form]</b><BR>
+<tt>unwind-protect</tt> <tt><i>protected-form</i></tt> <tt>{<i>cleanup-form</i>}*</tt><P>Sometimes it is necessary to evaluate a form and make sure that
+certain side effects take place after the form is evaluated;
+a typical example is
+<P><pre>
+(progn (start-motor) 
+       (drill-hole) 
+       (stop-motor))
+</pre><P>
+The non-local exit facility of Common Lisp creates a situation in which
+the above code won't work, however: if <tt>drill-hole</tt> should
+do a throw to a catch that is outside of the <tt>progn</tt>
+form (perhaps because the drill bit broke),
+then <tt>(stop-motor)</tt> will never be evaluated
+(and the motor will presumably be left running).
+This is particularly likely if <tt>drill-hole</tt> causes a Lisp error
+and the user tells the error-handler to give up and abort
+the computation.
+(A possibly more practical example might be
+<P><pre>
+(prog2 (open-a-file) 
+       (process-file) 
+       (close-the-file))
+</pre><P>
+where it is desired always to close the file when the computation
+is terminated for whatever reason.  This case is so important
+that Common Lisp provides the special form <tt>with-open-file</tt> for
+this purpose.)
+<P>
+In order to allow the example hole-drilling program to work, it can
+be rewritten using <tt>unwind-protect</tt> as follows:
+<P><pre>
+;; Stop the motor no matter what (even if it failed to start). 
+
+(unwind-protect 
+  (progn (start-motor) 
+         (drill-hole)) 
+  (stop-motor))
+</pre><P>
+If <tt>drill-hole</tt> does a throw that attempts to quit out of the
+<tt>unwind-protect</tt>, then <tt>(stop-motor)</tt> will be executed.
+<P>
+This example assumes that it is correct to call <tt>stop-motor</tt>
+even if the motor has not yet been started.  Remember that
+an error or interrupt may cause an exit even before any initialization
+forms have been executed.  Any state restoration code
+should operate correctly no matter where in the protected code an
+exit occurred.  For example, the following code
+is not correct:
+<P><pre>
+(unwind-protect 
+  (progn (incf *access-count*) 
+         (perform-access)) 
+  (decf *access-count*))
+</pre><P>
+If an exit occurs before completion of the <tt>incf</tt> operation
+the <tt>decf</tt> operation will be executed anyway, resulting in an
+incorrect value for <tt>*access-count*</tt>.
+The correct way to code this is as follows:
+<P><pre>
+(let ((old-count *access-count*)) 
+  (unwind-protect 
+    (progn (incf *access-count*) 
+           (perform-access)) 
+    (setq *access-count* old-count)))
+</pre><P>
+<P>
+As a general rule, <tt>unwind-protect</tt> guarantees to execute
+the <i>cleanup-form</i>s before exiting, whether it terminates
+normally or is aborted by a throw of some kind.
+(If, however, an exit occurs during execution of the <i>cleanup-form</i>s,
+no special action is taken.  The <i>cleanup-form</i>s of an <tt>unwind-protect</tt>
+are not protected by that <tt>unwind-protect</tt>, though they may be
+protected if that <tt>unwind-protect</tt> occurs within the protected
+form of another <tt>unwind-protect</tt>.)
+<tt>unwind-protect</tt> returns whatever results from evaluation of
+the <i>protected-form</i> and discards all the results
+from the <i>cleanup-form</i>s.
+<P>
+It should be emphasized that <tt>unwind-protect</tt> protects against
+<i>all</i> attempts to exit from the protected form,
+including not only ``dynamic exit'' facilities such as <tt>throw</tt>
+but also ``lexical exit'' facilities such as <tt>go</tt> and
+<tt>return-from</tt>.  Consider this situation:
+<P><pre>
+(tagbody 
+  (let ((x 3)) 
+    (unwind-protect 
+      (if (numberp x) (go out)) 
+      (print x))) 
+ out 
+  ...)
+</pre><P>
+When the <tt>go</tt> is executed, the call to <tt>print</tt> is executed first,
+and then the transfer of control to the tag <tt>out</tt> is completed.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (EXIT-EXTENT) <A NAME=8037>&#160;</A>  to clarify the interaction
+of <tt>unwind-protect</tt> with constructs that perform exits.
+<P>
+Let an <i>exit</i> be a point out of which control can be transferred.
+For a <tt>throw</tt> the exit is the matching <tt>catch</tt>; for
+a <tt>return-from</tt> the exit is the corresponding <tt>block</tt>.
+For a <tt>go</tt> the exit is the statement within the <tt>tagbody</tt> (the one to which
+the target tag belongs) which is being executed at the time the <tt>go</tt> is performed.
+<P>
+The extent of an exit is dynamic; it is not indefinite. The extent
+of an exit begins when the corresponding form (<tt>catch</tt>, <tt>block</tt>, or <tt>tagbody</tt>
+statement) is entered.  When the extent of an exit has ended, it is no
+longer legal to return from it.
+<P>
+Note that the extent of an exit is not the same thing as the scope or extent of the
+designator by which the exit is identified. For example, a <tt>block</tt>
+name has lexical scope but the extent of its exit is dynamic.  The
+extent of a <tt>catch</tt> tag could differ from the extent of the exit
+associated with the <tt>catch</tt> (which is exactly what is at issue here).
+The difference matters when there are transfers
+of control from the cleanup clauses of an <tt>unwind-protect</tt>.
+<P>
+When a transfer of control out of an exit is initiated by <tt>throw</tt>,
+<tt>return-from</tt>, or <tt>go</tt>,
+a variety of events occur before the transfer of control is complete:
+<UL><LI> The cleanup clauses of any intervening <tt>unwind-protect</tt> clauses
+    are evaluated.
+<LI> Intervening dynamic bindings of special variables and catch tags
+    are undone.
+<LI> Intervening exits are <i>abandoned</i>, that is, their extent ends and it
+    is no longer legal to attempt to transfer control from them.
+<LI> The extent of the exit being invoked ends.
+<LI> Control is finally passed to the target.
+</UL>
+The first edition left the order of these events in some doubt.
+The implementation note for <tt>throw</tt> hinted that the first two processes
+are interwoven, but it was unclear whether it is permissible
+for an implementation to abandon all 
+intervening exits before processing any intervening <tt>unwind-protect</tt>
+cleanup clauses.
+<P>
+The clarification adopted by X3J13 is as follows.
+Intervening exits are abandoned as soon as the transfer of control is initiated;
+in the case of a <tt>throw</tt>, this occurs at the beginning of the ``second pass''
+mentioned in the implementation note.  It is an error to
+attempt a transfer of control to an exit whose dynamic extent has
+ended.
+<P>
+Next the evaluation of <tt>unwind-protect</tt> cleanup clauses and the
+undoing of dynamic bindings and <tt>catch</tt> tags are performed together,
+in the order corresponding to the reverse of the order
+in which they were established.
+The effect of this is that the cleanup clauses of an <tt>unwind-protect</tt>
+will see the same dynamic bindings of variables and <tt>catch</tt> tags as were
+visible when the <tt>unwind-protect</tt> was entered.  (However, some of those
+<tt>catch</tt> tags may not be useable because they correspond to abandoned
+exit points.)
+<P>
+Finally  control is transferred to
+the originally invoked exit and simultaneously that exit is abandoned.
+<P>
+The effect of this specification is that once a program has attempted
+to transfer control to a particular exit, an <tt>unwind-protect</tt> cleanup
+form cannot
+step in and decide to transfer control to a more recent (nested) exit,
+blithely forgetting the original exit request.  However, a cleanup form
+may restate the request to transfer to the same exit that started
+the cleanup process.
+<P>
+Here is an example based on a nautical metaphor.  The function <tt>gently</tt>
+moves an oar in the water with low force, but if an oar gets stuck, the caller
+will catch a crab.  The function <tt>row</tt>
+takes a boat, an oar-stroking function,
+a stream, and a count; an oar is constructed for the boat and stream
+and the oar-stroking function is called <tt>:count</tt> times.
+The function <tt>life</tt> rows a particular boat.
+Merriment follows, except that if the oarsman is winded he must stop
+to catch his breath.
+<P><pre>
+(defun gently (oar) 
+  (stroke oar :force 0.5) 
+  (when (stuck oar) 
+    (throw 'crab nil))) 
+
+(defun row (boat stroke-fn stream &amp;key count) 
+  (let ((oar (make-oar boat stream))) 
+    (loop repeat count do (funcall stroke-fn oar)))) 
+
+(defun life () 
+  (catch 'crab 
+    (catch 'breath 
+      (unwind-protect 
+        (row *your-boat* #'gently *query-io* :count 3)) 
+        (when (winded) (throw 'breath nil))) 
+      (loop repeat 4 (set-mode :merry)) 
+      (dream))))
+</pre><P>
+Suppose that the oar gets stuck, causing <tt>gently</tt> to call <tt>throw</tt>
+with the tag <tt>crab</tt>.
+The program is then committed to exiting from the outer <tt>catch</tt> (the one
+with the tag <tt>crab</tt>).  As control breaks out of the <tt>unwind-protect</tt> form,
+the <tt>winded</tt> test is executed.  Suppose it is true; then another call to <tt>throw</tt>
+occurs, this time with the tag <tt>breath</tt>.  The inner <tt>catch</tt> (the one with
+the tag <tt>breath</tt>) has been abandoned as a result of the first
+<tt>throw</tt> operation (still in progress).  The clarification voted by X3J13
+specifies that the program is in error for attempting to transfer control
+to an abandoned exit point.  To put it in terms of the example: once you have
+begun to catch
+a crab, you cannot rely on being able to catch your breath.
+<P>
+Implementations may support longer extents for exits than is
+required by this specification,
+but portable programs may not rely on such extended extents.
+<P>
+(This specification is somewhat controversial.  An alternative proposal was
+that the abandoning of exits should be lumped in with
+the evaluation of <tt>unwind-protect</tt> cleanup clauses and the
+undoing of dynamic bindings and <tt>catch</tt> tags, performing all
+in reverse order of establishment.  X3J13 agreed that this approach is
+theoretically cleaner and more elegant but also more stringent
+and of little additional practical use.  There was some concern that
+a more stringent specification might be a great added burden to some
+implementors and would achieve only a small gain for users.)
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Special Form]</b><BR>
+<tt>throw</tt> <tt><i>tag</i></tt> <tt><i>result</i></tt><P>The <tt>throw</tt> special form transfers control to a matching
+<tt>catch</tt> construct.
+The <i>tag</i> is evaluated first to produce an object
+called the throw tag; then the <i>result</i> form is evaluated,
+and its results are saved (if the <i>result</i> form produces
+multiple values, then <i>all</i> the values are saved).
+The most recent outstanding catch whose tag matches the throw tag
+is exited; the saved results are returned as the value(s) of the catch.
+A <tt>catch</tt> matches only if the catch tag is <tt>eq</tt> to the throw tag.
+<P>
+In the process, dynamic variable
+bindings are undone back to the point of the catch, and any intervening
+<tt>unwind-protect</tt> cleanup code is executed.
+The <i>result</i> form is evaluated before the unwinding process commences,
+and whatever results it produces are returned from the catch.
+<P>
+If there is no outstanding catcher whose tag matches the throw tag,
+no unwinding of the stack is performed, and an error is signalled.
+When the error is signalled, the outstanding catchers and the dynamic
+variable bindings are those in force at the point of the throw.
+<P>
+<hr>
+<b>Implementation note:</b> These requirements imply that throwing should typically
+make two passes over the control stack.  In the first pass it simply
+searches for a matching catch.  In this search every <tt>catch</tt>
+must be considered, but every
+<tt>unwind-protect</tt> should be ignored.  On the second pass the stack
+is actually unwound, one frame at a time, undoing dynamic bindings
+and outstanding <tt>unwind-protect</tt> constructs in reverse order of creation
+until the matching catch is reached.
+<hr>
+<b>Compatibility note:</b> The name <tt>throw</tt> comes from MacLisp,
+but the syntax of <tt>throw</tt> in Common Lisp is different.
+The MacLisp syntax was <tt>(throw <i>form</i> <i>tag</i>)</tt>,
+where the <i>tag</i> was not evaluated.
+<hr>
+<P>
+
+<P>
+<BR> <HR><A NAME=tex2html2717 HREF="node97.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2715 HREF="node76.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2711 HREF="node95.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2719 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2720 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2718 HREF="node97.html"> Macros</A>
+<B>Up:</B> <A NAME=tex2html2716 HREF="node76.html"> Control Structure</A>
+<B> Previous:</B> <A NAME=tex2html2712 HREF="node95.html"> Rules Governing the </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

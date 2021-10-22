@@ -1,0 +1,502 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node83.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:32:03 GMT -->
+<HEAD>
+<TITLE>7.5. Establishing New Variable Bindings</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Establishing New Variable Bindings">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2560 HREF="node84.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2558 HREF="node76.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2552 HREF="node82.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2562 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2563 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2561 HREF="node84.html"> Conditionals</A>
+<B>Up:</B> <A NAME=tex2html2559 HREF="node76.html"> Control Structure</A>
+<B> Previous:</B> <A NAME=tex2html2553 HREF="node82.html"> Simple Sequencing</A>
+<HR> <P>
+<H1><A NAME=SECTION001150000000000000000>7.5. Establishing New Variable Bindings</A></H1>
+<P>
+<A NAME=VARBINDINGSECTION>During</A> the invocation of
+a function represented by a lambda-expression (or a closure of
+a lambda-expression, as produced by <tt>function</tt>),
+new bindings are established for the variables that are the
+parameters of the lambda-expression.  These bindings initially
+have values determined by the parameter-binding protocol discussed
+in section <A HREF="node64.html#LAMBDAEXPRESSIONSSECTION">5.2.2</A>.
+<P>
+The following constructs may also be used to establish bindings of variables,
+both ordinary and functional.
+<P>
+<BR><b>[Special Form]</b><BR>
+<tt>let</tt> <tt>({<i>var</i></tt> <tt>|</tt> <tt>(<i>var value</i>)}*)</tt> <tt>{<i>declaration</i>}*</tt> <tt>{<i>form</i>}*</tt>
+<P>
+A <tt>let</tt> form can be used to execute a series of forms
+with specified variables bound to specified values.
+<P>
+More precisely, the form
+<P><pre>
+(let ((<i>var1</i> <i>value1</i>) 
+      (<i>var2</i> <i>value2</i>) 
+      ... 
+      (<i>varm</i> <i>valuem</i>)) 
+  <i>declaration1</i> 
+  <i>declaration2</i> 
+  ... 
+  <i>declarationp</i> 
+  <i>body1</i> 
+  <i>body2</i> 
+  ... 
+  <i>bodyn</i>)
+</pre><P>
+first evaluates the expressions <i>value1</i>, <i>value2</i>, and so on,
+in that order, saving the resulting values.
+Then all of the variables <i>varj</i> are bound to the corresponding
+values in parallel; each binding will be a lexical binding unless
+there is a <tt>special</tt> declaration to the contrary.
+The expressions <i>bodyk</i> are then evaluated
+in order; the values of all but the last are discarded
+(that is, the body of a <tt>let</tt> form is an implicit <tt>progn</tt>).
+The <tt>let</tt> form returns what evaluating <i>bodyn</i> produces (if the
+body is empty, which is fairly useless, <tt>let</tt> returns <tt>nil</tt> as its value).
+The bindings of the variables have lexical scope and indefinite extent.
+<P>
+Instead of a list <tt>(<i>varj</i> <i>valuej</i>)</tt>, one may write simply
+<i>varj</i>.  In this case <i>varj</i> is initialized to <tt>nil</tt>.  As a matter
+of style, it is recommended that <i>varj</i> be written only when that
+variable will be stored into (such as by <tt>setq</tt>) before its first
+use.  If it is important that the initial value be <tt>nil</tt> rather than
+some undefined value, then it is clearer to write out
+<tt>(<i>varj</i> <tt>nil</tt>)</tt> if the initial value is intended to mean ``false,'' or
+<tt>(<i>varj</i> '<tt>()</tt>)</tt> if the initial value is intended to be an empty
+list.  Note that the code
+<P><pre>
+(let (x) 
+  (declare (integer x)) 
+  (setq x (gcd y z)) 
+  ...)
+</pre><P>
+is incorrect; although <tt>x</tt> is indeed set before it is used,
+and is set to a value of the declared type <tt>integer</tt>, nevertheless
+<tt>x</tt> momentarily takes on the value <tt>nil</tt> in violation of the type
+declaration.
+<P>
+Declarations may appear at the beginning of the body of a <tt>let</tt>.
+See <tt>declare</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+See also <tt>destructuring-bind</tt>.
+<P>
+X3J13 voted in January 1989
+(VARIABLE-LIST-ASYMMETRY) <A NAME=6304>&#160;</A> 
+to regularize the binding formats for <tt>do</tt>, <tt>do*</tt>, <tt>let</tt>,
+<tt>let*</tt>, <tt>prog</tt>, <tt>prog*</tt>, and <tt>compiler-let</tt>.
+The new syntactic definition for <tt>let</tt> makes the <i>value</i> optional:
+<P>
+<BR><b>[Special Form]</b><BR>
+<tt>let</tt> <tt>({<i>var</i></tt> <tt>|</tt> <tt>(<i>var</i> [<i>value</i>])}*)</tt> <tt>{<i>declaration</i>}*</tt> <tt>{<i>form</i>}*</tt>
+<P>
+This changes <tt>let</tt> to allow a list <tt>(<i>var</i>)</tt> to appear,
+meaning the same as simply <i>var</i>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Special Form]</b><BR>
+<tt>let*</tt> <tt>({<i>var</i></tt> <tt>|</tt> <tt>(<i>var value</i>)}*)</tt> <tt>{<i>declaration</i>}*</tt> <tt>{<i>form</i>}*</tt>
+<P>
+<tt>let*</tt> is similar to <tt>let</tt>, but the bindings of variables
+are performed sequentially rather than in parallel.  This allows
+the expression for the value of a variable to refer to variables
+previously bound in the <tt>let*</tt> form.
+<P>
+More precisely, the form
+<P><pre>
+(let* ((<i>var1</i> <i>value1</i>) 
+       (<i>var2</i> <i>value2</i>) 
+       ... 
+       (<i>varm</i> <i>valuem</i>)) 
+  <i>declaration1</i> 
+  <i>declaration2</i> 
+  ... 
+  <i>declarationp</i> 
+  <i>body1</i> 
+  <i>body2</i> 
+  ... 
+  <i>bodyn</i>)
+</pre><P>
+first evaluates the expression <i>value1</i>, then binds the variable
+<i>var1</i> to that value; then it evaluates <i>value2</i> and binds <i>var2</i>;
+and so on.
+The expressions <i>bodyj</i> are then evaluated
+in order; the values of all but the last are discarded
+(that is, the body of a <tt>let*</tt> form is an implicit <tt>progn</tt>).
+The <tt>let*</tt> form returns the results of evaluating <i>bodyn</i> (if the
+body is empty, which is fairly useless, <tt>let*</tt> returns <tt>nil</tt> as its value).
+The bindings of the variables have lexical scope and indefinite extent.
+<P>
+Instead of a list <tt>(<i>varj</i> <i>valuej</i>)</tt>, one may write simply <i>varj</i>.
+In this case <i>varj</i> is initialized to <tt>nil</tt>.  As a matter of style,
+it is recommended that <i>varj</i> be written only when that variable
+will be stored into (such as by <tt>setq</tt>) before its first use.
+If it is important that the initial value be <tt>nil</tt> rather than
+some undefined value, then it is clearer to write out
+<tt>(<i>varj</i> <tt>nil</tt>)</tt> if the initial value is intended to mean ``false,'' or
+<tt>(<i>varj</i> '<tt>()</tt>)</tt> if the initial value is intended to be an empty
+list.
+<P>
+Declarations may appear at the beginning of the body of a <tt>let*</tt>.
+See <tt>declare</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(VARIABLE-LIST-ASYMMETRY) <A NAME=6371>&#160;</A> 
+to regularize the binding formats for <tt>do</tt>, <tt>do*</tt>, <tt>let</tt>,
+<tt>let*</tt>, <tt>prog</tt>, <tt>prog*</tt>, and <tt>compiler-let</tt>.
+The new syntactic definition for <tt>let*</tt> makes the <i>value</i> optional:
+<P>
+<BR><b>[Special Form]</b><BR>
+<tt>let*</tt> <tt>({<i>var</i></tt> <tt>|</tt> <tt>(<i>var</i> [<i>value</i>])}*)</tt> <tt>{<i>declaration</i>}*</tt> <tt>{<i>form</i>}*</tt>
+<P>
+This changes <tt>let*</tt> to allow a list <tt>(<i>var</i>)</tt> to appear,
+meaning the same as simply <i>var</i>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<BR><b>[Special Form]</b><BR>
+<tt>compiler-let</tt> <tt>({<i>var</i></tt> <tt>|</tt> <tt>(<i>var</i></tt> <tt><i>value</i>)}*)</tt> <tt>{<i>form</i>}*</tt>
+<P>When executed by the Lisp interpreter, <tt>compiler-let</tt> behaves
+exactly like <tt>let</tt> with all the variable bindings implicitly
+declared <tt>special</tt>.  When the compiler processes this form,
+however, no code is compiled for the bindings;
+instead, the processing of the body by the compiler
+(including, in particular, the expansion of any macro calls
+within the body) is done with
+the special variables bound to the indicated values <i>in the
+execution context of the compiler</i>.  This is primarily useful for
+communication among complicated macros.
+<P>
+Declarations may <i>not</i> appear at the beginning of the body
+of a <tt>compiler-let</tt>.
+<P>
+<hr>
+<b>Rationale:</b> Because of the unorthodox
+handling by <tt>compiler-let</tt> of its variable bindings,
+it would be complicated and confusing to permit declarations
+that apparently referred to the variables bound by <tt>compiler-let</tt>.
+Disallowing declarations eliminates the problem.
+<hr>
+<P>
+X3J13 voted in January 1989
+(VARIABLE-LIST-ASYMMETRY) <A NAME=6405>&#160;</A> 
+to regularize the binding formats for <tt>do</tt>, <tt>do*</tt>, <tt>let</tt>,
+<tt>let*</tt>, <tt>prog</tt>, <tt>prog*</tt>, and <tt>compiler-let</tt>.
+The new syntactic definition for <tt>compiler-let</tt> makes the <i>value</i> optional:
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>compiler-let</tt> <tt>({<i>var</i></tt> <tt>|</tt> <tt>(<i>var</i></tt> <tt>[<i>value</i>])}*)</tt> <tt>{<i>form</i>}*</tt>
+<P>This changes <tt>compiler-let</tt> to allow a list <tt>(<i>var</i>)</tt> to appear,
+meaning the same as simply <i>var</i>.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (COMPILER-LET-CONFUSION) <A NAME=6425>&#160;</A>  to remove
+<tt>compiler-let</tt> from the language.  Many uses of <tt>compiler-let</tt>
+can be replaced with more portable code that uses <tt>macrolet</tt>
+or <tt>symbol-macrolet</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Special Form]</b><BR>
+<tt>progv</tt> <tt><i>symbols</i></tt> <tt><i>values</i></tt> <tt>{<i>form</i>}*</tt><P><tt>progv</tt> is a special form that allows binding one or more dynamic
+variables whose names may be determined at run time.  The sequence of
+forms (an implicit <tt>progn</tt>)
+is evaluated with the dynamic variables whose names are in the list
+<i>symbols</i> bound to corresponding values from the list <i>values</i>.
+(If too few values are supplied, the remaining symbols are bound and then
+made to have no value; see <tt>makunbound</tt>.  If too many values are
+supplied, the excess values are ignored.)  The results of the <tt>progv</tt>
+form are those of the last
+<i>form</i>.  The bindings of the dynamic variables are undone on
+exit from the <tt>progv</tt> form.  The lists of symbols and values are
+computed quantities; this is what makes <tt>progv</tt> different from, for
+example, <tt>let</tt>, where the variable names are stated explicitly in
+the program text.
+<P>
+<tt>progv</tt> is particularly useful for writing interpreters for languages
+embedded in Lisp; it provides a handle on the mechanism for binding
+dynamic variables.
+<P>
+<BR><b>[Special Form]</b><BR>
+<pre>
+<tt>flet</tt> <tt>({(<i>name</i> <i>lambda-list</i></tt>
+         <b>[[</b> <tt>{<i>declaration</i>}*</tt> <tt>|</tt> <tt><i>doc-string</i> <b>]]</b></tt> <tt>{<i>form</i>}*)}*)</tt>
+     <tt>{<i>form</i>}*</tt> <tt>
+</tt><tt>labels</tt> <tt>({(<i>name</i></tt> <tt><i>lambda-list</i></tt>
+         <b>[[</b> <tt>{<i>declaration</i>}*</tt> <tt>|</tt> <tt><i>doc-string</i> <b>]]</b></tt> <tt>{<i>form</i>}*)}*)</tt>
+     <tt>{<i>form</i>}*</tt> <tt>
+</tt><tt>macrolet</tt> <tt>({(<i>name varlist</i></tt>
+         <b>[[</b> <tt>{<i>declaration</i>}*</tt> <tt>|</tt> <tt><i>doc-string</i> <b>]]</b></tt> <tt>{<i>form</i>}*)}*)</tt>
+     <tt>{<i>form</i>}*</tt> <tt>
+</pre>
+<P><tt>flet</tt> may be used to define locally named functions.  Within the
+body of the <tt>flet</tt> form, function names matching those defined
+by the <tt>flet</tt> refer to the locally defined functions rather than to
+the global function definitions of the same name.
+<P>
+Any number of functions may be simultaneously defined.  Each definition
+is similar in format to a <tt>defun</tt> form: first a name,
+then a parameter list (which may contain <tt>&amp;optional</tt>, <tt>&amp;rest</tt>, or <tt>&amp;key</tt>
+parameters), then optional declarations and documentation string,
+and finally a body.
+<P><pre>
+(flet ((safesqrt (x) (sqrt (abs x)))) 
+  ;; The safesqrt function is used in two places. 
+  (safesqrt (apply #'+ (map 'list #'safesqrt longlist))))
+</pre><P>
+<P>
+The <tt>labels</tt> construct is identical in form to the <tt>flet</tt> construct.
+These constructs differ
+in that the scope of the defined function names for <tt>flet</tt>
+encompasses only the body, whereas for <tt>labels</tt> it encompasses the
+function definitions themselves.  That is, <tt>labels</tt> can be used to
+define mutually recursive functions, but <tt>flet</tt> cannot.  This
+distinction is useful.  Using <tt>flet</tt> one can locally redefine a global
+function name, and the new definition can refer to the global definition;
+the same construction using <tt>labels</tt> would not have that effect.
+<P><pre>
+(defun integer-power (n k)       ;A highly &quot;bummed&quot; integer 
+  (declare (integer n))          ; exponentiation routine 
+  (declare (type (integer 0 *) k)) 
+  (labels ((expt0 (x k a) 
+             (declare (integer x a) (type (integer 0 *) k)) 
+             (cond ((zerop k) a) 
+                   ((evenp k) (expt1 (* x x) (floor k 2) a)) 
+                   (t (expt0 (* x x) (floor k 2) (* x a))))) 
+           (expt1 (x k a) 
+             (declare (integer x a) (type (integer 1 *) k)) 
+             (cond ((evenp k) (expt1 (* x x) (floor k 2) a)) 
+                   (t (expt0 (* x x) (floor k 2) (* x a)))))) 
+    (expt0 n k 1)))
+</pre><P>
+<P>
+<tt>macrolet</tt> is similar in form to <tt>flet</tt> but defines local macros,
+using the same format used by <tt>defmacro</tt>.
+The names established by <tt>macrolet</tt> as names for macros are
+lexically scoped.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+I have observed that, while most Common Lisp users pronounce <tt>macrolet</tt>
+to rhyme with ``silhouette,'' a small but vocal minority pronounce it
+to rhyme with ``Chevrolet.''  A very few extremists furthermore
+adjust their pronunciation
+of <tt>flet</tt> similarly: they say ``flay.''
+Hey, hey!  <i>Tr&#232;s outr&#233;.</i>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+Macros often must be expanded at ``compile time'' (more generally,
+at a time before the program itself is executed), and so
+the run-time values of variables are not available to macros
+defined by <tt>macrolet</tt>.
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+The precise rule is that the macro-expansion
+functions defined by <tt>macrolet</tt> are defined in the <i>global</i> environment;
+lexically scoped entities that would ordinarily be lexically apparent
+are not visible within the expansion functions.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (DEFINING-MACROS-NON-TOP-LEVEL) <A NAME=6489>&#160;</A> 
+to retract the previous sentence and specify that the macro-expansion
+functions created by <tt>macrolet</tt> are defined in the lexical environment in which
+the <tt>macrolet</tt> form appears, not in the null lexical environment.
+Declarations, <tt>macrolet</tt> definitions, and <tt>symbol-macrolet</tt> definitions
+affect code within the expansion functions in a <tt>macrolet</tt>, but the
+consequences are undefined if such code attempts to refer to
+any local variable or function bindings that are visible in that
+lexical environment.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+However,
+lexically scoped entities <i>are</i> visible
+within the body of the <tt>macrolet</tt> form and <i>are</i> visible
+to the code that is the expansion of a macro call.  The following example
+should make this clear:
+<P><pre>
+;;; Example of scoping in macrolet. 
+
+(defun foo (x flag) 
+  (macrolet ((fudge (z) 
+                ;;The parameters <tt>x</tt> and <tt>flag</tt> are not accessible 
+                ;; at this point; a reference to <tt>flag</tt> would be to 
+                ;; the global variable of that name. 
+                `(if flag 
+                     (* ,z ,z) 
+                     ,z))) 
+    ;;The parameters <tt>x</tt> and <tt>flag</tt> are accessible here. 
+    (+ x 
+       (fudge x) 
+       (fudge (+ x 1)))))
+</pre><P>
+The body of the <tt>macrolet</tt> becomes
+<P><pre>
+(+ x 
+   (if flag 
+       (* x x) 
+       x)) 
+   (if flag 
+       (* (+ x 1) (+ x 1)) 
+       (+ x 1)))
+</pre><P>
+after macro expansion.  The occurrences of <tt>x</tt> and <tt>flag</tt> legitimately
+refer to the parameters of the function <tt>foo</tt> because those parameters are
+visible at the site of the macro call which produced the expansion.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988 (FLET-IMPLICIT-BLOCK) <A NAME=6515>&#160;</A> 
+to specify that the body of each function or expander function defined
+by <tt>flet</tt>, <tt>labels</tt>, or <tt>macrolet</tt>
+is implicitly enclosed in a <tt>block</tt> construct
+whose name is the same as the <i>name</i> of the function.
+Therefore <tt>return-from</tt> may be used to exit from the function.
+<P>
+X3J13 voted in March 1989 (FUNCTION-NAME) <A NAME=6524>&#160;</A>  to extend <tt>flet</tt> and <tt>labels</tt>
+to accept any function-name (a symbol or a list
+whose <i>car</i> is <tt>setf</tt>-see section <A HREF="node77.html#FUNCTIONNAMESECTION">7.1</A>) as a <i>name</i>
+for a function to be locally defined.  In this way one can create local definitions
+for <tt>setf</tt> expansion functions.  (X3J13 explicitly declined to extend
+<tt>macrolet</tt> in the same manner.)
+<P>
+X3J13 voted in March 1988
+(FLET-DECLARATIONS) <A NAME=6535>&#160;</A> 
+to change <tt>flet</tt>, <tt>labels</tt>, and <tt>macrolet</tt>
+to allow declarations to appear before the body.
+The new descriptions are therefore as follows:
+<P>
+<BR><b>[Special Form]</b><BR>
+<pre>
+<tt>flet</tt> <tt>({(<i>name</i> <i>lambda-list</i></tt>
+         <b>[[</b> <tt>{<i>declaration</i>}*</tt> <tt>|</tt> <tt><i>doc-string</i> <b>]]</b></tt> <tt>{<i>form</i>}*)}*)</tt>
+     <tt>{<i>declaration</i>}*</tt> <tt>{<i>form</i>}*</tt> <tt>
+</tt><tt>labels</tt> <tt>({(<i>name</i></tt> <tt><i>lambda-list</i></tt>
+         <b>[[</b> <tt>{<i>declaration</i>}*</tt> <tt>|</tt> <tt><i>doc-string</i> <b>]]</b></tt> <tt>{<i>form</i>}*)}*)</tt>
+     <tt>{<i>declaration</i>}*</tt> <tt>{<i>form</i>}*</tt> <tt>
+</tt><tt>macrolet</tt> <tt>({(<i>name varlist</i></tt>
+         <b>[[</b> <tt>{<i>declaration</i>}*</tt> <tt>|</tt> <tt><i>doc-string</i> <b>]]</b></tt> <tt>{<i>form</i>}*)}*)</tt>
+     <tt>{<i>declaration</i>}*</tt> <tt>{<i>form</i>}*</tt> <tt>
+</pre>
+
+<P>
+These are now syntactically more similar to such
+other binding forms as <tt>let</tt>.
+<P>
+For <tt>flet</tt> and <tt>labels</tt>, the bodies of
+the locally defined functions are part of
+the scope of pervasive declarations appearing before the main body.
+(This is consistent with the treatment of initialization forms in <tt>let</tt>.)
+For <tt>macrolet</tt>, however, the bodies of
+the locally defined macro expander functions are <i>not</i> included in
+the scope of pervasive declarations appearing before the main body.
+(This is consistent with the rule, stated below, that the bodies of
+macro expander functions are in the global environment, not the local
+lexical environment.)
+Here is an example:
+<P><pre>
+(flet ((stretch (x) (* x *stretch-factor*)) 
+       (chop (x) (- x *chop-margin*))) 
+  (declare (inline stretch chop))   ;Illegal in original Common Lisp 
+  (if (&gt; x *chop-margin*) (stretch (chop x)) (chop (stretch x))))
+</pre><P>
+X3J13 voted to permit declarations of the sort noted above.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<BR><b>[Special Form]</b><BR>
+<pre>
+<tt>symbol-macrolet</tt> <tt>({(<i>var</i></tt> <tt><i>expansion</i>)}*)</tt>
+                  <tt>{<i>declaration</i>}*</tt> <tt>{<i>form</i>}*</tt>
+</pre>
+<P>X3J13 voted in June 1988
+(CLOS) <A NAME=6569>to</A> adopt the Common Lisp Object System.  Part of this proposal
+is a general mechanism, <tt>symbol-macrolet</tt>,
+for treating certain variable names as if they were
+parameterless macro calls.  This facility may be useful independent of CLOS.
+X3J13 voted in March 1989
+(SYMBOL-MACROLET-SEMANTICS) <A NAME=6571>&#160;</A> 
+to modify the definition of <tt>symbol-macrolet</tt> substantially
+and also voted
+(SYMBOL-MACROLET-DECLARE) <A NAME=6573>&#160;</A>  to allow declarations before the body
+of <tt>symbol-macrolet</tt> but with peculiar treatment of <tt>special</tt>
+and type declarations.
+<P>
+The <i>forms</i> are executed as an implicit <tt>progn</tt> in a lexical
+environment that causes every reference to any defined <i>var</i>
+to be replaced by the corresponding <i>expansion</i>.  It is as if
+the reference to the <i>var</i> were a parameterless macro call;
+the <i>expansion</i> is evaluated or otherwise processed
+in place of the reference
+
+(in particular, the expansion form is itself subject
+to further expansion-this is one of the changes
+(SYMBOL-MACROLET-SEMANTICS) <A NAME=6583>&#160;</A> 
+from the
+original definition in the CLOS proposal).  Note, however, that the names of
+such symbol macros occupy the name space of variables, not the
+name space of functions; just as one may have a function
+(or macro, or special form) and a variable
+with the same name without interference, so one may have an ordinary
+macro (or function, or special form)
+and a symbol macro with the same name.
+The use of <tt>symbol-macrolet</tt> can therefore be shadowed by <tt>let</tt>
+or other constructs that bind variables; <tt>symbol-macrolet</tt> does
+not substitute for all occurrences of a <i>var</i> as a variable
+but only for those occurrences that would be construed as
+references in the scope of a lexical binding of <i>var</i> as
+a variable.  For example:
+<P><pre>
+(symbol-macrolet ((pollyanna 'goody)) 
+  (list pollyanna (let ((pollyanna 'two-shoes)) pollyanna))) 
+ => (goody two-shoes), <i>not</i> (goody goody)
+</pre><P>
+
+One might think that <tt>'goody</tt> simply replaces all occurrences of
+<tt>pollyanna</tt>, and so the value of the <tt>let</tt> would be
+<tt>goody</tt>; but this is not so.  A little reflection shows that under
+this incorrect interpretation the body in expanded form would be
+<P><pre>
+(list 'goody (let (('goody 'two-shoes)) 'goody))
+</pre><P>
+which is syntactically malformed.  The correct expanded form is
+<P><pre>
+(list 'goody (let ((pollyanna 'two-shoes)) pollyanna))
+</pre><P>
+because the rebinding of <tt>pollyanna</tt> by the <tt>let</tt> form
+shadows the symbol macro definition.
+<P>
+The <i>expansion</i> for each <i>var</i> is not evaluated at binding time
+but only after it has replaced a reference to the <i>var</i>.
+The <tt>setf</tt> macro allows a symbol macro to be used as a <i>place</i>,
+in which case its expansion is used; moreover, <tt>setq</tt> of a variable
+that is really a symbol macro will be treated as if <tt>setf</tt> had
+been used.
+The values of the last form are returned, or <tt>nil</tt> if there is no value.
+<P>
+See <tt>macroexpand</tt> and <tt>macroexpand-1</tt>; they will expand symbol
+macros as well as ordinary macros.
+<P>
+Certain <i>declarations</i> before the body are handled in a peculiar manner;
+see section <A HREF="node104.html#DECLARESYNTAXSECTION">9.1</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+
+<P>
+<BR> <HR><A NAME=tex2html2560 HREF="node84.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2558 HREF="node76.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2552 HREF="node82.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2562 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2563 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2561 HREF="node84.html"> Conditionals</A>
+<B>Up:</B> <A NAME=tex2html2559 HREF="node76.html"> Control Structure</A>
+<B> Previous:</B> <A NAME=tex2html2553 HREF="node82.html"> Simple Sequencing</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

@@ -1,0 +1,101 @@
+;; This file started 4/2/92.
+;; 3.17 - 4/2/92 by miller reader shouldn't use CLIM since it may not be active.
+;; 3.18 - ? by miller add lock-idle-p to process.lisp
+;; 3.19 - ? by miller add some local allegro hacks for defsystem support 
+;;                      (lisp-example; edit-system)
+;; 3.20 - 5/5/92 by miller add fast versions of union and intersection for sorted lists
+;;                       (returns sorted list).
+;; 3.21 - 5/13/92 by miller add deftype of alist.
+;; 3.22 - 5/21/92 by miller add preliminary version of server to distribution 
+;;                          (non-functional).
+;; 3.23 - 5/21/1992 by Librarian Librarian Functions
+;; 3.24 - 6/24/92 by miller fixup raw-read-char package
+;; 3.25 - 7/2/92 by miller improve allegro process compatibility package
+;; 3.26 - 7/16/92 by miller make resources initial copies immediately tenure 
+;;                          the resulting objects.
+;; 3.27 - 7/30/92 by miller fix defflags to make sure we use typename in constant
+;;                           to avoid name collisions
+;; 3.28 - 8/04/92 by miller fix macroexpansion of process:make-process so it
+;;                           doesn't complain about unreachable clause,
+;;                           (some) complaints about i and object in resources.
+;; 3.29 - 8/14/92 by miller make defpackage form compatible with those people who
+;;                          use lowercase, case sensitive lisps add true-list-p
+;;                          to check for thingos that are lists without a dotted
+;;                          pair at the end.
+;; 3.30 - 8/27/92 by miller make allegro initialize *random-state* on warm boot
+;; 3.31 - 9/25/92 by miller add indent methods for allegro (for the macros)
+;; 3.32 - 9/28/92 by miller add describe-object method for allegro for hashtables to describe the contents
+;; 3.33 - 9/28/92 by miller add :lep initialization list (runs after lep interface started).
+;; 3.34 - 10/29/92 by miller update re-to-dfa for ascii (had symbolics character types for operators)
+;; 3.35 - 11/12/92 by miller update parser error to return a file position when possible.
+;; 3.36 - 11/16/92 by miller increase sleep before :lep initializations are run to 8 secs.
+;; 3.37 - 11/20/92 by miller Add scheme stream model, and scheme force/delay (code by barmar@think.com)
+;; 3.38 - 11/30/92 by miller Remove clim code from warn-or-error... just use more normal case. May want to recast in
+;;                           terms of conditions (eventually).
+;; 3.39 - 12/2/92  by miller export scheme-stream-p
+;; 3.40 - 12/3/92  by miller new function: progfoo
+;; 3.41 - 12/8/92  by miller add Dick Waters series package to cl-lib (also man pages supplied for fi:clman).
+;; 3.42 - 12/10/92 by miller fix case sensitivity in macro-indent-rule (really a problem in fi/emacs, by my estimate, since
+;;                           it's the function that's case sensitive, but easy to just coerce everything to lowercase here).
+;; 3.43 - 12/31/92 by miller fix map-resource to use funcall instead of apply of user function.
+;; 3.44 -  1/ 7/93 by miller add mv-progfoo; prog1 is to progfoo as multiple-value-prog1 is to mv-progfoo.
+;;                           make ss-head and ss-tail handle non scheme-stream arguments by returning nil (allows cdr of
+;;                           nil type metaphor to be handled consistant with normal lists).
+;; 3.45 -  1/28/93 by miller minor enhancement to reader to eval expressions beginning with #\( <since that's what I
+;;                           always type :-)
+;; 3.46 -  2/ 8/93 by miller add with-rhyme macro (doesn't do anything, but is a nice "commentary" on specious code; no
+;;                           reason so must be rhyme :-).
+;; 3.47 -  2/15/93 by miller add get-compiled-function-name from example in email.
+;; 3.48 -  2/26/93 by miller add fast-read-char and fast-read-file-char from cutting@parc.xerox.com
+;; 3.49 -  3/ 1/93 by miller add maplist-dotted-list for orthogonality
+;; 3.50 -  3/ 2/93 by miller fix bug in above - was nconcing results instead of appending them.
+;; 3.51 -  4/ 7/93 by miller have let-maybe do constant folding
+;; 3.52 -  4/ 8/93 by miller add more logical functions: xor, eqv, nand and nor. Short circuit too!
+;; 3.53 -  4/ 9/93 by miller integrate some of Mark K's new functions, eg. the query library. (already partly used from
+;;                           earlier version)
+;; 3.54 -  4/26/93 by miller No new code, just reorganization into essential and non-essential directories; the latter
+;;                           not being loaded by the defsystem (not needed by Rhet, Shocker, etc.). Much duplicates
+;;                           what's in Mark K's repository too.
+;; 3.55 -  5/19/93 by miller patch to allegro #n# macro to handle common cases of
+;;                           non-circular eq preservation inside classes.
+;; 3.56 -  5/24/93 by miller add list-scheme-stream; an analogue to cl:list for scheme-streams.
+;; 3.57 -  5/28/93 by miller reimplement the dotted-list functions for higher efficiency (avoid nreverse), and avoid consing.
+;; 3.58 -  6/ 1/93 by miller reimplement fast-union, fast-intersection for even higher efficiency (no nreverse).
+;; 3.59 -  6/ 4/93 by miller change resources to use defstruct and single get for efficiency.
+;; 3.60 -  6/11/93 by miller add portable version of locatives (well, a simulation of them).
+;; 3.61 -  6/14/93 by miller generalize above, translation table provided for allegro (now walks code).
+;; 3.62 -  6/18/93 by miller add nregex code to cl-lib; more flexible (though slower) than re-to-dfa.
+;; 3.63 -  6/18/93 by miller incorporate some suggestions by smh@franz.com into locative code.
+;; 3.64 -  7/14/93 by miller put unwind-protect into raw-read-char code for allegro, so we don't get stuck in wrong mode
+;; 3.65 -  8/ 4/93 by miller add :cl-lib to *features*
+;; 3.66 - 10/20/93 by miller add raw-read-char-no-hang (for allegro)
+;; 3.67 - 10/21/93 by miller add extra delay to the raw-read stuff since the :cbreak isn't synchronous (sigh).
+;; 3.68 - 12/ 9/93 by miller add :lep feature if lep is present (for allegro), add while-not function 
+;;                           (I'd call it until, but series takes that).
+;; 3.69 - 12/29/93 by miller add copy-array
+;; 3.70 - 12/29/93 by miller update/improve resources code to define resource-specific (de)allocators, etc.
+;; 3.71 -  1/ 4/94 by miller add triangular array support (triangular-matrices.lisp)
+;; 3.72 -  1/ 5/94 by miller export copy-tarray, fix vanished taref-lower-tarray (overzealous kill?)
+;; 3.73 -  1/ 7/94 by miller fix bug in copy-tarray; reused dimensions from original array, instead of copying it (a list).
+;; 3.74 -  1/13/94 by miller fix bug in resources (code added in 3.70) that didn't properly splice in generated macro.
+;; 3.75 -  1/14/94 by miller minor changes for compatiblity with allegro 4.2 final.
+;; 3.76 -  1/31/94 by miller add back in some code to resrouces (e.g. map-foo)
+;; 3.77 -  2/ 4/94 by miller make update-alist eval in ltr order; dotted list functions now only expand passed fn once.
+;; 3.78 -  2/11/94 by miller separate error handling from cl-extensions into better-errors.lisp. Add clim hander for parse-error.
+;;                           add new "check" function; an enhanced version of assert.
+;; 3.79 -  4/ 6/94 by miller add prompt-and-read, prompt-for, and George Ferguson's popup-read-form and popup-error (clim only).
+;;                           the former use the latter if clim is available to create a popup window.
+;; 3.80 -  4/10/94 by miller port to MCL 2.0.1
+;; 3.81 -  4/25/94 by miller add load-once to minimize reloading of files outside a defsystem.
+;; 3.82 -  5/ 2/94 by miller add new allegro single-writer multi-reader character stream, for async ipc.
+;; 3.83 -  5/ 4/94 by miller export convert-to-presentation-type since it's generally useful for clim users.
+;; 3.84 -  5/ 4/94 by miller also separate and export *default-presentation-type* for the above; define clear-load-once.
+;; 3.85 -  5/ 4/94 by miller enhance 3.82's stream for better read-line performance, and handle stream-line-column and stream-start-line-p messages.
+;; 3.86 -  5/ 5/94 by miller fix glitch in add-initialization when list not previously bound.
+;; 3.87 -  5/ 6/94 by miller add clim-prompt-for-with-default
+;; 3.88 -  5/ 9/94 by miller fix bug in stream-unread-char for string-io-stream.
+;; 3.89 -  5/26/94 by miller change abort handler in clim prompt-and-read functions to see if an abort restart is present,
+;;                           and if not, to simply return the values (NIL T).
+;;
+;;
+;;                           suggestions/comments welcome! Send contributions to miller@cs.rochester.edu and mark them FOR CL-LIB.

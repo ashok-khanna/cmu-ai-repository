@@ -1,0 +1,637 @@
+
+REVERSIBLE GRAMMAR IN NATURAL LANGUAGE PROCESSING
+
+Edited by Tomek Strzlakowski
+
+
+PREFACE
+
+
+Reversible Grammar
+
+
+The notion that a single grammar could be used in natural language analysis and
+generation is by no means a surprising one. Intuitively we feel that it should
+be possible to propose a set of rules or principles which would define the class
+of well-formed expressions of a given language independently of any particular
+task. Yet despite the variety of linguistic theories available today this result
+remained elusive until recently. In the past few years, however, there has been
+an increasing interest in using reversible and bidirectional grammars in natural
+language processing.  Significant new results have emerged from research in
+theoretical linguistics, computational linguistics and computer science.
+
+
+What is a reversible grammar? To a degree at least the answer may depend on
+whom we ask. A linguist may say that a reversible grammar is a specification
+of a language that can be used for both analysis and synthesis of well-formed
+expressions. Since a grammar can be viewed as a transducer between linguis-
+tic surface strings and some internal representations of meaning, reversibility
+means the ability to perform such translations in both directions, using in each
+case the same grammar.  The practical aspects of this bidirectionality are by
+no means trivial, and involve completeness and soundness of the linguistic cov-
+erage, redundancy and ambiguity of representation, sharability of information,
+and various types of preferences.
+
+
+A computational linguist, on the other hand, will primarily be concerned with
+how to construct efficient programs that can interpret a given grammar:  as
+a parser (to recognize well-formed strings and assign them appropriate rep-
+resentations), as a generator (to produce appropriate surface strings given an
+internal representation of meaning and speaker's intentions), or both (to create
+a program that can accomplish either task). These three options can be further
+elaborated as follows:
+
+
+
+  1.A grammar can be compiled into two separate programs of a parser and
+
+
+                                 ix
+
+
+
+x                                Reversible Grammar in NLP
+
+
+
+    a generator with each program requiring a different evaluation strategy,
+    though possibly within a uniform architecture.
+
+  2.The parser and the generator are separate programs but they are exe-
+    cutable using the same evaluation strategy, e.g., top-down left-to-right,
+    and therefore are inverses of each other.
+
+  3.There is only one program implementing both the parser and the generator
+    and the evaluation strategy can handle it being run in either direction, 
+    e.g., head-driven evaluation.
+
+
+
+Each of these options touches on different computational problems of attaining
+reversibility, thus showing yet another aspect of reversible grammar.  While
+option (1) is primarily a compilation problem, options (2) and (3) must deal
+directly with program reversibility, a problem discussed by various researchers
+including [7], [3], and [21]. Options (2) and (3) may in fact be considered as
+opposite ends of an entire spectrum of options. Those closer to (2) assume
+existence of a cheap, but restrictive evaluation strategy, such as the depth-
+first left-to-right, and thus restrict the class of bi- and multi- directional 
+programs to a small, uninteresting set. Therefore a uni-directional program
+needs to be inverted for computation in the reverse. As we move away from (2) 
+and towards (3), the restrictions upon the evaluation strategy are relaxed, 
+and the class of bidirectional programs grows, and so does the cost of 
+computation; however, no explicit program inversion is required.
+
+
+Exploring bidirectionality of natural language processing has long been believed
+desirable for reasons to be summarized below, and this viewpoint has been reit-
+erated by many researchers (e.g., [11], [8], [1], [19], [4]). One of the earlier
+works emphasizing the significance of bidirectionality in natural language proc-
+essing was [13], which presented a simple system for translating short para-
+graphs in English into semantic network representation and generating English 
+summaries from the semantic networks using, in both cases, the same Horn clause
+program.  At the same time, it has been common knowledge that except for
+very simple systems, a straightforward application of e.g., a natural language
+parser to a generation task faced very serious efficiency problems, especially
+within chiefly procedural systems such as DIAGRAM [9].  The emergence of
+unification-based linguistic formalisms [2], [8], [10] has paved the way for 
+vigorous research on reversibility which eventually led to practical results.1
+ 
+ 
+What are the advantages that we may expect from a bidirectional natural
+___________
+  1 Unification, being an associative and commutative operation, lends itself 
+naturally to inversion.
+
+
+
+Preface                                                           xi
+
+
+
+language system beyond its mathematical properties? Among the arguments
+for adopting a bidirectional design in natural language processing the following
+are perhaps the most widely shared:
+
+
+
+    A bidirectional natural language system, or a system whose inverse can
+    be derived by a fully automated compile-time process, greatly reduces the
+    effort required for system development, since we need to write only one
+    program or specification instead of two. This is especially true if creating
+    the single specification does not require substantial extra effort as com-
+    pared to one-directional design. The actual amount of savings ultimately
+    depends upon the extent to which the system is made bidirectional, for
+    example, how much of the language analysis process can be inverted for
+    generation.
+
+    Using a single grammar underlying both the analysis and the synthesis
+    processes leads to more accurate capturing of the language. Although no
+    natural language grammar can be guaranteed to be complete, the gram-
+    mars used in parsing tend to be unsound, in that they frequently over-
+    accept, i.e., accept some ill-formed strings as legitimate sentences.  This
+    becomes immediately visible when a parser is run in the reverse on the rep-
+    resentations it produces. The grammars used for generation, on the other
+    hand, are usually made "too tight" as a result of limiting their output to
+    the "best" surface forms. It is clear that such grammars are dramatically
+    incomplete for parsing. A reversible system for both parsing and genera-
+    tion requires a finely balanced grammar which is sound and as complete
+    as possible.  Writing a balanced grammar puts more pressure upon the
+    linguist but, it should also be noted, a reversible grammar can serve as a
+    powerful debugging tool in building such systems.
+
+    A reversible grammar provides, by design, a match between a system's
+    analysis and generation capabilities, which is especially important in in-
+    teractive systems.  A discrepancy in this capacity may mislead the user,
+    who tends to assume that what is generated as output is also accept-
+    able as input, and vice-versa. While this match can often be achieved in
+    non-reversible systems where the parser and the generator are constructed
+    independently of one another, it comes at the cost of a substantial effort.
+
+    Finally from the computational viewpoint a bidirectional system can be
+    expected to be more robust, certainly easier to maintain and modify, and
+    altogether more perspicuous.
+
+
+
+xii                               Reversible Grammar in NLP
+
+
+
+Contents of this volume
+
+
+This volume contains 15 papers representing varying perspectives on reversible
+grammars: from a linguistic and psychological phenomenon to a computational
+property of certain classes of programs to an application tool.  The papers
+give an up-to-date and highly representative review of this active research 
+field and its impact on other areas of computational linguistics including 
+natural language generation, machine translation, semantic and pragmatic 
+processing.  I attempted to subdivide these articles into 6 thematic groups 
+each containing 2 or 3 closely related papers, as follows:
+
+
+
+  1.Linguistic Theory group including papers by Marrafa and Saint-Dizier,
+    Dymetman, and Newman and van Noord. Papers in this groups concen-
+    trate on selected linguistic aspects of reversibility.
+
+  2.Uniform Architecture group including papers by Zajac, Ishizaki, and Hasida.
+    These papers discuss problems of uniform architecture in language analysis
+    and synthesis tasks.
+
+  3.Reversible Computation group including papers by Block and Strzalkowski.
+    These papers consider computational aspects of reversible grammars and
+    reversible computation.
+
+  4.Shared Preferences and Knowledge group including papers by Barnett,
+    Fedder and McDonald. Papers in this group investigate different knowl-
+    edge requirements and preferences of analysis and synthesis processes.
+
+  5.Machine Translation group including a paper by Estival and a paper by
+    Barnett, Mani and Rich. Application of reversible grammars in machine
+    translation research is discussed.
+
+  6.Systemic Grammar group including papers by Fawcett and O'Donoghue.
+    These papers present a different and somewhat dissenting view on re-
+    versible grammar from a generative perspective.
+
+
+
+Marrafa and Saint-Dizier present a natural language processing formalism based
+on type construction principles, inspired by the work of Ait-Kaci, and const-
+raint logic programming. Their approach to reversibility assumes one declarative
+grammar from which two separate parser and generator machines are derived.
+These machines operate under similar architectures, but reflect differences one
+may expect to occur between language analysis and synthesis tasks. The for-
+malism is demonstrated in applications to secondary predication and small
+clauses in Portugese.
+
+
+
+Preface                                                         xiii
+
+
+
+Dymetman discusses two distinct notions of reversibility: one understood as
+uniformity of implementation of parsing and generation, and the other as an
+inherent property of certain grammars. This paper attempts to define formal
+characteristics of a reversible grammar, understood as a transducer between
+linguistic representations, using the notion of finite enumerability of parsing
+and generation.
+
+
+Newman and van Noord investigate some implications of the use of reversible
+grammars in natural language generation systems, particularly upon the tra-
+ditional separation of the generation task into strategic and tactical compo-
+nents. They argue that a strict integration of parsing and generation equipped
+with some monitoring mechanism is necessary to achieve a flexible and efficient
+system, e.g., one that can generate unambiguous utterances. In this paper, re-
+versibility is regarded as a primarily computational relation between a 
+linguistic transducer's input and output.
+
+
+Zajac's paper describes a uniform computational architecture for developing
+reversible grammars, to be used in parsing, generation and bidirectional trans-
+fer in machine translation. He opts for complete bidirectionality where there is
+only one grammar and one evaluator program which uses a highly flexible evaluat-
+ion strategy in which directionality depends only upon specification of input. 
+This is realized through a declarative rewriting system of typed feature 
+structures (TFS) in which both the grammar and transfer rules can be encoded.
+
+
+Ishizaki discusses a design of a reversible system architecture that includes 
+handling of pragmatic information (in addition to syntax and semantics). At the
+core of this design is a reversible deductive engine that extends deduction with
+abductive assumptions.  The paper distinguishes between reversible architec-
+ture (with one processing module) and a bidirectional architecture where two
+separate modules (a parser and a generator) share a common set of constraints.
+
+
+Hasida extends the notion of uniform architecture beyond the problems of pars-
+ing and generation and presents a generalized set of constraints for controlling
+computation of any kind. He demonstrates how efficient computational schemes
+for parsing and generation emerge automatically from this overall design.
+
+
+Block's paper introduces Trace and Unification Grammar (TUG) formalism, a
+reversible unification grammar system based on Chomsky's Government and Binding
+theory. In this system reversibility is viewed as an ability to translate a 
+single grammar into two distinct programs for parsing and generation. The parser
+(using LR(k) technique) and the generator (a head-driven process) reflect 
+different perspectives on language processing in not sharing either an 
+
+
+
+xiv                              Reversible Grammar in NLP
+
+
+
+evaluation strategy or an architectural design.
+
+
+Strzalkowski discusses a general computational method for inverting a unifica-
+tion-based parser into an efficient generator. This paper concentrates on com-
+putational aspects of reversibility presenting a detailed algorithm for inver-
+ting and optimizing uni-directional programs.  Various efficiency problems 
+related to left-recursion, non-determinancy, and local and global information 
+flow in logic grammars are resolved.
+
+
+Barnett's paper discusses the problem of preferences in parsing and generation:
+in parsing they lead one to select the best interpretation for an utterance, in
+generation the most appropriate utterance is selected to express a meaning.
+He points out that while many of these preferences can be shared by both
+processes (e.g., low attachment of prepositional phrases), others may be more
+problematic (e.g., anaphora resolution). Several strategies for making prefer-
+ences bidirectional are proposed.
+
+
+Fedder describes a method of augmenting a grammar with pragmatic and
+discourse-level information that can provide preferences in sentence generation.
+The paper attempts to determine the information that a bidirectional grammar
+needs to possess and examines the complexity of the resulting system.
+
+
+McDonald's main argument is that a reversible natural language system must
+involve a knowledge base of the language user, and that the pivot point - where
+parsing ends and generation begins - is quite close to speaker/hearer mental
+representation.  He points out that while a single linguistic representation is
+desirable and natural, parsing and generation are unlikely to follow the same
+algorithm for efficiency reasons. This paper also outlines a reversible 
+architecture involving Tree Adjoining Grammars (TAG) and `exploded tree 
+families'.
+
+
+Estival discusses an application of reversible grammar technology to machine
+translation.  She points out that while a direction-neutral description of lan-
+guage is possible and desirable, the same program cannot be effectively used for
+both analysis and generation tasks. Grammar reversibility is viewed primarily
+as a sharable declarative grammar from which two separate and potentially
+quite different programs for parsing and generation are derived.
+
+
+Barnett, Mani and Rich take on the problems of interlingua-based reversible
+machine translation between languages that are not ordinarily easy to line up,
+e.g., English and Japanese. A closest-fit generation algorithm for lexical 
+choice is described as a version of head-driven generation method.
+
+
+
+Preface                                                          xv
+
+
+
+Fawcett presents a `generationist' view of grammar reversibility, from the per-
+spective of systemic grammar which, unlike most other grammars, has been
+primarily used in generation.  In this somewhat dissenting view a semantic
+interpreter, and not the parser, is to be taken as an inverse of the generator.
+
+
+O'Donoghue's paper follows up on Fawcett's and discusses details of an inverted
+generator system used for semantic interpretation within the systemic grammar
+framework. This work represents an approach which is opposite to the usual
+parser-to-generator inversion.
+
+
+
+Acknowledgements
+
+
+The articles in this volume are revised and expanded versions of the papers
+originally presented at the ACL workshop on Reversible Grammar in Natural
+Language Processing held on June 17, 1991 at the University of California,
+Berkeley.  Most papers from this workshop appear here with two additional
+contributions invited directly for this volume.
+
+
+I would like to take this opportunity to thank all the people involved in 
+organizing the Berkeley workshop and all participants for making it into an 
+important scientific event. I am particularly grateful to the workshop Program 
+Committee: Marc Dymetman, Patrick Saint-Dizier and Gertjan van Noord, for their
+careful reviewing of the papers, and invaluable help in almost every way. That
+meeting would not be possible without generous help from the Association for
+Computational Linguistics, particularly Don Walker, Peter Norvig and Ralph
+Grishman. The workshop has been sponsored by the Special Interest Groups
+on Generation (SIGGEN) and Parsing (SIGPARSE), and special thanks go to
+Karen Kukich, Marie Meteer, and Masaru Tomita. Financial support has been
+provided by the Defense Advanced Research Projects Agency and the National
+Science Foundation under grants to New York University.
+
+
+The plans for production of the present volume were drafted shortly after the
+workshop. I would like to thank Martin Scrivener, our Kluwer's editor, for orig-
+inally suggesting the idea of this book, and then for his assistance throughout
+the publication process. Additional thanks go to Irene van den Reydt and Mike
+Casey at Kluwer. I would also like to acknowledge the continuing support from
+DARPA, and an additional support from the Canadian Institute for Robotics
+and Intelligent Systems (IRIS).
+
+
+
+Tomek Strzalkowski, New York in February 1993
+
+
+
+xvi                              Reversible Grammar in NLP
+
+
+
+REFERENCES
+
+
+ [1]Appelt, D. 1987. "Bidirectional Grammars and the Design of Natural
+    Language Generation Systems." TINLAP-3: Theoretical Issues in Natural
+    Language Processing 3, New Mexico State University, Las Cruces, NM, pp.
+    206-212.
+
+ [2]Colmerauer, A. 1978. "Metamorphosis Grammars." In L. Bolc (ed), Natu-
+    ral Language Communication with Computers, Lecture Notes in Computer
+    Science, 63, Springer, pp. 133-189
+
+ [3]Dijkstra, E.W. 1983. "Program inversion." EWD671, Springer, pp. 351-
+    354.
+
+ [4]Dymetman, M., and Isabelle, P. 1988. "Reversible Logic Grammars for
+    Machine Translation." Proceeding of the 2nd International Conference on
+    Machine Translation, Carnegie-Mellon University, Pittsburgh.
+
+ [5]Grishman, R. 1986. "Computational Linguistics, An Introduction." Cam-
+    bridge University Press.
+
+ [6]Kay, M. 1984. "Functional Unification Grammar: A Formalism for Ma-
+    chine Translation." Proceedings of the 10th International Conference on
+    Computational Linguistics (COLING-84), Stanford University, pp. 75-78.
+
+ [7]McCarthy, J. 1956. "The Inversion of Functions Defined by Turing Ma-
+    chines." In C.E. Shannon, J. McCarthy (eds.), Automata Studies, Prince-
+    ton University Press.
+
+ [8]Pereira, F.C.N., and Warren, D.H.D. 1980. "Definite clause grammars for
+    language analysis." Artificial Intelligence, 13, pp. 231-278.
+
+ [9]Robinson, J. 1982. "DIAGRAM: a grammar for dialogues." Communica-
+    tions of the ACM, 25(1), pp. 27-47.
+
+[10]Shieber, S.M. 1984. "A Design of a Computer Language for Linguistic
+    Information." Proceedings of the 10th International Conference on Com-
+    putational Linguistics (COLING-84), Stanford University, pp. 362-366.
+
+[11]Shieber, S.M. 1988. "A uniform architecture for parsing and generation."
+    Proceedings of the 12th International Conference on Computational Lin-
+    guistics (COLING-86), Budapest, Hungary, pp. 614-619.
+
+[12]Shoham, Y., and McDermott, D.V. 1984. "Directed Relations and Inver-
+    sion of PROLOG Programs." Proceedings of the International Conference
+    of Fifth Generation Computer Systems, ICOT. pp. 307-316.
+
+
+
+Preface                                                         xvii
+
+
+
+[13]Simmons, R.F., and Chester, D. 1982. "Relating Sentences and Semantic
+    Networks with Procedural Logic." Communications of the ACM, 25(8),
+    pp. 527-547.
+
+
+     TABLE OF CONTENTS
+
+     PREFACE     ix 
+     1  A Reversible Constraint-Based Logic Grammar: Application to the Treatment of Secondary Predication and Small Clauses       
+                Palmira Marrafa, Patrick Saint-Dizier   1 
+            1 Introduction  1 
+            2 A type-based description language  3 
+            3 Dealing with constraints  4 
+            4 Processing Language with types and constraints  5 
+            5 An abstract machine for type construction in a parsing process  7 
+            6 An Abstract Machine for Language Generation  9 
+            7 An Application to Secondary Predications and Small Clauses in Portuguese  13 
+            8 Specific features of our approach  27 
+            9 Conclusion  29 
+     2  Inherently Reversible Grammars       
+                Marc Dymetman   33 
+            1 Introduction  33 
+            2 Definite programs and computation  35 
+            3 Grammars and their computational uses  42 
+            4 Definite programs, uniformity of implementation, and reversibility  46 
+            5 Inherently reversible grammars  48 
+            6 Some counter-examples to finite reversibility and a ``moderation'' condition on linguistic description  49 
+            7 Appendix  54 
+     3  Reversibility and Self-Monitoring in Natural Language Generation     
+                Gunter Neumann, Gertjan van Noord   59 
+            1 Introduction  59 
+            2 Reversible grammars  61 
+            3 Modularity in Generation Systems  68 
+            4 Integration of Parsing and Generation  72 
+            5 Generation of Unambiguous Utterances  74 
+            6 Generation of Paraphrases  84 
+            7 Discussion  88 
+            8 Future work  90 
+     4  A Uniform Architecture for Parsing, Generation and Transfer       
+                Remi Zajac   97 
+            1 Principles for a uniform architecture  97 
+            2 A rewrite machine for typed feature structures  99 
+            3 Parsing, generation, and bidirectional transfer  103 
+            4 The termination problem and efficiency issues  107 
+            5 Conclusion  109 
+     5  Handling Felicity Conditions with a Reversible Architecture       
+                Masato Ishizaki   113 
+            1 Introduction  113 
+            2 Felicity Conditions for a Reversible Architecture  115 
+            3 A Data Structure for a Reversible Architecture  118 
+            4 Towards a New Reversible Architecture  123 
+            5 Discussion  125 
+            6 Conclusion  126 
+     6  Common Heuristics for Parsing, Generation, and Whatever ...       
+                Koiti Hasida   129 
+            1 Introduction  129 
+            2 Constraint Network  130 
+            3 Computation  134 
+            4 Parsing  143 
+            5 Generation  148 
+            6 Concluding Remarks  152 
+     7  Compiling Trace   Unification Grammar       
+                Hans Ulrich Block   155 
+            1 Introduction  155 
+            2 Formalism  156 
+            3 Compiling Trace   Unification Grammar  163 
+            4 Conclusion  173 
+     8  A General Computational Method For Grammar Inversion       
+                Tomek Strzalkowski   175 
+            1 Reversible Grammars  175 
+            2 In and Out Arguments in Literals  178 
+            3 Essential Arguments: An Extension  182 
+            4 Intra-Clausal Inversion  189 
+            5 Moving Literals Between Clauses  191 
+            6 Inter-Clausal Inversion  193 
+            7 Conclusions  196 
+     9  Bi-Directional Preferences       
+                James Barnett   201 
+            1 Introduction  201 
+            2 Basic Definitions  203 
+            3 An Algorithm  210 
+            4 Some Examples of Preferences  216 
+            5 Extensions: Complex Preferences  220 
+            6 Bi-Directional Preferences  224 
+            7 Conclusion  229 
+     10  Handling Syntactic Alternatives in a Reversible Grammar       
+                Lee Fedder   235 
+            1 Introduction  235 
+            2 The Grammar Formalism and Thematic System  237 
+            3 Discourse Parameters  240 
+            4 How the discourse parameters are encoded in the grammar  244 
+            5 Some Examples.  252 
+            6 Discussion  252 
+            7 Conclusions  253 
+     11  Reversible NLP By Linking the Grammar To the Knowledge Base       
+                David D. McDonald   257 
+            1 Introduction  257 
+            2 Reversibility through compilation  260 
+            3 The `pivot-point' between generation and comprehension  261 
+            4 Parsing to objects  265 
+            5 Linking linguistic resources to objects  266 
+            6 Summary of the approach  270 
+            7 Parsing Tree Adjoining Grammars  271 
+            8 Exploded Tree Families  273 
+            9 An example of the objects recovered by a parse  279 
+            10 Is it Still a TAG ?  281 
+            11 Concluding remarks  286 
+     12  Reversible Grammars and their application in Machine Translation  
+                Dominique Estival   293 
+            1 MT as Knowledge Description  294 
+            2 Grammar Reversibility  295 
+            3 ELU  298 
+            4 Description of the Grammar  305 
+            5 Conclusion  316 
+     13  Reversible Machine Translation: What to Do When the Languages Don't Match Up       
+                James Barnett, Inderjeet Mani, and Elaine Rich   321 
+            1 Introduction  321 
+            2 Translation Divergences and Mismatches  323 
+            3 Viewing the Problem as One of Generation  330 
+            4 The Role of the Knowledge Base  335 
+            5 Defining What it Means to be a Correct Rendition of an Input DLSS  337 
+            6 A Closest-Fit Generation Algorithm  349 
+            7 Heuristic Improvements  357 
+            8 Conclusion  360 
+     14  A Generationist Approach to Grammar Reversibility in Natural Language Processing       
+                Robin P. Fawcett   365 
+            1 The `formal linguistics' approach to the issue  366 
+            2 The argument in a nutshell  373 
+            3 Some supporting evidence: the different problems of processing in the two directions  377 
+            4 The linguistic archipelago  380 
+            5 Fleshing out the argument: overview of a complete NLP system  382 
+            6 Generators derived from parsers: a discussion  401 
+            7 Conclusions  406 
+     15  Semantic Interpretation in a Systemic Functional Grammar       
+                Tim F. O'Donoghue   415 
+            1 Introduction  415 
+            2 What About Syntax?  419 
+            3 Overview  422 
+            4 Finding the Features  423 
+            5 Disjunction: Inclusive, Exclusive or Both?  437 
+            6 Conclusions  443 
+     INDEX   446
+
+
+
+
+-------------------------------------ORDER FORM------------------------------
+
+Ref:  ftpser
+
+Please send me: 
+Reversible Grammar in Natural Language Processing, Edited by Strzalkowski
+_____copy(ies) HB, ISBN 0-7923-9416-X, $130.00, Dfl 265.00,  GBP 94.50
+
+  Payment enclosed to the amount of ___________________________
+
+* Please invoice me 
+
+* Please charge my credit card 
+
+  Name of Card Holder: ______________________________________  
+
+  Card. no.: ________________________________________________
+
+  Expiry Date:______________________________________________
+
+     Am. Ex.*          Visa*           Diners Club*           Mastercard*
+
+Delivery address: 
+
+Name: ___________________________________________________________________
+
+Address: ________________________________________________________________
+
+         ________________________________________________________________
+
+         ________________________________________________________________
+
+         ________________________________________________________________
+
+
+Date:________________     Signature:_______________________________
+
+To be sent to:
+
+
+Outside North America                         In USA and Canada
+
+KLUWER ACADEMIC PUBLISHERS GROUP              KLUWER ACADEMIC PUBLISHERS 
+Order Dept.                                   Order Dept
+P.O. Box 322                                  101 Philip Drive
+3300 AH Dordrecht, The Netherlands            Norwell, 02016 MA
+Tel: +31-78-524400                            Tel: 617-871-6600
+Fax +31-78-524474.                            Fax: 617-871-6528
+email:  vanderlinden@wkap.nl                  email: kluwer@world.std.com
+
+Orders from individuals accompanied by payment or authorization to
+charge a credit card account will ensure prompt delivery. Postage and
+handling charges will be absorbed by the Publisher on all such orders.
+Payment will be accepted in any convertible currency. Please check the
+rate of exchange at your bank. For sales within the Netherlands please
+add 6% VAT (BTW). Prices are subject to change without notice.
+
+* Delete those that do not apply.
+

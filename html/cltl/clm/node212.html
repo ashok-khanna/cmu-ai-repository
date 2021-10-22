@@ -1,0 +1,117 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node212.html by HTTrack Website Copier/3.x [XR&CO'2014], Thu, 21 Oct 2021 14:58:19 GMT -->
+<HEAD>
+<TITLE>23.1.5.4. Examples of the Use of Logical Pathnames</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Examples of the Use of Logical Pathnames">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4208 HREF="node213.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4206 HREF="node208.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4200 HREF="node211.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4210 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4211 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4209 HREF="node213.html"> Discussion of Logical </A>
+<B>Up:</B> <A NAME=tex2html4207 HREF="node208.html"> Logical Pathnames</A>
+<B> Previous:</B> <A NAME=tex2html4201 HREF="node211.html"> Using Logical Pathnames</A>
+<HR> <P>
+<H3><A NAME=SECTION002715400000000000000>23.1.5.4. Examples of the Use of Logical Pathnames</A></H3>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+  Here is a very simple example of setting up a logical pathname host named <tt>FOO</tt>.
+  Suppose that no
+  translations are necessary to get around file system restrictions, so
+  all that is necessary is to specify the root of the physical directory
+  tree that contains the logical file system.
+ The namestring syntax in the to-wildname is implementation-specific.
+<P><pre>
+(setf (logical-pathname-translations &quot;foo&quot;) 
+      '((&quot;**;*.*.*&quot;          &quot;MY-LISPM:&gt;library&gt;foo&gt;**&gt;&quot;)))
+</pre><P>
+The following is a sample use of that logical pathname.  All return values
+are of course implementation-specific; all of the examples in this section
+are of course meant to be illustrative and not prescriptive.
+<P><pre>
+(translate-logical-pathname &quot;foo:bar;baz;mum.quux.3&quot;) 
+   => #P&quot;MY-LISPM:&gt;library&gt;foo&gt;bar&gt;baz&gt;mum.quux.3&quot;
+</pre><P>
+<P>
+  Next we have a more complex example, dividing the files among two file servers
+  (<tt>U</tt>, supporting a UNIX file system, and <tt>V</tt>, supporting a VAX/VMS file system)
+  and several different directories.  This UNIX file system doesn't support
+  <tt>:wild-inferiors</tt> in the directory, so each directory level must
+  be translated individually.  No file name or type translations
+  are required except for <tt>.MAIL</tt> to <tt>.MBX</tt>.
+  The namestring syntax used for the to-wildnames is implementation-specific.
+<P><pre>
+(setf (logical-pathname-translations &quot;prog&quot;) 
+      '((&quot;RELEASED;*.*.*&quot;    &quot;U:/sys/bin/my-prog/&quot;) 
+        (&quot;RELEASED;*;*.*.*&quot;  &quot;U:/sys/bin/my-prog/*/&quot;) 
+        (&quot;EXPERIMENTAL;*.*.*&quot; 
+                             &quot;U:/usr/Joe/development/prog/&quot;) 
+        (&quot;EXPERIMENTAL;DOCUMENTATION;*.*.*&quot; 
+                             &quot;V:SYS$DISK:[JOE.DOC]&quot;) 
+        (&quot;EXPERIMENTAL;*;*.*.*&quot; 
+                             &quot;U:/usr/Joe/development/prog/*/&quot;) 
+        (&quot;MAIL;**;*.MAIL&quot;    &quot;V:SYS$DISK:[JOE.MAIL.PROG...]*.MBX&quot;) 
+        ))
+</pre><P>
+  Here are sample uses of logical host <tt>PROG</tt>.  All return values
+  are of course implementation-specific.
+<P><pre>
+(translate-logical-pathname &quot;prog:mail;save;ideas.mail.3&quot;) 
+   => #P&quot;V:SYS$DISK:[JOE.MAIL.PROG.SAVE]IDEAS.MBX.3&quot; 
+
+(translate-logical-pathname &quot;prog:experimental;spreadsheet.c&quot;) 
+   => #P&quot;U:/usr/Joe/development/prog/spreadsheet.c&quot;
+</pre><P>
+<P>
+  Suppose now that we have a program that uses three files logically named <tt>MAIN.LISP</tt>,
+  <tt>AUXILIARY.LISP</tt>, and <tt>DOCUMENTATION.LISP</tt>.  The following translations might be
+  provided by a software supplier as examples.
+<P>
+For a UNIX file system with long file names:
+<P><pre>
+(setf (logical-pathname-translations &quot;prog&quot;) 
+      '((&quot;CODE;*.*.*&quot;        &quot;/lib/prog/&quot;))) 
+
+(translate-logical-pathname &quot;prog:code;documentation.lisp&quot;) 
+   => #P&quot;/lib/prog/documentation.lisp&quot;
+</pre><P>
+For a UNIX file system with 14-character file names, using <tt>.lisp</tt> as the type:
+<P><pre>
+(setf (logical-pathname-translations &quot;prog&quot;) 
+      '((&quot;CODE;DOCUMENTATION.*.*&quot; &quot;/lib/prog/docum.*&quot;) 
+        (&quot;CODE;*.*.*&quot;             &quot;/lib/prog/&quot;))) 
+
+(translate-logical-pathname &quot;prog:code;documentation.lisp&quot;) 
+   => #P&quot;/lib/prog/docum.lisp&quot;
+</pre><P>
+For a UNIX file system with 14-character file names, using <tt>.l</tt> as the type
+(the second translation shortens the compiled file type to <tt>.b</tt>):
+<P><pre>
+(setf (logical-pathname-translations &quot;prog&quot;) 
+      `((&quot;**;*.LISP.*&quot;      ,(logical-pathname &quot;PROG:**;*.L.*&quot;)) 
+        (,(compile-file-pathname 
+            (logical-pathname &quot;PROG:**;*.LISP.*&quot;)) 
+                            ,(logical-pathname &quot;PROG:**;*.B.*&quot;)) 
+        (&quot;CODE;DOCUMENTATION.*.*&quot; &quot;/lib/prog/documentatio.*&quot;) 
+        (&quot;CODE;*.*.*&quot;             &quot;/lib/prog/&quot;))) 
+
+(translate-logical-pathname &quot;prog:code;documentation.lisp&quot;) 
+   => #P&quot;/lib/prog/documentatio.l&quot;
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html4208 HREF="node213.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4206 HREF="node208.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4200 HREF="node211.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4210 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4211 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4209 HREF="node213.html"> Discussion of Logical </A>
+<B>Up:</B> <A NAME=tex2html4207 HREF="node208.html"> Logical Pathnames</A>
+<B> Previous:</B> <A NAME=tex2html4201 HREF="node211.html"> Using Logical Pathnames</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

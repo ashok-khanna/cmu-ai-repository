@@ -1,0 +1,336 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node227.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 10:09:53 GMT -->
+<HEAD>
+<TITLE>25.1.3. Compilation Environment</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Compilation Environment">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4398 HREF="node228.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4396 HREF="node224.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4390 HREF="node226.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4400 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4401 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4399 HREF="node228.html"> Similarity of Constants</A>
+<B>Up:</B> <A NAME=tex2html4397 HREF="node224.html"> The Compiler</A>
+<B> Previous:</B> <A NAME=tex2html4391 HREF="node226.html"> Compiled Functions</A>
+<HR> <P>
+<H2><A NAME=SECTION002913000000000000000>25.1.3. Compilation Environment</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (COMPILE-ENVIRONMENT-CONSISTENCY) <A NAME=28618>&#160;</A> 
+to specify what information must be available at compile time
+for correct compilation
+and what need not be available until run time.
+<P>
+The following information must be present in the compile-time
+environment for a program to be compiled correctly.  This
+information need not also be present in the run-time environment.
+<UL><LI> In conforming code, macros referenced in the code being compiled
+        must have been previously defined in the compile-time environment.
+	The compiler must treat as a function call any form that is a list whose <i>car</i> is
+	a symbol that does not name a macro or special form.
+  (This implies that <tt>setf</tt> methods must also be available at
+	compile time.)
+<P>
+<LI> In conforming code, proclamations for <tt>special</tt> variables must
+        be made in the compile-time environment before any bindings of
+        those variables are processed by the compiler.  The compiler
+        must treat any binding of an undeclared variable as a lexical
+        binding.
+</UL>
+<P>
+The compiler may incorporate the following kinds of information
+into the code it produces, if the information is present in the
+compile-time environment and is referenced within the code being
+compiled; however, the compiler is not required to do so.
+When compile-time and run-time definitions differ, it is
+unspecified which will prevail within the compiled code
+(unless some other behavior is explicitly specified below).  It is also
+permissible for an implementation to signal an error at run time on
+detecting such a discrepancy.  In all cases, the absence of the
+information at compile time is not an error, but its presence may
+enable the compiler to generate more efficient code.
+<UL><LI> The compiler may assume that functions that are defined and
+	declared <tt>inline</tt> in the compile-time environment will retain the
+        same definitions at run time.
+<P>
+<LI> The compiler may assume that, within a named function, a
+	recursive call to a function of the same name refers to the
+	same function, unless that function has been declared <tt>notinline</tt>.
+(This permits tail-recursive calls of a function to itself
+to be compiled as jumps, for example, thereby turning certain recursive
+schemas into efficient loops.)
+<P>
+<LI> In the absence of <tt>notinline</tt>
+	declarations to the contrary,
+ <tt>compile-file</tt> may assume that a call within the file being compiled to a named
+	function that is defined in that file refers to that function.
+	(This rule permits <i>block compilation</i> of files.)  The behavior of
+	the program is unspecified if functions are redefined individually 
+	at run time.
+<P>
+<LI> The compiler may assume that the signature (or ``interface contract'') of
+	all built-in Common Lisp functions will not change.  In addition,
+	the compiler may treat all built-in Common Lisp functions as if
+	they had been proclaimed <tt>inline</tt>.
+<P>
+<LI> The compiler may assume that the signature (or ``interface contract'') of
+	functions with <tt>ftype</tt> information available will not change.
+<P>
+<LI> The compiler may ``wire in'' (that is, open-code or inline)
+the values of symbolic constants
+	that have been defined with <tt>defconstant</tt> in the compile-time
+	environment.
+<P>
+<LI> The compiler may assume that any type definition made with <tt>defstruct</tt> 
+        or <tt>deftype</tt> in the compile-time environment will retain the same 
+        definition in the run-time environment.  It may also assume that
+        a class defined by <tt>defclass</tt> in the compile-time environment will
+        be defined in the run-time environment in such a way as to have
+        the same superclasses and metaclass.  This implies that
+        subtype/supertype relationships of type specifiers will not 
+        change between compile time and run time.  (Note that it is not 
+        an error for an	unknown type to appear in a declaration at
+        compile time, although it is reasonable for the compiler to 
+        emit a warning in such a case.)
+<P>
+<LI> The compiler may assume that if type declarations are present
+	in the compile-time environment, the corresponding variables and 
+	functions present in the run-time environment will actually be of
+	those types.  If this assumption is violated, the run-time behavior of the program is 
+	undefined.
+</UL>
+<P>
+The compiler must not make any additional assumptions about
+consistency between the compile-time and run-time environments.  In 
+particular, the compiler may not assume that functions that are defined
+	in the compile-time environment will retain either the
+	same definition or the same signature at run time, except
+as described above.
+Similarly,
+the compiler may not signal an error if it sees a call to a
+	function that is not defined at compile time, since that function
+	may be provided at run time.
+<P>
+X3J13 voted in January 1989 (COMPILE-FILE-HANDLING-OF-TOP-LEVEL-FORMS) <A NAME=28637>&#160;</A> 
+to specify the compile-time side effects of processing various macro forms.
+<P>
+Calls to defining macros such as <tt>defmacro</tt> or <tt>defvar</tt> appearing
+    within a file being processed by <tt>compile-file</tt> normally have
+    compile-time side effects that affect how subsequent forms in the
+    same file are compiled.  A convenient model for explaining how these
+    side effects happen is that each defining macro expands into one or
+    more <tt>eval-when</tt> forms and that compile-time
+    side effects are caused by calls occurring in the body of an
+    <tt>(eval-when (:compile-toplevel) ...)</tt> form.
+<P>
+The affected defining macros and their specific side effects are
+    as follows.  In each case, it is identified what a user must do to
+    ensure that a program is conforming, and what a compiler must do
+    in order to correctly process a conforming program.
+<P>
+<DL COMPACT><DT><tt>deftype</tt>
+<DD>
+The user must ensure that the body of a <tt>deftype</tt> form is
+    evaluable at compile time if the type is referenced in subsequent type
+    declarations.  The compiler must ensure that a type
+    specifier defined by <tt>deftype</tt>
+    is recognized in subsequent type declarations.  If the
+    expansion of a type specifier is not defined fully at compile time
+    (perhaps because it expands into an unknown type specifier or a
+    <tt>satisfies</tt> of a named function that isn't defined in the compile-time
+    environment), an implementation may ignore any references to this type
+    in declarations and may signal a warning.
+<P>
+<DT><tt>defmacro</tt> and <tt>define-modify-macro</tt>
+<DD>   
+The compiler must store macro
+    definitions at compile time, so that occurrences of the macro later on
+    in the file can be expanded correctly.  The user must ensure that the
+    body of the macro is evaluable at compile time if it is referenced
+    within the file being compiled.
+<P>
+<DT><tt>defun</tt>
+<DD>
+No required compile-time side effects are associated with <tt>defun</tt> forms.
+    In particular, <tt>defun</tt> does not make the function definition available
+    at compile time.  An implementation may choose to store information
+    about the function for the purposes of compile-time error checking
+    (such as checking the number of arguments on calls) or to permit later
+    <tt>inline</tt> expansion of the function.
+<P>
+<DT><tt>defvar</tt> and <tt>defparameter</tt>
+<DD>
+The compiler must recognize that the variables
+    named by these forms have been proclaimed <tt>special</tt>.  However, it must
+    not evaluate the <i>initial-value</i> form or <tt>set</tt> the variable at compile
+    time.
+<P>
+<DT><tt>defconstant</tt>
+<DD>
+The compiler must recognize that the symbol names a
+    constant.  An implementation may choose to evaluate the <i>value-form</i> at
+    compile time, load time, or both.  Therefore the user must ensure that
+    the <i>value-form</i> is evaluable at compile time (regardless of whether or
+    not references to the constant appear in the file) and that it always
+    evaluates to the same value.  
+    (There has been considerable
+variance among implementations on this point.  The effect of this specification is
+to legitimize all of the implementation variants by requiring care of the user.)
+<P>
+<DT><tt>defsetf</tt> and <tt>define-setf-method</tt>
+<DD>
+The compiler must make <tt>setf</tt> methods
+    available so that they may be used to expand calls to <tt>setf</tt> later on in
+    the file.  Users must ensure that the body of a call
+    to <tt>define-setf-method</tt> or
+    the complex form of <tt>defsetf</tt> is evaluable at compile time if the
+    corresponding place is referred to in a subsequent <tt>setf</tt> in the same
+    file.  The compiler must make these <tt>setf</tt> methods available to 
+    compile-time calls to <tt>get-setf-method</tt> when its environment argument is
+    a value received as the <tt>&amp;environment</tt> parameter of a macro.
+<P>
+<DT><tt>defstruct</tt>
+<DD>
+The compiler must make the structure type name recognized
+    as a valid type name in subsequent declarations (as described above
+    for <tt>deftype</tt>) and
+    make the structure slot accessors known to <tt>setf</tt>.
+    In addition, the
+    compiler must save enough information so that
+    further <tt>defstruct</tt> definitions can include (with the <tt>:include</tt>
+    option) a structure type defined
+    earlier in the file being compiled.  The functions that <tt>defstruct</tt>
+    generates are not defined in the compile-time environment, although
+    the compiler may save enough information about the functions to allow
+    <tt>inline</tt> expansion of
+    subsequent calls to these functions.  The <tt>#S</tt> reader syntax may or may not be 
+    available for that structure type at compile time.
+<P>
+<DT><tt>define-condition</tt>
+<DD>
+The rules are essentially the same as those for
+    <tt>defstruct</tt>. The compiler must make the condition type recognizable as a
+    valid type name, and it must be possible to reference the condition
+    type as the <i>parent-type</i> of another condition type in a subsequent
+    <tt>define-condition</tt> form in the file being compiled.
+<P>
+<DT><tt>defpackage</tt>
+<DD>
+ All of the actions normally performed by the <tt>defpackage</tt> macro at load
+    time must also be performed at compile time.
+<P>
+ </DL>
+<P>
+Compile-time side effects may cause information about a
+    definition to be stored in a different manner from
+information about definitions
+    processed either interpretively or by loading
+    a compiled file.
+    In particular, the information stored by a defining macro at
+    compile time may or may not be available to the interpreter (either
+    during or after compilation) or during subsequent calls to <tt>compile</tt> or
+    <tt>compile-file</tt>.  For example, the following code is not portable because
+    it assumes that the compiler stores the macro definition of <tt>foo</tt> where
+    it is available to the interpreter.
+<P><pre>
+(defmacro foo (x) `(car ,x)) 
+
+(eval-when (:execute :compile-toplevel :load-toplevel) 
+  (print (foo '(a b c))))     ;Wrong
+</pre><P>
+    The goal may be accomplished portably by including the macro
+    definition within the <tt>eval-when</tt> form:
+<P><pre>
+(eval-when (eval compile load) 
+  (defmacro foo (x) `(car ,x)) 
+  (print (foo '(a b c))))     ;Right
+</pre><P>
+<P>
+<DL COMPACT><DT><tt>declaim</tt>
+<DD>
+<P>
+X3J13 voted in June 1989 (PROCLAIM-ETC-IN-COMPILE-FILE) <A NAME=28701>&#160;</A> 
+to add a new macro <tt>declaim</tt> for making proclamations recognizable
+at compile time.  The declaration specifiers in the <tt>declaim</tt> form
+are effectively proclaimed at compile time so as to affect
+compilation of subsequent forms.  (Note that compiler processing
+of a call to <tt>proclaim</tt>
+does not have any compile-time side effects, for <tt>proclaim</tt>
+is a function.)
+<P>
+ </DL>
+<P>
+<DL COMPACT><DT><tt>in-package</tt>
+<DD>
+<P>
+X3J13 voted in March 1989 (IN-PACKAGE-FUNCTIONALITY) <A NAME=28709>&#160;</A>  to specify that
+all of the actions normally performed by the <tt>in-package</tt> macro at load
+time must also be performed at compile time.
+<P>
+ </DL>
+<P>
+X3J13 voted in June 1989 (CLOS-MACRO-COMPILATION) <A NAME=28712>&#160;</A> 
+to specify the compile-time side effects of processing various CLOS-related
+macro forms.  Top-level calls to the CLOS defining macros have the
+ following compile-time side effects; any other compile-time behavior
+ is explicitly left unspecified.
+<P>
+<DL COMPACT><DT><tt>defclass</tt>
+<DD>
+The class name may appear in subsequent type declarations and
+can be used as a specializer in subsequent <tt>defmethod</tt> forms.
+Thus the compile-time behavior of <tt>defclass</tt> is similar to that of
+<tt>deftype</tt> or <tt>defstruct</tt>.
+<P>
+<DT><tt>defgeneric</tt>
+<DD>
+The generic function can be referenced in subsequent <tt>defmethod</tt> forms,
+but the compiler does not arrange for the generic function to be callable
+    at compile time.
+<P>
+<DT><tt>defmethod</tt>
+<DD>  
+The compiler does not arrange for the method to be callable at compile
+    time.  If there is a generic function with the same name defined at
+    compile time, compiling a <tt>defmethod</tt> form does not add the method to that 
+    generic function; the method is added to the generic
+    function only when the <tt>defmethod</tt> form is actually executed.
+<P>
+    The error-signaling behavior described in the specification of
+    <tt>defmethod</tt> in chapter <A HREF="node260.html#CLOS">28</A> (if the function isn't a generic function
+    or if the lambda-list is not congruent) occurs only when the defining
+    form is executed, not at compile time.
+<P>
+    The forms in <tt>eql</tt> parameter specializers are evaluated when the <tt>defmethod</tt>
+    form is executed.  The compiler is permitted to build in knowledge
+    about what the form in an <tt>eql</tt> specializer will evaluate to in cases
+    where the ultimate result can be syntactically inferred without
+    actually evaluating it.
+<P>
+<DT><tt>define-method-combination</tt>
+<DD>
+The method combination can be used in subsequent <tt>defgeneric</tt> forms.
+<P>
+    The body of a <tt>define-method-combination</tt> form is evaluated no earlier 
+    than when the defining macro is executed and possibly as late as 
+    generic function invocation time.  The compiler may attempt to
+    evaluate these forms at compile time but must not depend on being able
+    to do so.
+<P>
+ </DL>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html4398 HREF="node228.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4396 HREF="node224.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4390 HREF="node226.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4400 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4401 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4399 HREF="node228.html"> Similarity of Constants</A>
+<B>Up:</B> <A NAME=tex2html4397 HREF="node224.html"> The Compiler</A>
+<B> Previous:</B> <A NAME=tex2html4391 HREF="node226.html"> Compiled Functions</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

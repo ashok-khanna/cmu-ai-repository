@@ -1,0 +1,334 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node204.html by HTTrack Website Copier/3.x [XR&CO'2014], Thu, 21 Oct 2021 14:58:19 GMT -->
+<HEAD>
+<TITLE>23.1.1. Pathnames</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Pathnames">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4107 HREF="node205.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4105 HREF="node203.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4099 HREF="node203.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4109 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4110 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4108 HREF="node205.html"> Case Conventions</A>
+<B>Up:</B> <A NAME=tex2html4106 HREF="node203.html"> File Names</A>
+<B> Previous:</B> <A NAME=tex2html4100 HREF="node203.html"> File Names</A>
+<HR> <P>
+<H2><A NAME=SECTION002711000000000000000>23.1.1. Pathnames</A></H2>
+<P>
+<A NAME=PATHNAME>All</A>
+file systems dealt with by Common Lisp are forced into a common framework,
+in which files are named by a Lisp data object of type <tt>pathname</tt>.
+<P>
+A pathname always has six components, described below.  These components
+are the common interface that allows programs to work the same way with
+different file systems; the mapping of the pathname components into the
+concepts peculiar to each file system is taken care of by the Common Lisp
+implementation.
+<P>
+<DL COMPACT><DT><i>host</i>
+<DD>
+The name of the file system on which the file resides.
+<P>
+<DT><i>device</i>
+<DD>
+Corresponds to the ``device'' or ``file structure'' concept in many
+host file systems: the name of a (logical or physical) device containing files.
+<P>
+<DT><i>directory</i>
+<DD>
+Corresponds to the ``directory'' concept in many host file systems:
+the name of a group of related files
+(typically those belonging to a single
+user or project).
+<P>
+<DT><i>name</i>
+<DD>
+The name of a group of files that can be thought of as
+the ``same'' file.
+<P>
+<DT><i>type</i>
+<DD>
+Corresponds to the ``filetype'' or ``extension'' concept in many host
+file systems; identifies the type of file.  Files with the same names
+but different types are usually related in some specific way, for instance,
+one being a source file, another the compiled form of that source,
+and a third the listing of error messages from the compiler.
+<P>
+<DT><i>version</i>
+<DD>
+Corresponds to the ``version number'' concept in many host file systems.
+Typically this is a number that is incremented every time the file is modified.
+<P>
+ </DL>
+<P>
+Note that a pathname is not necessarily the name of a specific file.
+Rather, it is a specification (possibly only a partial specification) of
+how to access a file.  A pathname need not correspond to any file that
+actually exists, and more than one pathname can refer to the same file.
+For example, the pathname with a version of ``newest'' may refer to the
+same file as a pathname with the same components except a certain number
+as the version.  Indeed, a pathname with version ``newest'' may refer to
+different files as time passes, because the meaning of such a pathname
+depends on the state of the file system.  In file systems with such
+facilities as ``links,'' multiple file names, logical devices, and so on,
+two pathnames that look quite different may turn out to address the same
+file.  To access a file given a pathname, one must do a file system
+operation such as
+<tt>open</tt>.
+<P>
+Two important operations involving pathnames are <i>parsing</i> and
+<i>merging</i>.  Parsing is the conversion of a namestring (which might be
+something supplied interactively by the user when asked to supply the
+name of a file) into a pathname object.  This operation is
+implementation-dependent, because the format of namestrings
+is implementation-dependent.
+Merging takes a pathname with missing components
+and supplies values for those components from a source of defaults.
+<P>
+Not all of the components of a pathname need to be specified.  If a
+component of a pathname is missing, its value is <tt>nil</tt>.  Before the file
+system interface can do anything interesting with a file, such as opening the
+file, all the missing components of a pathname must be filled in
+(typically from a set of defaults).  Pathnames with missing components
+may be used internally for various purposes;
+in particular, parsing a namestring
+that does not specify certain components will result in a pathname with
+missing components.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989 (PATHNAME-UNSPECIFIC-COMPONENT) <A NAME=26052>&#160;</A> 
+to permit any component of a pathname to have the value <tt>:unspecific</tt>,
+meaning that the component simply does not exist,
+for file systems in which such a value makes sense.
+(For example, a UNIX file system usually does not support version numbers,
+so the version component of a pathname for a UNIX host might be
+<tt>:unspecific</tt>.  Similarly,
+the file type is usually regarded in a UNIX file system as the part
+of a name after a period, but some file names contain no periods and therefore have
+no file types.)
+<P>
+  When a pathname is converted to a namestring, the values <tt>nil</tt> and <tt>:unspecific</tt>
+  have the same effect: they
+  are treated as if the component were empty (that is, they each cause the
+  component not to appear in the namestring).
+  When merging, however, only a <tt>nil</tt> value for a component will be
+  replaced with the default for that component; the value <tt>:unspecific</tt>
+  will be left alone as if the field were filled.
+<P>
+  The results are undefined if <tt>:unspecific</tt> is supplied
+  to a file system in a component for which
+  <tt>:unspecific</tt> does not make sense for that file system.
+<P>
+  Programming hint:
+  portable programs should be prepared to handle the value <tt>:unspecific</tt> in the device,
+  directory, type, or version field in some implementations.
+  Portable programs should not explicitly place <tt>:unspecific</tt> in any
+  field because it might not be permitted in some situations,
+  but portable programs may sometimes do so implicitly (by copying
+  such a value from another pathname, for example).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+A component of a pathname can also be the keyword <tt>:wild</tt>.
+This is only useful when the pathname is being used with a
+directory-manipulating operation, where it means that the pathname
+component matches anything.  The printed representation of a pathname
+typically designates <tt>:wild</tt> by an asterisk; however, this is
+host-dependent.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+See section <A HREF="node207.html#WILDPATHNAMESECTION">23.1.4</A> for a discussion of
+new wildcard pathname facilities.
+<P>
+What values are allowed for components of a pathname depends, in general,
+on the pathname's host.  However, in order for pathnames to be usable
+in a system-independent way, certain global conventions are adhered to.
+These conventions are stronger for the type and version than for the
+other components, since the type and version are explicitly manipulated by
+many programs, while the other components are usually treated as something
+supplied by the user that just needs to be remembered and copied
+from place to place.
+<P>
+The type is always a string or <tt>nil</tt> or <tt>:wild</tt>.
+It is expected that most
+programs that deal with files will supply a default type for each file.
+<P>
+The version is either a positive integer or a special symbol.  The
+meanings of <tt>nil</tt> and <tt>:wild</tt> have been explained
+above.  The keyword <tt>:newest</tt> refers to the largest version number
+that already exists in the file system when reading a file, or to
+a version number
+greater than any already existing in the file system
+when writing a new file.  Some Common Lisp implementors
+may choose to define other special version symbols.
+Some semi-standard names, suggested but not required to be supported
+by every Common Lisp implementation, are
+<tt>:oldest</tt>, to refer to the smallest version number that exists
+in the file system;
+<tt>:previous</tt>, to refer to the version previous to the newest version;
+and <tt>:installed</tt>, to refer to a version that is officially installed
+for users (as opposed to a working or development version).
+Some Common Lisp implementors may also choose to attach a meaning to
+non-positive version numbers (a typical convention is that <tt>0</tt>
+is synonymous with <tt>:newest</tt> and <tt>-1</tt> with <tt>:previous</tt>),
+but such interpretations are implementation-dependent.
+<P>
+The host may be a string, indicating a file system, or a list
+of strings, of which the first names the file system and the rest
+may be used for such a purpose as inter-network routing.
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+The device, directory, and name can each be a string (with
+host-dependent rules on allowed characters and length) or possibly
+some other Common Lisp data structure
+(in which case such a component is said to be <i>structured</i>
+and has an implementation-dependent format).
+Structured components may be used to handle such file system features as
+hierarchical directories.  Common Lisp programs do not need to know about
+structured components unless they do host-dependent operations.
+Specifying a string as a pathname component for a host that requires a
+structured component will cause conversion of the string to the appropriate
+form.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (PATHNAME-SUBDIRECTORY-LIST) <A NAME=26087>&#160;</A> 
+to define a specific format for structured directories
+(see section <A HREF="node206.html#STRUCTUREDDIRECTORYSECTION">23.1.3</A>).
+<P>
+X3J13 voted in June 1989 (PATHNAME-COMPONENT-VALUE) <A NAME=26091>&#160;</A> 
+to approve the following clarifications and specifications
+of precisely what are valid values for the various components
+of a pathname.
+<P>
+Pathname component value strings never contain the punctuation
+  characters that are used to separate fields in a namestring (for example,
+  slashes and
+  periods as used in UNIX file systems).  Punctuation characters appear only in namestrings.
+  Characters used as punctuation can appear in pathname component values
+  with a non-punctuation meaning if the file system allows it (for example,
+  UNIX file systems allow a file name to begin with a period).
+<P>
+  When examining pathname components, conforming programs must be prepared
+  to encounter any of the following siutations:
+  <UL>    <LI> Any component can be <tt>nil</tt>, which means the component has not
+    been specified.
+<P>
+   <LI>  Any component can be <tt>:unspecific</tt>, which means the component has
+    no meaning in this particular pathname.
+<P>
+   <LI>  The device, directory, name, and type can be strings.
+<P>
+   <LI>  The host can be any object, at the discretion of the implementation.
+<P>
+  <LI>  The directory can be a list of strings and symbols as described in
+    section <A HREF="node206.html#STRUCTUREDDIRECTORYSECTION">23.1.3</A>.
+<P>
+  <LI>  The version can be any symbol or any integer.  The symbol <tt>:newest</tt>
+    refers to the largest version number that already exists in the file
+    system when reading, overwriting, appending, superseding, or
+    directory-listing an existing file; it refers to the smallest version number
+    greater than any existing version number when creating a new file.
+    Other symbols and integers have implementation-defined meaning.
+    It is suggested, but not required, that implementations use positive
+    integers starting at 1 as version numbers, recognize the symbol <tt>:oldest</tt>
+    to designate the smallest existing version number, and use keyword
+    symbols for other special versions.
+  </UL>
+<P>
+  When examining wildcard components of a wildcard pathname, conforming programs
+  must be prepared to encounter any of the following additional values
+  in any component or any element of a list that is the directory component:
+  <UL>    <LI> The symbol <tt>:wild</tt>, which matches anything.
+<P>
+   <LI>  A string containing implementation-dependent special wildcard
+    characters.
+<P>
+    <LI>  Any object, representing an implementation-dependent wildcard pattern.
+  </UL>
+<P>
+  When constructing a pathname from components, conforming programs
+  must follow these rules:
+  <UL>    <LI>  Any component may be <tt>nil</tt>.  Specifying <tt>nil</tt> for the host may,
+     in some implementations,
+    result in using a default host
+    rather than an actual <tt>nil</tt> value.
+<P>
+    <LI>  The host, device, directory, name, and type may be strings.  There
+    are implementation-dependent limits on the number and type of
+    characters in these strings.  A plausible assumption is that letters (of a single case)
+    and digits are acceptable to most file systems.
+<P>
+    <LI>  The directory may be a list of strings and symbols as described in
+    section <A HREF="node206.html#STRUCTUREDDIRECTORYSECTION">23.1.3</A>.  There are
+    implementation-dependent limits on the length and contents of the list.
+<P>
+   <LI>  The version may be <tt>:newest</tt>.
+<P>
+    <LI>  Any component may be taken from the corresponding component
+    of another pathname.  When the two pathnames are for different
+    file systems (in implementations that support multiple file
+    systems), an appropriate translation occurs.  If no meaningful
+    translation is possible, an error is signaled.  The definitions
+    of ``appropriate'' and ``meaningful'' are implementation-dependent.
+<P>
+    <LI>  When constructing a wildcard pathname, the name, type, or version
+    may be <tt>:wild</tt>, which matches anything.
+<P>
+   <LI>  An implementation might support other values for some components,
+    but a portable program should not use those values.  A conforming program
+    can use implementation-dependent values but this can make it
+    non-portable; for example, it might work only with UNIX file systems.
+   </UL>
+<P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+
+<P>
+The best way to compare two pathnames for equality is with <tt>equal</tt>,
+not <tt>eql</tt>.
+(On pathnames, <tt>eql</tt> is simply the same as <tt>eq</tt>.)
+Two pathname objects are <tt>equal</tt> if and only if
+all the corresponding components
+(host, device, and so on) are equivalent.  (Whether or not
+uppercase and lowercase letters are considered equivalent
+in strings appearing in components depends on the file
+name conventions of the file system.)  Pathnames
+that are <tt>equal</tt> should be functionally equivalent.
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+Some host file systems have features that do not fit into this pathname
+model.  For instance, directories might be accessible as files; there
+might be complicated structure in the directories or names; or there
+might be a way to specify a directory relative to a
+``current'' directory, such as the <tt>&lt;</tt> syntax in
+MULTICS or the special ``<tt>..</tt>'' file name of UNIX.  Such
+features are not allowed for by the standard Common Lisp file system
+interface.  An implementation is free to accommodate such features in its
+pathname representation and provide a parser that can process such
+specifications in namestrings; such features are then likely to work
+within that single implementation.  However, note that once a program
+depends explicitly on any such features, it will not be portable.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (PATHNAME-SUBDIRECTORY-LIST) <A NAME=26125>&#160;</A> 
+to define a specific format for structured directories
+(see section <A HREF="node206.html#STRUCTUREDDIRECTORYSECTION">23.1.3</A>), so some of the specific
+examples in the previous paragraph no longer apply, but the principle is
+still correct.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html4107 HREF="node205.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4105 HREF="node203.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4099 HREF="node203.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4109 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4110 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4108 HREF="node205.html"> Case Conventions</A>
+<B>Up:</B> <A NAME=tex2html4106 HREF="node203.html"> File Names</A>
+<B> Previous:</B> <A NAME=tex2html4100 HREF="node203.html"> File Names</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

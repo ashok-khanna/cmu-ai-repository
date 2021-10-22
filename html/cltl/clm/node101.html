@@ -1,0 +1,135 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node101.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:47:03 GMT -->
+<HEAD>
+<TITLE>8.4. Compiler Macros</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Compiler Macros">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2782 HREF="node102.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2780 HREF="node97.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2774 HREF="node100.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2784 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2785 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2783 HREF="node102.html"> Environments</A>
+<B>Up:</B> <A NAME=tex2html2781 HREF="node97.html"> Macros</A>
+<B> Previous:</B> <A NAME=tex2html2775 HREF="node100.html"> Destructuring</A>
+<HR> <P>
+<H1><A NAME=SECTION001240000000000000000>8.4. Compiler Macros</A></H1>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (DEFINE-COMPILER-MACRO) <A NAME=8630>&#160;</A> 
+to add a facility for defining <i>compiler macros</i> that
+take effect only when compiling code, not when interpreting it.
+<P>
+The purpose of this facility is to permit selective source-code
+transformations only when the compiler is processing the code.
+When the compiler is about to compile a non-atomic form, it first calls
+<tt>compiler-macroexpand-1</tt> repeatedly until there is no more expansion
+(there might not be any to begin with).  Then it continues its
+remaining processing, which may include calling <tt>macroexpand-1</tt> and so on.
+<P>
+The compiler is required to expand compiler macros.  It is unspecified
+whether the interpreter does so.  The intention is that only the
+compiler will do so, but the range of possible ``compiled-only''
+implementation strategies precludes any firm specification.
+<P>
+<BR><b>[Macro]</b><BR>
+<pre>
+define-compiler-macro <i>name</i> <i>lambda-list</i> {<i>declaration</i> | <i>doc-string</i>}* {<i>form</i>}*
+</pre>
+<P>  This is just like <tt>defmacro</tt> except the definition is not stored in the
+  symbol function cell of <i>name</i> and is not seen by <tt>macroexpand-1</tt>.
+  It is, however, seen by <tt>compiler-macroexpand-1</tt>.  As with <tt>defmacro</tt>, the
+  <i>lambda-list</i> may include <tt>&amp;environment</tt> and <tt>&amp;whole</tt>
+  and may include destructuring.  The definition is
+  global.  (There is no provision for defining local compiler
+  macros in the way that <tt>macrolet</tt> defines local macros.)
+<P>
+  A top-level call to <tt>define-compiler-macro</tt> in a file being compiled by
+  <tt>compile-file</tt> has an effect on the compilation environment similar to
+  that of a call to <tt>defmacro</tt>, except it is noticed as a
+  compiler macro (see section <A HREF="node224.html#COMPILERSECTION">25.1</A>).
+<P>
+Note that compiler macro definitions do not appear in information returned by
+<tt>function-information</tt>; they are global, and their interaction
+with other lexical and global definitions can be reconstructed by
+<tt>compiler-macro-function</tt>.  It is up to code-walking programs to decide
+whether to invoke compiler macro expansion.
+<P>
+X3J13 voted in March 1988 (FLET-IMPLICIT-BLOCK) <A NAME=8653>&#160;</A> 
+to specify that the body of the expander function defined
+by <tt>defmacro</tt> is implicitly enclosed in a <tt>block</tt> construct
+whose name is the same as the <i>name</i> of the defined macro;
+presumably this applies also to <tt>define-compiler-macro</tt>.
+Therefore <tt>return-from</tt> may be used to exit from the function.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>compiler-macro-function</tt> <tt><i>name</i></tt> <tt>&amp;optional</tt> <tt><i>env</i></tt><P>  The <i>name</i> must be a symbol.
+  If it has been defined as a compiler macro, then
+  <tt>compiler-macro-function</tt> returns the macro expansion
+  function; otherwise it returns <tt>nil</tt>.  The
+  lexical environment <i>env</i> may override any global definition for <i>name</i>
+  by defining a local function or local macro (such as by <tt>flet</tt>, <tt>labels</tt>, or
+  <tt>macrolet</tt>) in which case <tt>nil</tt> is returned.
+<P>
+  <tt>setf</tt> may be used with <tt>compiler-macro-function</tt> to install a function as
+  the expansion function for the compiler macro <i>name</i>, in the same manner as for
+  <tt>macro-function</tt>.  Storing the value <tt>nil</tt> removes any existing
+  compiler macro definition.  As with <tt>macro-function</tt>, a non-<tt>nil</tt> stored value
+  must be a function of two arguments, the entire macro call and 
+  the environment.  The second argument to <tt>compiler-macro-function</tt> must
+  be omitted when it is used with <tt>setf</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>compiler-macroexpand</tt> <tt><i>form</i></tt> <tt>&amp;optional</tt> <tt><i>env</i></tt> <tt><BR></tt><tt>compiler-macroexpand-1</tt> <tt><i>form</i></tt> <tt>&amp;optional</tt> <tt><i>env</i></tt><P>  These are just like <tt>macroexpand</tt> and <tt>macroexpand-1</tt>
+  except that the expander function is obtained as if by a call to
+  <tt>compiler-macro-function</tt> on the <i>car</i> of the <i>form</i> rather than by a call to
+  <tt>macro-function</tt>.
+  Note that <tt>compiler-macroexpand</tt> performs repeated expansion
+  but <tt>compiler-macroexpand-1</tt> performs at most one expansion.
+  Two values are returned, the expansion (or the original <i>form</i>)
+  and a value that is true if any expansion occurred and <tt>nil</tt> otherwise.
+<P>
+  There are three cases where no expansion happens:
+  <UL>    <LI> There is no compiler macro definition for the <i>car</i> of <i>form</i>.
+    <LI> There is such a definition but there is also a <tt>notinline</tt>
+        declaration, either globally or in the lexical environment <i>env</i>.
+    <LI> A global compiler macro definition is shadowed by a local
+        function or macro definition (such as by <tt>flet</tt>, <tt>labels</tt>, or
+        <tt>macrolet</tt>).
+  </UL>
+  Note that if there is no expansion, the original <i>form</i> is returned as
+  the first value, and <tt>nil</tt> as the second value.
+<P>
+  Any macro expansion performed by the function <tt>compiler-macroexpand</tt>
+  or by the function <tt>compiler-macroexpand-1</tt> is carried out
+  by calling the function that is the value of <tt>*macroexpand-hook*</tt>.
+<P>
+A compiler macro may decline to provide any expansion merely
+by returning the original form. This is useful when using the facility
+to put ``compiler optimizers'' on various function names.  For example,
+here is a compiler macro that ``optimizes'' (one would hope)
+the zero-argument and one-argument cases of
+a function called <tt>plus</tt>:
+<P><pre>
+(define-compiler-macro plus (&amp;whole form &amp;rest args) 
+  (case (length args) 
+    (0 0) 
+    (1 (car args)) 
+    (t form)))
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html2782 HREF="node102.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2780 HREF="node97.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2774 HREF="node100.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2784 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2785 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2783 HREF="node102.html"> Environments</A>
+<B>Up:</B> <A NAME=tex2html2781 HREF="node97.html"> Macros</A>
+<B> Previous:</B> <A NAME=tex2html2775 HREF="node100.html"> Destructuring</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

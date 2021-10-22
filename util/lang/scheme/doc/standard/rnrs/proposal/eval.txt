@@ -1,0 +1,185 @@
+From jinx@martigny.ai.mit.edu Mon May 18 10:26:29 1992
+Received: by martigny.ai.mit.edu
+	(16.7/15.6) id AA21350; Mon, 18 May 92 10:26:29 -0400
+Date: Mon, 18 May 92 10:26:29 -0400
+From: "Guillermo J. Rozas" <jinx@martigny.ai.mit.edu>
+Return-Path: <jinx@martigny.ai.mit.edu>
+To: rrrs-authors@martigny.ai.mit.edu
+Subject: Proposal for EVAL
+Reply-To: jinx@martigny.ai.mit.edu
+
+Proposal for EVAL:
+
+My recollection is that there are three different positions in the
+Scheme community when it comes to EVAL, and that disagreement between
+them prevents us from making progress.  I will first list my
+perception of the three different positions, and then suggest a
+compromise, and justify the proposal with respect to how it addresses
+the concerns of the three positions.
+
+The positions:
+
+- Position "no eval": EVAL is antithetical with a Pascal-like
+(compiler based, externally statically linked) implementation which
+some people have or wish to see.
+
+- Position "single argument": There is a single distinguished
+top-level environment, and EVAL always evaluates its argument there.
+
+- Position "two arguments": There are multiple environments in which
+the user might want to evaluate expressions, thus EVAL should take two
+arguments, the second being an environment.  In particular, in some
+systems with first-class environments, there is no a-priori single
+distinguished top-level environment, and defaulting does not fit those
+dialects well.
+
+
+The proposal:
+
+(EVAL <expression> <environment specifier>)		essential procedure
+
+EVAL evaluates the expression in the environment indicated by
+environment specifier.  Environment specifier may be the return value
+of one of the procedures NULL-ENVIRONMENT, INTERACTION-ENVIRONMENT,
+SCHEME-REPORT-ENVIRONMENT, or implementation-specific extensions.  No
+other operations on environment specifiers are defined by this
+proposal.
+
+Implementations may allow non-expression programs (i.e. definitions)
+as the first argument to EVAL _only_ when the second argument is the
+return value of INTERACTION-ENVIRONMENT or some implementation
+extension.  In other words, EVAL will never create new bindings in the
+return value of NULL-ENVIRONMENT or SCHEME-REPORT-ENVIRONMENT.
+
+
+The following three procedures return environment specifiers.  These
+specifiers are implementation-specific objects whose only
+report-specified property is that they can be handed as second
+arguments to EVAL on those implementations that support them.  It is
+not specified whether two different calls to the same procedure return
+the same (eqv?) object or not.
+
+
+(NULL-ENVIRONMENT)					essential procedure
+
+This procedure returns a specifier for an environment that contains no
+variable bindings, but contains (syntactic) bindings for all the
+syntactic keywords defined in the report, and no others.
+
+
+(SCHEME-REPORT-ENVIRONMENT <version>)			essential procedure
+
+Version must be an exact non-negative integer corresponding to a
+version of one of the Revised^n Reports on Scheme.  This procedure
+returns a specifier for an environment that contains exactly the set
+of bindings specified in the corresponding report that the
+implentation supports.  Not all versions may be available in all
+implementations at all times, however, an implementation that conforms
+to version n of the Revised^n Reports on Scheme, must accept version
+n.  If SCHEME-REPORT-ENVIRONMENT is available, but the specified
+version is not, the procedure will signal an error.  
+
+The effect of assigning (through the use of EVAL) variables bound in a
+SCHEME-REPORT-ENVIRONMENT (e.g. CAR) is unspecified, thus the
+environments associated with the return values of
+SCHEME-REPORT-ENVIRONMENT may be immutable.
+
+
+(INTERACTION-ENVIRONMENT)				procedure
+
+This procedure returns a specifier for an environment that contains
+implementation-defined bindings, typically a superset of those listed
+in the report.  The intent is that this procedure will return a
+specifier for the environment in which the implementation would
+evaluate expressions dynamically typed by the user.
+
+
+
+		RATIONALE:
+
+Observations:
+
+The proposal does not imply the existence or support of first class
+environments (although it is compatible with them).  The proposal only
+requires a way of associating tags with a finite set of distinguished
+environments which the implementations can maintain implicitly
+(without reification).
+
+Many implementations will specify the meaning for single-argument EVAL
+to be the same as for EVAL with two arguments when the second argument
+is the result of (INTERACTION-ENVIRONMENT).
+
+(NULL-ENVIRONMENT) provides a weak, but useful, version of EVAL.  I
+would expect that it will be used approximately as follows
+
+    ((EVAL (lambda (+ - * / =)
+	     (lambda (x)
+	       (+ 1.
+		  (* x (+ 1.
+			  (* x (+ .5
+				  (* x (+ .33333
+					  ...)))))))))
+	   (NULL-ENVIRONMENT))
+     + - * / =)
+
+where presumably the inner lambda expression is constructed by
+numerically computing the coefficients at runtime.
+
+The result of INTERACTION-ENVIRONMENT is what most programs will use
+(in those implementations that support it), but is not meaningful in
+all implementations.
+
+"Pascal-like" implementations can support both NULL-ENVIRONMENT and
+SCHEME-REPORT-ENVIRONMENT since the environments denoted by the return
+values of this procedure need not share any bindings with the current
+program.  A version of EVAL that supports these but not
+INTERACTION-ENVIRONMENT can be written portably, but can be better
+written by the implementor, since it can share code with the default
+evaluator/compiler.
+
+R4RS implicitly requires some way of specifying a "vanilla" R4RS
+environment (see notes before the example in the report), thus such an
+enviornment must already be supported by compatible implementations,
+and SCHEME-REPORT-ENVIRONMENT just makes it available for dynamic
+evaluation.  Note that an analogous procedure, called
+SCHEME-STANDARD-ENVIRONMENT could be added if the IEEE standard were
+to adapt a similar proposal in the future.  SCHEME-REPORT-ENVIRONMENT
+provides a degree of flexibility that the null environment does not
+provide, and more portability than INTERACTION-ENVIRONMENT.
+NULL-ENVIRONMENT is useful because code can be made to use it and yet
+be independent of the actual version of the report implemented.
+
+
+The concerns of the various positions:
+
+"No eval": Supporting EVAL with NULL-ENVIRONMENT and
+SCHEME-REPORT-ENVIRONMENT is harmless since they are implementable in
+user code.  They are convenient as a hook for implementations that
+provide more features and as a way for the implementation to insert a
+compiler (which a portable version could not expect/use).
+
+"Single argument": single argument eval is not in the proposal, but is
+a compatible extension.  In addition, the proposal includes a way of
+portably specifying what most single-argument-eval users want, namely
+(INTERACTION-ENVIRONMENT).  The proposal imposes the burden of
+managing a finite set of evaluation environments, in particular the
+null environment.  Note however, that the requirement for the
+"vanilla" environment is implicit in R4RS.
+
+"Two argument": The proposal allows implementations to specify other
+environments, and leaves the structure and other properties of the
+environment specifier arguments unspecified, thus these
+implementations can use whathever they are already using.  They will
+need to support, however, a null environment, if they don't already do
+this.
+
+
+
+Variations on the proposal:
+
+- Making only NULL-ENVIRONMENT essential, and
+SCHEME-REPORT-ENVIRONMENT optional.
+
+- Changing any of the names.  I don't much care about the names of
+procedures.
+

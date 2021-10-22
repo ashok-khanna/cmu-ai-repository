@@ -1,0 +1,139 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node285.html by HTTrack Website Copier/3.x [XR&CO'2014], Thu, 21 Oct 2021 14:59:00 GMT -->
+<HEAD>
+<TITLE>28.1.7.2. Standard Method Combination</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Standard Method Combination">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html5221 HREF="node286.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5219 HREF="node283.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5213 HREF="node284.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5223 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5224 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5222 HREF="node286.html"> Declarative Method Combination</A>
+<B>Up:</B> <A NAME=tex2html5220 HREF="node283.html"> Method Selection and </A>
+<B> Previous:</B> <A NAME=tex2html5214 HREF="node284.html"> Determining the Effective </A>
+<HR> <P>
+<H3><A NAME=SECTION003217200000000000000>28.1.7.2. Standard Method Combination</A></H3>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<A NAME=StandardMethodCombinationSECTION>Standard</A>
+method combination is supported by the class 
+<tt>standard-generic-function</tt>.
+It is used if no other type of method
+combination is specified or if the built-in method combination type
+<tt>standard</tt> is specified.
+<P>
+<i>Primary methods</i> define the main action of the effective method,  
+while <i>auxiliary methods</i> modify that action in one of three ways.
+A primary method has no method qualifiers.
+<P>
+An auxiliary method is a method whose method qualifier is 
+<tt>:before</tt>, <tt>:after</tt>, or <tt>:around</tt>.  Standard method combination
+allows no more than one qualifier per method; if a method definition
+specifies more than one qualifier per method, an error is signaled.
+<P>
+<UL><LI> 
+A <tt>:before</tt> method has the keyword <tt>:before</tt> as its
+only qualifier.  A <tt>:before</tt> method specifies code that is to be
+run before any primary method.
+<P>
+<LI> 
+An <tt>:after</tt> method has the keyword <tt>:after</tt> as its only
+qualifier.  An <tt>:after</tt> method specifies code that is to be run
+after primary methods.
+<P>
+<LI> 
+An <tt>:around</tt> method has the keyword <tt>:around</tt> as its only
+qualifier. An <tt>:around</tt> method specifies code that is to
+be run instead of other applicable methods but that is
+able to cause some of them to be run.
+<P>
+</UL>
+The semantics of standard method combination are as follows:
+<P>
+<UL><LI>  If there are any <tt>:around</tt> methods, the most specific
+<tt>:around</tt> method is called.  It supplies the value or values of the
+generic function.
+<P>
+<LI>  Inside the body of an <tt>:around</tt> method, 
+<tt>call-next-method</tt> can be used to call the next method.  When the next
+method returns, the <tt>:around</tt> method can execute more code,
+perhaps based on the returned value or values.  The generic function
+<tt>no-next-method</tt> is invoked if <tt>call-next-method</tt> is used and
+there is no applicable method to call.  The function 
+<tt>next-method-p</tt> may be used to determine whether a next method exists.
+<P>
+<LI>  
+If an <tt>:around</tt> method invokes <tt>call-next-method</tt>, the next
+most specific <tt>:around</tt> method is called, if one is applicable.
+If there are no <tt>:around</tt> methods or if 
+<tt>call-next-method</tt> is called by the least specific <tt>:around</tt>
+method, the other methods are called as follows:
+<P>
+<UL><LI>  All the <tt>:before</tt> methods are called, in
+most-specific-first order.  Their values are ignored.
+An error is signaled if <tt>call-next-method</tt> is used in a
+<tt>:before</tt> method.
+<P>
+<LI>  The most specific primary method is called.  Inside the
+body of a primary method, <tt>call-next-method</tt> may be used to call
+the next most specific primary method.  When that method returns, the
+previous primary method can execute more code, perhaps based on the
+returned value or values.  The generic function <tt>no-next-method</tt>
+is invoked if <tt>call-next-method</tt> is used and there are no more
+applicable primary methods.  The function <tt>next-method-p</tt> may be
+used to determine whether a next method exists.  If 
+<tt>call-next-method</tt> is not used, only the most specific primary method
+is called.
+<P>
+<LI>  All the <tt>:after</tt> methods are called in
+most-specific-last order.  Their values are ignored.
+An error is signaled if <tt>call-next-method</tt> is used in an
+<tt>:after</tt> method.
+</UL>
+<P>
+<LI>  If no <tt>:around</tt> methods were invoked, the most
+specific primary method supplies the value or values returned by the
+generic function.  The value or values returned by the invocation of
+<tt>call-next-method</tt> in the least specific <tt>:around</tt> method are
+those returned by the most specific primary method.
+<P>
+</UL>
+<P>
+In standard method combination, if there is an applicable method
+but no applicable primary method, an error is signaled.
+<P>
+The <tt>:before</tt> methods are run in most-specific-first order and
+the <tt>:after</tt> methods are run in least-specific-first order.  The
+design rationale for this difference can be illustrated with an
+example.  Suppose class <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43387.gif"> modifies the behavior of its
+superclass, <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43591.gif">, by adding <tt>:before</tt> and <tt>:after</tt>
+methods. Whether the behavior of the class <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43591.gif"> is defined
+directly by methods on <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43591.gif"> or is inherited from its superclasses
+does not affect the relative order of invocation of methods on
+instances of the class <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43387.gif">.  Class <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43387.gif">'s <tt>:before</tt>
+method runs before all of class <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43591.gif">'s methods.  Class <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43387.gif">'s <tt>:after</tt> method runs after all of class <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap43591.gif">'s methods.
+<P>
+By contrast, all <tt>:around</tt> methods run before any other methods
+run.  Thus a less specific <tt>:around</tt> method runs before a more
+specific primary method.
+<P>
+If only primary methods are used and if <tt>call-next-method</tt> is not
+used, only the most specific method is invoked; that is, more specific
+methods shadow more general ones.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html5221 HREF="node286.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html5219 HREF="node283.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html5213 HREF="node284.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html5223 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html5224 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html5222 HREF="node286.html"> Declarative Method Combination</A>
+<B>Up:</B> <A NAME=tex2html5220 HREF="node283.html"> Method Selection and </A>
+<B> Previous:</B> <A NAME=tex2html5214 HREF="node284.html"> Determining the Effective </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

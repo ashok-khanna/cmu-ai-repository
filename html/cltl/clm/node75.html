@@ -1,0 +1,143 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node75.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:46:35 GMT -->
+<HEAD>
+<TITLE>6.4. Logical Operators</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Logical Operators">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2444 HREF="node76.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2442 HREF="node69.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2438 HREF="node74.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2446 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2447 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2445 HREF="node76.html"> Control Structure</A>
+<B>Up:</B> <A NAME=tex2html2443 HREF="node69.html"> Predicates</A>
+<B> Previous:</B> <A NAME=tex2html2439 HREF="node74.html"> Equality Predicates</A>
+<HR> <P>
+<H1><A NAME=SECTION001040000000000000000>6.4. Logical Operators</A></H1>
+<P>
+Common Lisp provides three operators on Boolean values: <tt>and</tt>, <tt>or</tt>,
+and <tt>not</tt>.  Of these, <tt>and</tt> and <tt>or</tt>
+are also control structures because their arguments are evaluated
+conditionally.
+The function <tt>not</tt> necessarily examines its single argument, and so
+is a simple function.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>not</tt> <tt><i>x</i></tt><P><tt>not</tt> returns <tt>t</tt> if <i>x</i> is <tt>nil</tt>, and otherwise returns <tt>nil</tt>.
+It therefore inverts its argument considered as a Boolean value.
+<P>
+<tt>null</tt> is the same as <tt>not</tt>; both functions are included for the sake
+of clarity.  As a matter of style,
+it is customary to use <tt>null</tt> to check whether something is the empty list
+and to use <tt>not</tt> to invert the sense of a logical value.
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>and</tt> <tt>{<i>form</i>}*</tt><P><tt>(and <i>form1</i> <i>form2</i> ... )</tt> evaluates each <i>form</i>, one at a time,
+from left to right.  If any <i>form</i> evaluates to <tt>nil</tt>, the value <tt>nil</tt>
+is immediately returned without evaluating the remaining
+<i>form</i>s.  If every <i>form</i> but the last evaluates to a non-<tt>nil</tt> value,
+<tt>and</tt> returns whatever the last <i>form</i> returns.
+Therefore in general <tt>and</tt> can be used both for logical operations,
+where <tt>nil</tt> stands for <i>false</i> and non-<tt>nil</tt> values stand for <i>true</i>,
+and as a conditional expression.
+An example follows.
+<P><pre>
+(if (and (&gt;= n 0) 
+         (&lt; n (length a-simple-vector)) 
+         (eq (elt a-simple-vector n) 'foo)) 
+    (princ &quot;Foo!&quot;))
+</pre><P>
+The above expression prints <tt>Foo!</tt> if element <tt>n</tt> of <tt>a-simple-vector</tt>
+is the symbol <tt>foo</tt>, provided also that <tt>n</tt> is indeed a valid index
+for <tt>a-simple-vector</tt>.  Because <tt>and</tt> guarantees left-to-right testing
+of its parts, <tt>elt</tt> is not called if <tt>n</tt> is out of range.
+<P>
+To put it another way,
+the <tt>and</tt> special form does <i>short-circuit</i> Boolean evaluation,
+like the <b>and then</b> operator in Ada
+and what in some Pascal-like languages is called <b>cand</b> (for ``conditional
+and''); the Lisp <tt>and</tt> special form is
+unlike the Pascal or Ada <b>and</b> operator,
+which always evaluates both arguments.
+<P>
+In the previous example writing
+<P><pre>
+(and (&gt;= n 0) 
+     (&lt; n (length a-simple-vector)) 
+     (eq (elt a-simple-vector n) 'foo) 
+     (princ &quot;Foo!&quot;))
+</pre><P>
+would accomplish the same thing.  The difference is purely stylistic.
+Some programmers never use expressions containing side effects
+within <tt>and</tt>, preferring to use <tt>if</tt> or <tt>when</tt> for that purpose.
+<P>
+From the general definition, one can deduce that
+<tt>(and <i>x</i>)</tt> == <i>x</i>.  Also,
+<tt>(and)</tt> evaluates to <tt>t</tt>, which is an identity for this operation.
+<P>
+One can define <tt>and</tt> in terms of <tt>cond</tt> in this way:
+<P><pre>
+(and <i>x</i> <i>y</i> <i>z</i> ... <i>w</i>) == (cond ((not <i>x</i>) <tt>nil</tt>) 
+			   ((not <i>y</i>) <tt>nil</tt>) 
+			   ((not <i>z</i>) <tt>nil</tt>) 
+			   ...
+			   (<tt>t</tt> <i>w</i>))
+</pre><P>
+<P>
+See <tt>if</tt> and <tt>when</tt>, which are sometimes stylistically
+more appropriate than <tt>and</tt> for conditional purposes.
+If it is necessary to test whether a predicate is true
+of all elements of a list or vector (element 0 <i>and</i> element 1 <i>and</i>
+element 2 <i>and</i> <b>...</b>), then the function <tt>every</tt> may be useful.
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>or</tt> <tt>{<i>form</i>}*</tt><P><tt>(or <i>form1</i> <i>form2</i> ... )</tt> evaluates each <i>form</i>, one at a time,
+from left to right.  If any <i>form</i> other than the last
+evaluates to something other than <tt>nil</tt>,
+<tt>or</tt>
+immediately returns that non-<tt>nil</tt> value without evaluating the remaining
+<i>form</i>s.  If every <i>form</i> but the last evaluates to <tt>nil</tt>,
+<tt>or</tt> returns whatever evaluation of the last of the <i>form</i>s returns.
+Therefore in general <tt>or</tt> can be used both for logical operations,
+where <tt>nil</tt> stands for <i>false</i> and non-<tt>nil</tt> values stand for <i>true</i>,
+and as a conditional expression.
+<P>
+To put it another way,
+the <tt>or</tt> special form does <i>short-circuit</i> Boolean evaluation,
+like the <b>or else</b> operator in Ada
+and what in some Pascal-like languages is called <b>cor</b> (for ``conditional
+or''); the Lisp <tt>or</tt> special form is
+unlike the Pascal or Ada <b>or</b> operator,
+which always evaluates both arguments.
+<P>
+From the general definition, one can deduce that
+<tt>(or <i>x</i>)</tt> == <i>x</i>.  Also,
+<tt>(or)</tt> evaluates to <tt>nil</tt>, which is the identity for this operation.
+<P>
+One can define <tt>or</tt> in terms of <tt>cond</tt> in this way:
+<P><pre>
+(or <i>x</i> <i>y</i> <i>z</i> ... <i>w</i>) == (cond (<i>x</i>) (<i>y</i>) (<i>z</i>) ... (<tt>t</tt> <i>w</i>))
+</pre><P>
+<P>
+See <tt>if</tt> and <tt>unless</tt>, which are sometimes
+stylistically more appropriate than <tt>or</tt> for conditional purposes.
+If it is necessary to test whether a predicate is true of
+one or more elements of a list or vector (element 0 <i>or</i> element 1 <i>or</i>
+element 2 <i>or</i> <b>...</b>), then the function <tt>some</tt> may be useful.
+<P>
+		
+<P>
+<BR> <HR><A NAME=tex2html2444 HREF="node76.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2442 HREF="node69.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2438 HREF="node74.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2446 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2447 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2445 HREF="node76.html"> Control Structure</A>
+<B>Up:</B> <A NAME=tex2html2443 HREF="node69.html"> Predicates</A>
+<B> Previous:</B> <A NAME=tex2html2439 HREF="node74.html"> Equality Predicates</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

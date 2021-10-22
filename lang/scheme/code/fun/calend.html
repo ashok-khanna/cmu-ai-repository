@@ -1,0 +1,598 @@
+;
+; The original Lisp code is from ``Calendrical Calculations'' by Nachum
+; Dershowitz and Edward M. Reingold, Software---Practice & Experience,
+; vol. 20, no. 9 (September, 1990), pp. 899--928.
+;
+; scheme conversion by oz (Ozan S. Yigit).
+;
+; This code is in the public domain, but any use of it should
+; acknowledge its source.
+;
+
+(define (nth n lst)
+  (list-ref lst n))
+
+; date (month day year) accessors
+
+(define extract-month car)   ; month field
+(define extract-day cadr)    ; day field
+(define extract-year caddr)  ; year field
+
+; Sum expression for index = initial and successive integers,
+; as long as condition holds.
+
+(macro (sum expression index initial condition)
+  (let* ((temp (gensym)))
+    `(do ((,temp 0 (+ ,temp ,expression))
+          (,index ,initial (1+ ,index)))
+         ((not ,condition) ,temp))))
+
+; Last day in Gregorian month during year.
+
+(define (last-day-of-gregorian-month month year)
+  (if (and (= month 2)			; February in a leap year
+	   (= (modulo year 4) 0)
+	   (not (member (modulo year 400) (list 100 200 300))))
+      29
+      (nth (1- month)
+	   (list 31 28 31 30 31 30 31 31 30 31 30 31))))
+
+; Absolute date equivalent to the Gregorian date.
+
+(define (gregorian->absolute date)
+  (let* ((month (extract-month date))
+         (year (extract-year date)))
+    (+ (extract-day date)		; days so far this month.
+       (sum				; Days in prior months this year.
+        (last-day-of-gregorian-month m year) m 1 (< m month))
+       (* 365 (1- year))		; Days in prior years.
+       (quotient (1- year) 4)		; Julian leap days in prior years...
+       (-				; ...minus prior century years...
+        (quotient (1- year) 100))
+       (quotient			; ...plus prior years divisible...
+        (1- year) 400))))		; ...by 400.
+
+; Gregorian (month day year) corresponding absolute date.
+
+(define (absolute->gregorian date)
+  (let* ((approx (quotient date 366))	; Approximation from below.
+         (year				; Search forward from the approximation
+          (+ approx
+             (sum 1 y approx
+                  (>= date
+                      (gregorian->absolute
+                       (list 1 1 (1+ y)))))))
+         (month				; Search forward from January.
+          (1+ (sum 1 m 1
+                   (> date
+                      (gregorian->absolute
+                       (list m
+                             (last-day-of-gregorian-month m year)
+                             year))))))
+         (day				; Calculate the day by subtraction.
+          (- date (1- (gregorian->absolute
+                       (list month 1 year))))))
+    (list month day year)))
+
+; Absolute date of the k-day on or before date.
+; k=0 means Sunday, k=1 means Monday, and so on.
+
+(define (k-day-on-or-before date k)
+  (- date (modulo (- date k) 7)))
+
+; Absolute date equivalent to ISO date = (week day year).
+
+(define (iso->absolute date)
+  (let* ((week (car date))
+         (day (cadr date))
+         (year (caddr date)))
+    (+ (k-day-on-or-before
+        (gregorian->absolute (list 1 4 year))
+        1)				; Days in prior years.
+       (* 7 (1- week))			; Days in prior weeks this year.
+       (1- day))))			; Prior days this week.
+
+; ISO (week day year) corresponding to the absolute date.
+
+(define (absolute->iso date)
+  (let* ((approx
+          (extract-year (absolute->gregorian (- date 3))))
+         (year (if (>= date
+                       (iso->absolute (list 1 1 (1+ approx))))
+                   (1+ approx)
+                   approx))
+         (week (1+ (quotient
+                    (- date (iso->absolute (list 1 1 year)))
+                    7)))
+         (day (if (= 0 (modulo date 7))
+                  7
+                  (modulo date 7))))
+    (list week day year)))
+
+; Last day in Julian month during year.
+
+(define (last-day-of-julian-month month year)
+  (if (and (= month 2)
+	   (= (modulo year 4) 0))	; February in a leap year
+      29
+      (nth (1- month) (list 31 28 31 30 31 30 31 31 30 31 30 31))))
+
+; Absolute date equivalent to Julian date.
+
+(define (julian->absolute date)
+  (let* ((month (extract-month date))
+         (year (extract-year date)))
+    (+ (extract-day date)		; Days so far this month.
+       (sum				; Days in prior months this year.
+        (last-day-of-julian-month m year) m 1 (< m month))
+       (* 365 (1- year))		; Days in prior years.
+       (quotient (1- year) 4)		; Leap days in prior years.
+       -2)))				; Days elapsed before absolute date 1.
+
+; Julian (month day year) corresponding to absolute date.
+
+(define (absolute->julian date)
+  (let*
+      ((approx				; Approximation from below.
+        (quotient (+ date 2) 366))
+       (year				; Search forward from the approximation
+        (+ approx
+           (sum 1 y approx
+                (>= date
+                    (julian->absolute (list 1 1 (1+ y)))))))
+       (month				; Search forward from January.
+        (1+ (sum 1 m 1
+                 (> date
+                    (julian->absolute
+                     (list m
+                           (last-day-of-julian-month m year)
+                           year))))))
+       (day				; Calculate the day by subtraction.
+        (- date (1- (julian->absolute (list month 1 year))))))
+    (list month day year)))
+
+; true if year is an Islamic leap year.
+
+(define (islamic-leap-year? year)
+  (< (modulo (+ 14 (* 11 year)) 30) 11))
+
+; Last day in month during year on the Islamic calendar.
+
+(define (last-day-of-islamic-month month year)
+  (if (or (odd? month)
+          (and (= month 12)
+	       (islamic-leap-year? year)))
+      30
+      29))
+
+; Absolute date equivalent to Islamic date.
+
+(define (islamic->absolute date)
+  (let* ((month (extract-month date))
+         (year (extract-year date)))
+    (+ (extract-day date)		; Days so far this month.
+       (* 29 (1- month))		; Days so far...
+       (quotient month 2)		;           ...this year.
+       (* (1- year) 354)		; Non-leap days in prior years.
+       (quotient			; Leap days in prior years.
+        (+ 3 (* 11 year)) 30)
+       227014)))			; Days before start of calendar.
+
+; Islamic date (month day year) corresponding to absolute date.
+
+(define (absolute->islamic date)
+  (if (<= date 227014)			; Pre-Islamic date.
+      (list 0 0 0)
+      (let* ((approx			; Approximation from below.
+	      (quotient (- date 227014) 355))
+	     (year			; Search forward from the approximation
+	      (+ approx
+		 (sum 1 y approx
+		      (>= date
+			  (islamic->absolute
+			   (list 1 1 (1+ y)))))))
+	     (month			; Search forward from Muharram.
+	      (1+ (sum 1 m 1
+		       (> date
+			  (islamic->absolute
+			   (list m
+				 (last-day-of-islamic-month m year)
+				 year))))))
+	     (day			; Calculate the day by subtraction.
+	      (- date (1- (islamic->absolute
+			   (list month 1 year))))))
+        (list month day year))))
+
+; true if year is a leap year.
+
+(define (hebrew-leap-year? year)
+  (< (modulo (1+ (* 7 year)) 19) 7))
+
+; Last month of Hebrew year.
+
+(define (last-month-of-hebrew-year year)
+  (if (hebrew-leap-year? year)
+      13
+      12))
+
+; Last day of month in Hebrew year.
+
+(define (last-day-of-hebrew-month month year)
+  (if (or (member month (list 2 4 6 10 13))
+          (and (= month 12)
+	       (not (hebrew-leap-year? year)))
+          (and (= month 8)
+	       (not (long-heshvan year)))
+          (and (= month 9)
+	       (short-kislev year)))
+      29
+      30))
+
+; Number of days elapsed from the Sunday prior to the start of the
+; Hebrew calendar to the mean conjunction of Tishri of Hebrew year.
+
+(define (hebrew-calendar-elapsed-days year)
+  (let*
+      ((months-elapsed
+        (+
+         (* 235				; Months in complete cycles so far.
+            (quotient (1- year) 19))
+         (* 12				; Regular months in this cycle.
+            (modulo (1- year) 19))
+         (quotient			; Leap months this cycle
+          (1+ (* 7 (modulo (1- year) 19)))
+          19)))
+;;
+;;    (parts-elapsed (+ 5604 (* 13753 months-elapsed)))
+;;    (day                                    ; Conjunction day
+;;     (+ 1 (* 29 months-elapsed) (quotient parts-elapsed 25920)))
+;;    (parts (modulo parts-elapsed 25920))       ; Conjunction parts
+;;
+;; The above lines of code are correct, but can have intermediate
+;; values that are too large for a 32-bit machine.  The following
+;; lines of code that replace them are equivalent, but avoid the
+;; problem.
+;;
+       (parts-elapsed
+        (+ 204
+           (* 793 (modulo months-elapsed 1080))))
+       (hours-elapsed
+        (+ 5
+           (* 12 months-elapsed)
+           (* 793 (quotient months-elapsed 1080))
+           (quotient parts-elapsed 1080)))
+       (day				; Conjunction day
+        (+ 1
+           (* 29 months-elapsed)
+           (quotient hours-elapsed 24)))
+       (parts				; Conjunction parts
+        (+ (* 1080 (modulo hours-elapsed 24))
+           (modulo parts-elapsed 1080)))
+       (alternative-day
+        (if (or
+             (>= parts 19440)		; If new moon is at or after midday,
+             (and
+	      (= (modulo day 7) 2)	; ...or is on a Tuesday...
+	      (>= parts 9924)		; at 9 hours, 204 parts or later...
+	      (not (hebrew-leap-year? year))) ; of a common year,
+             (and
+	      (= (modulo day 7) 1)	; ...or is on a Monday at...
+	      (>= parts 16789)		; 15 hours, 589 parts or later...
+	      (hebrew-leap-year?		; at the end of a leap year
+	       (1- year))))
+            (1+ day)			; Then postpone Rosh HaShanah one day
+            day)))
+; If Rosh HaShanah would occur on Sunday, Wednesday, or Friday
+    (if (member (modulo alternative-day 7) (list 0 3 5))
+        (1+ alternative-day)		; Then postpone it one (more) day
+	alternative-day)))
+
+; Number of days in Hebrew year.
+
+(define (days-in-hebrew-year year)
+  (- (hebrew-calendar-elapsed-days (1+ year))
+     (hebrew-calendar-elapsed-days year)))
+
+; true if Heshvan is long in Hebrew year.
+
+(define (long-heshvan? year)
+  (= (modulo (days-in-hebrew-year year) 10) 5))
+
+; true if Kislev is short in Hebrew year.
+
+(define (short-kislev? year)
+  (= (modulo (days-in-hebrew-year year) 10) 3))
+
+; absolute date of Hebrew date.
+
+(define (hebrew->absolute date)
+  (let* ((month (extract-month date))
+         (day (extract-day date))
+         (year (extract-year date)))
+
+    (+ day				; Days so far this month.
+       (if (< month 7)			; before Tishri
+; add days in prior months this year before and after Nisan.
+           (+ (sum (last-day-of-hebrew-month m year)
+                   m 7 (<= m (last-month-of-hebrew-year year)))
+              (sum (last-day-of-hebrew-month m year)
+                   m 1 (< m month)))
+; add days in prior months this year
+	   (sum (last-day-of-hebrew-month m year) m 7 (< m month)))
+       (hebrew-calendar-elapsed-days year) ; Days in prior years.
+       -1373429)))			; Days elapsed before absolute date 1.
+
+; hebrew (month day year) corresponding to absolute date.
+
+(define (absolute->hebrew date)
+  (let* ((approx			; Approximation from below.
+          (quotient (+ date 1373429) 366))
+         (year				; Search forward from the approximation
+          (+ approx (sum 1 y approx
+                         (>= date
+                             (hebrew->absolute
+                              (list 7 1 (1+ y)))))))
+         (start				; Starting month for search for month.
+          (if (< date (hebrew->absolute (list 1 1 year)))
+	      7				; start at Tishri
+              
+	      1))			; start at Nisan
+	 (month			; Search forward from either Tishri or Nisan.
+          (+ start
+             (sum 1 m start
+                  (> date
+                     (hebrew->absolute
+                      (list m
+                            (last-day-of-hebrew-month m year)
+                            year))))))
+         (day				; Calculate the day by subtraction.
+          (- date (1- (hebrew->absolute (list month 1 year))))))
+    (list month day year)))
+
+; Absolute date of American Independence Day in Gregorian year.
+
+(define (independence-day year)
+  (gregorian->absolute (list 7 4 year)))
+
+; Absolute date of the n-th k-day in Gregorian month, year.
+; If n<0, the n-th k-day from the end of month is returned
+; (that is, -1 is the last k-day, -2 is the penultimate k-day,
+; and so on).  k=0 means Sunday, k=1 means Monday, and so on.
+
+(define (nth-k-day n k month year)
+  (if (> n 0)
+      (+ (k-day-on-or-before		; First k-day in month.
+          (gregorian->absolute
+           (list month 7 year)) k)
+         (* 7 (1- n)))                  ; Advance n-1 k-days.
+      (+ (k-day-on-or-before		; Last k-day in month.
+          (gregorian->absolute
+           (list month
+                 (last-day-of-gregorian-month month year)
+                 year))
+          k)
+         (* 7 (1+ n)))))                ; Go back -n-1 k-days.
+
+; Absolute date of American Labor Day in Gregorian year.
+
+(define (labor-day year)
+  (nth-k-day 1 1 9 year))		; First Monday in September.
+
+; Absolute date of American Memorial Day in Gregorian year.
+
+(define (memorial-day year)
+  (nth-k-day -1 1 5 year))		; Last Monday in May.
+
+; Absolute date of the start of American daylight savings time
+; in Gregorian year.
+
+(define (daylight-savings-start year)
+  (nth-k-day 1 0 4 year))		; First Sunday in April.
+
+; Absolute date of the end of American daylight savings time
+; in Gregorian year.
+
+(define (daylight-savings-end year)
+  (nth-k-day -1 0 10 year))		; Last Sunday in October.
+
+; Absolute date of Christmas in Gregorian year.
+
+(define (christmas year)
+  (gregorian->absolute (list 12 25 year)))
+
+; Absolute date of Advent in Gregorian year.
+
+(define (advent year)
+  (k-day-on-or-before (gregorian->absolute (list 12 3 year)) 0))
+
+; Absolute date of Epiphany in Gregorian year.
+
+(define (epiphany year)
+  (+ 12 (christmas year)))
+
+; List of zero or one absolute dates of Eastern Orthodox
+; Christmas in Gregorian year.
+
+(define (eastern-orthodox-christmas year)
+  (let* ((jan1 (gregorian->absolute (list 1 1 year)))
+         (dec31 (gregorian->absolute (list 12 31 year)))
+         (y (extract-year (absolute->julian jan1)))
+         (c1 (julian->absolute (list 12 25 y)))
+         (c2 (julian->absolute (list 12 25 (1+ y)))))
+    (append
+     (if (<= jan1 c1 dec31)		; c1 occurs in current year
+	 (list c1)			; that date; otherwise, none
+	 nil)
+     (if (<= jan1 c2 dec31)		; c2 occurs in current year
+	 (list c2)			; that date; otherwise, none
+	 nil))))
+
+; Absolute date of Easter in Julian year, according to the rule
+; of the Council of Nicaea.
+
+(define (nicaean-rule-easter year)
+  (let* ((shifted-epact			; Age of moon for April 5.
+          (modulo (+ 14
+		     (* 11 (modulo year 19)))
+		  30))
+         (paschal-moon			; Day after full moon on or after March
+ 21.
+          (- (julian->absolute (list 4 19 year))
+             shifted-epact)))
+
+; Return the Sunday following the Paschal moon
+
+    (k-day-on-or-before (+ paschal-moon 7) 0)))
+
+; Absolute date of Easter in Gregorian year.
+
+(define (easter year)
+  (let* ((century (1+ (quotient year 100)))
+         (shifted-epact			; Age of moon for April 5...
+          (modulo
+           (+ 14 (* 11 (modulo year 19));    ...by Nicaean rule
+              (-		; ...corrected for the Gregorian century rule
+               (quotient (* 3 century) 4))
+              (quotient		; ...corrected for Metonic cycle inaccuracy.
+               (+ 5 (* 8 century)) 25)
+              (* 30 century))	; Keeps value positive.
+           30))
+         (adjusted-epact	; Adjust for 29.5 day month..
+          (if (or (= shifted-epact 0)
+                  (and (= shifted-epact 1)
+		       (< 10 (modulo year 19))))
+              (1+ shifted-epact)
+	      shifted-epact))
+         (paschal-moon		; Day after full moon on or after March 21.
+          (- (gregorian->absolute (list 4 19 year))
+             adjusted-epact)))
+
+; Return the Sunday following the Paschal moon.
+
+    (k-day-on-or-before (+ paschal-moon 7) 0)))
+
+; Absolute date of Pentecost in Gregorian year.
+
+(define (pentecost year)
+  (+ 49 (easter year)))
+
+; List of the absolute dates of Islamic month, day
+; that occur in Gregorian year.
+
+(define (islamic-date month day year)
+  (let* ((jan1 (gregorian->absolute (list 1 1 year)))
+         (dec31 (gregorian->absolute (list 12 31 year)))
+         (y (extract-year (absolute->islamic jan1)))
+
+	 ; The possible occurrences in one year are
+
+         (date1 (islamic->absolute (list month day y)))
+         (date2 (islamic->absolute (list month day (1+ y))))
+         (date3 (islamic->absolute (list month day (+ 2 y)))))
+
+    ; Combine in one list those that occur in current year
+
+    (append 
+     (if (<= jan1 date1 dec31)
+	 (list date1) nil)
+     (if (<= jan1 date2 dec31)
+	 (list date2) nil)
+     (if (<= jan1 date3 dec31)
+	 (list date3) nil))))        
+
+; List of absolute dates of Mulad-al-Nabi occurring in
+; Gregorian year.
+
+(define (mulad-al-nabi year)
+  (islamic-date 3 12 year))
+
+; Absolute date of Yom Kippur occurring in Gregorian year.
+
+(define (yom-kippur year)
+  (hebrew->absolute (list 7 10 (+ year 3761))))
+
+; Absolute date of Passover occurring in Gregorian year.
+
+(define (passover year)
+  (hebrew->absolute (list 1 15 (+ year 3760))))
+
+; Absolute date of Purim occurring in Gregorian year.
+
+(define (purim year)
+  (hebrew->absolute
+   (list
+    (last-month-of-hebrew-year (+ year 3760)) ; Adar or Adar II
+    14
+    (+ year 3760))))
+
+; Absolute date of Ta'anith Esther occurring in Gregorian year.
+
+(define (ta-anit-esther year)
+  (let* ((purim-date (purim year)))	; absolute date of Purim
+    (if (= (modulo purim-date 7) 0)	; Purim is on Sunday
+        (- purim-date 3)		; return prior Thursday
+	(1- purim-date))))		; return previous day
+
+; Absolute date of Tisha B'Av occurring in Gregorian year.
+
+(define (tisha-b-av year)
+  (let* ((ninth-of-av
+          (hebrew->absolute (list 5 9 (+ year 3760)))))
+    (if 
+     (= (modulo ninth-of-av 7) 6)	; Ninth of Av is Saturday
+     (1+ ninth-of-av)			; return the next day
+     ninth-of-av)))
+
+; Absolute date of the anniversary of Hebrew birthdate
+; occurring in Hebrew year.
+
+(define (hebrew-birthday birthdate year)
+  (let* ((birth-day (extract-day birthdate))
+         (birth-month (extract-month birthdate))
+         (birth-year (extract-year birthdate)))
+; It's Adar in a normal year or Adar II in a leap year
+; then use the same day in last month of year.
+    (if (= birth-month (last-month-of-hebrew-year birth-year))
+        (hebrew->absolute
+         (list (last-month-of-hebrew-year year) birth-day year))
+; else use the normal anniversary of the birth date,
+; or the corresponding day in years without that date
+	(hebrew->absolute (list birth-month birth-day year)))))
+
+; Absolute date of the anniversary of Hebrew death-date
+; occurring in Hebrew year.
+
+(define (yahrzeit death-date year)
+  (let* ((death-day (extract-day death-date))
+         (death-month (extract-month death-date))
+         (death-year (extract-year death-date)))
+    (cond
+; If it's Heshvan 30 it depends on the first anniversary.
+; If that was not Heshvan 30, use the day before Kislev 1.
+     ((and (= death-month 8)
+           (= death-day 30)
+           (not (long-heshvan? (1+ death-year))))
+      (1- (hebrew->absolute (list 9 1 year))))
+; If it's Kislev 30 it depends on the first anniversary.
+; If that was not Kislev 30, use the day before Teveth 1.
+     ((and (= death-month 9)
+           (= death-day 30)
+           (short-kislev? (1+ death-year)))
+      (1- (hebrew->absolute (list 10 1 year))))
+; If it's Adar II, use the same day in last month of
+; year (Adar or Adar II).
+     ((= death-month 13)
+      (hebrew->absolute
+       (list (last-month-of-hebrew-year year) death-day year)))
+; If it's the 30th in Adar I and year is not a leap year
+; (so Adar has only 29 days), use the last day in Shevat.
+     ((and (= death-day 30)
+           (= death-month 12)
+           (not (hebrew-leap-year? death-year)))
+      (hebrew->absolute (list 11 30 year)))
+; In all other cases, use the normal anniversary of the
+; date of death.
+     (t (hebrew->absolute
+         (list death-month death-day year))))))
+
+

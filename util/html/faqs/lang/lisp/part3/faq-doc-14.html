@@ -1,0 +1,64 @@
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/faqs/lang/lisp/part3/faq-doc-14.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 17:20:49 GMT -->
+<HEAD>
+<TITLE>FAQ: Lisp Frequently Asked Questions 3/7 [Monthly posting] - [3-13] Why does my program's behavior change each time I use it?</TITLE>
+</HEAD>
+<BODY>
+<H1>[3-13] Why does my program's behavior change each time I use it?</H1>
+<PRE>
+Most likely your program is altering itself, and the most common way this
+may happen is by performing destructive operations on embedded constant
+data structures.  For instance, consider the following:
+
+   (defun one-to-ten-except (n)
+     (delete n '(1 2 3 4 5 6 7 8 9 10)))
+   (one-to-ten-except 3) =&#62; (1 2 4 5 6 7 8 9 10)
+   (one-to-ten-except 5) =&#62; (1 2 4 6 7 8 9 10) ; 3 is missing
+
+The basic problem is that QUOTE returns its argument, *not* a copy of
+it. The list is actually a part of the lambda expression that is in
+ONE-TO-TEN-EXCEPT's function cell, and any modifications to it (e.g., by
+DELETE) are modifications to the actual object in the function definition.
+The next time that the function is called, this modified list is used.
+
+In some implementations calling ONE-TO-TEN-EXCEPT may even result in
+the signalling of an error or the complete aborting of the Lisp process.  Some
+Lisp implementations put self-evaluating and quoted constants onto memory
+pages that are marked read-only, in order to catch bugs such as this.
+Details of this behavior may vary even within an implementation,
+depending on whether the code is interpreted or compiled (perhaps due to
+inlined DEFCONSTANT objects or constant folding optimizations).
+
+All of these behaviors are allowed by the draft ANSI Common Lisp
+specification, which specifically states that the consequences of modifying
+a constant are undefined (X3J13 vote CONSTANT-MODIFICATION:DISALLOW).
+
+To avoid these problems, use LIST to introduce a list, not QUOTE. QUOTE
+should be used only when the list is intended to be a constant which
+will not be modified.  If QUOTE is used to introduce a list which will
+later be modified, use COPY-LIST to provide a fresh copy.
+
+For example, the following should all work correctly:
+
+   o  (remove 4 (list 1 2 3 4 1 3 4 5))
+   o  (remove 4 '(1 2 3 4 1 3 4 5))   ;; Remove is non-destructive.
+   o  (delete 4 (list 1 2 3 4 1 3 4 5))
+   o  (let ((x (list 1 2 4 1 3 4 5)))
+        (delete 4 x))
+   o  (defvar *foo* '(1 2 3 4 1 3 4 5))
+      (delete 4 (copy-list *foo*))
+      (remove 4 *foo*)
+      (let ((x (copy-list *foo*)))
+         (delete 4 x))
+
+The following, however, may not work as expected:
+
+   o  (delete 4 '(1 2 3 4 1 3 4 5))
+
+Note that similar issues may also apply to hard-coded strings. If you
+want to modify elements of a string, create the string with MAKE-STRING.
+</PRE>
+<A NAME=up HREF="faq.html">Go Back Up</A><P>
+<A NAME=up HREF="faq-doc-13.html">Go To Previous</A><P>
+<A NAME=up HREF="faq-doc-15.html">Go To Next</A><P>
+</BODY>

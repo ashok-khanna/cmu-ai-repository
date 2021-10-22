@@ -1,0 +1,167 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node205.html by HTTrack Website Copier/3.x [XR&CO'2014], Thu, 21 Oct 2021 14:58:19 GMT -->
+<HEAD>
+<TITLE>23.1.2. Case Conventions</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Case Conventions">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4119 HREF="node206.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4117 HREF="node203.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4111 HREF="node204.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4121 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4122 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4120 HREF="node206.html"> Structured Directories</A>
+<B>Up:</B> <A NAME=tex2html4118 HREF="node203.html"> File Names</A>
+<B> Previous:</B> <A NAME=tex2html4112 HREF="node204.html"> Pathnames</A>
+<HR> <P>
+<H2><A NAME=SECTION002712000000000000000>23.1.2. Case Conventions</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<A NAME=PATHNAMECOMPONENTCASESECTION>Issues</A>
+of alphabetic case in pathnames are a major source of problems.
+  In some file systems, the customary case is lowercase, in some uppercase,
+  in some mixed.  Some file systems are case-sensitive (that is, they treat
+  <tt>FOO</tt> and <tt>foo</tt> as different file names) and others are not.
+<P>
+  There are two kinds of pathname case portability problems: moving
+  programs from one Common Lisp to another, and moving pathname component
+  values from one file system to another.  The solution to the first problem
+  is the requirement that all
+  Common Lisp implementations that support a particular file system must
+  use compatible representations for pathname component values.  The solution to
+  the second problem is the use of a common representation for the
+  least-common-denominator pathname component values that exist on all
+  interesting file systems.
+<P>
+  Requiring a common representation directly conflicts with the
+  desire among programmers that use only one file system to work with the
+  local conventions and to ignore issues of porting to other file
+  systems.  The common representation cannot be the same as local (varying)
+  conventions.
+<P>
+X3J13 voted in June 1989 (PATHNAME-COMPONENT-CASE) <A NAME=26133>&#160;</A>  to
+add a keyword argument <tt>:case</tt> to each of the functions
+  <tt>make-pathname</tt>, <tt>pathname-host</tt>,
+  <tt>pathname-device</tt>, <tt>pathname-directory</tt>, <tt>pathname-name</tt>,
+  and <tt>pathname-type</tt>.
+  The possible values for the argument are <tt>:common</tt> and <tt>:local</tt>.
+  The default is <tt>:local</tt>.
+<P>
+  The value <tt>:local</tt> means that strings given to <tt>make-pathname</tt>
+  or returned by any of the pathname component accessors
+  follow the local file system's conventions for alphabetic case.
+  Strings given to <tt>make-pathname</tt> will be used exactly as written if
+  the file system supports both cases.  If the file system
+  supports only one case, the strings will be translated to that case.
+<P>
+  The value <tt>:common</tt> means that strings given to <tt>make-pathname</tt>
+  or returned by any of the pathname component accessors
+  follow this common convention:
+<UL><LI> All uppercase means that a file system's customary case will be used.
+<LI> All lowercase means that the opposite of the customary case will be used.
+<LI> Mixed case represents itself.
+</UL>
+  Uppercase is used as the common case for no better reason than
+  consistency with Lisp symbols.
+  The second and third points allow translation from local representation to
+  common and back to be information-preserving.  (Note that translation
+  from common to local representation and back may or may not be information-preserving,
+  depending on the nature of the local representation.)
+<P>
+  Namestrings always use <tt>:local</tt> file system case conventions.
+<P>
+  Finally, <tt>merge-pathnames</tt> and <tt>translate-pathname</tt> map customary case in the
+  input pathnames into customary case in the output pathname.
+<P>
+  Examples of possible use of this convention:
+<UL>  <LI> TOPS-20 is case-sensitive and prefers uppercase,
+  translating lowercase to uppercase unless escaped with <tt>^V</tt>;
+  for a TOPS-20-based
+  file system, a Common Lisp implementation
+  should use identical
+  representations for common and local.
+<P>
+<LI> UNIX is case-sensitive and prefers lowercase; for a UNIX-based file system,
+  a Common Lisp implementation should translate between
+  common and local representations by inverting the case of non-mixed-case strings.
+<P>
+<LI> VAX/VMS is uppercase-only (that is, the file system translates all file
+  name arguments to uppercase); for a VAX/VMS-based file system,
+  a Common Lisp implementation should
+  translate common representation to local by
+  converting to uppercase and should translate local representation
+  to common with no change.
+<P>
+<LI> The Macintosh operating system is case-insensitive and prefers lowercase,
+  but remembers the cases of letters actually used to name a file;
+  for a Macintosh-based file system, a Common Lisp implementation should translate
+  between common and local representations by inverting the case of non-mixed-case strings
+  and should ignore case when determining whether two pathnames are <tt>equal</tt>.
+</UL>
+<P>
+Here are some examples of this behavior.  Assume that the host <tt>T</tt> runs
+TOPS-20, <tt>U</tt> runs UNIX, <tt>V</tt> runs VAX/VMS, and <tt>M</tt> runs the Macintosh
+operating system.
+<P><pre>
+;;; Returns two values: the PATHNAME-NAME from a namestring 
+;;; in :COMMON and :LOCAL representations (in that order). 
+(defun pathname-example (name) 
+  (let ((path (parse-namestring name)))) 
+    (values (pathname-name path :case :common) 
+            (pathname-name path :case :local)))) 
+
+                                           => &quot;FOO&quot; and &#175;&quot;FOO&quot;                                               ;Common		Local 
+(pathname-example &quot;T:&lt;ME&gt;FOO.LISP&quot;)        => &quot;FOO&quot; and &quot;FOO&quot; 
+(pathname-example &quot;T:&lt;ME&gt;foo.LISP&quot;)        => &quot;FOO&quot; and &quot;FOO&quot; 
+(pathname-example &quot;T:&lt;ME&gt;^Vf^Vo^Vo.LISP&quot;)  => &quot;foo&quot; and &quot;foo&quot; 
+(pathname-example &quot;T:&lt;ME&gt;TeX.LISP&quot;)        => &quot;TEX&quot; and &quot;TEX&quot; 
+(pathname-example &quot;T:&lt;ME&gt;T^VeX.LISP&quot;)      => &quot;TeX&quot; and &quot;TeX&quot; 
+(pathname-example &quot;U:/me/FOO.lisp&quot;)        => &quot;foo&quot; and &quot;FOO&quot; 
+(pathname-example &quot;U:/me/foo.lisp&quot;)        => &quot;FOO&quot; and &quot;foo&quot; 
+(pathname-example &quot;U:/me/TeX.lisp&quot;)        => &quot;TeX&quot; and &quot;TeX&quot; 
+(pathname-example &quot;V:[me]FOO.LISP&quot;)        => &quot;FOO&quot; and &quot;FOO&quot; 
+(pathname-example &quot;V:[me]foo.LISP&quot;)        => &quot;FOO&quot; and &quot;FOO&quot; 
+(pathname-example &quot;V:[me]TeX.LISP&quot;)        => &quot;TEX&quot; and &quot;TEX&quot; 
+(pathname-example &quot;M:FOO.LISP&quot;)            => &quot;foo&quot; and &quot;FOO&quot; 
+(pathname-example &quot;M:foo.LISP&quot;)            => &quot;FOO&quot; and &quot;foo&quot; 
+(pathname-example &quot;M:TeX.LISP&quot;)            => &quot;TeX&quot; and &quot;TeX&quot;
+</pre><P>
+The following example illustrates the creation of new pathnames.
+The name is converted from common representation to local because
+namestrings always use local conventions.
+<P><pre>
+(defun make-pathname-example (h n) 
+  (namestring (make-pathname :host h :name n :case :common)) 
+
+(make-pathname-example &quot;T&quot; &quot;FOO&quot;) => &quot;T:FOO&quot; 
+(make-pathname-example &quot;T&quot; &quot;foo&quot;) => &quot;T:^Vf^Vo^Vo&quot; 
+(make-pathname-example &quot;T&quot; &quot;TeX&quot;) => &quot;T:T^VeX&quot; 
+(make-pathname-example &quot;U&quot; &quot;FOO&quot;) => &quot;U:foo&quot; 
+(make-pathname-example &quot;U&quot; &quot;foo&quot;) => &quot;U:FOO&quot; 
+(make-pathname-example &quot;U&quot; &quot;TeX&quot;) => &quot;U:TeX&quot; 
+(make-pathname-example &quot;V&quot; &quot;FOO&quot;) => &quot;V:FOO&quot; 
+(make-pathname-example &quot;V&quot; &quot;foo&quot;) => &quot;V:FOO&quot; 
+(make-pathname-example &quot;V&quot; &quot;TeX&quot;) => &quot;V:TeX&quot; 
+(make-pathname-example &quot;M&quot; &quot;FOO&quot;) => &quot;M:foo&quot; 
+(make-pathname-example &quot;M&quot; &quot;foo&quot;) => &quot;M:FOO&quot; 
+(make-pathname-example &quot;M&quot; &quot;TeX&quot;) => &quot;M:TeX&quot;
+</pre><P>
+A big advantage of this set of conventions is that one can, for example,
+call <tt>make-pathname</tt> with <tt>:type &quot;LISP&quot;</tt> and <tt>:case :common</tt>,
+and the result will appear in a namestring as <tt>.LISP</tt> or <tt>.lisp</tt>,
+whichever is appropriate.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html4119 HREF="node206.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4117 HREF="node203.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4111 HREF="node204.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4121 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4122 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4120 HREF="node206.html"> Structured Directories</A>
+<B>Up:</B> <A NAME=tex2html4118 HREF="node203.html"> File Names</A>
+<B> Previous:</B> <A NAME=tex2html4112 HREF="node204.html"> Pathnames</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

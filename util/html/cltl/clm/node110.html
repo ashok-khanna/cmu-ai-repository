@@ -1,0 +1,216 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node110.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:32:03 GMT -->
+<HEAD>
+<TITLE>10.3. Creating Symbols</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Creating Symbols">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2890 HREF="node111.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2888 HREF="node107.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2884 HREF="node109.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2892 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2893 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2891 HREF="node111.html"> Packages</A>
+<B>Up:</B> <A NAME=tex2html2889 HREF="node107.html"> Symbols</A>
+<B> Previous:</B> <A NAME=tex2html2885 HREF="node109.html"> The Print Name</A>
+<HR> <P>
+<H1><A NAME=SECTION001430000000000000000>10.3. Creating Symbols</A></H1>
+<P>
+Symbols can be used in two rather different ways.
+An <i>interned</i> symbol is one that is indexed by its print name
+in a catalogue called a <i>package</i>.
+A request to locate a symbol with that print name results
+in the same (<tt>eq</tt>) symbol.  Every time input is read with the
+function <tt>read</tt>,
+and that print name appears, it is read as the same symbol.
+This property of symbols makes them appropriate to use as names for
+things and as hooks on which to hang permanent data objects
+(using the property list, for example).
+<P>
+Interned symbols are normally created automatically; the first time
+something (such as the function <tt>read</tt>)
+asks the package system for a symbol with a given print name,
+that symbol is automatically created.  The function used to ask for
+an interned symbol is <tt>intern</tt>, or one of the functions
+related to <tt>intern</tt>.
+<P>
+Although interned symbols are the most commonly
+used, they will not be discussed further here.  For more information,
+see chapter <A HREF="node111.html#XPACK">11</A>.
+<P>
+An <i>uninterned</i> symbol is a symbol used simply as a data object,
+with no special cataloguing (it belongs to no particular package).
+An uninterned symbol is printed as <tt>#:</tt> followed by its
+print name.
+The following are some functions for creating uninterned symbols.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>make-symbol <i>print-name</i></tt><P><tt>(make-symbol <i>print-name</i>)</tt> creates a new uninterned symbol, whose
+print name is the string <i>print-name</i>.  The value and function bindings will
+be unbound and the property list will be empty.
+<P>
+The string actually installed in the symbol's print-name component
+may be the given string <i>print-name</i> or may be a copy of it,
+at the implementation's discretion.  The user should not assume
+that <tt>(symbol-name (make-symbol x))</tt> is <tt>eq</tt> to <tt>x</tt>, but also
+should not alter a string once it has been given as an argument
+to <tt>make-symbol</tt>.
+<P>
+<hr>
+<b>Compatibility note:</b> An implementation might choose, for example,
+to copy the string to some read-only area, in the expectation that
+it will never be altered.
+<hr>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>copy-symbol <i>sym</i> &amp;optional <i>copy-props</i></tt><P>This returns a new uninterned symbol with the same print name
+as <i>sym</i>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (COPY-SYMBOL-PRINT-NAME) <A NAME=10041>&#160;</A> 
+that the print name of the new symbol is required to be
+the same only in the sense of <tt>string=</tt>; in other words,
+an implementation is permitted (but not required)
+to make a copy of the print name.
+User programs should not assume that the print names of the old and new symbols
+will be <tt>eq</tt>, although they may happen to be <tt>eq</tt> in some implementations.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+If <i>copy-props</i> is non-<tt>nil</tt>, then the initial
+value and function definition of the new symbol will
+be the same as those of <i>sym</i>, and the property list of
+the new symbol will be a copy of <i>sym</i>'s.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (COPY-SYMBOL-COPY-PLIST) <A NAME=10051>&#160;</A> 
+to clarify that only the top-level conses of the
+property list are copied; it is as if <tt>(copy-list (symbol-plist <i>sym</i>))</tt>
+were used as the property list of the new symbol.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+If <i>copy-props</i>
+is <tt>nil</tt> (the default), then the new symbol will be unbound and undefined, and
+its property list will be empty.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>gensym &amp;optional <i>x</i></tt><P><tt>gensym</tt> invents a print name and creates a new symbol with that print name.
+It returns the new, uninterned symbol.
+<P>
+The invented print name consists of a prefix
+(which defaults to <tt>G</tt>), followed by the decimal representation of a number.
+<p>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+The number is increased by 1 every time <tt>gensym</tt> is called.
+<P>
+If the argument <i>x</i> is present and is an integer, then <i>x</i> must be
+non-negative, and the internal counter is set to <i>x</i> for future use;
+otherwise the internal counter is incremented.
+If <i>x</i> is a string, then that string is made the default prefix
+for this and future calls to <tt>gensym</tt>.
+After handling the argument, <tt>gensym</tt> creates a
+symbol as it would with no argument.
+For example:
+<P><pre>
+(gensym) => G7 
+(gensym &quot;FOO-&quot;) => FOO-8 
+(gensym 32) => FOO-32 
+(gensym) => FOO-33 
+(gensym &quot;GARBAGE-&quot;) => GARBAGE-34
+</pre>
+<img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<tt>gensym</tt> is usually used to create a symbol that should not normally
+be seen by the user and whose print name is unimportant except to
+allow easy distinction by eye between two such symbols.
+The optional argument is rarely supplied.
+The name comes from ``generate symbol,'' and the symbols produced by it
+are often called ``gensyms.''
+<P>
+<hr>
+<b>Compatibility note:</b> In earlier versions of Lisp, such as MacLisp and
+Interlisp, the print name of a gensym was of fixed length, consisting
+of a single letter and a fixed-length
+decimal representation with leading zeros
+if necessary, for example, <tt>G0007</tt>.  This convention was
+motivated by an implementation consideration, namely that the name
+should fit into a single machine word, allowing a quick and clever
+implementation.  Such considerations are less relevant in Common Lisp.
+The consistent use of mnemonic prefixes can make it easier
+for the programmer, when debugging, to determine what code generated
+a particular symbol.  The elimination of the fixed-length decimal
+representation prevents the same name from being used twice
+unless the counter is explicitly reset.
+<hr>
+<P>
+If it is desirable
+for the generated symbols to be interned, and yet guaranteed to be
+symbols distinct from all others,
+then the function <tt>gentemp</tt>
+may be more appropriate to use.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (GENSYM-NAME-STICKINESS) <A NAME=10077>&#160;</A> 
+to alter the specification of <tt>gensym</tt> so that supplying an
+optional argument (whether a string or a number) does <i>not</i> alter
+the internal state maintained by <tt>gensym</tt>.
+Instead, the internal
+counter is made explicitly available as a variable named <tt>*gensym-counter*</tt>.
+<P>
+If a string argument is given to <tt>gensym</tt>, that string is used as the prefix;
+otherwise ``<tt>G</tt>'' is used.  If a number is provided, its decimal
+representation is used, but the internal counter is unaffected.
+X3J13 deprecates the use of a number as an argument.
+<P>
+<BR><b>[Variable]</b><BR>
+<tt>*gensym-counter*</tt><P>X3J13 voted in March 1989 (GENSYM-NAME-STICKINESS) <A NAME=10088>&#160;</A> 
+to add <tt>*gensym-counter*</tt>, which
+holds the state of the <tt>gensym</tt> counter; that is, <tt>gensym</tt>
+uses the decimal representation of its value as part of the generated name
+and then increments its value.
+<P>
+The initial value of this variable is implementation-dependent
+but will be a non-negative integer.
+<P>
+The user may assign to or bind this variable at any time, but its value
+must always be a non-negative integer.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>gentemp &amp;optional <i>prefix</i> <i>package</i></tt><P><tt>gentemp</tt>, like <tt>gensym</tt>, creates and returns a new symbol.
+<tt>gentemp</tt> differs from <tt>gensym</tt> in that it interns the symbol
+(see <tt>intern</tt>) in the <i>package</i> (which defaults to the current
+package; see <tt>*package*</tt>).  <tt>gentemp</tt> guarantees the symbol
+will be a new one not already existing in the package.  It does this
+by using a counter as <tt>gensym</tt> does, but if the generated symbol
+is not really new, then the process is repeated until a new one is created.
+There is no provision for resetting the <tt>gentemp</tt> counter.
+Also, the prefix for <tt>gentemp</tt> is not remembered from one call
+to the next; if <i>prefix</i> is omitted, the default prefix <tt>T</tt> is used.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>symbol-package <i>sym</i></tt><P>Given a symbol <i>sym</i>, <tt>symbol-package</tt> returns the contents of the
+package cell of that symbol.  This will be a package object or <tt>nil</tt>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>keywordp <i>object</i></tt><P>The argument may be any Lisp object.  The predicate <tt>keywordp</tt> is true
+if the argument is a symbol and that
+symbol is a keyword (that is, belongs to the keyword
+package).  Keywords are those symbols that are written with
+a leading colon.  Every keyword is a constant, in the sense
+that it always evaluates to itself.  See <tt>constantp</tt>.
+<P>
+	
+<P>
+<BR> <HR><A NAME=tex2html2890 HREF="node111.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2888 HREF="node107.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2884 HREF="node109.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2892 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2893 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2891 HREF="node111.html"> Packages</A>
+<B>Up:</B> <A NAME=tex2html2889 HREF="node107.html"> Symbols</A>
+<B> Previous:</B> <A NAME=tex2html2885 HREF="node109.html"> The Print Name</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

@@ -1,0 +1,113 @@
+Extending Cogent Prolog with Windows GUI Elements
+-------------------------------------------------
+
+Cogent Prolog is distributed as a compact Prolog engine that is easily
+extensible to allow direct communication from Prolog to any facilities
+available from C/C++.  This is done by defining your own extended predicates
+in C/C++ and linking them into a custom version of the Prolog engine.
+(You can also embed a Prolog engine, custom or otherwise, in C/C++ or
+any language that can access a Windows DLL, such as Visual Basic.)
+
+Because the 3.0 release is relatively new, we do not have a large library
+of such extensions built up, but there are many examples.  All of the DOS-
+specific extensions (such as mouse and full screen access) to the DOS
+version are implemented using the Logic Server API and distributed in
+source form so they can be easily extended and/or modified.
+
+So, while Cogent doesn't come with many extended predicates giving the
+Prolog programmer access to Windows capabilities, it does come with
+a few that can be easily augmented to provide exactly the degree of
+Windows programming capability you would like.  (There are many design
+issues here, all related to whether you want the Prolog program to
+provide simple menu and dialog support that is easy to use, or provide
+full access to the rich complexities of Windows, and whether you want
+to recreate an event-drive Prolog programming style, or preserve the
+more traditional command-driven style of program.  This is the primary
+reason we haven't provided much here.)
+
+Implementing interfaces such as this is not difficult.  For example,
+under contract to one of our customers we implemented a full programming
+interface to a DOS GUI package, from Prolog.  The work took about
+two weeks and lets the Prolog programmer develop and manipulate the
+DOS GUI purely from Prolog.  This was all done using the Logic Server
+API that is available to all our customers.  (The source code for that
+interface is available on an as-is basis.)
+
+Attached to the end of this message is the sample code for implementing
+three Windows-specific extended predicates in Cogent Prolog.  We will
+be adding many more, but doubt that our provided extensions will ever
+be exactly what any one customer needs.
+
+(The Windows version of Cogent does have a full IDE for developing Prolog
+programs, but it uses the normal Prolog listener environment for running
+the code.  The IDE is an example of an extended environment, it uses
+the Logic Server API to capture the Prolog I/O streams and map them to
+scrolling text windows.  The same Cogent interpreter, written in Prolog,
+that runs under DOS, runs under Windows using the custom engine.)
+
+//-----------------------------------------------------------
+// Sample Extended Windows Predicates
+// Microsoft Foundation Classes version
+// (these predicates could be implemented using the SDK or
+// any other GUI library, such as OWL or Zinc or XVT.)
+//
+
+#include "stdafx.h"
+#include "cpeng.hpp"
+
+TF __export p_msgbox(ENGid);
+TF __export p_tfmsgbox(ENGid);
+TF __export p_consult(ENGid);
+
+// Provide mapping between Prolog predicate names and C functions
+// This example defines msgbox/1, tfmsgbox/1, and consult/0.
+PRED_INIT winPreds[] =
+{
+        {"msgbox", 1, p_msgbox},
+        {"tfmsgbox", 1, p_tfmsgbox},
+        {"consult", 0, p_consult},
+        {NULL, 0, NULL}
+};
+
+// Put up a simple message box.
+TF __export p_msgbox(ENGid eid)
+{
+        char msg[120];
+        //Map the Prolog argument into a C string for display
+        cpGetParm(eid, 1, cSTR, msg);
+        AfxMessageBox(msg);
+        return(TRUE);
+}
+
+// Put up a YESNO message box, allowing user to cause predicate to
+// succeed or fail.
+TF __export p_tfmsgbox(ENGid eid)
+{
+        char msg[120];
+        cpGetParm(eid, 1, cSTR, msg);
+        if (IDYES == AfxMessageBox(msg, MB_YESNO))
+                return TRUE;
+        else
+                return FALSE;
+}
+
+// Use the Windows file open dialog box to let the user select a file
+// to consult, and consult it.
+TF __export p_consult(ENGid eid)
+{
+   CString sFile;
+   TERM t;
+   char buf[120];
+
+   CFileDialog fileDlg(TRUE, ".pro", NULL,
+                       OFN_HIDEREADONLY|OFN_OVERWRITEPROMPT,
+                       "Prolog Source (*.pro)|*.pro|All (*.*)|*.*||");
+
+   if (fileDlg.DoModal() != IDOK) return(FALSE);
+   sFile = fileDlg.GetPathName();
+   // construct a Prolog query to consult the file
+   sprintf(buf, "consult('%s')", (const char *)sFile);
+   cpStrToTerm(eid, &t, buf);
+   cpCall(eid, &t);
+   return(TRUE);
+}

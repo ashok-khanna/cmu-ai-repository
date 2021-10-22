@@ -1,0 +1,258 @@
+Return-Path: <Trevor.Martin@bristol.ac.uk>
+Received: from GLINDA.OZ.CS.CMU.EDU by A.GP.CS.CMU.EDU id aa06302;
+          10 Mar 94 4:08:33 EST
+Received: from dir.bris.ac.uk by GLINDA.OZ.CS.CMU.EDU id aa03481;
+          10 Mar 94 4:07:56 EST
+Received: from irix.bristol.ac.uk by dir.bris.ac.uk with SMTP (PP) 
+          id <02558-0@dir.bris.ac.uk>; Thu, 10 Mar 1994 09:05:56 +0000
+From: "TP. Martin" <Trevor.Martin@bristol.ac.uk>
+Message-Id: <19391.9403100906@irix.bris.ac.uk>
+Subject: Re: FRIL
+To: Mark.Kantrowitz@GLINDA.OZ.CS.CMU.EDU
+Date: Thu, 10 Mar 1994 09:06:06 +0000 (GMT)
+In-Reply-To: <15621.9403100414@irix.bris.ac.uk> from "Mark.Kantrowitz@GLINDA.OZ.CS.CMU.EDU" at Mar 9, 94 11:10:15 pm
+X-Mailer: ELM [version 2.4 PL21]
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Content-Length: 10336
+
+> 
+> I'm told that you're the developer of FRIL, a fuzzy logic version of Prolog.
+> 
+> I maintain the Fuzzy FAQ and the Prolog Resource Guide, two monthly postings
+> of answers to frequently asked questions in fuzzy logic and prolog,
+> respectively. If you feel that FRIL is appropriate for this list, could you
+> send me some information about FRIL for inclusion in the FAQ postings?
+
+I have enclosed a file with a brief outline of the language below - let me know
+if it is too much/not enough and I will cut it down or expand as necessary.
+I could supply a list of references for further info if that would be helpful.
+
+> 
+> Also, if you're willing to make FRIL available to other researchers, I
+> also maintain the CMU AI Repository, a 1.6 gigabyte anonymous ftp collection
+> of materials of interest to AI researchers.
+> 
+
+Unfortunately (or fortunately, depending on your point of view) Fril was
+taken on commercially in 1986, and so is not available as share/free ware.
+Details at the end of the file below. There is a book coming out on Fril
+which will have a demo disk for macintosh/windows 3 included - I think
+it is due for release late summer 94
+
+Thanks for your interest
+
+Trevor Martin
+
+----------------------------------------------------------------------------
+Dr.T.P.Martin   Advanced Computing Research Centre,University of Bristol
+trevor.martin@bristol.ac.uk    Tel: (+44) 272 288200  Fax: (+44) 272 251154
+----------------------------------------------------------------------------
+
+
+
+FRIL - fuzzy relational inference language
+
+
+Fril is an AI programming language running on a wide range of hardware 
+platforms and incorporating a consistent method for handling uncertainty, based 
+on Baldwin's theories of support logic, mass assignments, and evidential 
+reasoning . Mass assignments give a consistent way of manipulating fuzzy and 
+probabilistic uncertainties, enabling different forms of uncertainty to be 
+integrated within a single framework. Fril uses a logic programming style, and 
+allows uncertain data and inferences to be modelled very naturally. In addition,
+the procedural and meta-programming aspects of the language make creation of 
+a knowledge-based system straightforward. Fril has a list-based syntax, similar
+to the early micro-Prolog from LPA. Prolog is a special case of Fril, in 
+which programs involve no uncertainty.
+ 
+
+
+A.  UNCERTAINTY IN DATA VALUES 
+
+
+The fundamental data types of Fril include the usual logic programming terms, 
+namely integers, real numbers, constants, and lists. In addition, fuzzy sets 
+can be used where there is uncertainty as to the actual value of a 
+parameter. For example, the fuzzy height "tall" might be represented in Fril by 
+the definition
+
+(tall [68:0  72:1 74:1 76:0])
+
+which represents a trapezoidal fuzzy number. The fact that "John is tall" can 
+then be represented by the fact
+
+((height John tall))
+
+Fuzzy numbers can be manipulated by standard set operations and also used in 
+arithmetic expressions. In addition they allow uncertain inferences to be made 
+when fuzzy numbers partially match, e.g. if it is known that John is tall,
+a query to find people with a height of "around 70" inches would return the
+answer John with a degree of support, calculated from the match between the
+two fuzzy sets "tall" and "around 70" inches.
+Discrete fuzzy sets can also be used, e.g. one could use the fuzzy set
+
+{cola : 0.8,  lager:1.0,  wine:0.3}
+
+to express a possibility distribution for refreshing cold drinks.
+
+
+
+B. UNCERTAINTY IN THE RELATION BETWEEN DATA ITEMS
+
+In logic programming, a relation between two or more objects is represented by 
+a fact. For example if we have the domains car and speed , we can define the 
+relation "top-speed" as a subset of car x speed, with entries such as 
+
+	((top-speed  Rolls 125))
+
+Now consider the relation "Comfortable-speed"  which is also a subset of 
+car x speed.  For any given tuple there is no uncertainty in the attribute
+values, but there may be uncertainty as to how well a particular tuple
+satisfies the relation. Fril models uncertainty in a relation by means of
+support pairs. We can say that travelling in a mini at 50 mph is
+reasonably comfortable. Thus
+
+	((Comfortable-speed  Mini 50)) :(0.8 0.8)
+
+indicates that the pair (Mini, 50) has a membership of 0.8 in the relation 
+"Comfortable-speed". There is no uncertainty here in the attribute values; the 
+uncertainty is the degree to which any particular tuple satisfies the relation 
+Comfortable-speed. 
+
+More generally, Fril allows the uncertainty associated with a tuple to be
+expressed as a support pair. This may be of a probabilistic nature, for example
+we may know that at least 80% of Minis have a top speed of 90mph. This can
+be represented by a support pair giving the probability that the 
+fact is true, e.g.
+
+	((top-speed  Mini   90)) : (0.8 1)
+
+where the support pair (0.8 1) represents the probability "at least 80%", i.e. 
+between 80% and 100%. It is possible to combine uncertainty in attribute values 
+and in the relation holding between attribute values, i.e. to have a fuzzy
+tuple or probabilistic fact with a possibility distribution as one of its
+attribute values. For example, the information that 
+
+	"Mary is most likely to be in her late twenties" 
+
+could be represented as
+
+	age-of  Mary is [25:0 27:1 29:1 31:0] with support (0.9 1)
+
+where the qualifier "most likely" is represented by the support pair (0.9 1)
+
+The calculus used to combine supports is (by default) probabilistic, and
+may or may not assume independence. In version 5 of the language which is
+shipping in the summer, the user may define his own calculus. In the current
+release (version 4) it is possible to write a meta-program to customise
+the calculus.
+
+
+
+C.  UNCERTAINTY IN RULES
+
+The facts in a Fril program, described in the previous section, are 
+unconditionally true, or unconditionally true to some degree. Fril also
+allows rules, which are conditionally true statements (again, to some
+degree in general). 
+A simple example of a rule is
+
+
+((illness of X is flu)
+	(temp of X is high)
+	(strength of X is weak)
+	(throat of X is sore)) : (0.9 1)
+
+where the conclusion 
+(illness of X is flu) is dependent on three conditions 
+(temp of X is high),  (strength of X is weak), and  (throat of X is sore).
+
+There is a high degree of confidence in this rule, as the conclusion is
+supported to a degree [0.9 1] if the conditions are satisfied.
+In the case of partial satisfaction of the conditions (i.e. conditions whose
+truth is given by a support pair), the support logic calculus  is used to
+compute a degree of support for the conclusion automatically.
+Fril allows three different rules for knowledge representation involving
+uncertainty :
+1.	the basic rule (illustrated above)
+2.	the extended rule
+3. 	the evidential logic rule
+
+
+The basic rule is a special case of the extended rule. These two rules use an 
+inference procedure based on an interval version of Jeffrey's rule derived from 
+mass assignment theory.
+The evidential logic rule uses a different inference procedure based on 
+evidential logic. It allows a conclusion to be drawn from a number of
+conditions (features), not all of which need to be satisfied in order for
+an inference to be made. For example, in classifying an article as worth
+reading, we may take into account features such as length being acceptable,
+publication date being recent, keywords being relevant, authors being
+well-known, etc. The absence of one feature may still allow the conclusion
+"article is worth reading" to be drawn, but with a lower support than would
+otherwise be the case.
+
+
+D.  SYSTEMS PROGRAMMING IN FRIL
+
+
+As Fril is a logic programming language, it is straightforward to write
+programs that manipulate other Fril programs as data. The ease with which
+shells and program analysis tools may be written in logic programming
+languages is well known. Additionally, Fril facilitates the design and
+implementation of an easy-to-use and intuitive interface by means of its
+dialog compiler. This uses declarative descriptions of dialog boxes, with the
+facility to attach Fril procedures to components of the dialog.
+The Fril system can also be linked to code written in other high-level
+languages, either with a tight binding so that the external code and Fril
+become part of the same application, or in a looser fashion by means of the
+Fril inter-application communication package. 
+Fril also has an application generator. This package allows arbitrary Fril
+code to be added to the standard Fril core, creating an integrated 
+application which can be run without the user needing any knowledge of the 
+underlying Fril system.
+
+
+HISTORY
+Fril arose as a consequence of early work on fuzzy relations by Baldwin.
+Version 1 was implemented in the early 1980's using Lisp. It was a relational
+language incorporating fuzzy extensions to the relational algebra, and could
+deal with uncertainty in attribute values and in tables of facts (relations).
+A second version, capable of running on an IBM-PC, was implemented in Forth
+at around the same time. This was used to develop a monitoring system for
+electricity generating plant. The Lisp version of Fril was subsequently extended
+by the addition of a fuzzy Prolog module, FPROLOG, which extended the range
+of execution strategies available, and gave a procedural programming capability
+to the system. 
+In 1986, the commercial possibilities fo the language became apparent, and
+subsequent development work was carried out by Fril Systems Ltd
+(originally known as Equipu A.I. Research), who released version 3 of Fril in
+1987, with version 4 following in 1989. These were implemented as compilers
+based on the abstract Fril machine, with additional components of the core
+system implemented in Fril. Version 5 is scheduled for release this summer and
+includes substantial enhancements to the uncertainty-modelling features of the
+system.
+
+
+
+AVAILABILITY
+
+
+Fril runs on Unix, Macintosh, MS-DOS, and Windows 3.1 platforms. Prices (e.g.)
+195 pounds for a small DOS version (no use of extended memory),
+595 pounds for a Macintosh, 2500 pounds for a Sun (these are exclusive of VAT
+and may be subject to change).
+
+Further details and up-to-date prices from
+
+Dr B.W. Pilsworth
+Fril Systems Ltd
+Bristol Business Centre, 
+Maggs House,
+78 Queens Rd, 
+Bristol BS8 1QX, 
+UK.
+
+

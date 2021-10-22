@@ -1,0 +1,154 @@
+; From Tommy.Thorn@daimi.aau.dk Mon Jun 27 20:15:45 EDT 1994
+; Article: 9285 of comp.lang.scheme
+; Xref: glinda.oz.cs.cmu.edu comp.lang.scheme:9285
+; Path: honeydew.srv.cs.cmu.edu!fs7.ece.cmu.edu!europa.eng.gtefsd.com!howland.reston.ans.net!EU.net!sunic!news.uni-c.dk!news.daimi.aau.dk!news.daimi.aau.dk!tthorn
+; From: tthorn@ceres.daimi.aau.dk (Tommy Thorn)
+; Newsgroups: comp.lang.scheme
+; Subject: Re: Is there any general CPS code available?
+; Date: 21 Jun 1994 07:01:14 GMT
+; Organization: DAIMI, Computer Science Dept. at Aarhus University
+; Lines: 135
+; Distribution: world
+; Message-ID: <TTHORN.94Jun21090114@ceres.daimi.aau.dk>
+; References: <BRENT.BENSON.94Jun13112645@jade.mail.csd.harris.com>
+; Reply-To: Tommy.Thorn@daimi.aau.dk
+; NNTP-Posting-Host: ceres.daimi.aau.dk
+; In-reply-to: Brent.Benson@mail.csd.harris.com's message of 13 Jun 1994 15:26:45 GMT
+; 
+; Brent.Benson@mail.csd.harris.com (Brent Benson) writes:
+;  >Does anybody have pointers to portable code for converting Scheme into
+;  >continuation passing style?
+; 
+; First you translate everything to a core subset of scheme. In the following
+; example the core is:
+; 
+;   - Constants
+;   - Variables
+;   - Lambda abstractions
+;   - Primitives
+;   - Applications
+;   - Conditionals
+;   - Letrec
+; 
+; A nice way to do this is to modify the init-module of the syntax-case
+; macro package, adding only a few lines.
+; 
+; Assuming you have a macro package implementing sum and product types,
+; and a selector operation, casetype, the following will do one variant
+; of CPS transformation.
+; 
+; Regards
+; Tommy Thorn.
+
+;;; cpst.scm
+;;; left-to-right call-by-value CPS transformation -- DAIMI, March 6, 1994
+;;; (operates in conjunction with the file parse-unparse.scm)
+
+;;; assumptions:
+;;;	- side-effecting expressions are kept in begin expressions
+;;;	- primops are first-order (see file parse-unparse.scm)
+;;;	- side-effecting primops are mapped to CPS side-effecting primops
+
+;;; Orig by Olivier Danvy, hacked by Tommy Thorn
+
+;;; Require framework
+(require "framework.scm")
+
+(define transform
+  (lambda (e)
+    (let ([k (gensym! "k")])
+      (Lam (list k) (cpstt e (Ide k))))))
+
+(define cpst
+  (lambda (e c)
+    (caseType e
+      [(Cst v)
+       (c (Cst v))]
+      [(Ide x)
+       (c (Ide x))]
+      [(Lam xs e)
+       (let ([k (gensym! "k")])
+	 (c (Lam (append (list k) xs) (cpstt e (Ide k)))))]
+      [(App e es)
+       (cpst e (lambda (v)
+		 (cpstl es (lambda (vs)
+			     (App v (append (let ([w (gensym! "w")])
+					      (list (Lam (list w)
+							 (c (Ide w)))))
+					    vs))))))]
+      [(Prim op es)
+       (cpstl es (lambda (vs) (c (Prim op vs))))]
+      [(if0 test then else)	;;; with context duplication
+       (cpst test (lambda (v)
+		    (App (Ide 'if)
+			 (list (Lam '() (cpst then c))
+			       (Lam '() (cpst else c))
+			       v))))]
+      [(Fix x l b)
+       (cpst l (lambda (v) (Fix x v (cpst b c))))]
+      [(Beg es)
+       (cpstb es c)]
+      [else
+       (error 'cpst "quasar: ~s" e)])))
+
+(define cpstb
+  (lambda (es c)
+    (if (null? (cdr es))
+	(cpst (car es) c)
+	(cpst (car es) (lambda (v)
+			 (cpstb (cdr es) c))))))
+
+(define cpstl
+  (lambda (es c)
+    (if (null? es)
+	(c '())
+	(cpst (car es) (lambda (v)
+			 (cpstl (cdr es) (lambda (vs)
+					   (c (cons v vs)))))))))
+(define cpstt
+  (lambda (e c)
+    (caseType e
+      [(Cst v)
+       (App c (list (Cst v)))]
+      [(Ide x)
+       (App c (list (Ide x)))]
+      [(Lam xs e)
+       (let ([k (gensym! "k")])
+	 (App c (list (Lam (append (list k) xs) (cpstt e (Ide k))))))]
+      [(App e es)
+       (cpst e (lambda (v)
+		 (cpstl es (lambda (vs)
+			     (App v (append (list c)
+					    vs))))))]
+      [(Prim op es)
+       (cpstl es (lambda (vs) (Prim op vs)))]
+      [(if0 test then else)
+       (cpst test (lambda (v)
+		    (App (Ide 'if)
+			 (list (Lam '() (cpstt then c))
+			       (Lam '() (cpstt else c))
+			       v))))]
+      [(Fix x l b)
+       (cpst l (lambda (v)
+		 (Fix x v (cpstt b c))))]
+      [(Beg es)
+       (cpsttb es c)]
+      [else
+       (error 'cpstt "quasar: ~s" e)])))
+
+
+(define cpsttb
+  (lambda (es c)
+    (if (null? (cdr es))
+	(cpstt (car es) c)
+	(cpst (car es) (lambda (v)
+			 (cpsttb (cdr es) c))))))
+
+(define (show-trans exp)
+  (pretty-print (unparse (transform (parse exp))))) 
+; --
+; Tommy.Thorn@daimi.aau.dk                   Staff-programmer     Office: R033
+; Aarhus University, Ny Munkegade 116        Phone: +45 89423217
+; DK-8000 Aarhus C, Denmark.                 Fax:   +45 89423255
+; 
+

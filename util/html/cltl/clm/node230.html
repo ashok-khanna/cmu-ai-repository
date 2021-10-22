@@ -1,0 +1,397 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node230.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:31:35 GMT -->
+<HEAD>
+<TITLE>25.3. Debugging Tools</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Debugging Tools">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4432 HREF="node231.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4430 HREF="node223.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4424 HREF="node229.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4434 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4435 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4433 HREF="node231.html"> Environment Inquiries</A>
+<B>Up:</B> <A NAME=tex2html4431 HREF="node223.html"> Miscellaneous Features</A>
+<B> Previous:</B> <A NAME=tex2html4425 HREF="node229.html"> Documentation</A>
+<HR> <P>
+<H1><A NAME=SECTION002930000000000000000>25.3. Debugging Tools</A></H1>
+<P>
+The utilities described in this section are sufficiently complex
+and sufficiently dependent on the host environment that their
+complete definition is beyond the scope of this book.
+However, they are also sufficiently
+useful to warrant mention here.  It is expected that
+every implementation will
+provide some version of these utilities, however clever or however simple.
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>trace {<i>function-name</i>}* <BR></tt><tt>untrace {<i>function-name</i>}*</tt><P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+Invoking <tt>trace</tt> with one or more function-names (symbols) causes
+the functions named to be traced.  Henceforth, whenever such
+a function is invoked, information about the call, the arguments
+passed, and the eventually returned values, if any, will be printed
+to the stream that is the value of <tt>*trace-output*</tt>.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<p>
+For example:
+<P>
+<P><pre>
+(trace fft gcd string-upcase)
+</pre><P>
+If a function call is open-coded (possibly as a result of an <tt>inline</tt>
+declaration), then such a call may not produce trace output.
+<P>
+Invoking <tt>untrace</tt> with one or more function names will cause those
+functions not to be traced any more.
+<P>
+Tracing an already traced function, or untracing a function not
+currently being traced, should produce no harmful effects but may
+produce a warning message.
+<P>
+Calling <tt>trace</tt> with no argument forms will return a list of functions
+currently being traced.
+<P>
+Calling <tt>untrace</tt> with no argument forms will cause all currently
+traced functions to be no longer traced.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (FUNCTION-NAME) <A NAME=28904>&#160;</A>  to extend <tt>trace</tt>
+and <tt>untrace</tt>
+to accept any function-name (a symbol or a list
+whose <i>car</i> is <tt>setf</tt> - see section <A HREF="node77.html#FUNCTIONNAMESECTION">7.1</A>).
+Thus one may write <tt>(trace (setf cadr))</tt> to trace the <tt>setf</tt>
+expansion function for <tt>cadr</tt>.
+<P>
+X3J13 voted in January 1989
+(RETURN-VALUES-UNSPECIFIED) <A NAME=28915>&#160;</A> 
+to specify that the values returned by <tt>trace</tt> and <tt>untrace</tt> when
+given argument forms are implementation-dependent.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<tt>trace</tt> and <tt>untrace</tt> may also accept additional
+implementation-dependent argument formats.  The format of the trace
+output is implementation-dependent.
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>step <i>form</i></tt><P>This evaluates <i>form</i> and returns what <i>form</i> returns.
+However, the user is allowed to interactively
+``single-step'' through the evaluation of <i>form</i>, at least
+through those evaluation steps that are performed interpretively.
+The nature of the interaction is implementation-dependent.
+However, implementations are encouraged to respond to the typing
+of the character <tt>?</tt> by providing help, including a list
+of commands.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(STEP-ENVIRONMENT) <A NAME=28928>&#160;</A> 
+to clarify that <tt>step</tt> evaluates its argument <i>form</i>
+in the current lexical environment (not simply a null environment),
+and that calls to <tt>step</tt> may be compiled, in which case
+an implementation may step through only those parts of the
+evaluation that are interpreted.  (In other words, the <i>form</i>
+itself is unlikely to be stepped, but if executing it happens to
+invoke interpreted code, then that code may be stepped.)
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>time <i>form</i></tt><P>This evaluates <i>form</i> and returns what <i>form</i> returns.  However, as
+a side effect, various timing data and other information are printed to
+the stream that is the value of <tt>*trace-output*</tt>.  The nature and
+format of the printed information is implementation-dependent.  However,
+implementations are encouraged to provide such information as elapsed
+real time, machine run time, storage management statistics, and so on.
+<P>
+<hr>
+<b>Compatibility note:</b> This facility is inspired by the Interlisp
+facility of the same name.  Note that the MacLisp/Lisp Machine Lisp function <tt>time</tt>
+does something else entirely, namely return a quantity indicating
+relative elapsed real time.
+<hr>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(STEP-ENVIRONMENT) <A NAME=28943>&#160;</A> 
+to clarify that <tt>time</tt> evaluates its argument <i>form</i>
+in the current lexical environment (not simply a null environment),
+and that calls to <tt>time</tt> may be compiled.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<BR><b>[Function]</b><BR>
+<tt>describe <i>object</i></tt><P><tt>describe</tt> prints, to the stream in the variable <tt>*standard-output*</tt>,
+information about the <i>object</i>.  Sometimes
+it will describe something that it finds inside something else;
+such recursive descriptions are indented appropriately.  For instance,
+<tt>describe</tt> of a symbol will exhibit the symbol's value,
+its definition, and each of its properties.  <tt>describe</tt> of a
+floating-point number will exhibit its internal representation in a way
+that is useful for tracking down round-off errors and the like.
+The nature and format of the output is implementation-dependent.
+<P>
+<tt>describe</tt> returns no values (that is, it returns what the expression
+<tt>(values)</tt> returns: zero values).
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (DESCRIBE-UNDERSPECIFIED) <A NAME=28961>&#160;</A> 
+to let <tt>describe</tt> take an optional second argument:
+<P>
+<BR><b>[Function]</b><BR>
+<tt>describe <i>object</i> &amp;optional <i>stream</i></tt><P>The output is sent to the specified <i>stream</i>, which
+ defaults to the value of <tt>*standard-output*</tt>;
+ the <i>stream</i> may also be <tt>nil</tt> (meaning <tt>*standard-output*</tt>)
+ or <tt>t</tt> (meaning <tt>*terminal-io*</tt>).
+<P>
+The behavior of <tt>describe</tt> depends on the generic function
+<tt>describe-object</tt> (see below).
+<P>
+X3J13 voted in January 1989
+(DESCRIBE-INTERACTIVE) <A NAME=28976>&#160;</A> 
+to specify that <tt>describe</tt> is forbidden
+to prompt for or require user input when given exactly one argument;
+it also voted to permit implementations
+to extend <tt>describe</tt> to accept keyword arguments that may cause
+it to prompt for or to require user input.
+<P>
+<BR><b>[Generic function]</b><BR>
+<tt>describe-object <i>object</i> <i>stream</i> </tt>
+<BR><b>[Primary method]</b><BR>
+<tt>describe-object (<i>object</i> <i>standard-object</i>) <i>stream</i> </tt>
+<P>X3J13 voted in March 1989 (DESCRIBE-UNDERSPECIFIED) <A NAME=28982>&#160;</A>  to add
+  the generic function <tt>describe-object</tt>, which writes a description of an object to a
+  stream.  The function <tt>describe-object</tt> is called by the <tt>describe</tt> function; it
+  should not be called by the user.
+<P>
+  Each implementation must provide a method on the class
+  <tt>standard-object</tt> and methods on enough other classes to ensure that
+  there is always an applicable method.  Implementations are free to add
+  methods for other classes.  Users can write methods for <tt>describe-object</tt> for
+  their own classes if they do not wish to inherit an implementation-supplied
+  method.
+<P>
+   The first argument may be any Lisp object.  The second argument is a stream; it
+   cannot be <tt>t</tt> or <tt>nil</tt>.
+   The values returned by <tt>describe-object</tt> are unspecified.
+<P>
+   Methods on <tt>describe-object</tt> may recursively call <tt>describe</tt>.  Indentation,
+   depth limits, and circularity detection are all taken care of automatically,
+   provided that each method handles exactly one level of structure and calls
+   <tt>describe</tt> recursively if there are more structural levels.
+   If this rule is not obeyed, the results are undefined.
+<P>
+   In some implementations the <i>stream</i> argument passed to a <tt>describe-object</tt>
+   method is not the original stream but is an intermediate stream that
+   implements parts of <tt>describe</tt>.  Methods should therefore not depend on the
+   identity of this stream.
+<P>
+<hr>
+<b>Rationale:</b> This proposal was closely modeled on the CLOS description of <tt>print-object</tt>,
+ which was well thought out and provides a great deal of functionality and
+ implementation freedom.  Implementation techniques for
+ <tt>print-object</tt> are applicable to <tt>describe-object</tt>.
+<P>
+ The reason for making the return values for <tt>describe-object</tt> unspecified is to
+ avoid forcing users to write <tt>(values)</tt> explicitly in all their methods;
+ <tt>describe</tt> should take care of that.
+<hr>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>inspect <i>object</i></tt><P><tt>inspect</tt> is an interactive version of <tt>describe</tt>.
+The nature of the interaction is implementation-dependent,
+but the purpose of <tt>inspect</tt> is to make it easy to wander
+through a data structure, examining and modifying parts of it.
+Implementations are encouraged to respond to the typing
+of the character <tt>?</tt> by providing help, including a list
+of commands.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(RETURN-VALUES-UNSPECIFIED) <A NAME=29013>&#160;</A> 
+to specify that the values returned by <tt>inspect</tt>
+are implementation-dependent.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>room &amp;optional <i>x</i></tt><P><tt>room</tt> prints, to the stream in the variable <tt>*standard-output*</tt>,
+information about the state of internal storage and its management.  This
+might include descriptions of the amount of memory in use and the degree
+of memory compaction, possibly broken down by internal data type if that
+is appropriate.  The nature and format of the printed information is
+implementation-dependent.  The intent is to provide information that may
+help a user to tune a program to a particular implementation.
+<P>
+<tt>(room nil)</tt> prints out a minimal amount of information.
+<tt>(room t)</tt> prints out a maximal amount of information.
+Simply <tt>(room)</tt> prints out an intermediate amount
+of information that is likely to be useful.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(ROOM-DEFAULT-ARGUMENT) <A NAME=29024>&#160;</A> 
+to specify that the argument <i>x</i> may also be the keyword <tt>:default</tt>,
+which has the same effect as passing no argument at all.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>ed &amp;optional <i>x</i></tt><P>If the implementation provides a resident editor, this function
+should invoke it.
+<P>
+<tt>(ed)</tt> or <tt>(ed nil)</tt> simply enters the editor, leaving you in the same
+state as the last time you were in the editor.
+<P>
+<tt>(ed <i>pathname</i>)</tt> edits the contents of the file specified
+by <i>pathname</i>.  The <i>pathname</i> may be an actual pathname
+or a string.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (PATHNAME-LOGICAL) <A NAME=29036>&#160;</A>  to require <tt>ed</tt>
+to accept logical pathnames (see section <A HREF="node208.html#LOGICALPATHNAMESSECTION">23.1.5</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<tt>(ed <i>symbol</i>)</tt> tries to let you edit the text for the function
+named <i>symbol</i>.  The means by which the function text is obtained
+is implementation-dependent; it might involve searching the file system,
+or pretty printing resident interpreted code, for example.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1989 (FUNCTION-NAME) <A NAME=29043>&#160;</A>  to extend <tt>compile</tt>
+to accept as a <i>name</i> any function-name (a symbol or a list
+whose <i>car</i> is <tt>setf</tt> - see section <A HREF="node77.html#FUNCTIONNAMESECTION">7.1</A>).
+Thus one may write <tt>(ed '(setf cadr))</tt> to edit the <tt>setf</tt>
+expansion function for <tt>cadr</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>dribble &amp;optional <i>pathname</i></tt><P><tt>(dribble <i>pathname</i>)</tt> may rebind <tt>*standard-input*</tt>
+and <tt>*standard-output*</tt>, and may take other appropriate
+action, so as to send a record of the
+input/output interaction to a file named by <i>pathname</i>.
+The primary purpose of this is to create a readable record of an interactive
+session.
+<P>
+<tt>(dribble)</tt> terminates the recording of input and output and
+closes the dribble file.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (PATHNAME-LOGICAL) <A NAME=29061>&#160;</A>  to require <tt>dribble</tt>
+to accept logical pathnames (see section <A HREF="node208.html#LOGICALPATHNAMESSECTION">23.1.5</A>).
+<P>
+X3J13 voted in March 1988
+(DRIBBLE-TECHNIQUE) <A NAME=29066>&#160;</A> 
+to clarify that <tt>dribble</tt> is intended primarily
+for interactive debugging and that its effect cannot be
+relied upon for use in portable
+programs.
+<P>
+Different implementations of Common Lisp have used radically different
+techniques for implementing <tt>dribble</tt>.  All are reasonable interpretations
+of the original specification, and all behave in approximately the same
+way if <tt>dribble</tt> is called only from the interactive top level.
+However, they may have quite different behaviors if <tt>dribble</tt> is
+called from within compound forms.
+<P>
+Consider two models of the operation of <tt>dribble</tt>.  In the ``redirecting''
+model, a call to <tt>dribble</tt> with a pathname argument
+alters certain global variables such as <tt>*standard-output*</tt>,
+perhaps by constructing a broadcast stream directed to both the original
+value of <tt>*standard-output*</tt> and to the dribble file; other streams
+may be affected as well.  A call to <tt>dribble</tt> with no arguments
+undoes these side effects.
+<P>
+In the ``recursive'' model, by contrast, a call to <tt>dribble</tt> with a
+pathname argument creates a new interactive command loop and calls it
+recursively.  This new command loop is just like an ordinary
+read-eval-print loop except that it also echoes the interaction to
+the dribble file.  A call to <tt>dribble</tt> with no arguments
+does a <tt>throw</tt> that exits the recursive command loop and returns
+to the original caller of <tt>dribble</tt> with an argument.
+<P>
+The two models may be distinguished by this test case:
+<P><pre>
+(progn (dribble &quot;basketball&quot;) 
+       (print &quot;Larry&quot;) 
+       (dribble) 
+       (princ &quot;Bird&quot;))
+</pre><P>
+If this form is input to the Lisp top level, in either model
+a newline (provided by the function <tt>print</tt>) and the words
+<tt>Larry Bird</tt> will be printed to the standard output.
+The redirecting dribble model will additionally print all but the word
+<tt>Bird</tt> to a file named <tt>basketball</tt>.
+<P>
+By contrast, the recursive dribble model will enter a recursive command
+loop and not print anything until <tt>(dribble)</tt> is executed from within
+the new interactive command loop.  At that time the file named
+<tt>basketball</tt> will be closed, and then execution of the
+<tt>progn</tt> form will be resumed.  A newline and ``<tt>Larry </tt>'' (note the trailing space)
+will be printed to the standard output, and then the call
+<tt>(dribble)</tt> may complain that there is no active dribble file.
+Once this error is resolved, the word <tt>Bird</tt> may be printed
+to the standard output.
+<P>
+Here is a slightly different test case:
+<P><pre>
+(dribble &quot;baby-food&quot;)
+</pre><P>
+<P><pre>
+(progn (print &quot;Mashed banana&quot;) 
+       (dribble) 
+       (princ &quot;and cream of rice&quot;))
+</pre><P>
+If this form is input to the Lisp top level, in the redirecting model
+a newline and the words
+<tt>Mashed banana and cream of rice</tt> will be printed to the standard output
+and all but the words
+<tt>and cream of rice</tt> will be sent to a file named <tt>baby-food</tt>.
+<P>
+The recursive model will direct exactly the same output to the file
+named <tt>baby-food</tt> but will never print the words
+<tt>and cream of rice</tt> to the standard output because the call
+<tt>(dribble)</tt> does not return normally; it throws.
+<P>
+The redirecting model may be intuitively more appealing to some.
+The recursive model, however, may be more robust; it carefully limits
+the extent of the dribble operation and disables dribbling if a
+throw of any kind occurs.  The vote by X3J13 was an explicit decision
+not to decide which model to use.  Users are advised to call <tt>dribble</tt>
+only interactively, at top level.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>apropos <i>string</i> &amp;optional <i>package</i><BR></tt><tt>apropos-list <i>string</i> &amp;optional <i>package</i> </tt><P><tt>(apropos <i>string</i>)</tt> tries to find all available symbols whose print names
+contain <i>string</i> as a substring.  (A symbol may be supplied for
+the <i>string</i>, in which case the print name of the symbol is used.)
+Whenever <tt>apropos</tt> finds a symbol, it prints
+out the symbol's name; in addition,
+information about the function definition and dynamic value of the symbol,
+if any, is printed.
+If <i>package</i> is specified and not <tt>nil</tt>, then only symbols
+available in that package are examined;
+otherwise ``all'' packages are searched, as if by <tt>do-all-symbols</tt>.
+Because a symbol may be available by way of more than one inheritance
+path, <tt>apropos</tt> may print information about the same symbol more than once.
+The information is printed to the stream that is the value
+of <tt>*standard-output*</tt>.
+<tt>apropos</tt> returns no values (that is, it returns what the expression
+<tt>(values)</tt> returns: zero values).
+<P>
+<tt>apropos-list</tt> performs the same search that <tt>apropos</tt> does but
+prints nothing.  It returns a list of the symbols whose print names
+contain <i>string</i> as a substring.
+<P>
+<BR> <HR><A NAME=tex2html4432 HREF="node231.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4430 HREF="node223.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4424 HREF="node229.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4434 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4435 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4433 HREF="node231.html"> Environment Inquiries</A>
+<B>Up:</B> <A NAME=tex2html4431 HREF="node223.html"> Miscellaneous Features</A>
+<B> Previous:</B> <A NAME=tex2html4425 HREF="node229.html"> Documentation</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

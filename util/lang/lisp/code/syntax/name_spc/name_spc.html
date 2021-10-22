@@ -1,0 +1,165 @@
+From crabapple.srv.cs.cmu.edu!cantaloupe.srv.cs.cmu.edu!das-news.harvard.edu!ogicse!uwm.edu!ux1.cso.uiuc.edu!news.cso.uiuc.edu!ehsn11.cen.uiuc.edu!jy10033 Fri Mar  5 13:20:38 EST 1993
+Article: 9552 of comp.lang.lisp
+Xref: crabapple.srv.cs.cmu.edu comp.lang.lisp:9552 comp.lang.functional:2678
+Path: crabapple.srv.cs.cmu.edu!cantaloupe.srv.cs.cmu.edu!das-news.harvard.edu!ogicse!uwm.edu!ux1.cso.uiuc.edu!news.cso.uiuc.edu!ehsn11.cen.uiuc.edu!jy10033
+From: jy10033@ehsn11.cen.uiuc.edu (Joshua M Yelon)
+Newsgroups: comp.lang.lisp,comp.lang.functional
+Subject: Re: Why lisp is not my favorite programming language
+Message-ID: <C3Ds4G.EKJ@news.cso.uiuc.edu>
+Date: 4 Mar 93 20:12:16 GMT
+Article-I.D.: news.C3Ds4G.EKJ
+References: <C3DHJL.Dun.2@cs.cmu.edu>
+Sender: usenet@news.cso.uiuc.edu (Net Noise owner)
+Organization: University of Illinois at Urbana
+Lines: 113
+
+
+The three things you requested (not in this order) were:
+
+  1. You would like a function-definition construct that allows you to
+     specify several possible bodies, and pattern templates that select
+     a body at runtime based on the values of the actual parameters.
+
+  2. You would like the language to curry function-calls automatically.
+
+  3. You would like a single name space for both functions and other values.
+
+I believe that #1 would be neat.  I personally don't think that #2 and #3
+are a good ideas, but hey - that's a subjective judgement, based on my
+own somewhat biased preferences.
+
+As a little excercise, I implemented #2 and #3, to see if they could be done.
+Here they are, in 24 lines of code for both.  I didn't bother with #1 - it's
+harder, but very straighforward to implement.
+
+Happy hacking!  - Josh
+
+------------------------------ CUT HERE -------------------------------------
+;
+; This is 'ONS' - the "One Name Space" module.
+;
+; Some programming languages (ie, scheme) assume a single name space for
+; both named functions and other named values.  Lisp has two name spaces: 
+; names can have both function-bindings and value-bindings.  For
+; the convenience of those attempting to translate scheme-like languages
+; into lisp, this module attempts to bypass (ignore) the function-bindings
+; and use value-bindings for everything.
+;
+; Here's how it works --- the user of this module writes code that looks
+; like this:
+;
+;   [if [> x y]
+;     [print x]
+;     [print y]]
+;
+; and the bracket readmacro converts it into this:
+;
+;   (if (funcall > x y)
+;     (funcall print x)
+;     (funcall print y))
+;
+; in other words, it sticks the word 'funcall' in front of every named
+; function application (it doesn't modify special forms or macro
+; calls). This causes the code to consistently use value-bindings, not
+; function-bindings, for everything.
+;
+; If the user sticks consistently to the bracket syntax, he will never
+; reference a function-binding.  He should also never create a function
+; binding - ie, he should consistently use LET instead of FLET to define
+; local named functions, and he should use setf-symbol-value (or
+; some equivalent sugared form) to create top-level named functions.
+;
+; Remember: lists of bindings, lambda lists, lambda expressions,
+; etcetera are NOT executable forms: they should be left in parentheses.
+;
+;    EXAMPLE:
+;
+;   [let ((x 1)
+;         (f #'(lambda (y) (+ y 2))))
+;       [print [f x]]]
+;
+; As a convenience, this module also copies all the already-extant
+; symbol-functions into their respective symbol-values.
+;
+; And, naturally, I don't really recommend _using_ this silly
+; thing.  The double name-space is usually exactly what you want, and
+; funcall isn't too hard to type.
+;
+
+(defun ons-right-bracket-readmacro (s chr)
+    (error "Right bracket occurred without left bracket"))
+
+(defun ons-left-bracket-readmacro (s chr &aux res)
+    (declare (ignore chr))
+        (let ((list (read-delimited-list #\] s t)))
+            (if (or (special-form-p (car list))(macro-function (car list)))
+                list
+                (cons 'funcall list))))
+
+(set-macro-character #\[ #'ons-left-bracket-readmacro)
+(set-macro-character #\] #'ons-right-bracket-readmacro)
+
+(do-all-symbols (x)
+    (if (fboundp x)
+        (setf (symbol-value x) (symbol-function x))))
+
+
+;
+; This is SELF-CURRYING-LAMBDA, a construct for defining lambda-functions
+; that return curried versions of themselves if you apply them to too few
+; arguments.  Use this:
+;
+; (setf adder (self-currying-lambda (x y) (+ x y)))
+;
+; instead of this:
+;
+; (setf adder (function (lambda (x y) (+ x y))))
+;
+; and your adder will curry itself on application to one argument.
+;
+
+(defmacro SELF-CURRYING-LAMBDA ((&rest formals) &rest body)
+   `(let ((args-needed (length ',formals)))
+        (labels ((self-currying (&rest args)
+                    (if (eql (length args) args-needed)
+                         (funcall #'(lambda ,formals ,@body) args)
+                       #'(lambda (&rest more-args)
+                            (self-currying (append args more-args))))))
+            #'self-currying)))
+
+
+From crabapple.srv.cs.cmu.edu!bb3.andrew.cmu.edu!news.sei.cmu.edu!cis.ohio-state.edu!magnus.acs.ohio-state.edu!csn!ncar!destroyer!gatech!swrinde!sdd.hp.com!ux1.cso.uiuc.edu!news.cso.uiuc.edu!ehsn11.cen.uiuc.edu!jy10033 Fri Mar  5 13:21:04 EST 1993
+Article: 9555 of comp.lang.lisp
+Xref: crabapple.srv.cs.cmu.edu comp.lang.lisp:9555 comp.lang.functional:2681
+Newsgroups: comp.lang.lisp,comp.lang.functional
+Path: crabapple.srv.cs.cmu.edu!bb3.andrew.cmu.edu!news.sei.cmu.edu!cis.ohio-state.edu!magnus.acs.ohio-state.edu!csn!ncar!destroyer!gatech!swrinde!sdd.hp.com!ux1.cso.uiuc.edu!news.cso.uiuc.edu!ehsn11.cen.uiuc.edu!jy10033
+From: jy10033@ehsn11.cen.uiuc.edu (Joshua M Yelon)
+Subject: Re: Why lisp is not my favorite programming language
+Date: Thu, 4 Mar 1993 20:40:31 GMT
+Message-ID: <C3DtFJ.FLJ@news.cso.uiuc.edu>
+References: <C3DHJL.Dun.2@cs.cmu.edu> <C3Ds4G.EKJ@news.cso.uiuc.edu>
+Sender: usenet@news.cso.uiuc.edu (Net Noise owner)
+Organization: University of Illinois at Urbana
+Lines: 19
+
+I posted some code implementing automatic currying, and some more code
+implementing a unified name space for functions and other values.  I
+am now writing to preempt the flurry of responses saying, "hey, there
+are bugs in your code!"  I know.  There are at least these bugs:
+
+
+  * the SELF-CURRYING-LAMBDA macro should use gensyms to avoid name capture
+
+  * the DO-ALL-SYMBOLS could easily crash somebody who wasn't expecting it
+
+  * the MACRO-FUNCTION can potentially be evaluated in the wrong environment
+
+  * the bracket stuff doesn't work at all in the presence of MACROLETs
+
+
+And there are probably more.  I just wanted to roughly sketch out how
+one would achieve the desired goals.
+
+- Josh
+
+

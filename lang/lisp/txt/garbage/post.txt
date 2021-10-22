@@ -1,0 +1,142 @@
+From wilson@cs.utexas.edu Fri Jan 21 16:33:40 EST 1994
+Article: 11830 of comp.lang.lisp
+Xref: glinda.oz.cs.cmu.edu comp.arch:47378 comp.lang.lisp:11830
+Path: honeydew.srv.cs.cmu.edu!das-news.harvard.edu!husc-news.harvard.edu!kuhub.cc.ukans.edu!wupost!math.ohio-state.edu!cs.utexas.edu!not-for-mail
+Newsgroups: comp.arch,comp.lang.lisp
+Subject: CPU & Memory system requirements for Lisp (was Re: Lisp Machine arch.)
+Message-ID: <2hkppv$d74@boogie.cs.utexas.edu>
+From: wilson@cs.utexas.edu (Paul Wilson)
+Date: 19 Jan 1994 20:20:47 -0600
+References: <CJMJnv.82q.3@cs.cmu.edu> <CJMs5q.Crw.3@cs.cmu.edu>
+Organization: CS Dept, University of Texas at Austin
+NNTP-Posting-Host: boogie.cs.utexas.edu
+Lines: 126
+
+I think the general consensus is that most of the Lisp-specific features
+of Lisp machines were either not a huge win or not a win at all, if
+your goal is to make a single Lisp application run fast.  (It's a bit
+different if your goal is to make a Lisp system into the operating
+system, as on Lisp Machines.  In that case, you're a little more
+worried about heap integrity in the face of bugs, etc.---e.g., a mangled
+pointer can bring the whole system down by confusing the garbage collector.)
+
+On the other hand, Lisp and other garbage-collected systems have peculiar
+memory referencing behavior, and some memory hierarchy configurations
+will work a lot better than others.  As processors get faster and faster,
+cache misses can become a problem if you don't have the right kind of
+cache.  (More on that in a second...)
+
+David Ungar's Ph.D. thesis (about the SOAR RISC machine for Smalltalk, 
+which influenced the SPARC) indicated that most hardware support for Lisp
+or Smalltalk would have only small effects on performance, with perhaps
+significant effects on cycle time, design time and time-to-market, making
+them not worthwhile.  That's a controversial conclusion, because it's
+unclear that most of those features really impact cycle time if done
+right, or take up too much design time or chip area now that all major
+CPU's are large design projects anyhow and chip densities are very
+high.  Nobody designs a classic 70K transistor RISC machine any more
+anyway, and it's unclear that Lisp support is any harder to do than a
+lot of other things people do anyway.
+
+One thing that Ungar dropped from Lisp machines when designing his
+Smalltalk machine was the ``read barrier'' required for incremental
+copying garbage collection.  In my view, this was a good choice because
+it's most likely to interact poorly with the pipeline of a modern
+CPU, and it still doesn't guarantee usefully real-time performance.
+(Kelvin Nilsen has shown how to get real real-time performance for
+copying collection with a custom memory subsystem, rather than by
+interfering with the CPU design.  My own approach is to use non-copying
+GC for real-time purposes, which means I can run on stock hardware
+but have to deal with fragmentation problems.)
+
+Of the few features that Ungar decided were worthwhile for supporting
+languages like Lisp and Smalltalk, none are generally agreed to be
+worthwhile now.
+
+Register windows have become much less attractive now that better calling
+disciplines and register allocating compilers are available.  They may
+still be a win under some circumstances, and the large register file
+may not really slow your cycle time significantly or take up a significant
+percentage of a modern-sized chip, but compiler developers hate them.
+
+Tagged arithmetic instructions are useful, but are less critical when you
+have good type declarations (as in most real Common Lisp programs) or good
+optimizing compilers (as Ungar himself has developed with Chambers and 
+Hoelzle).
+
+"Write barrier" support for generational garbage collection turns out
+not to be a great idea, because there are new ways of implementing write
+barriers entirely in software that appear to have comparable usual-case
+performance and much better worst-case performance.
+
+One thing that may be a good idea is to have either small pages or
+small sub-page units of protection (as the ARM 600 does), and make the
+OS dirty bits readable by the garbage collector, and make protection-setting
+and trap handling as fast as possible.  Those features allow you to implement
+all kinds of nifty features for garbage collection and memory hierarchy
+tweaking.
+
+
+But back to basic memory-referencing behavior.  A coupla years ago,
+I published a paper showing that garbage-collected systems tend to have
+lousy temporal locality of reference at timescales shorter than the
+usual garbage collection cycle.  Generational garbage collection can
+help a lot, at the level of virtual memory, by keeping the normal
+memory reuse cycle much shorter, i.e., reusing memory while it's still
+in RAM.  Similar effects happen at the level of cache, and they're
+getting to be increasingly important as CPU's get faster.  Caches
+smaller than the youngest generation suffer cache miss traffic at
+least equal to the rate of allocation, and a similar amount of write-back
+traffic.  The write-backs require somewhat deeper write buffers
+than normal programs, or some equivalent architectural feature that
+makes it possible to write lots of stuff from the cache without stalling.
+The reads due to allocation could be optimized away with a funky cache
+design that lets you allocate space in cache without reading the
+old contents of the blocks.
+
+Recently, Diwan, Tarditi, and Moss of U. Mass. and CMU have shown that
+some existing memory systems already do the right optimizations,
+by supporting high write rates and by doing sub-block placement where
+the subblocks are word-sized.  (Subblock placement allows initializing
+writes to write a whole sub-block, leaving the other blocks invalid
+rather than stalling the CPU and waiting for the rest of the block
+to be loaded.  This gives the desired effect of allowing allocation
+to proceed without stalling the processor for faulted-on blocks
+that are only going to be overwritten anyhow.)
+
+
+There are papers available via ftp about much of this stuff available
+via anonymous ftp from cs.utexas.edu, in the directory pub/garbage.
+It's a repository of papers about GC, memory hierarchies, and related
+subjects.  There's an extensive bibliography file in .bib format, which
+refers to Ungar and others' work as well as Lisp Machine stuff.
+
+Some papers relevent to this posting:
+
+  pub/garbage/gcsurvey.ps has my survey paper about garbage collection
+
+  pub/garbage/cache.ps is my paper about cache effects of GC
+
+  pub/garbage/GC93/hoelzle.ps talks about a very fast software write
+  barrier.
+
+  pub/garbage/GC93/nilsen.ps talks about the difficulties of doing
+  hard real-time copying collection.
+
+  pub/garbage/GC93/wilson.ps talks about real-time non-copying collection
+  for stock hardware.
+
+Have a look at pub/garbage/README for more directions.
+
+Enjoy,
+
+   Paul
+
+
+-- 
+| Paul R. Wilson,   Computer Sciences Dept.,   University of Texas at Austin  |
+| Taylor Hall 2.124,  Austin, TX 78712-1188       wilson@cs.utexas.edu        |
+| (Recent papers on garbage collection, memory hierarchies, and persistence   |
+| are available via anonymous ftp from cs.utexas.edu, in pub/garbage.)        |
+
+

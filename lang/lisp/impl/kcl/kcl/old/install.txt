@@ -1,0 +1,106 @@
+                                                        03 Oct 90
+
+                   Kyoto Common Lisp on UNIX Machines
+				   
+			   Installation Guide
+
+
+1. Prepare a directory for Kyoto Common Lisp (the "KCL directory").
+In the following examples, we suppose that the KCL directory is "/usr/kcl".
+
+2. Load the distribution tape.  The tape contains a single file "portkit",
+which contains the tar image of the whole KCL sources.
+
+	% pwd
+	/usr/kcl
+	% tar xvf /dev/rst8
+
+3. Extract KCL sources from the portkit file.
+
+	% tar xvf portkit
+
+4. Copy the header file "h/cmpinclude.h" to the standard directory
+for C include files, say "/usr/include".  Perhaps you have to become
+a superuser to do this.
+
+	% su
+	# cp h/cmpinclude.h /usr/include
+	# exit
+
+5. Customize the makefiles following the directions found in those lines that
+start with a sharp sign in the following makefiles.
+
+	bin/makefile	o/makefile	lsp/makefile
+	cmpnew/makefile	unixport/makefile
+
+The makefiles are initialized for SUN4.  Therefore, if you are installing KCL
+on SUN4, you do not need to customize the makefiles.
+
+The unixport/makefile file contains the following three lines.  If you are
+using a machine other than SUN3OS4 and SUN4, delete the first two lines and
+remove the sharp signs on the third line.
+
+		cc -Bstatic -o raw_kcl $(OBJS) sys_kcl.o $(LSPOBJS) ...
+	#Use the following for machines other than SUN3OS4 and SUN4
+	#	cc -o raw_kcl $(OBJS) sys_kcl.o $(LSPOBJS) ...
+
+The unixport/makefile file also contains the following two lines.  If you are
+using a System V machine, remove the two sharp signs.
+
+	#get_start:	get_start.c
+	#	cc -o get_start get_start.c -lld
+
+The bin/makefile file contains the following line.
+
+	DEFS	= -DUNIX -DBSD
+
+This line specifies whether your C compiler accepts filename in the #line
+preprocessor macro without double quotes.  Leave this line as it is if you 
+are using a unix bsd machine.  If you are using a System V machine, replace 
+this line with the following.
+
+	DEFS	= -DUNIX -DATT
+
+6. Make KCL.  This compiles all KCL sources, links them, and initializes KCL.
+
+	% pwd
+	/usr/kcl
+	% make
+
+7. The subdirectory "unixport" contains everything that is needed to run KCL
+and the KCL compiler.  Files in this directory are:
+
+	readme		this file.
+	saved_kcl	the KCL interpreter and compiler
+	kcl		the command file to invoke KCL
+	lc		the command file to invoke the KCL compiler
+	lc1		the command file to invoke the KCL compiler
+	cmpinclude.h	the header file for the KCL compiler
+
+If you are using a System V machine, the following files are necessary in
+addition to the files above.
+
+	ild		the command file to link compiled functions.
+	get_start	a magic file
+
+8. Customize the command files.  The command file "kcl" consists of a single
+line command to invoke the KCL interpreter.
+
+	#!/bin/csh
+	exec ~/unixport/saved_kcl ~/unixport/
+
+Replace two '~'s with the pathname of the KCL directory (i.e., "/usr/kcl" in
+our example).
+
+	#!/bin/csh
+	exec /usr/kcl/unixport/saved_kcl /usr/kcl/unixport/
+
+And move this file to an appropriate command directory, say "/usr/bin", so
+that all KCL users can access it.
+
+You can use the commands "lc" and "lc1" to invoke the compiler directly from
+the shell.  Customize these command files in the same way as for the "kcl"
+command file.  If you are using a System V machine, you also have to modify
+the "ild" command file in a similar way.
+
+Now KCL is ready to run.  Enjoy yourself with KCL.  Good luck.

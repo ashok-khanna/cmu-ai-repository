@@ -1,0 +1,331 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node152.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:46:32 GMT -->
+<HEAD>
+<TITLE>15.5. Using Lists as Sets</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Using Lists as Sets">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3425 HREF="node153.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3423 HREF="node147.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3417 HREF="node151.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3427 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3428 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3426 HREF="node153.html"> Association Lists</A>
+<B>Up:</B> <A NAME=tex2html3424 HREF="node147.html"> Lists</A>
+<B> Previous:</B> <A NAME=tex2html3418 HREF="node151.html"> Substitution of Expressions</A>
+<HR> <P>
+<H1><A NAME=SECTION001950000000000000000>15.5. Using Lists as Sets</A></H1>
+<P>
+Common Lisp includes functions that allow a list of items to be
+treated as a <i>set</i>.
+There are functions to add, remove, and search for items in a list,
+based on various criteria.
+There are also set union, intersection, and difference functions.
+<P>
+The naming conventions for these functions and for their keyword
+arguments generally follow the conventions that apply to the generic sequence
+functions.  See chapter <A HREF="node141.html#KSEQUE">14</A>.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>member <i>item</i> <i>list</i> &amp;key :test :test-not :key <BR></tt><tt>member-if <i>predicate</i> <i>list</i> &amp;key :key <BR></tt><tt>member-if-not <i>predicate</i> <i>list</i> &amp;key :key</tt><P>The <i>list</i> is searched for an element that satisfies the test.
+If none is found, <tt>nil</tt> is returned;
+otherwise, the tail of <i>list</i> beginning
+with the first element that satisfied the test is returned.
+The <i>list</i> is searched on the top level only. 
+These functions are suitable for use as predicates.
+<P>
+For example:
+<P><pre>
+(member 'snerd '(a b c d)) => <tt>nil</tt> 
+(member-if #'numberp '(a #\Space 5/3 foo)) => (5/3 foo) 
+(member 'a '(g (a y) c a d e a f)) => (a d e a f)
+</pre><P>
+Note, in the last example,
+that the value returned by <tt>member</tt> is <tt>eq</tt> to the portion of the list
+beginning with <tt>a</tt>.
+Thus <tt>rplaca</tt> on the result of <tt>member</tt> may be used
+to alter the found list element,
+if a check is first made that <tt>member</tt> did not return <tt>nil</tt>.
+<P>
+See also <tt>find</tt> and <tt>position</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=16883>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<hr>
+<b>Compatibility note:</b> In MacLisp, the <tt>member</tt> function uses
+an <tt>equal</tt> comparison rather than <tt>eql</tt>, which is the default
+test for <tt>member</tt> in Common Lisp.  Where in MacLisp one would write
+<tt>(member x y)</tt>, in Common Lisp one must write <tt>(member x y :test #'equal)</tt>
+to get a completely identical effect.  Similarly, one can get the
+precise effect, and no more, of the MacLisp <tt>(memq x y)</tt>
+by writing in Common Lisp <tt>(member x y :test #'eq)</tt>.
+<hr>
+<P>
+<BR><b>[Function]</b><BR>
+<tt>tailp <i>sublist</i> <i>list</i></tt><P>This predicate is true if <i>sublist</i> is a sublist of <i>list</i> (that is,
+one of the conses that makes up <i>list</i>); otherwise it is false.
+Another way to look at this is that <tt>tailp</tt> is true if
+<tt>(nthcdr <i>n</i> <i>list</i>)</tt> is <i>sublist</i>, for some value of <i>n</i>.
+See <tt>ldiff</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(TAILP-NIL) <A NAME=16908>&#160;</A> 
+to strike the parenthetical remark that suggests
+that the <i>sublist</i> must be a cons, to clarify that <tt>tailp</tt>
+is true if and only if there exists an integer <i>n</i> such that
+<P><pre>
+(eql <i>sublist</i> (nthcdr <i>n</i> <i>list</i>))
+</pre><P>
+and to specify that <i>list</i> may be a dotted list (implying that
+implementations must use <tt>atom</tt> and not <tt>endp</tt> to check for
+the end of the <i>list</i>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>adjoin <i>item</i> <i>list</i> &amp;key :test :test-not :key</tt><P><tt>adjoin</tt> is used to add an element to a set, provided that
+it is not already a member.  The equality test defaults to <tt>eql</tt>.
+<P><pre>
+(adjoin <i>item</i> <i>list</i>) == (if (member <i>item</i> <i>list</i>) <i>list</i> (cons <i>item</i> <i>list</i>))
+</pre><P>
+In general, the test may be any predicate; the <i>item</i> is added to the
+list only if there is no element of the list that ``satisfies the test.''
+<P>
+<tt>adjoin</tt> deviates from the usual rules described in chapter <A HREF="node141.html#KSEQUE">14</A>
+for the treatment of arguments named <i>item</i> and <tt>:key</tt>.
+If a <tt>:key</tt> function is specified, it is applied to <i>item</i>
+as well as to each element of the list.  The rationale is that
+if the <i>item</i> is not yet in the list, it soon will be, and so
+the test is more properly viewed as being between two elements
+rather than between a separate <i>item</i> and an element.
+<P><pre>
+(adjoin <i>item</i> <i>list</i> :key <i>fn</i>) 
+  == (if (member (funcall <i>fn</i> <i>item</i>) <i>list</i>
+</pre><P>
+See <tt>pushnew</tt>.
+<p>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<i>Notice of correction.</i>
+In the first edition, the form <tt>(<i>fn</i> <i>item</i>)</tt> appeared
+in this example without the required <tt>funcall</tt>.
+<P>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=16964>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>union <i>list1</i> <i>list2</i> &amp;key :test :test-not :key <BR></tt><tt>nunion <i>list1</i> <i>list2</i> &amp;key :test :test-not :key</tt><P><tt>union</tt> takes two lists and returns a new list containing
+everything that is an element of either of the <i>lists</i>.
+If there is a duplication between two lists,
+only one of the duplicate instances will be in the result.
+If either of the arguments has duplicate entries within it,
+the redundant entries
+may or may not appear in the result.
+For example:
+<P><pre>
+(union '(a b c) '(f a d)) 
+   => (a b c f d) or (b c f a d) or (d f a b c) or ... 
+
+(union '((x 5) (y 6)) '((z 2) (x 4)) :key #'car) 
+   => ((x 5) (y 6) (z 2)) or ((x 4) (y 6) (z 2)) or ...
+</pre><P>
+<P>
+There is no guarantee that the order of elements in the result will
+reflect the ordering of the arguments in any particular way.
+The implementation is therefore free to use any of a variety of strategies.
+The result list may share cells with, or be <tt>eq</tt> to, either of the arguments
+if appropriate.
+<P>
+In general, the test may be any predicate, and the union operation may be
+described as follows.  For all possible ordered pairs consisting of one
+element from <i>list1</i> and one element from <i>list2</i>, the test is used
+to determine whether they ``match.''  For every matching pair, at least
+one of the two elements of the pair will be in the result.  Moreover, any
+element from either list that matches no element of the other will appear
+in the result.  All this is very general, but probably not particularly
+useful unless the test is an equivalence relation.
+<P>
+The <tt>:test-not</tt> argument can be useful when the test function
+is the logical negation of an equivalence test.  A good example
+of this is the function <tt>mismatch</tt>, which is logically inverted
+so that possibly useful information can be returned if the arguments do not
+match.  This additional ``useful information'' is discarded in the following
+example; <tt>mismatch</tt> is used purely as a predicate.
+<P><pre>
+(union '(#(a b) #(5 0 6) #(f 3)) 
+       '(#(5 0 6) (a b) #(g h)) 
+       :test-not 
+       #'mismatch) 
+   => (#(a b) #(5 0 6) #(f 3) #(g h))     ;One possible result 
+   => ((a b) #(f 3) #(5 0 6) #(g h))      ;Another possible result
+</pre><P>
+Using <tt><tt>:test-not</tt> #'mismatch</tt> differs from using
+<tt><tt>:test</tt> #'equalp</tt>, for example, because <tt>mismatch</tt>
+will determine that <tt>#(a b)</tt> and <tt>(a b)</tt> are the same,
+while <tt>equalp</tt> would regard them as not the same.
+<P>
+<tt>nunion</tt> is the destructive version of <tt>union</tt>.
+It performs the same operation but may destroy the argument lists,
+perhaps in order to use their cells to construct the result.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=16997>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<P>
+X3J13 voted in March 1989 (REMF-DESTRUCTION-UNSPECIFIED) <A NAME=17001>&#160;</A> 
+to clarify the permissible side effects of certain operations;
+<tt>nunion</tt> is permitted to perform a <tt>setf</tt> on any part,
+<i>car</i> or <i>cdr</i>, of the top-level list structure of 
+any of the argument lists.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>intersection <i>list1</i> <i>list2</i> &amp;key :test :test-not :key <BR></tt><tt>nintersection <i>list1</i> <i>list2</i> &amp;key :test :test-not :key</tt><P><tt>intersection</tt> takes two lists and returns a new list containing
+everything that is an element of both argument lists.
+If either list has duplicate entries, the redundant entries
+may or may not appear in the result.
+For example:
+<P><pre>
+(intersection '(a b c) '(f a d)) => (a)
+</pre><P>
+There is no guarantee that the order of elements in the result will
+reflect the ordering of the arguments in any particular way.
+The implementation is therefore free to use any of a variety of strategies.
+The result list may share cells with, or be <tt>eq</tt> to, either of the arguments
+if appropriate.
+<P>
+In general, the test may be any predicate, and the intersection operation
+may be described as follows.  For all possible ordered pairs consisting of
+one element from <i>list1</i> and one element from <i>list2</i>, the test is
+used to determine whether they ``match.''  For every matching pair,
+exactly one of the two elements of the pair will be put in the result.
+No element from either list appears in the result that does not match
+an element from the other list.
+All this is very general, but probably
+not particularly useful unless the test is an equivalence relation.
+<P>
+<tt>nintersection</tt> is the destructive version of <tt>intersection</tt>.
+It performs the same operation, but may destroy <i>list1</i>,
+perhaps in order to use its cells to construct the result.
+(The argument <i>list2</i> is <i>not</i> destroyed.)
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=17021>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<P>
+X3J13 voted in March 1989 (REMF-DESTRUCTION-UNSPECIFIED) <A NAME=17025>&#160;</A> 
+to clarify the permissible side effects of certain operations;
+<tt>nintersection</tt> is permitted to perform a <tt>setf</tt> on any part,
+<i>car</i> or <i>cdr</i>, of the top-level list structure of 
+any of the argument lists.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>set-difference <i>list1</i> <i>list2</i> &amp;key :test :test-not :key <BR></tt><tt>nset-difference <i>list1</i> <i>list2</i> &amp;key :test :test-not :key</tt><P><tt>set-difference</tt> returns a list of elements of <i>list1</i>
+that do not appear in <i>list2</i>.  This operation is
+not destructive.
+<P>
+There is no guarantee that the order of elements in the result will
+reflect the ordering of the arguments in any particular way.
+The implementation is therefore free to use any of a variety of strategies.
+The result list may share cells with, or be <tt>eq</tt> to, either of the arguments
+if appropriate.
+<P>
+In general, the test may be any predicate, and the set difference operation
+may be described as follows.  For all possible ordered pairs consisting of
+one element from <i>list1</i> and one element from <i>list2</i>, the test is
+used to determine whether they ``match.''  An element of <i>list1</i>
+appears in the result if and only if it does not match any element
+of <i>list2</i>.  This is very general and permits interesting applications.
+For example, one can remove from a list of strings all those strings
+containing one of a given list of characters:
+<P><pre>
+;; Remove all flavor names that contain &quot;c&quot; or &quot;w&quot;. 
+(set-difference '(&quot;strawberry&quot; &quot;chocolate&quot; &quot;banana&quot; 
+                  &quot;lemon&quot; &quot;pistachio&quot; &quot;rhubarb&quot;) 
+                '(#\c #\w) 
+                :test 
+                #'(lambda (s c) (find c s))) 
+   => (&quot;banana&quot; &quot;rhubarb&quot; &quot;lemon&quot;)     ;One possible ordering
+</pre><P>
+<P>
+<tt>nset-difference</tt> is the destructive version of <tt>set-difference</tt>.
+This operation may destroy <i>list1</i>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=17050>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<hr>
+<b>Compatibility note:</b> An approximately equivalent Interlisp function
+is <tt>ldifference</tt>.
+<hr>
+<P>
+<BR><b>[Function]</b><BR>
+<pre>
+set-exclusive-or <i>list1</i> <i>list2</i> &amp;key :test :test-not :key 
+nset-exclusive-or <i>list1</i> <i>list2</i> &amp;key :test :test-not :key
+</pre>
+<P><tt>set-exclusive-or</tt> returns a list of elements that appear
+in exactly one of <i>list1</i> and <i>list2</i>.
+This operation is not destructive.
+<P>
+There is no guarantee that the order of elements in the result will
+reflect the ordering of the arguments in any particular way.
+The implementation is therefore free to use any of a variety of strategies.
+The result list may share cells with, or be <tt>eq</tt> to, either of the arguments
+if appropriate.
+<P>
+In general, the test may be any predicate, and the set-exclusive-or operation
+may be described as follows.  For all possible ordered pairs consisting of
+one element from <i>list1</i> and one element from <i>list2</i>, the test is
+used to determine whether they ``match.''  The result contains precisely
+those elements of <i>list1</i> and <i>list2</i> that appear in no matching pair.
+<P>
+<tt>nset-exclusive-or</tt> is the destructive version of <tt>set-exclusive-or</tt>.
+Both lists may be destroyed in producing the result.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=17069>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<P>
+X3J13 voted in March 1989 (REMF-DESTRUCTION-UNSPECIFIED) <A NAME=17073>&#160;</A> 
+to clarify the permissible side effects of certain operations;
+<tt>nset-exclusive-or</tt> is permitted to perform a <tt>setf</tt> on any part,
+<i>car</i> or <i>cdr</i>, of the top-level list structure of 
+any of the argument lists.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>subsetp <i>list1</i> <i>list2</i> &amp;key :test :test-not :key</tt><P><tt>subsetp</tt> is a predicate that is true if every element of <i>list1</i>
+appears in (``matches'' some element of) <i>list2</i>, and false otherwise.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(MAPPING-DESTRUCTIVE-INTERACTION) <A NAME=17085>&#160;</A> 
+to restrict user side effects; see section <A HREF="node92.html#STRUCTURETRAVERSALSECTION">7.9</A>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html3425 HREF="node153.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3423 HREF="node147.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3417 HREF="node151.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3427 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3428 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3426 HREF="node153.html"> Association Lists</A>
+<B>Up:</B> <A NAME=tex2html3424 HREF="node147.html"> Lists</A>
+<B> Previous:</B> <A NAME=tex2html3418 HREF="node151.html"> Substitution of Expressions</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

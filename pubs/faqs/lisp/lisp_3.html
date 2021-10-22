@@ -1,0 +1,797 @@
+Subject: FAQ: Lisp Frequently Asked Questions 3/7 [Monthly posting]
+Newsgroups: comp.lang.lisp,news.answers,comp.answers
+Summary: Common Pitfalls
+Distribution: world
+Followup-To: poster
+Reply-To: ai+lisp-faq@cs.cmu.edu
+Approved: news-answers-request@MIT.Edu
+
+Archive-name: lisp-faq/part3
+Last-Modified: Mon May 22 09:42:48 1995 by Mark Kantrowitz
+Version: 1.52
+Maintainer: Mark Kantrowitz and Barry Margolin <ai+lisp-faq@cs.cmu.edu>
+URL: http://www.cs.cmu.edu/Web/Groups/AI/html/faqs/lang/lisp/top.html
+Size: 36395 bytes, 797 lines
+
+;;; ****************************************************************
+;;; Answers to Frequently Asked Questions about Lisp ***************
+;;; ****************************************************************
+;;; Written by Mark Kantrowitz and Barry Margolin
+;;; lisp_3.faq
+
+This post contains Part 3 of the Lisp FAQ.
+
+If you think of questions that are appropriate for this FAQ, or would
+like to improve an answer, please send email to us at ai+lisp-faq@cs.cmu.edu.
+
+This section contains a list of common pitfalls. Pitfalls are aspects
+of Common Lisp which are non-obvious to new programmers and often
+seasoned programmers as well.
+
+Common Pitfalls (Part 3):
+
+  [3-0]  Why does (READ-FROM-STRING "foobar" :START 3) return FOOBAR
+         instead of BAR?  
+  [3-1]  Why can't it deduce from (READ-FROM-STRING "foobar" :START 3)
+         that the intent is to specify the START keyword parameter
+         rather than the EOF-ERROR-P and EOF-VALUE optional parameters?   
+  [3-2]  Why can't I apply #'AND and #'OR?
+  [3-3]  I used a destructive function (e.g. DELETE, SORT), but it
+         didn't seem to work.  Why? 
+  [3-4]  After I NREVERSE a list, it's only one element long.  After I
+         SORT a list, it's missing things.  What happened? 
+  [3-5]  Why does (READ-LINE) return "" immediately instead of waiting
+         for me to type a line?  
+  [3-6]  I typed a form to the read-eval-print loop, but nothing happened. Why?
+  [3-7]  DEFMACRO doesn't seem to work.
+         When I compile my file, LISP warns me that my macros are undefined
+         functions, or complains "Attempt to call <function> which is 
+         defined as a macro.
+  [3-8]  Name conflict errors are driving me crazy! (EXPORT, packages)
+  [3-9]  Closures don't seem to work properly when referring to the
+         iteration variable in DOLIST, DOTIMES, DO and LOOP.
+  [3-10] What is the difference between FUNCALL and APPLY?
+  [3-11] Miscellaneous things to consider when debugging code.
+  [3-12] When is it right to use EVAL?
+  [3-13] Why does my program's behavior change each time I use it?
+  [3-14] When producing formatted output in Lisp, where should you put the
+         newlines (e.g., before or after the line, FRESH-LINE vs TERPRI,
+         ~& vs ~% in FORMAT)?
+  [3-15] I'm using DO to do some iteration, but it doesn't terminate. 
+  [3-16] My program works when interpreted but not when compiled!
+
+Search for \[#\] to get to question number # quickly.
+
+----------------------------------------------------------------
+Subject: [3-0] Why does (READ-FROM-STRING "foobar" :START 3) return FOOBAR 
+               instead of BAR?
+
+READ-FROM-STRING is one of the rare functions that takes both &OPTIONAL and
+&KEY arguments:
+
+       READ-FROM-STRING string &OPTIONAL eof-error-p eof-value 
+                               &KEY :start :end :preserve-whitespace
+
+When a function takes both types of arguments, all the optional
+arguments must be specified explicitly before any of the keyword
+arguments may be specified.  In the example above, :START becomes the
+value of the optional EOF-ERROR-P parameter and 3 is the value of the
+optional EOF-VALUE parameter.
+     
+To get the desired result, you should use
+   (READ-FROM-STRING "foobar" t nil :START 3)
+If you need to understand and use the optional arguments, please refer
+to CLTL2 under READ-FROM-STRING, otherwise, this will behave as
+desired for most purposes.
+
+----------------------------------------------------------------
+Subject: [3-1] Why can't it deduce from (READ-FROM-STRING "foobar" :START 3) 
+      that the intent is to specify the START keyword parameter rather than
+      the EOF-ERROR-P and EOF-VALUE optional parameters?
+
+In Common Lisp, keyword symbols are first-class data objects.  Therefore,
+they are perfectly valid values for optional parameters to functions.
+There are only four functions in Common Lisp that have both optional and
+keyword parameters (they are PARSE-NAMESTRING, READ-FROM-STRING,
+WRITE-LINE, and WRITE-STRING), so it's probably not worth adding a
+nonorthogonal kludge to the language just to make these functions slightly
+less confusing; unfortunately, it's also not worth an incompatible change
+to the language to redefine those functions to use only keyword arguments.
+     
+----------------------------------------------------------------
+Subject: [3-2] Why can't I apply #'AND and #'OR?
+
+Here's the simple, but not necessarily satisfying, answer: AND and OR are
+macros, not functions; APPLY and FUNCALL can only be used to invoke
+functions, not macros and special operators.
+
+OK, so what's the *real* reason?  The reason that AND and OR are macros
+rather than functions is because they implement control structure in
+addition to computing a boolean value.  They evaluate their subforms
+sequentially from left/top to right/bottom, and stop evaluating subforms as
+soon as the result can be determined (in the case of AND, as soon as a
+subform returns NIL; in the case of OR, as soon as one returns non-NIL);
+this is referred to as "short circuiting" in computer language parlance.
+APPLY and FUNCALL, however, are ordinary functions; therefore, their
+arguments are evaluated automatically, before they are called.  Thus, were
+APPLY able to be used with #'AND, the short-circuiting would be defeated.
+
+Perhaps you don't really care about the short-circuiting, and simply want
+the functional, boolean interpretation.  While this may be a reasonable
+interpretation of trying to apply AND or OR, it doesn't generalize to other
+macros well, so there's no obvious way to have the Lisp system "do the
+right thing" when trying to apply macros.  The only function associated
+with a macro is its expander function; this function accepts and returns
+and form, so it cannot be used to compute the value.
+
+The Common Lisp functions EVERY and SOME can be used to get the
+functionality you intend when trying to apply #'AND and #'OR.  For
+instance, the erroneous form:
+
+   (apply #'and *list*)
+
+can be translated to the correct form:
+
+   (every #'identity *list*)
+
+----------------------------------------------------------------
+Subject: [3-3] I used a destructive function (e.g. DELETE, SORT), but 
+               it didn't seem to work.  Why?
+
+I assume you mean that it didn't seem to modify the original list.  There
+are several possible reasons for this.  First, many destructive functions
+are not *required* to modify their input argument, merely *allowed* to; in
+some cases, the implementation may determine that it is more efficient to
+construct a new result than to modify the original (this may happen in Lisp
+systems that use "CDR coding", where RPLACD may have to turn a CDR-NEXT or
+CDR-NIL cell into a CDR-NORMAL cell), or the implementor may simply not
+have gotten around to implementing the destructive version in a truly
+destructive manner.  Another possibility is that the nature of the change
+that was made involves removing elements from the front of a list; in this
+case, the function can simply return the appropriate tail of the list,
+without actually modifying the list. And example of this is:
+     
+   (setq *a* (list 3 2 1))
+   (delete 3 *a*) => (2 1)
+   *a* => (3 2 1)
+
+Similarly, when one sorts a list, SORT may destructively rearrange the
+pointers (cons cells) that make up the list. SORT then returns the cons
+cell that now heads the list; the original cons cell could be anywhere in
+the list. The value of any variable that contained the original head of the
+list hasn't changed, but the contents of that cons cell have changed
+because SORT is a destructive function:
+
+   (setq *a* (list 2 1 3))
+   (sort *a* #'<) => (1 2 3)
+   *a* => (2 3)     
+
+In both cases, the remedy is the same: store the result of the
+function back into the place whence the original value came, e.g.
+
+   (setq *a* (delete 3 *a*))
+   *a* => (2 1)
+
+Why don't the destructive functions do this automatically?  Recall
+that they are just ordinary functions, and all Lisp functions are
+called by value. They see the value of the argument, not the argument
+itself. Therefore, these functions do not know where the lists they
+are given came from; they are simply passed the cons cell that
+represents the head of the list. Their only obligation is to return
+the new cons cell that represents the head of the list. Thus
+"destructive" just means that the function may munge the list by
+modifying the pointers in the cars and cdrs of the list's cons cells.
+This can be more efficient, if one doesn't care whether the original
+list gets trashed or not.
+
+One thing to be careful about when doing this (storing the result back
+into the original location) is that the original list might be
+referenced from multiple places, and all of these places may need to
+be updated.  For instance:
+
+   (setq *a* (list 3 2 1))
+   (setq *b* *a*)
+   (setq *a* (delete 3 *a*))
+   *a* => (2 1)
+   *b* => (3 2 1) ; *B* doesn't "see" the change
+   (setq *a* (delete 1 *a*))
+   *a* => (2)
+   *b* => (3 2) ; *B* sees the change this time, though
+
+One may argue that destructive functions could do what you expect by
+rearranging the CARs of the list, shifting things up if the first element
+is being deleted, as they are likely to do if the argument is a vector
+rather than a list.  In many cases they could do this, although it would
+clearly be slower.  However, there is one case where this is not possible:
+when the argument or value is NIL, and the value or argument, respectively,
+is not.  It's not possible to transform the object referenced from the
+original cell from one data type to another, so the result must be stored
+back.  Here are some examples:
+
+   (setq *a* (list 3 2 1))
+   (delete-if #'numberp *a*) => NIL
+   *a* => (3 2 1)
+   (setq *a* nil *b* '(1 2 3))
+   (nconc *a* *b*) => (1 2 3)
+   *a* => NIL
+
+The names of most destructive functions (except for sort, delete,
+rplaca, rplacd, and setf of accessor functions) have the prefix N.
+
+In summary, the two common problems to watch out for when using
+destructive functions are:
+
+   1. Forgetting to store the result back. Even though the list
+      is modified in place, it is still necessary to store the
+      result of the function back into the original location, e.g.,
+           (setq foo (delete 'x foo))
+
+      If the original list was stored in multiple places, you may
+      need to store it back in all of them, e.g.
+           (setq bar foo)
+           ...
+           (setq foo (delete 'x foo))
+           (setq bar foo)
+
+   2. Sharing structure that gets modified. If it is important
+      to preserve the shared structure, then you should either
+      use a nondestructive operation or copy the structure first
+      using COPY-LIST or COPY-TREE.
+           (setq bar (cdr foo))
+           ...
+           (setq foo (sort foo #'<))
+           ;;; now it's not safe to use BAR
+
+Note that even nondestructive functions, such as REMOVE, and UNION,
+can return a result which shares structure with an argument. 
+Nondestructive functions don't necessarily copy their arguments; they
+just don't modify them.
+     
+----------------------------------------------------------------
+Subject: [3-4] After I NREVERSE a list, it's only one element long.  
+               After I SORT a list, it's missing things.  What happened?
+
+These are particular cases of the previous question.  Many NREVERSE and
+SORT implementations operate by rechaining all the CDR links in the list's
+backbone, rather than by replacing the CARs.  In the case of NREVERSE, this
+means that the cons cell that was originally first in the list becomes the
+last one.  As in the last question, the solution is to store the result
+back into the original location.
+     
+----------------------------------------------------------------
+Subject: [3-5] Why does (READ-LINE) return "" immediately instead of 
+               waiting for me to type a line?
+
+Many Lisp implementations on line-buffered systems do not discard the
+newline that the user must type after the last right parenthesis in order
+for the line to be transmitted from the OS to Lisp.  Lisp's READ function
+returns immediately after seeing the matching ")" in the stream.  When
+READLINE is called, it sees the next character in the stream, which is a
+newline, so it returns an empty line.  If you were to type "(read-line)This
+is a test" the result would be "This is a test".
+
+The simplest solution is to use (PROGN (CLEAR-INPUT) (READ-LINE)).  This
+discards the buffered newline before reading the input.  However, it would
+also discard any other buffered input, as in the "This is a test" example
+above; some implementation also flush the OS's input buffers, so typeahead
+might be thrown away.
+
+----------------------------------------------------------------
+Subject: [3-6] I typed a form to the read-eval-print loop, but 
+               nothing happened. Why?
+
+There's not much to go on here, but a common reason is that you haven't
+actually typed a complete form.  You may have typed a doublequote, vertical
+bar, "#|" comment beginning, or left parenthesis that you never matched
+with another doublequote, vertical bar, "|#", or right parenthesis,
+respectively.  Try typing a few right parentheses followed by Return.
+
+----------------------------------------------------------------
+Subject: [3-7]  DEFMACRO doesn't seem to work. 
+                When I compile my file, LISP warns me that my macros
+                are undefined functions, or complains 
+                  "Attempt to call <function> which is defined as a macro."
+
+When you evaluate a DEFMACRO form or proclaim a function INLINE, it
+doesn't go back and update code that was compiled under the old
+definition. When redefining a macro, be sure to recompile any
+functions that use the macro. Also be sure that the macros used in a
+file are defined before any forms in the same file that use them.
+
+Certain forms, including LOAD, SET-MACRO-CHARACTER, and
+REQUIRE, are not normally evaluated at compile time. Common Lisp
+requires that macros defined in a file be used when compiling later
+forms in the file. If a Lisp doesn't follow the standard, it may be
+necessary to wrap an EVAL-WHEN form around the macro definition.
+
+Most often the "macro was previously called as a function" problem
+occurs when files were compiled/loaded in the wrong order. For
+example, developers may add the definition to one file, but use it in
+a file which is compiled/loaded before the definition. To work around
+this problem, one can either fix the modularization of the system, or
+manually recompile the files containing the forward references to macros.
+
+Also, if your macro calls functions at macroexpand time, those functions
+may need to be in an EVAL-WHEN. For example,
+
+    (defun some-function (x)
+      x)
+
+    (defmacro some-macro (y)
+      (let ((z (some-function y)))
+        `(print ',z)))
+
+If the macros are defined in a file you require, make sure your
+require or load statement is in an appropriate EVAL-WHEN. Many people
+avoid all this nonsense by making sure to load all their files before
+compiling them, or use a system facility (or just a script file) that
+loads each file before compiling the next file in the system.
+
+----------------------------------------------------------------
+Subject: [3-8]  Name conflict errors are driving me crazy! (EXPORT, packages)
+
+If a package tries to export a symbol that's already defined, it will
+report an error. You probably tried to use a function only to discover
+that you'd forgotten to load its file. The failed attempt at using the
+function caused its symbol to be interned. So now, when you try to
+load the file, you get a conflict. Unfortunately, understanding and
+correcting the code which caused the export problem doesn't make those
+nasty error messages go away. That symbol is still interned where it
+shouldn't be. Use unintern to remove the symbol from a package before
+reloading the file. Also, when giving arguments to REQUIRE or package
+functions, use strings or keywords, not symbols: (find-package "FOO"),
+(find-package :foo). 
+
+A sometimes useful technique is to rename (or delete) a package
+that is "too messed up".  Then you can reload the relevant files
+into a "clean" package.
+
+----------------------------------------------------------------
+Subject: [3-9]  Closures don't seem to work properly when referring to the
+                iteration variable in DOLIST, DOTIMES, DO and LOOP.
+
+DOTIMES, DOLIST, DO and LOOP all use assignment instead of binding to
+update the value of the iteration variables. So something like
+   
+   (let ((l nil))
+     (dotimes (n 10)
+       (push #'(lambda () n)
+	     l)))
+
+will produce 10 closures over the same value of the variable N. To
+avoid this problem, you'll need to create a new binding after each
+assignment: 
+
+   (let ((l nil))
+     (dotimes (n 10)
+	(let ((n n))
+	  (push #'(lambda () n)
+		l))))
+
+Then each closure will be over a new binding of n.
+
+This is one reason why programmers who use closures prefer MAPC and
+MAPCAR to DOLIST.
+
+----------------------------------------------------------------
+Subject: [3-10] What is the difference between FUNCALL and APPLY?
+
+FUNCALL is useful when the programmer knows the length of the argument
+list, but the function to call is either computed or provided as a
+parameter.  For instance, a simple implementation of MEMBER-IF (with
+none of the fancy options) could be written as:
+
+(defun member-if (predicate list)
+  (do ((tail list (cdr tail)))
+      ((null tail))
+   (when (funcall predicate (car tail))
+     (return-from member-if tail))))
+
+The programmer is invoking a caller-supplied function with a known
+argument list.
+
+APPLY is needed when the argument list itself is supplied or computed.
+Its last argument must be a list, and the elements of this list become
+individual arguments to the function.  This frequently occurs when a
+function takes keyword options that will be passed on to some other
+function, perhaps with application-specific defaults inserted.  For
+instance:
+
+(defun open-for-output (pathname &rest open-options)
+  (apply #'open pathname :direction :output open-options))
+
+FUNCALL could actually have been defined using APPLY:
+
+(defun funcall (function &rest arguments)
+  (apply function arguments))
+
+----------------------------------------------------------------
+Subject: [3-11] Miscellaneous things to consider when debugging code.
+
+This question lists a variety of problems to watch out for when
+debugging code. This is sort of a catch-all question for problems too
+small to merit a question of their own. See also question [1-3] for
+some other common problems.
+
+Functions:
+
+  * (flet ((f ...)) (eq #'f #'f)) can return false.
+
+  * The function LIST-LENGTH is not a faster, list-specific version
+    of the sequence function LENGTH.  It is list-specific, but it's
+    slower than LENGTH because it can handle circular lists.
+
+  * Don't confuse the use of LISTP and CONSP. CONSP tests for the
+    presence of a cons cell, but will return NIL when called on NIL.
+    LISTP could be defined as (defun listp (x) (or (null x) (consp x))).
+
+  * Use the right test for equality: 
+        EQ      tests if the objects are identical -- numbers with the
+                same value need not be EQ, nor are two similar lists
+                necessarily EQ. Similarly for characters and strings.
+                For instance, (let ((x 1)) (eq x x)) is not guaranteed
+                to return T.
+        EQL     Like EQ, but is also true if the arguments are numbers
+                of the same type with the same value or character objects
+                representing the same character. (eql -0.0 0.0) is not
+                guaranteed to return T.
+        EQUAL   Tests if the arguments are structurally isomorphic, using
+                EQUAL to compare components that are conses, bit-vectors, 
+                strings or pathnames, and EQ for all other data objects
+                (except for numbers and characters, which are compared
+                using EQL). Except for strings and bit-vectors, arrays
+                are EQUAL only if they are EQ.
+        EQUALP  Like EQUAL, but ignores type differences when comparing 
+                numbers and case differences when comparing characters.
+        =       Compares the values of two numbers even if they are of
+                different types.
+        CHAR=   Case-sensitive comparison of characters.
+        CHAR-EQUAL      Case-insensitive comparison of characters.
+        STRING= Compares two strings, checking if they are identical.
+                It is case sensitive.
+        STRING-EQUAL  Like STRING=, but case-insensitive.
+
+  * Some destructive functions that you think would modify CDRs might
+    modify CARs instead.  (E.g., NREVERSE.)
+
+  * READ-FROM-STRING has some optional arguments before the
+    keyword parameters.  If you want to supply some keyword
+    arguments, you have to give all of the optional ones too.
+
+  * If you use the function READ-FROM-STRING, you should probably bind
+    *READ-EVAL* to NIL. Otherwise an unscrupulous user could cause a
+    lot of damage by entering 
+        #.(shell "cd; rm -R *")
+    at a prompt.
+
+  * Only functional objects can be funcalled in CLtL2, so a lambda
+    expression '(lambda (..) ..) is no longer suitable. Use
+    #'(lambda (..) ..) instead. If you must use '(lambda (..) ..),
+    coerce it to type FUNCTION first using COERCE.
+
+Methods:
+
+  * PRINT-OBJECT methods can make good code look buggy. If there is a
+    problem with the PRINT-OBJECT methods for one of your classes, it
+    could make it seem as though there were a problem with the object.
+    It can be very annoying to go chasing through your code looking for
+    the cause of the wrong value, when the culprit is just a bad
+    PRINT-OBJECT method.
+
+Initialization:
+
+  * Don't count on array elements being initialized to NIL, if you don't
+    specify an :initial-element argument to MAKE-ARRAY. For example,
+         (make-array 10) => #(0 0 0 0 0 0 0 0 0 0)
+
+Iteration vs closures:
+
+  * DO and DO* update the iteration variables by assignment; DOLIST and
+    DOTIMES are allowed to use assignment (rather than a new binding).
+    (All CLtL1 says of DOLIST and DOTIMES is that the variable "is
+    bound" which has been taken as _not_ implying that there will be
+    separate bindings for each iteration.) 
+
+    Consequently, if you make closures over an iteration variable
+    in separate iterations they may nonetheless be closures over
+    the same variable and hence will all refer to the same value
+    -- whatever value the variable was given last.  For example,
+        (let ((fns '()))
+          (do ((x '(1 2) (cdr x)))
+              ((null x))
+            (push #'(lambda () x)
+                  fns))
+          (mapcar #'funcall (reverse fns)))
+    returns (nil nil), not (1 2), not even (2 2). Thus 
+         (let ((l nil)) 
+           (dolist (a '(1 2 3) l) 
+             (push #'(lambda () a)
+                   l)))
+    returns a list of three closures closed over the same bindings, whereas
+         (mapcar #'(lambda (a) #'(lambda () a)) '(1 2 3))
+    returns a list of closures over distinct bindings.
+
+Defining Variables and Constants:
+
+  * (defvar var init) assigns to the variable only if it does not
+    already have a value.  So if you edit a DEFVAR in a file and
+    reload the file only to find that the value has not changed,
+    this is the reason.  (Use DEFPARAMETER if you want the value
+    to change upon reloading.) DEFVAR is used to declare a variable
+    that is changed by the program; DEFPARAMETER is used to declare
+    a variable that is normally constant, but which can be changed
+    to change the functioning of a program.
+
+  * DEFCONSTANT has several potentially unexpected properties:
+
+     - Once a name has been declared constant, it cannot be used a
+       the name of a local variable (lexical or special) or function
+       parameter.  Really.  See page 87 of CLtL2.
+
+     - A DEFCONSTANT cannot be re-evaluated (eg, by reloading the
+       file in which it appears) unless the new value is EQL to the
+       old one.  Strictly speaking, even that may not be allowed.
+       (DEFCONSTANT is "like DEFPARAMETER" and hence does an
+       assignment, which is not allowed if the name has already
+       been declared constant by DEFCONSTANT.)
+
+       Note that this makes it difficult to use anything other
+       than numbers, symbols, and characters as constants.       
+
+     - When compiling (DEFCONSTANT name form) in a file, the form
+       may be evaluated at compile-time, load-time, or both.  
+
+       (You might think it would be evaluated at compile-time and
+       the _value_ used to obtain the object at load-time, but it
+       doesn't have to work that way.)
+
+Declarations:
+
+  * You often have to declare the result type to get the most
+    efficient arithmetic.  Eg, 
+
+       (the fixnum (+ (the fixnum e1) (the fixnum e2)))
+
+     rather than
+
+       (+ (the fixnum e1) (the fixnum e2))
+
+  * Declaring the iteration variable of a DOTIMES to have type FIXNUM
+    does not guarantee that fixnum arithmetic will be used.  That is,
+    implementations that use fixnum-specific arithmetic in the presence
+    of appropriate declaration may not think _this_ declaration is
+    sufficient.  It may help to declare that the limit is also a
+    fixnum, or you may have to write out the loop as a DO and add
+    appropriate declarations for each operation involved.
+
+FORMAT related errors:
+
+  * When printing messages about files, filenames like foo~ (a GNU-Emacs
+    backup file) may cause problems with poorly coded FORMAT control
+    strings.
+
+  * Beware of using an ordinary string as the format string,
+    i.e., (format t string), rather than (format t "~A" string).
+
+  * FORMAT returns NIL, so if you added a format statement at the end
+    of a function for debugging purposes, and that function normally
+    returns a value to the caller, you may have changed the behavior
+    of your program.
+
+Miscellaneous:
+
+  * Be careful of circular lists and shared list structure. 
+
+  * Watch out for macro redefinitions.
+
+  * A NOTINLINE may be needed if you want SETF of SYMBOL-FUNCTION to
+    affect calls within a file.  (See CLtL2, page 686.)
+
+  * When dividing two numbers, beware of creating a rational number where
+    you intended to get an integer or floating point number. Use TRUNCATE
+    or ROUND to get an integer and FLOAT to ensure a floating point
+    number. This is a major source of errors when porting ZetaLisp or C
+    code to Common Lisp.
+
+  * If your code doesn't work because all the symbols are mysteriously
+    in the keyword package, one of your comments has a colon (:) in
+    it instead of a semicolon (;).
+
+  * If you redefine a function while in the debugger, the redefinition
+    may not take effect immediately. This will happen, for example,
+    when the execution stack is halted near the invocation of the function.
+    The function pointer on the stack will still be pointing to the
+    old definition. Go up the stack a few levels before restarting to
+    avoid reusing the old definition.
+
+----------------------------------------------------------------
+Subject: [3-12] When is it right to use EVAL?
+
+Hardly ever.  Any time you think you need to use EVAL, think hard about it.
+EVAL is useful when implementing a facility that provides an external
+interface to the Lisp interpreter.  For instance, many Lisp-based editors
+provide a command that prompts for a form and displays its value.
+Inexperienced macro writers often assume that they must explicitly EVAL the
+subforms that are supposed to be evaluated, but this is not so; the correct
+way to write such a macro is to have it expand into another form that has
+these subforms in places that will be evaluated by the normal evaluation
+rules.  Explicit use of EVAL in a macro is likely to result in one of two
+problems: the dreaded "double evaluation" problem, which may not show up
+during testing if the values of the expressions are self-evaluating
+constants (such as numbers); or evaluation at compile time rather than
+runtime.  For instance, if Lisp didn't have IF and one desired to write it,
+the following would be wrong:
+
+   (defmacro if (test then-form &optional else-form)
+     ;; this evaluates all the subforms at compile time, and at runtime
+     ;; evaluates the results again.
+     `(cond (,(eval test) ,(eval then-form))
+            (t ,(eval else-form))))
+
+   (defmacro if (test then-form &optional else-form)
+     ;; this double-evaluates at run time
+     `(cond ((eval ,test) (eval ,then-form))
+            (t (eval ,else-form)))
+
+This is correct:
+
+   (defmacro if (test then-form &optional else-form)
+     `(cond (,test ,then-form)
+            (t ,else-form)))
+
+The following question (taken from an actual post) is typical of the
+kind of question asked by a programmer who is misusing EVAL:
+
+   I would like to be able to quote all the atoms except the first in a
+   list of atoms.  The purpose is to allow a function to be read in and
+   evaluated as if its arguments had been quoted.
+
+This is the wrong approach to solving the problem. Instead, he should
+APPLY the CAR of the form to the CDR of the form. Then quoting the
+rest of the form is unnecessary. But one wonders why he's trying to
+solve this problem in the first place, since the toplevel REP loop
+already involves a call to EVAL. One gets the feeling that if we knew
+more about what he's trying to accomplish, we'd be able to point out a
+more appropriate solution that uses neither EVAL nor APPLY.
+
+On the other hand, EVAL can sometimes be necessary when the only portable
+interface to an operation is a macro. 
+
+----------------------------------------------------------------
+Subject: [3-13] Why does my program's behavior change each time I use it?
+
+Most likely your program is altering itself, and the most common way this
+may happen is by performing destructive operations on embedded constant
+data structures.  For instance, consider the following:
+
+   (defun one-to-ten-except (n)
+     (delete n '(1 2 3 4 5 6 7 8 9 10)))
+   (one-to-ten-except 3) => (1 2 4 5 6 7 8 9 10)
+   (one-to-ten-except 5) => (1 2 4 6 7 8 9 10) ; 3 is missing
+
+The basic problem is that QUOTE returns its argument, *not* a copy of
+it. The list is actually a part of the lambda expression that is in
+ONE-TO-TEN-EXCEPT's function cell, and any modifications to it (e.g., by
+DELETE) are modifications to the actual object in the function definition.
+The next time that the function is called, this modified list is used.
+
+In some implementations calling ONE-TO-TEN-EXCEPT may even result in
+the signalling of an error or the complete aborting of the Lisp process.  Some
+Lisp implementations put self-evaluating and quoted constants onto memory
+pages that are marked read-only, in order to catch bugs such as this.
+Details of this behavior may vary even within an implementation,
+depending on whether the code is interpreted or compiled (perhaps due to
+inlined DEFCONSTANT objects or constant folding optimizations).
+
+All of these behaviors are allowed by the draft ANSI Common Lisp
+specification, which specifically states that the consequences of modifying
+a constant are undefined (X3J13 vote CONSTANT-MODIFICATION:DISALLOW).
+
+To avoid these problems, use LIST to introduce a list, not QUOTE. QUOTE
+should be used only when the list is intended to be a constant which
+will not be modified.  If QUOTE is used to introduce a list which will
+later be modified, use COPY-LIST to provide a fresh copy.
+
+For example, the following should all work correctly:
+
+   o  (remove 4 (list 1 2 3 4 1 3 4 5))
+   o  (remove 4 '(1 2 3 4 1 3 4 5))   ;; Remove is non-destructive.
+   o  (delete 4 (list 1 2 3 4 1 3 4 5))
+   o  (let ((x (list 1 2 4 1 3 4 5)))
+        (delete 4 x))
+   o  (defvar *foo* '(1 2 3 4 1 3 4 5))
+      (delete 4 (copy-list *foo*))
+      (remove 4 *foo*)
+      (let ((x (copy-list *foo*)))
+         (delete 4 x))
+
+The following, however, may not work as expected:
+
+   o  (delete 4 '(1 2 3 4 1 3 4 5))
+
+Note that similar issues may also apply to hard-coded strings. If you
+want to modify elements of a string, create the string with MAKE-STRING.
+
+----------------------------------------------------------------
+Subject: [3-14]  When producing formatted output in Lisp, where should you 
+        put the newlines (e.g., before or after the line, FRESH-LINE vs TERPRI,
+        ~& vs ~% in FORMAT)?
+
+
+Where possible, it is desirable to write functions that produce output
+as building blocks. In contrast with other languages, which either
+conservatively force a newline at various times or require the program
+to keep track of whether it needs to force a newline, the Lisp I/O
+system keeps track of whether the most recently printed character was
+a newline or not. The function FRESH-LINE outputs a newline only if
+the stream is not already at the beginning of a line.  TERPRI forces a
+newline irrespective of the current state of the stream. These
+correspond to the ~& and ~% FORMAT directives, respectively. (If the
+Lisp I/O system can't determine whether it's physically at the
+beginning of a line, it assumes that a newline is needed, just in case.)
+
+Thus, if you want formatted output to be on a line of its own, start
+it with ~& and end it with ~%. (Some people will use a ~& also at the
+end, but this isn't necessary, since we know a priori that we're not
+at the beginning of a line. The only exception is when ~& follows a
+~A, to prevent a double newline when the argument to the ~A is a
+formatted string with a newline at the end.) For example, the
+following routine prints the elements of a list, N elements per line,
+and then prints the total number of elements on a new line:
+
+   (defun print-list (list &optional (elements-per-line 10))
+     (fresh-line)
+     (loop for i upfrom 1
+           for element in list do
+       (format t "~A ~:[~;~%~]" element (zerop (mod i elements-per-line))))
+     (format t "~&~D~%" (length list)))
+
+----------------------------------------------------------------
+Subject: [3-15] I'm using DO to do some iteration, but it doesn't terminate. 
+
+Your code probably looks something like
+   (do ((sublist list (cdr list))
+        ..)
+       ((endp sublist)
+        ..)
+     ..)
+or maybe
+   (do ((index start (+ start 2))
+        ..)
+       ((= index end)
+        ..)
+     ..)
+
+The problem is caused by the (cdr list) and the (+ start 2) in the
+first line. You're using the original list and start index instead of
+the working sublist or index. Change them to (cdr sublist) and 
+(+ index 2) and your code should start working.
+
+----------------------------------------------------------------
+Subject: [3-16] My program works when interpreted but not when compiled!
+
+Look for problems with your macro definitions, such as a macro that is
+missing a quote. When compiled, this definition essentially becomes a
+constant. But when interpreted, the body of the macro is executed each
+time the macro is called.
+
+For example, in Allegro CL the following code will behave differently
+when interpreted and compiled:
+  (defvar x 10)
+  (defmacro foo () (incf x))
+  (defun bar () (+ (foo) (foo)))
+Putting a quote before the (incf x) in the definition of foo fixes the
+problem. 
+
+If you use (SETF (SYMBOL-FUNCTION 'foo) ...) to change the definition
+of a built-in Lisp function named FOO, be aware that this may not work
+correctly (i.e., as desired) in compiled code in all Lisps. In some
+Lisps, the compiler treats certain symbols in the LISP package
+specially, ignoring the function definition. If you want to redefine a
+standard function try proclaiming/declaring it NOTINLINE prior to
+compiling any use that should go through the function cell. (Note that
+this is not guarranteed to work, since X3J13 has stated that it is not
+permitted to redefine any of the standard functions).
+
+----------------------------------------------------------------
+;;; *EOF*

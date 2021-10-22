@@ -1,0 +1,121 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node154.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 10:09:53 GMT -->
+<HEAD>
+<TITLE>16. Hash Tables</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Hash Tables">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3447 HREF="node155.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3445 HREF="clm.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3439 HREF="node153.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3449 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3450 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3448 HREF="node155.html"> Hash Table Functions</A>
+<B>Up:</B> <A NAME=tex2html3446 HREF="clm.html">Common Lisp the Language</A>
+<B> Previous:</B> <A NAME=tex2html3440 HREF="node153.html"> Association Lists</A>
+<HR> <P>
+<H1><A NAME=SECTION002000000000000000000>16. Hash Tables</A></H1>
+<P>
+<A NAME=HASH>A</A>
+hash table is a Lisp object that can efficiently map a given
+Lisp object to another Lisp object.
+Each hash table has a set of <i>entries</i>, each of which associates a
+particular <i>key</i> with a particular <i>value</i>.  The basic functions
+that deal with hash tables can create entries, delete entries, and find
+the value that is associated with a given key.  Finding the value is
+very fast, even if there are many entries, because hashing is used; this
+is an important advantage of hash tables over property lists.
+<P>
+A given hash table can associate only one <i>value</i> with a given
+<i>key</i>; if you try to add a second <i>value</i>, it will replace the
+first.  Also, adding a value to a hash table is a destructive operation;
+the hash table is modified.  By contrast, association lists can be
+augmented non-destructively.
+<P>
+Hash tables come in three kinds, the difference being whether the keys
+are compared with <tt>eq</tt>, <tt>eql</tt>, or <tt>equal</tt>.  In other words, there
+are hash tables that hash on Lisp <i>objects</i> (using <tt>eq</tt> or <tt>eql</tt>)
+and there are hash tables that hash on <i>tree structure</i>
+(using <tt>equal</tt>).
+<P>
+Hash tables are created with the function
+<tt>make-hash-table</tt>, which takes various options, including
+which kind of hash table to make (the default being the <tt>eql</tt> kind).
+To look up a key and find
+the associated value, use <tt>gethash</tt>.
+New entries are added
+to hash tables using <tt>setf</tt> with <tt>gethash</tt>.
+To remove an entry, use <tt>remhash</tt>.  Here is a simple example.
+<P><pre>
+(setq a (make-hash-table)) 
+(setf (gethash 'color a) 'brown) 
+(setf (gethash 'name a) 'fred) 
+(gethash 'color a) => brown 
+(gethash 'name a) => fred 
+(gethash 'pointy a) => <tt>nil</tt>
+</pre><P>
+<P>
+In this example, the symbols <tt>color</tt> and <tt>name</tt> are being used as
+keys, and the symbols <tt>brown</tt> and <tt>fred</tt> are being used as the
+associated values.  The hash table has two items in it, one of which
+associates from <tt>color</tt> to <tt>brown</tt>, and the other of which
+associates from <tt>name</tt> to <tt>fred</tt>.
+<P>
+Keys do not have to be symbols; they can be any Lisp object.  Similarly,
+values can be any Lisp object.
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+When a hash table is first created, it has a <i>size</i>, which is the
+maximum number of entries it can hold.  Usually the actual capacity of
+the table is somewhat less, since the hashing is not perfectly
+collision-free.  With the maximum possible bad luck, the capacity could
+be very much less, but this rarely happens.  If so many entries are
+added that the capacity is exceeded, the hash table will automatically
+grow, and the entries will be <i>rehashed</i> (new hash values will be
+recomputed, and everything will be rearranged so that the fast hash
+lookup still works).  This is transparent to the caller; it all happens
+automatically.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+There is a discrepancy between the preceding description of the
+size of a hash table and the description of the <tt>:size</tt> argument
+in the specification below
+of <tt>make-hash-table</tt>.
+<P>
+X3J13 voted in June 1989 (HASH-TABLE-SIZE) <A NAME=17310>&#160;</A>  to regard the
+latter description as definitive: the <tt>:size</tt> argument
+is approximately the number of entries that can be inserted
+without having to enlarge the hash table.  This definition is certainly
+more convenient for the user.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<hr>
+<b>Compatibility note:</b> This hash table facility is compatible with Lisp Machine Lisp.  It
+is similar to the hasharray facility of Interlisp, and some of the
+function names are the same.  However, it is <i>not</i> compatible with
+Interlisp.  The exact details and the order of arguments are designed to
+be consistent with the rest of MacLisp rather than with
+Interlisp.  For instance, the order of arguments to <tt>maphash</tt> is
+different, there is no ``system hash table,'' and there is not
+the Interlisp restriction that keys and values may not be <tt>nil</tt>.
+<hr>
+<P>
+<HR>
+<UL> 
+<LI> <A NAME=tex2html3451 HREF="node155.html#SECTION002010000000000000000"> Hash Table Functions</A>
+<LI> <A NAME=tex2html3452 HREF="node156.html#SECTION002020000000000000000"> Primitive Hash Function</A>
+</UL>
+<BR> <HR><A NAME=tex2html3447 HREF="node155.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3445 HREF="clm.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3439 HREF="node153.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3449 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3450 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3448 HREF="node155.html"> Hash Table Functions</A>
+<B>Up:</B> <A NAME=tex2html3446 HREF="clm.html">Common Lisp the Language</A>
+<B> Previous:</B> <A NAME=tex2html3440 HREF="node153.html"> Association Lists</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

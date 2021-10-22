@@ -1,0 +1,458 @@
+	 
+     ,_O<  Amzi! inc.    40 Samuel Prescott Dr.   >O_,
+     ( )                   Stow, MA 01775, USA     ( )
+ ~~~~~~~~~--------------------------------------~~~~~~~~~~~
+  tel 508/897-7332   amzi@world.std.com   fax 508/897-2784
+
+
+
+Technical Note:  CPDAPI
+8/94
+
+This article first appeared in the PCAI Vendor's Forum.
+Please do not redistribute without acknowleding PCAI.
+
+
+
+Design of the Cogent Prolog C/C++ API
+-------------------------------------
+
+
+Introduction
+------------
+
+Today's software developer is faced with a wide array 
+of computing environments, and, in each of these, 
+numerous tool kits for application development.  The 
+environments range from real-mode DOS on the PC with 
+its 16-bit addresses to the 64-bit address space of 
+DEC's Alpha AXP workstations, and include GUI tools 
+such as Windows and Motif, as well as interfaces to 
+database, multimedia, and a host of other specialized 
+services.
+
+The 3.0 release of Cogent Prolog is designed to allow 
+C/C++ developers to take advantage of the 
+expressiveness of Prolog for dealing with the 
+complexities of these environments, and, at the same 
+time, allow the Prolog programmer to take advantage of 
+the rich array of tools available in C/C++.  It does 
+this through a full application program interface (API) 
+that allows for both call-in and call-out access 
+between C/C++ and Prolog, and which runs in a variety 
+of environments.
+
+The three main design criteria for Cogent 3.0 and its 
+API are
+
+  portability
+  embeddability
+  extendability
+  
+For portability, the core Prolog implementation sticks 
+closely to “standard” Prolog and does not include 
+environment specific built-in predicates (these are 
+included as “add-on” libraries for the different 
+environments).  In this way the Prolog portions of an 
+application will run in multiple environments without 
+change.  In addition to source code portability, Cogent 
+Prolog provides compiled Prolog object code portability 
+as well.  This means Prolog code can be developed and 
+compiled in one environment for deployment in another.
+
+Embedding Prolog in C/C++ is not quite like interfacing 
+C/C++ with another language, such as FORTRAN or BASIC.  
+A Prolog program is actually closer to a database than 
+it is to a program.  As such, the API reflects this 
+fact and presents a “logic server” interface to 
+C/C++.  The C/C++ program interacts with the logic 
+server in much the same way a Prolog programmer 
+interacts with Prolog at the standard ‘?-’ prompt of a 
+Prolog listener.
+
+Extending Prolog to access C/C++ functions has the 
+opposite problem.  The query-like nature of Prolog 
+predicates is mapped to procedural function calls in C.  
+The API provides the tools to make this mapping as 
+natural as possible.
+
+
+Cogent Prolog Architecture
+--------------------------
+
+From its inception, Cogent Prolog was designed to be an 
+efficient, portable Prolog.  It is, like most compiled 
+Prologs, based on the Warren Abstract Machine (WAM).  A 
+WAM is a software simulation of a computer specifically 
+designed for running Prolog.  Like any hardware 
+computer, the WAM is programmed with primitive op-codes 
+and arguments.  (For an excellent description of a WAM 
+see ‘Warren’s Abstract Machine’ by Ait-Kaci, published 
+by MIT Press.)
+
+How the WAM interacts with the compiler and Prolog 
+source code varies from vendor to vendor.  In the case 
+of Cogent Prolog, the compiler generates a file 
+containing a stream of WAM.  A Prolog linker is used to 
+combine the compiled files of multiple Prolog modules 
+into a single file.  That file can then be loaded and 
+run by the Cogent engine (a WAM).
+
+The Cogent engine is implement in ANSI C, and is the 
+only code that needs to be ported to move Cogent Prolog 
+to a new environment.  The Cogent compiler and 
+interpreter are both implemented in Cogent Prolog, and, 
+because Cogent is object code compatible across 
+environment, both run immediately in a new environment 
+as soon the engine is up and running.
+
+
+Prolog as a Logic Server for C/C++
+----------------------------------
+
+The simplest form of embedding Prolog in C/C++ is to 
+load and run a compiled Prolog module from C/C++.  The 
+following minimal C program does just that, in this 
+case running the Prolog program FOO.
+
+
+
+#include "cogent.h"
+
+void main()
+{
+   cpInit("foo");
+   cpLoad("foo");
+   cpMain();
+   cpClose();
+}
+
+This code initializes the Prolog engine, loads the 
+compiled file, calls the main/0 predicate of the Prolog 
+program, and then frees the resources used by the 
+Prolog engine.  Obviously, this same code could be part 
+of a larger application, called, for example from a 
+user’s menu choice.
+
+Once a Prolog program is loaded you can also query it 
+just as you would a ‘consult’ed program in a Prolog 
+listener.  To understand what is involved, you need to 
+understand what a Prolog term is.  It is, simply, 
+anything you express in Prolog.  For example all of the 
+following are terms.
+
+  hi
+  47
+  foo(bar)
+  [one,two,three]
+  X
+  foo(X, bar(Y, [a,b,c]))
+
+As you can see, there are simple terms and complex 
+terms, which are made up of simple terms.  Internally, 
+Prolog stores terms on the heap, so in C/C++ a term is 
+no more or less than a pointer to a heap location where 
+a term begins.
+
+The main task in going from C to Prolog and back is the 
+mapping of C variables to and from Prolog terms.  For 
+the Cogent API we wanted this to be simple, and yet 
+powerful enough to map any complex Prolog term.  
+Because this type of dual capability is often 
+impossible, we provide two ways to construct and 
+deconstruct Prolog terms from C.
+
+The first is the more intuitive, and uses a technique 
+similar to that used in the standard C ‘printf’ and 
+‘scanf’ functions.  A format specification describes 
+the term, and C variables are mapped to the format 
+specifications.  The following example illustrates this 
+mechanism.
+
+
+XGENE2.PRO
+
+ancestor(X,Y) :- parent(X,Y).
+ancestor(X,Y) :- parent(Z,Y), ancestor(X,Z).
+
+
+XGENE2.C
+
+#include <stdio.h>
+#include "cogent.h"
+
+void main()
+{
+   char   sAncestor[40];
+   char   sPerson[40]=“dennis”;
+   TERM   t;
+   TF     tf;
+
+   cpInit("");
+   cpLoad("xgene2");
+
+   /* assert parent facts */
+
+   cpAssertaStr("parent(wilbur,peg)");     
+   cpAssertaStr("parent(peg,dennis)");
+   cpAssertaStr("parent(mary,ralph)");
+   cpAssertaStr("parent(ralph,dennis)");
+
+   printf("Ancestors of %s\n", sPerson);
+
+   tf = cpCallStr(&t, "ancestor(X, %s)", sPerson);        
+
+   /* find all ancestors */
+
+   while(tf)
+   {
+     cpScanTerm(t, "ancestor(%s, dennis)", sAncestor);
+     printf("  %s\n", sAncestor);
+     tf = cpRedo();
+   }
+
+   cpClose();
+}
+
+
+Running this program produces
+
+Ancestors of dennis
+  ralph
+  peg
+  mary
+  wilbur
+
+There are four main points illustrated by the example.  
+First, the C program can easily assert facts to the 
+dynamic Prolog database using the API call, 
+cpAssertaStr(), which builds a Prolog term based on a 
+format specification and a list of C variables.  In the 
+example, there are no variables, but the next function 
+described illustrates how variables could be used here 
+as well.
+
+Second, the query term, t, is built using the function 
+call
+
+tf = cpCallStr(&t, "ancestor(X, %s)", sPerson);        
+
+It maps the C string, sPerson, into the query pattern, 
+creating the query term 'ancestor(X, dennis)'.  The 
+term is returned in 't', which is the pointer to the 
+heap where the term is stored.  The cpCallStr() 
+function has the exact same effect as entering
+
+?- ancestor(X,dennis).
+
+in the Prolog listener.  That is, the term is unified 
+with the Prolog database.  As a result the variable, X, 
+is unified with some value in the database.  To extract 
+the value of X into a C string, a function that works 
+similar to C's scanf is used.
+
+cpScanTerm(t, "ancestor(%s, dennis)", sAncestor);
+
+Between these two functions, the C programmer can 
+easily build a Prolog query from C variables, and map 
+the result of the query back into C variables.
+
+The next thing the C programmer needs to do is iterate 
+through all the results from the query, initiating 
+backtracking.  That is done with the call
+
+tf = cpRedo();
+
+which causes Prolog to redo the last query (still using 
+the same term t).  Notice that both cpRedo() and 
+cpCallStr() return a value of either TRUE or FALSE.  
+This is used to drive the C loop that keeps on issuing 
+cpRedo’s until there are no more answers.
+
+While the formatted string approach to building terms 
+is easy and intuitive, a more formal mechanism is 
+included in the API for constructing and deconstructing 
+arbitrarily complex Prolog terms.  There are functions 
+that create a new term with a functor and arity, and 
+other functions that allow you to specify the arguments 
+for that functor.  You can also directly access any of 
+the arguments of a complex term, as well as determine 
+what type of term you are dealing with.
+
+For example, the query term, 'sibling(mary, Y)', can be 
+created with the calls
+
+cpMakeFA(&t, "sibling", 2);
+cpUnifyArg(&t, 1, cSTR, "mary");
+
+The created term can be called with
+
+cpCall(&t)
+
+and the now unified second argument retrieved with
+
+cpGetArg(t, 2, cSTR, sBuf);
+
+Lists are created head first with cpPushList(), and the 
+heads of lists retrieved with cpPopList().  The 
+following C code pops elements from a Prolog list until 
+the list is empty.
+
+while ( OK==cpPopList(&tList, cSTR, buf) )
+      printf("Popped %s\n", buf);
+
+Note the use of a C ‘while’ loop to retrieve all the 
+elements of the list.  The term that points to the list 
+in cpPopList is automatically updated to point to the 
+tail of the list after the head is popped off.  This 
+makes it easy to loop through Prolog lists from C.
+
+
+Extending Prolog
+----------------
+
+The above examples are presented in the context of C 
+calling Prolog.  The API also lets you write your own 
+built-in predicates.  The following excerpt is from a 
+sample program that extends Prolog with simple array 
+handling.  The function listed here is mapped to the 
+Prolog predicate array_elem/3, whose arguments are
+
+1. the array identifier, a C pointer in this case,
+2. the index, and
+3. either a variable which is unified with the value of 
+   the array element, or an integer used to set the 
+   value of the array element.
+
+It is used in conjunction with make_array/2 which 
+creates an array of a given size by allocating storage 
+for it.  So the following Prolog code might create an 
+array, store the third element, and later retrieve the 
+value of the third element.
+
+
+...
+make_array(A, 5),
+array_elem(A, 3, 47),
+...
+array_elem(A, 3, X),
+...
+
+Here is the C code that implements the extended 
+predicate array_elem/3.  It uses API function calls to 
+map the first two arguments of the predicate to C 
+variables.  It uses another API function to determine 
+whether the third argument is an integer or not, and 
+takes the correct action based on that information.
+
+
+TF pArrayElem(void)
+{
+   int   *iArray;
+   int   i, iElem;
+   TERM  t;
+   pTYPE pt;
+
+   cpGetParm(1, cADDR, &iArray);          /* get address of array */
+   cpGetParm(2, cINT, &i);                /* get index of element */
+   pt = cpGetParmType(3);   /* figure out type of third parameter */
+
+   if (pt == pINT)            /* third parameter was instantiated */
+   {
+      cpGetParm(3, cINT, &iElem);                /* get its value */
+      iArray[i] = iElem;                   /* put it in the array */
+   }
+   else if (pt == pVAR)         /* third parameter was a variable */
+   {
+      cpMakeInt(&t, iArray[i]);  /* fill its value from the array */
+      cpSetParm(3, t);
+   }
+   else
+      return FALSE;               /* third parameter wasn't right */
+
+   return TRUE;
+
+}
+
+
+Extended predicates such as these can be used for just 
+a specific application, or included with the Prolog 
+environment so they are accessible from Cogent listener 
+as well.
+
+While the API is designed as a C library interface to 
+the Cogent engine, we have also implemented a C++ 
+wrapper around the API so that an instance of a Prolog 
+engine becomes an object.  In this way, the Prolog 
+modules of a C++ application become objects, receiving 
+messages like any other C++ object.
+
+We’ve also implemented a C++ wrapper around the API, so 
+the Prolog engine becomes an object, initialized with 
+the name of the compiled program to run.  In this way, 
+Prolog modules in a C++ application becomes objects, 
+receiving messages like any other C++ object.  The 
+first code example, which loaded and ran the Prolog 
+program FOO, can be rewritten using the C++ wrapper as 
+follows.
+
+
+#include "cpeng.h"
+
+void main()
+{
+   CPEngine foo("foo");   // initialize a Prolog engine with program FOO
+   foo.Main();            // call main/0 of FOO
+}
+
+Notice that C++ constructors and destructors in the 
+CPEngine class take care of the initialization and shut 
+down work.  API messages are sent to particular 
+instances of the Cogent engine.
+
+
+Conclusion
+----------
+
+We have already made use of the 3.0 architecture in 
+implementing custom extensions to Prolog and ports to 
+other environments.  In addition to the DOS 16- and 32-
+bit versions supported in the 2.0 Cogent release, we’ve 
+ported the engine to both Windows and OSF/1 on the 64-
+bit DEC Alpha AXP workstation.  Other ports are in 
+progress as well, based on customer demand.
+
+Of course we’re providing a certain level of extended-
+predicate support for Windows, but the same GUI 
+services can be provided using other tool kits as well, 
+as Pacific AI did by extending Prolog to include 
+support for a DOS GUI library, PCX files, and graphics 
+printing.  This allows them to use Prolog for the 
+industrial education and expert systems they develop, 
+and still provide state-of-the-art GUI interfaces in a 
+DOS environment.
+
+We also see tremendous opportunities for using this 
+technology for dealing with the complexity of today’s 
+computing environments.  Embedded expert advisors are a 
+natural next step to the embedded help systems 
+currently offered with today’s application.
+
+If you've ever called for technical support on any of 
+the new array of complex Windows products, you’ve 
+probably noticed the support individual is often 
+reading from a script.  That type of first-line 
+expertise could easily be embedded directly in the 
+product through Prolog modules with custom extensions 
+that let them directly probe the application in 
+question.
+
+It is our hope that this new release will make Prolog a 
+practical tool for C/C++ programmers to add the needed 
+intelligence into the increasingly complex applications 
+of today, and, at the same time make it practical for 
+Prolog programmers to access the rich array of tools 
+available to the C/C++ programmer in a variety of 
+environments.
+
+

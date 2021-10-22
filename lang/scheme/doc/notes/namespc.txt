@@ -1,0 +1,439 @@
+From kend@newton.apple.com Tue Mar 29 19:55:37 EST 1994
+Article: 8471 of comp.lang.scheme
+Xref: glinda.oz.cs.cmu.edu comp.lang.scheme:8471
+Path: honeydew.srv.cs.cmu.edu!fs7.ece.cmu.edu!europa.eng.gtefsd.com!library.ucla.edu!agate!apple.com!dickey-kenneth2.apple.com!kend
+From: Ken Dickey <kend@newton.apple.com>
+Newsgroups: comp.lang.scheme
+Subject: Re: Are packages lexical environments?
+Date: 28 Mar 1994 17:34:49 GMT
+Organization: Bauhaus
+Lines: 419
+Distribution: world
+Message-ID: <2n74fp$pco@apple.com>
+References: <2mkloi$9c@nef.ens.fr>
+NNTP-Posting-Host: 17.201.48.15
+X-UserAgent: Nuntius v1.1.1d11
+X-XXMessage-ID: <A9BC55171602300F@dickey-kenneth2.apple.com>
+X-XXDate: Mon, 28 Mar 94 17:34:15 GMT
+
+Subject: Are packages lexical environments?
+From: Juliusz Chroboczek, jch@fregate.ens.fr
+Date: 21 Mar 1994 17:33:06 GMT
+In article <2mkloi$9c@nef.ens.fr> Juliusz Chroboczek,
+jch@fregate.ens.fr writes:
+>  Thinking about the problems of modules for Scheme, I have
+found out
+>that I do not see any fundamental difference between
+packages and
+>lexical environments.  ...
+
+Well, if you are talking about CL packages, there is a big 
+difference in symbol usage. I.e. you can have symbols which 
+have the same print name but are not eq, being in different 
+(or no) packages. Having done some CL work lately, I finally 
+see why I have heard people bashing them for years. 
+
+What is really desired in modules is not just namespace 
+management, but the ability to separately compile code and 
+then link it together, taking advantage of early binding 
+information. (IMHO)  One of the hard problems is dealing 
+appropriately with macros.
+
+You might want to take a look at:
+  Curtus & Rauen: "A Module System for Scheme", Proc 1990 
+  ACM Conference on Lisp and Functional Programming
+for a discussion of some of the issues.
+
+
+Following is a simple namespace management implementation 
+using lexical environments and (by way of example) Jaffer's 
+debug routines. Note that under this scheme (8^) you can 
+reload the debug file as often as you like with no name 
+redefinition problems creaping in. 
+
+
+; FILE        "Units"
+; IMPLEMENTS  Import/export units. A "unit" can be thought
+of 
+;   as a light-weight module/namespace. Aside from the
+global 
+;   namespace, units import from other units. Anyone can
+import 
+;   explicity via unit-lookup, e.g. 
+;		(define foo (unit-lookup baz-unit 'bar)) . 
+
+; AUTHOR      Ken Dickey
+; DATE        1993 September 24
+; LAST UPDATE 1993 September 24
+
+; REQUIRES: R4RS Macros
+
+; INTERFACE
+
+; (define-unit <unit-name>
+;   (import (<unitname> <varname> ...) ...)
+;   <body> ...
+;   (export <name> ...))  -> creates namespace <unit-name>
+;
+; Where the IMPORT clause and <body> can be empty.
+
+;  (unit-lookup <unit> '<name>) will return the value of
+<name> in <unit> or #f.
+
+; Note that units are evaluated in order, i.e. there is no
+attempt here to
+; be able to export macros or define mutually referential
+units.
+
+
+; IMPLEMENTATION -- association lists.  Imports expand to an
+enclosing LET
+; form.
+
+(define (UNIT-LOOKUP <unit> <var>)
+  (cond
+   ((assq <var> <unit>) => cdr)
+   (else #f))
+)
+
+(define-syntax EXPORT
+   (syntax-rules '()
+      ((export <name> ...)
+       ; =>
+       (list (cons '<name> <name>) ...)
+   )  )
+)
+
+(define-syntax DEFINE-UNIT
+   (syntax-rules '(imports %helper%)
+                 
+      ((define-unit <name> (imports <import-spec> ...)
+<body0> <body1> ...)
+       ; =>
+       (define-unit %helper% <name> (<import-spec> ...) ()
+(<body0> <body1> ...))
+      )
+            
+      ((define-unit %helper% <name> () <imports> (<body>
+...))
+       ; =>
+       (define <name> (let <imports> <body> ...))
+      )
+
+      ((define-unit %helper% <name> 
+                           ((<unit> <var> ...) <ispecs> ...) 
+                           (<imports> ...) 
+                           <body*>)
+       ; =>
+       (define-unit %helper% <name> 
+                           (<ispecs> ...) 
+                           ((<var> (unit-lookup <unit>
+'<var>)) ... <imports> ...)
+                           <body*>)
+      )
+)  )
+
+
+;;                      --- E O F Units ---
+
+
+;;   ================debug.scm=================
+;;;; Utility functions for debugging in Scheme.
+;;; Copyright (C) 1991, 1992, 1993 Aubrey Jaffer.
+
+;Permission to copy this software, to redistribute it, and
+to use it
+;for any purpose is granted, subject to the following
+restrictions and
+;understandings.
+
+;1.  Any copy made of this software must include this
+copyright notice
+;in full.
+
+;2.  I have made no warrantee or representation that the
+operation of
+;this software will be error-free, and I am under no
+obligation to
+;provide any services, by way of maintenance, update, or
+otherwise.
+
+;3.  In conjunction with products arising from the use of
+this
+;material, there shall be no use of my name in any
+advertising,
+;promotional, or sales literature without prior written
+consent in
+;each case.
+
+(require 'unit)
+
+(define-unit DEBUG-UNIT
+             
+   (IMPORT ;; need original scheme bindings so don't trace
+mutated ones...
+          (scheme-unit + - < = >= apply boolean? car cdr
+cons char?
+                       display eq? for-each input-port? not
+zero?
+                       null? number->string number?
+output-port?
+                       procedure? string-length string?
+substring
+                       symbol->string symbol? vector-length
+vector-ref
+                       vector? write quotient list-ref
+modulo length
+                       call-with-current-continuation)
+          (implementation-specific-unit output-port-width
+current-error-port 
+                                        tmpnam force-output
+                                        char-code-limit tab
+form-feed)
+   )
+   
+   
+   (define (db-print . args)
+     (let ( (result #f) )
+       (for-each (lambda (x) (set! result x) (write x)
+(display #\ )) args)
+       (newline)
+       result))
+
+   (define *qp-width* (output-port-width
+(current-output-port)))
+
+   (define qpn
+     (let ((newline newline) (apply apply))
+       (lambda objs (apply qp objs) (newline))))
+
+   (define qpr
+     (lambda objs (apply qpn objs)
+                  (list-ref objs (- (length objs) 1))))
+
+   (define qp
+     (letrec
+       ((num-cdrs
+         (lambda (pairs max-cdrs)
+           (cond
+            ((null? pairs) 0)
+            ((< max-cdrs 1) 1)
+            ((pair? pairs) (+ 1 (num-cdrs (cdr pairs) (-
+max-cdrs 1))))
+            (else 1))))
+         
+        (l-elt-room
+         (lambda (room pairs)
+           (quotient room (num-cdrs pairs (quotient room
+8)))))
+
+        (qp-pairs
+         (lambda (cdrs room)
+           (cond
+            ((null? cdrs) 0)
+            ((not (pair? cdrs))
+             (display " . ")
+             (+ 3 (qp-obj cdrs (l-elt-room (- room 3)
+cdrs))))
+            ((< 11 room)
+             (display #\ )
+             ((lambda (used)
+                (+ (qp-pairs (cdr cdrs) (- room used)) used))
+              (+ 1 (qp-obj (car cdrs) (l-elt-room (- room 1)
+cdrs)))))
+            (else
+             (display " ...") 4))))
+        
+        (v-elt-room
+         (lambda (room vleft)
+           (quotient room (min vleft (quotient room 8)))))
+
+        (qp-vect
+         (lambda (vect i room)
+           (cond
+            ((= (vector-length vect) i) 0)
+            ((< 11 room)
+             (display #\ )
+             ((lambda (used)
+                (+ (qp-vect vect (+ i 1) (- room used))
+used))
+              (+ 1 (qp-obj (vector-ref vect i)
+                           (v-elt-room (- room 1)
+                                       (- (vector-length
+vect) i))))))
+            (else
+             (display " ...") 4))))
+
+        (qp-string
+         (lambda (str room)
+           (cond
+            ((>= (string-length str) room 3)
+             (display (substring str 0 (- room 3)))
+             (display "...")
+             room)
+            (else
+             (display str)
+             (string-length str)))))
+
+        (qp-obj
+         (lambda (obj room)
+           (cond
+            ((null? obj) (write obj) 2)
+            ((boolean? obj) (write obj) 2)
+            ((char? obj) (write obj) 8)
+            ((number? obj) (qp-string (number->string obj)
+room))
+            ((string? obj)
+             (display #\")
+             ((lambda (ans) (display #\") ans)
+              (+ 2 (qp-string obj (- room 2)))))
+            ((symbol? obj) (qp-string (symbol->string obj)
+room))
+            ((input-port? obj) (display "#[input]") 8)
+            ((output-port? obj) (display "#[output]") 9)
+            ((procedure? obj) (display "#[proc]") 7)
+            ((vector? obj)
+             (set! room (- room 3))
+             (display "#(")
+             ((lambda (used) (display #\)) (+ used 3))
+              (cond
+               ((= 0 (vector-length obj)) 0)
+               ((< room 8) (display "...") 3)
+               (else
+                ((lambda (used) (+ (qp-vect obj 1 (- room
+used)) used))
+                 (qp-obj (vector-ref obj 0)
+                         (v-elt-room room (vector-length
+obj))))))))
+            ((pair? obj) 
+             (set! room (- room 2))
+             (display #\()
+             ((lambda (used) (display #\)) (+ 2 used))
+              (if (< room 8) (begin (display "...") 3)
+                             ((lambda (used)
+                                (+ (qp-pairs (cdr obj) (-
+room used)) used))
+                              (qp-obj (car obj) (l-elt-room
+room obj))))))
+            (else (display "#[unknown]") 10)))))
+
+       (lambda objs
+         (qp-pairs (cdr objs)
+                   (- *qp-width*
+                      (qp-obj (car objs) (l-elt-room
+*qp-width* objs)))))))
+   
+   (define indent 0)
+
+   (define tracef
+    (lambda (function . optname)
+      (set! indent 0)
+      (let ((name (if (null? optname) function (car
+optname))))
+        (lambda args
+          (cond ((and (not (null? args))
+                      (eq? (car args) 'untrace-object)
+                      (null? (cdr args)))
+                 function)
+                (else
+                 (do ((i indent (+ -1 i))) ((zero? i))
+(display #\ ))
+                 (apply qpn "CALLED" name args)
+                 (set! indent (modulo (+ 1 indent) 8))
+                 (let ((ans (apply function args)))
+                   (set! indent (modulo (+ -1 indent) 8))
+                   (do ((i indent (+ -1 i))) ((zero? i))
+(display #\ ))
+                   (qpn "RETURNED" name ans)
+                   ans)))))))
+
+;;; the reason I use a symbol for untrace-object is so
+;;; that functions can still be untraced if this file is
+read in twice.
+
+   (define (untracef function)
+     (set! indent 0)
+     (function 'untrace-object))
+
+;;;; BREAKPOINTS
+
+;;; Typing (init-debug) at top level sets up a continuation
+for break.
+;;; When (break arg1 ...) is then called it returns from the
+top level
+;;; continuation and pushes the continuation from which it
+was called
+;;; on break-continuation-stack.  If (continue) is later
+;;; called, it pops the topmost continuation off of
+;;; break-continuation-stack and returns #f to it.
+
+   (define break-continuation-stack '())
+
+   (define break
+     (lambda args
+       (apply qpn "BREAK:" args)
+       (call-with-current-continuation
+        (lambda (x) 
+          (set! break-continuation-stack
+                (cons x break-continuation-stack))
+          (top-continuation
+           (length break-continuation-stack))))))
+
+   (define continue
+     (lambda any
+       (cond ((null? break-continuation-stack) #f)
+             (else
+              (let ((cont (car break-continuation-stack)))
+                (set! break-continuation-stack
+                      (cdr break-continuation-stack))
+                (cont (if (null? any) #f (car any))))))))
+   
+   (define top-continuation
+     (if (provided? 'abort)
+       (lambda (val) (display val) (newline) (abort))
+;       (begin (display "; type ((unit-lookup debug-unit
+'init-debug))")
+;              (newline)
+              #f
+;               )
+   ) )
+
+   (define (init-debug)
+     (call-with-current-continuation
+      (lambda (x) (set! top-continuation x))))
+
+  (EXPORT db-print qp qpn qpr tracef untracef break continue
+init-debug)
+)
+
+; global side effects
+(define BREAK    (unit-lookup debug-unit 'break))
+(define CONTINUE (unit-lookup debug-unit 'continue))
+
+;; UNCOMMENT THE FOLLOWING IF YOUR SYSTEM DOES NOT SUPPLY
+TRACE
+
+(define TRACEF   (unit-lookup debug-unit 'tracef))
+(define UNTRACEF (unit-lookup debug-unit 'untracef))
+
+(define-syntax TRACE
+   (syntax-rules '()
+      ((trace <proc>)
+       ; =>
+       (define <proc> (tracef <proc> '<proc>)))
+) )
+
+(define-syntax UNTRACE
+   (syntax-rules '()
+      ((untrace <proc>)
+       ; =>
+       (define <proc> (untracef <proc>)))
+) )
+
+;; N.B. Don't forget to invoke ((unit-lookup debug-unit
+'init-debug)) in 
+;; your top-level context.
+
+;                    --- E O F ---
+
+

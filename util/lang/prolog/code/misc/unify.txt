@@ -1,0 +1,135 @@
+From ryoung@utdallas.edu Wed Mar  2 17:52:57 EST 1994
+Article: 9815 of comp.lang.prolog
+Xref: glinda.oz.cs.cmu.edu comp.lang.prolog:9815
+Path: honeydew.srv.cs.cmu.edu!das-news.harvard.edu!noc.near.net!MathWorks.Com!europa.eng.gtefsd.com!howland.reston.ans.net!cs.utexas.edu!convex!news.utdallas.edu!ryoung
+From: ryoung@utdallas.edu (Young U Ryu)
+Newsgroups: comp.lang.prolog
+Subject: Re: most general unifier
+Date: 28 Feb 1994 21:25:29 GMT
+Organization: Univ. of Texas at Dallas
+Lines: 41
+Message-ID: <2ktng9$jq9@news.utdallas.edu>
+References: <2kjmh7$6b4@apollo.it.luc.edu>
+NNTP-Posting-Host: apache.utdallas.edu
+
+In article <2kjmh7$6b4@apollo.it.luc.edu> pchhabr@orion.it.luc.edu (Nick Chhabra) writes:
+>I was wondering if someone has a prolog code for
+>
+>MOST GENERAL UNIFIER
+>
+>Or does anyone know the book I can find the code in.
+>
+
+Following K.R. Apt ...
+
+A substitution s is a finite mapping from variables xi to terms ti
+(where i = 1,2, ..., n) under the restrictions that:
+
+	1. x1, ..., xn are different.
+	2. For all i, xi \= ti.
+
+Given two substitutions s1 (from xi to ti, for i=1,...,n) and
+s2 (from yi to ui, for i=1,...,m), the composition s1s2 is defined as:
+
+	{x1/t1s2, ..., xn/tns2} union s2
+	minus {xi/tis2 | xi = tis2}}
+	minus {yi/ui | yi in {x1,...,xn}}
+
+A substitution s1 is more general than a substitution s2 if for
+some substitution s3, s2=s1s3.
+
+A unifier of two atoms A and B, or two terms A and B is
+a substitution s that makes As=Bs.
+
+A unifier of A and B is called a most general unifier if it is more general
+than any other unifiers of A and B.
+
+================================================
+
+For details, see:
+
+	J.W.LLoyd. (1987). Foundations of Logic Programming. 2nd Edition.
+	    Sprinter-Verlag.
+
+Young
+
+
+
+Article 9821 of comp.lang.prolog:
+Xref: glinda.oz.cs.cmu.edu comp.lang.prolog:9821
+Path: honeydew.srv.cs.cmu.edu!nntp.club.cc.cmu.edu!news.mic.ucla.edu!library.ucla.edu!agate!msuinfo!harbinger.cc.monash.edu.au!aggedor.rmit.EDU.AU!goanna.cs.rmit.oz.au!not-for-mail
+From: ok@goanna.cs.rmit.oz.au (Richard A. O'Keefe)
+Newsgroups: comp.lang.prolog
+Subject: Re: most general unifier
+Date: 1 Mar 1994 16:46:28 +1100
+Organization: Comp Sci, RMIT, Melbourne, Australia
+Lines: 62
+Message-ID: <2kukrk$sug@goanna.cs.rmit.oz.au>
+References: <2kjmh7$6b4@apollo.it.luc.edu>
+NNTP-Posting-Host: goanna.cs.rmit.oz.au
+NNTP-Posting-User: ok
+
+pchhabr@orion.it.luc.edu (Nick Chhabra) writes:
+
+>I was wondering if someone has a prolog code for MOST GENERAL UNIFIER
+
+most_general_unifier(X, X).
+
+If you want it done properly, with the occurs check:
+
+%   free_of(Variable, Term)
+%   is true iff Variable does not occur anywhere in Term.
+
+free_of(Variable, Term) :-
+    (	var(Term) -> Variable \== Term
+    ;   functor(Term, _, Arity),
+	free_of1(Arity, Term, Variable)
+    ).
+
+free_of1(N, Term, Variable) :-
+    (   N < 1 -> true
+    ;	arg(N, Term, Arg),
+	free_of(Variable, Arg),
+	M is N - 1,
+	free_of1(M, Term, Variable)
+    ).
+
+
+unify(X, Y) :-
+    (	var(X) ->
+	(   var(Y) ->
+	    X = Y
+	;/* nonvar(Y) */
+	    free_of(X, Y),
+	    X = Y
+	)
+    ;	var(Y) /* & nonvar(X) */ ->
+	free_of(Y, X),
+	Y = X
+    ;/*	nonvar(X) & nonvar(Y) */
+	functor(X, F, N),
+	functor(Y, F, N),
+	unify_args(N, X, Y)
+    ).
+
+unify_args(N, X, Y) :-
+    (	N =:= 0 -> true
+    ;	arg(N, X, Xn),
+	arg(N, Y, Yn),
+	unify(Xn, Yn),
+	M is N - 1,
+	unify_args(M, X, Y)
+
+    ).
+
+If you don't want to actually _do_ the unification but to find out what
+the most general common instance of X and Y is, do
+
+most_general_common_instance(X, Y, I) :-
+    setof(X, unify(X, Y), [I]).
+
+-- 
+Richard A. O'Keefe; ok@goanna.cs.rmit.oz.au; RMIT, Melbourne, Australia.
+The last good thing written in C was Franz Schubert's Symphony number 9.
+
+

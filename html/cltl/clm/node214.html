@@ -1,0 +1,549 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node214.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:47:03 GMT -->
+<HEAD>
+<TITLE>23.1.6. Pathname Functions</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Pathname Functions">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4228 HREF="node215.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4226 HREF="node203.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4222 HREF="node213.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4230 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4231 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4229 HREF="node215.html"> Opening and Closing </A>
+<B>Up:</B> <A NAME=tex2html4227 HREF="node203.html"> File Names</A>
+<B> Previous:</B> <A NAME=tex2html4223 HREF="node213.html"> Discussion of Logical </A>
+<HR> <P>
+<H2><A NAME=SECTION002716000000000000000>23.1.6. Pathname Functions</A></H2>
+<P>
+<A NAME=PATHNAMEFUNCTIONS>These</A>
+functions are what programs use to parse and default file names
+that have been typed in or otherwise supplied by the user.
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+Any argument called <i>pathname</i> in this book may actually be a pathname,
+a string or symbol, or a stream.  Any argument called <i>defaults</i> may
+likewise be a pathname, a string or symbol, or a stream.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988
+(PATHNAME-SYMBOL) <A NAME=26748>&#160;</A> 
+to change the language so that a symbol is
+<i>never</i> allowed as a pathname argument.  More specifically, the
+following functions are changed to disallow a symbol as a <i>pathname</i>
+argument:
+<pre>
+pathname          pathname-device     namestring 
+truename          pathname-directory  file-namestring 
+parse-namestring  pathname-name       directory-namestring 
+merge-pathnames   pathname-type       host-namestring 
+pathname-host     pathname-version    enough-namestring
+</pre>
+(The function <tt>require</tt> was
+also changed by this vote but was
+deleted from the language by a vote in January 1989
+(REQUIRE-PATHNAME-DEFAULTS) <A NAME=26774>&#160;</A> .)
+Furthermore, the vote reaffirmed that the following functions
+do not accept symbols as <i>file</i>, <i>filename</i>, or <i>pathname</i> arguments:
+<pre>
+open             rename-file     file-write-date 
+with-open-file   delete-file     file-author 
+load             probe-file      directory 
+compile-file
+</pre>
+In older implementations of Lisp that did not have strings, for example
+MacLisp, symbols were the only means for specifying pathnames.
+This was convenient only because the file systems of the time allowed
+only uppercase letters in file names.  Typing <tt>(load 'foo)</tt> caused
+the function <tt>load</tt> to receive the symbol <tt>FOO</tt> (with uppercase
+letters because of the way symbols are parsed) and therefore to
+load the file named <tt>FOO</tt>.
+Now that many file systems, most notably UNIX, support
+case-sensitive file names, the use of symbols is less convenient
+and more error-prone.
+<P>
+X3J13 voted in March 1988
+(PATHNAME-STREAM) <A NAME=26802>&#160;</A> 
+to specify that a stream may be used
+as a <tt>pathname</tt>, <tt>file</tt>, or <tt>filename</tt> argument
+only if it was created by use of <tt>open</tt> or <tt>with-open-file</tt>,
+or if it is a synonym stream whose symbol is bound to a stream that
+may be used as a pathname.
+<P>
+If such a stream is used as a pathname, it is as if the <tt>pathname</tt> function
+were applied to the stream and the resulting pathname used in place of the
+stream.  This represents the name used to open the file.
+This may be, but is not required to be, the actual name of the file.
+<P>
+It is an error to attempt to obtain a pathname
+from a stream created by any of the following:
+<pre>
+make-two-way-stream              make-string-input-stream 
+make-echo-stream                 make-string-output-stream 
+make-broadcast-stream            with-input-from-string 
+make-concatenated-stream         with-output-to-string
+</pre>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+In the examples, it is assumed that the host named <tt>CMUC</tt> runs
+the TOPS-20 operating system, and therefore uses TOPS-20
+file system syntax; furthermore, an explicit host name is
+indicated by following the host name with a double colon.
+Remember, however, that namestring syntax is implementation-dependent,
+and this syntax is used here purely for the sake of examples.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>pathname <i>pathname</i></tt><P>The <tt>pathname</tt> function converts its argument to be a pathname.
+The argument may be a pathname, a string or symbol, or a stream;
+the result is always a pathname.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988
+not to permit symbols as pathnames
+(PATHNAME-SYMBOL) <A NAME=26831>&#160;</A>  and
+to specify exactly which streams may be used as pathnames
+(PATHNAME-STREAM) <A NAME=26832>&#160;</A> .
+<P>
+X3J13 voted in January 1989
+(CLOSED-STREAM-OPERATIONS) <A NAME=26835>&#160;</A> 
+to specify that <tt>pathname</tt> is unaffected
+by whether its argument, if a stream, is open or closed.
+X3J13 further commented that because some implementations cannot
+provide the ``true name'' of a file until the file is closed,
+in such an implementation <tt>pathname</tt> might, in principle,
+return a different (perhaps more specific) file name after the stream is closed.
+However, such behavior is prohibited; <tt>pathname</tt> must return the
+same pathname after a stream is closed as it would have while the stream
+was open.  See <tt>truename</tt>.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>truename <i>pathname</i></tt><P>The <tt>truename</tt> function
+endeavors to discover the ``true name'' of the file
+associated with the <i>pathname</i> within the file system.
+If the <i>pathname</i> is an open stream already associated with a file
+in the file system, that file is used.
+The ``true name'' is returned as a pathname.
+An error is signaled if an appropriate file cannot be located
+within the file system for the given <i>pathname</i>.
+<P>
+The <tt>truename</tt> function may be used to
+account for any file name translations performed by the file system,
+for example.
+<P>
+For example, suppose that <tt>DOC:</tt> is a TOPS-20 logical
+device name that is translated by the TOPS-20 file system
+to be <tt>PS:&lt;DOCUMENTATION&gt;</tt>.
+<P><pre>
+(setq file (open &quot;CMUC::DOC:DUMPER.HLP&quot;)) 
+(namestring (pathname file)) => &quot;CMUC::DOC:DUMPER.HLP&quot; 
+(namestring (truename file)) 
+   => &quot;CMUC::PS:&lt;DOCUMENTATION&gt;DUMPER.HLP.13&quot;
+</pre><P>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988
+not to permit symbols as pathnames
+(PATHNAME-SYMBOL) <A NAME=26855>&#160;</A>  and
+to specify exactly which streams may be used as pathnames
+(PATHNAME-STREAM) <A NAME=26856>&#160;</A> .
+<P>
+X3J13 voted in January 1989
+(CLOSED-STREAM-OPERATIONS) <A NAME=26859>&#160;</A> 
+to specify that <tt>truename</tt> may be
+applied to a stream whether the stream is open or closed.
+X3J13 further commented that because some implementations cannot
+provide the ``true name'' of a file until the file is closed, in principle
+it would be possible in such an implementation for <tt>truename</tt> to
+return a different file name after the stream is closed.
+Such behavior is permitted; in this respect <tt>truename</tt>
+differs from <tt>pathname</tt>.
+<P>
+X3J13 voted in June 1989 (PATHNAME-WILD) <A NAME=26866>&#160;</A> 
+to clarify that <tt>truename</tt> accepts only non-wild pathnames;
+an error is signaled if <tt>wild-pathname-p</tt> would be true of
+the <i>pathname</i> argument.
+<P>
+X3J13 voted in June 1989 (PATHNAME-LOGICAL) <A NAME=26872>&#160;</A>  to require <tt>truename</tt>
+to accept logical pathnames (see section <A HREF="node208.html#LOGICALPATHNAMESSECTION">23.1.5</A>).
+However, <tt>truename</tt> never returns a logical pathname.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>parse-namestring <i>thing</i> &amp;optional <i>host</i> <i>defaults</i> &amp;key :start :end :junk-allowed</tt>
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+This turns <i>thing</i> into a pathname.  The <i>thing</i> is usually a string
+(that is, a namestring), but it may be a symbol (in which case the print
+name is used) or a pathname or stream
+(in which case no parsing is needed, but
+an error check may be made for matching hosts).
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988
+not to permit symbols as pathnames
+(PATHNAME-SYMBOL) <A NAME=26884>&#160;</A>  and
+to specify exactly which streams may be used as pathnames
+(PATHNAME-STREAM) <A NAME=26885>&#160;</A> .  The <i>thing</i> argument may not be a symbol.
+<P>
+X3J13 voted in June 1989 (PATHNAME-LOGICAL) <A NAME=26889>&#160;</A>  to require <tt>parse-namestring</tt>
+to accept logical pathname namestrings (see section <A HREF="node208.html#LOGICALPATHNAMESSECTION">23.1.5</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+This function does <i>not</i>, in general, do defaulting of pathname components,
+even though it has an argument named <i>defaults</i>;
+it only does parsing.  The
+<i>host</i> and <i>defaults</i> arguments are present because in some implementations
+it may be that a namestring can only be parsed with reference to a
+particular file name syntax of several available in the implementation.
+If <i>host</i> is
+non-<tt>nil</tt>, it must be a host name that could appear in the
+host component of a pathname, or <tt>nil</tt>;
+if <i>host</i> is <tt>nil</tt> then the host 
+name is extracted from the default pathname in <i>defaults</i>
+and used to determine the syntax convention.  The <i>defaults</i> argument
+defaults to the value of <tt>*default-pathname-defaults*</tt>.
+<P>
+For a string (or symbol) argument, <tt>parse-namestring</tt>
+parses a file name within it in the
+range delimited by the <tt>:start</tt> and <tt>:end</tt> arguments
+(which are integer indices
+into <i>string</i>, defaulting to the beginning and end of the string).
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+See chapter <A HREF="node141.html#KSEQUE">14</A> for a discussion of <tt>:start</tt> and <tt>:end</tt> arguments.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+If <tt>:junk-allowed</tt> is not <tt>nil</tt>, then the first value
+returned is the pathname parsed, or <tt>nil</tt> if no syntactically correct
+pathname was seen.
+<P>
+If <tt>:junk-allowed</tt> is <tt>nil</tt> (the default),
+then the entire substring is scanned.
+The returned value is the pathname parsed.
+An error is signaled if the substring does not consist entirely of
+the representation of a pathname, possibly surrounded on either side by
+whitespace characters if that is appropriate to the cultural conventions
+of the implementation.
+<P>
+In either case, the second value is the index into the string of the delimiter
+that terminated the parse, or the index beyond the substring if the
+parse terminated at the end of the substring (as will always be the case if
+<tt>:junk-allowed</tt> is false).
+<P>
+If <i>thing</i> is not a string or symbol, then <i>start</i> (which defaults
+to zero in any case) is always returned as the second value.
+<P>
+Parsing an empty string always succeeds, producing a pathname with
+all components (except the host) equal to <tt>nil</tt>.
+<P>
+Note that if <i>host</i> is specified and not <tt>nil</tt>,
+and <i>thing</i> contains a manifest host name, an
+error is signaled if the hosts do not match.
+<P>
+If <i>thing</i> contains an explicit host name and no explicit device name,
+then it might be appropriate, depending on the
+implementation environment, for <tt>parse-namestring</tt> to supply the
+standard default device for that host as the device component
+of the resulting pathname.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>merge-pathnames <i>pathname</i> &amp;optional <i>defaults</i> <i>default-version</i></tt><P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+This is the function that most programs should call to process a file
+name supplied by the user.  It fills in unspecified components of
+<i>pathname</i> from the <i>defaults</i>, and returns a new pathname.  The
+<i>pathname</i> and <i>defaults</i> arguments may each
+be a pathname, stream, string, or symbol.  The
+result is always a pathname.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988
+not to permit symbols as pathnames
+(PATHNAME-SYMBOL) <A NAME=26937>&#160;</A>  and
+to specify exactly which streams may be used as pathnames
+(PATHNAME-STREAM) <A NAME=26938>&#160;</A> .
+<P>
+X3J13 voted in June 1989 (PATHNAME-LOGICAL) <A NAME=26941>&#160;</A>  to require <tt>merge-namestrings</tt>
+to recognize a logical pathname namestring as its first argument
+if its second argument is a logical pathname (see section <A HREF="node208.html#LOGICALPATHNAMESSECTION">23.1.5</A>).
+<P>
+X3J13 voted in January 1989
+(CLOSED-STREAM-OPERATIONS) <A NAME=26946>&#160;</A> 
+to specify that <tt>merge-pathname</tt> is unaffected by
+whether the first argument, if a stream, is open or closed. If the first
+argument is a stream, <tt>merge-pathname</tt> behaves as if the function
+<tt>pathname</tt> were applied to the stream and the resulting pathname used instead.
+<P>
+X3J13 voted in June 1989 (PATHNAME-COMPONENT-CASE) <A NAME=26952>&#160;</A>  to
+require <tt>merge-pathnames</tt> to map customary case in argument
+pathnames to the customary case in returned pathnames
+(see section <A HREF="node205.html#PATHNAMECOMPONENTCASESECTION">23.1.2</A>).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<i>defaults</i> defaults to the value of <tt>*default-pathname-defaults*</tt>.
+<P>
+<i>default-version</i> defaults to <tt>:newest</tt>.
+<P>
+Here is an example of the use of <tt>merge-pathnames</tt>:
+<P><pre>
+(merge-pathnames &quot;CMUC::FORMAT&quot; 
+                 &quot;CMUC::PS:&lt;LISPIO&gt;.FASL&quot;) 
+   => a pathname object that re-expressed as a namestring would be 
+      &quot;CMUC::PS:&lt;LISPIO&gt;FORMAT.FASL.0&quot;
+</pre><P>
+<P>
+Defaulting of pathname components is done by filling in components taken
+from another pathname.
+This is especially useful for
+cases such as a program that has an input file and an output file, and
+asks the user for the name of both, letting the unsupplied components of
+one name default from the other.  Unspecified components of the output
+pathname will come from the input pathname, except that the type should
+default not to the type of the input but to the appropriate default type
+for output from this program.
+<P>
+The pathname merging operation takes as input a given pathname, a
+defaults pathname, and a default version, and returns a
+new pathname.  Basically, the missing components in the given pathname
+are filled in from the defaults pathname, except that
+if no version is specified the
+default version is used.
+The default version is usually <tt>:newest</tt>; if no version is specified
+the newest version in existence should be used.  The default
+version can be <tt>nil</tt>, to preserve the information that it was missing
+in the input pathname.
+<P>
+If the
+given pathname explicitly specifies a host and does not supply a device, then
+if the host component of the defaults matches the host component
+of the given pathname, then the device is taken from the defaults;
+otherwise
+the device will be the default file device for that host.  Next, if
+the
+given pathname does not specify a host, device, directory, name,
+or type, each such
+component is copied from the defaults.
+The merging rules for the version are more complicated and
+depend on whether the pathname specifies a name.  If the pathname
+doesn't specify a name, then the version, if not provided, will
+come from the defaults, just like the other components.  However, if the
+pathname does specify a name, then the version is not affected
+by the defaults.  The reason is that the version
+``belongs to'' some other file name and is unlikely to have anything to do
+with the new one.  Finally, if this process leaves the
+version missing, the default version is used.
+<P>
+The net effect is that if the user supplies just a name, then the
+host, device, directory, and type will come from the defaults, but the
+version will come from the default version
+argument to the merging operation.  If the user supplies nothing, or
+just a directory, the name, type, and version will come over from
+the defaults together.  If the host's file name syntax provides a way
+to input a version without a name or type, the user can let the name
+and type
+default but supply a version different from the one in the defaults.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (PATHNAME-SYNTAX-ERROR-TIME) <A NAME=26967>&#160;</A>  to agree to disagree:
+<tt>merge-pathname</tt> might or might not perform plausibility checking
+on its arguments to ensure that the resulting pathname can be converted
+a valid namestring.  User beware: this could cause portability problems.
+<P>
+For example, suppose that host <tt>LOSER</tt> constrains file types to be three characters
+or fewer but host <tt>CMUC</tt> does not.  Then <tt>&quot;LOSER::FORMAT&quot;</tt> is a valid
+namestring and <tt>&quot;CMUC::PS:&lt;LISPIO&gt;.FASL&quot;</tt> is a valid namestring, but
+<P><pre>
+(merge-pathnames &quot;LOSER::FORMAT&quot; &quot;CMUC::PS:&lt;LISPIO&gt;.FASL&quot;)
+</pre><P>
+might signal an error in some implementations because the hypothetical result would be a pathname
+equivalent to the namestring <tt>&quot;LOSER::FORMAT.FASL&quot;</tt> which is illegal
+because the file type <tt>FASL</tt> has more than three characters.
+In other implementations <tt>merge-pathname</tt> might return a pathname but that pathname might
+cause <tt>namestring</tt> to signal an error.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Variable]</b><BR>
+<tt>*default-pathname-defaults*</tt><P>This is the default pathname-defaults pathname; if any pathname primitive
+that needs a set of defaults is not given one, it uses this one.
+As a general rule, however, each program
+should have its own pathname defaults rather than using this one.
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<BR><b>[Function]</b><BR>
+<tt>make-pathname &amp;key :host :device :directory :name :type :version :defaults</tt><P>Given some components, <tt>make-pathname</tt>
+constructs and returns a pathname.  After the components specified
+explicitly by the <tt>:host</tt>, <tt>:device</tt>, <tt>:directory</tt>,
+<tt>:name</tt>, <tt>:type</tt>, and <tt>:version</tt> arguments are filled in,
+the merging rules used by <tt>merge-pathnames</tt> are used to fill
+in any missing components from the defaults specified by the
+<tt>:defaults</tt> argument.
+The default value of the
+<tt>:defaults</tt> argument is a pathname whose host component
+is the same as the host component of the value of
+<tt>*default-pathname-defaults*</tt>, and whose other components
+are all <tt>nil</tt>.
+<P>
+Whenever a pathname is constructed, whether by <tt>make-pathname</tt> or some
+other function, the components may be canonicalized if appropriate.
+For example, if a file system is insensitive to case, then
+alphabetic characters may be forced to be all uppercase or all lowercase
+by the implementation.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+The following example assumes the use of UNIX syntax and conventions.
+<P><pre>
+(make-pathname :host &quot;technodrome&quot; 
+               :directory '(:absolute &quot;usr&quot; &quot;krang&quot;) 
+               :name &quot;shredder&quot;) 
+  => #P&quot;technodrome:/usr/krang/shredder&quot;
+</pre><P>
+X3J13 voted in June 1989 (PATHNAME-COMPONENT-CASE) <A NAME=27003>&#160;</A>  to add a new keyword
+argument <tt>:case</tt> to <tt>make-pathname</tt>.  The new argument description
+is therefore as follows:
+<P>
+<BR><b>[Function]</b><BR>
+<tt>make-pathname &amp;key :host :device :directory :name :type :version :defaults :case</tt><P>See section <A HREF="node205.html#PATHNAMECOMPONENTCASESECTION">23.1.2</A> for a description
+of the <tt>:case</tt> argument.
+<P>
+X3J13 voted in June 1989 (PATHNAME-SYNTAX-ERROR-TIME) <A NAME=27009>&#160;</A>  to agree to disagree:
+<tt>make-pathname</tt> might or might not check
+on its arguments to ensure that the resulting pathname can be converted to
+a valid namestring.  If <tt>make-pathname</tt> does not check its arguments
+and signal an error in problematical cases,
+<tt>namestring</tt> yet might or might not signal an error when given the resulting
+pathname.  User beware: this could cause portability problems.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>pathnamep <i>object</i></tt><P>This predicate is true if <i>object</i> is a pathname, and otherwise is false.
+<P><pre>
+(pathnamep x) == (typep x 'pathname)
+</pre><P>
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<BR><b>[Function]</b><BR>
+<tt>pathname-host <i>pathname</i><br></tt><tt>pathname-device <i>pathname</i> <BR></tt><tt>pathname-directory <i>pathname</i> <BR></tt><tt>pathname-name <i>pathname</i> <BR></tt><tt>pathname-type <i>pathname</i> <BR></tt><tt>pathname-version <i>pathname</i></tt><P>These return the components of the argument <i>pathname</i>, which may be a
+pathname, string or symbol, or stream.
+The returned values can be strings, special
+symbols, or some other object in the case of structured components.  The
+type will always be a string or a symbol.  The version will always be a
+number or a symbol.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988
+not to permit symbols as pathnames
+(PATHNAME-SYMBOL) <A NAME=27026>&#160;</A>  and
+to specify exactly which streams may be used as pathnames
+(PATHNAME-STREAM) <A NAME=27027>&#160;</A> .
+<P>
+X3J13 voted in January 1989
+(CLOSED-STREAM-OPERATIONS) <A NAME=27030>&#160;</A> 
+to specify that these operations are unaffected by
+whether the first argument, if a stream, is open or closed. If the first
+argument is a stream, each operation behaves as if the function <tt>pathname</tt>
+were applied to the stream and the resulting pathname used instead.
+<P>
+X3J13 voted in June 1989 (PATHNAME-COMPONENT-CASE) <A NAME=27034>&#160;</A>  to add a keyword
+argument <tt>:case</tt> to all of the pathname accessor functions except
+<tt>pathname-version</tt>.  The new argument descriptions
+are therefore as follows:
+<P>
+<BR><b>[Function]</b><BR>
+<tt>pathname-host <i>pathname</i> &amp;key :case <BR></tt><tt>pathname-device pathname &amp;key :case <BR></tt><tt>pathname-directory pathname &amp;key :case <BR></tt><tt>pathname-name pathname &amp;key :case <BR></tt><tt>pathname-type pathname &amp;key :case <BR></tt><tt>pathname-version pathname</tt><P>See section <A HREF="node205.html#PATHNAMECOMPONENTCASESECTION">23.1.2</A> for a description
+of the <tt>:case</tt> argument.
+<P>
+X3J13 voted in June 1989 (PATHNAME-SUBDIRECTORY-LIST) <A NAME=27040>&#160;</A> 
+to specify that
+  <tt>pathname-directory</tt>  always returns <tt>nil</tt>, <tt>:unspecific</tt>, or a
+  list-never a string, never <tt>:wild</tt> (see section <A HREF="node206.html#STRUCTUREDDIRECTORYSECTION">23.1.3</A>).
+  If a list is returned, it is not guaranteed to be freshly consed; the
+  consequences of modifying this list are undefined.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>namestring <i>pathname</i> <BR></tt><tt>file-namestring <i>pathname</i> <BR></tt><tt>directory-namestring <i>pathname</i> <BR></tt><tt>host-namestring <i>pathname</i> <BR></tt><tt>enough-namestring <i>pathname</i> &amp;optional <i>defaults</i></tt><P>The <i>pathname</i> argument may be a pathname, a string or symbol,
+or a stream that is or was open to a file.
+The name represented by <i>pathname</i> is returned as a namelist
+in canonical form.
+<P>
+If <i>pathname</i> is a stream, the name returned represents the
+name used to <i>open</i> the file, which may not be the <i>actual</i>
+name of the file (see <tt>truename</tt>).
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988
+not to permit symbols as pathnames
+(PATHNAME-SYMBOL) <A NAME=27056>&#160;</A>  and
+to specify exactly which streams may be used as pathnames
+(PATHNAME-STREAM) <A NAME=27057>&#160;</A> .
+<P>
+X3J13 voted in January 1989
+(CLOSED-STREAM-OPERATIONS) <A NAME=27060>&#160;</A> 
+to specify that these operations are unaffected by
+whether the first argument, if a stream, is open or closed. If the first
+argument is a stream, each operation behaves as if the function <tt>pathname</tt>
+were applied to the stream and the resulting pathname used instead.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<tt>namestring</tt> returns the full form of the <i>pathname</i> as a string.
+<tt>file-namestring</tt> returns a string representing just the <i>name</i>,
+<i>type</i>, and <i>version</i> components of the <i>pathname</i>;
+the result of <tt>directory-namestring</tt>
+represents just the <i>directory-name</i> portion; and <tt>host-namestring</tt>
+returns a string for just the <i>host-name</i> portion.
+Note that a valid namestring cannot necessarily be constructed
+simply by concatenating some of the three shorter strings in some order.
+<P>
+<tt>enough-namestring</tt> takes another argument, <i>defaults</i>.
+It returns an abbreviated namestring that is just sufficient to
+identify the file named by <i>pathname</i> when considered relative
+to the <i>defaults</i> (which defaults to the value of
+<tt>*default-pathname-defaults*</tt>).  That is, it is required
+that
+<P><pre>
+(merge-pathnames (enough-namestring <i>pathname</i> <i>defaults</i>) <i>defaults</i>) == 
+ (merge-pathnames (parse-namestring <i>pathname</i> nil <i>defaults</i>) <i>defaults</i>)
+</pre><P>
+in all cases; and the result of <tt>enough-namestring</tt> is, roughly speaking,
+the shortest reasonable string that will still satisfy this criterion.
+<p>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (PATHNAME-SYNTAX-ERROR-TIME) <A NAME=27090>&#160;</A>  to agree to disagree:
+<tt>make-pathname</tt> and <tt>merge-pathnames</tt> might or might not be able to produce pathnames
+that cannot be converted to valid namestrings.
+User beware: this could cause portability problems.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Function]</b><BR>
+<tt>user-homedir-pathname &amp;optional <i>host</i></tt><P>Returns a pathname for the user's ``home directory'' on <i>host</i>.
+The <i>host</i> argument
+defaults in some appropriate implementation-dependent manner.  The
+concept of ``home directory'' is itself somewhat
+implementation-dependent, but from the point of view of Common Lisp it is the
+directory where the user keeps personal files such as initialization
+files and mail.  If it is impossible to determine this information,
+then <tt>nil</tt> is returned instead of a pathname; however,
+<tt>user-homedir-pathname</tt> never returns <tt>nil</tt> if the <i>host</i> argument
+is not specified.
+This function returns a pathname without any name, type,
+or version component (those components are all <tt>nil</tt>).
+<P>
+<BR> <HR><A NAME=tex2html4228 HREF="node215.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4226 HREF="node203.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4222 HREF="node213.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4230 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4231 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4229 HREF="node215.html"> Opening and Closing </A>
+<B>Up:</B> <A NAME=tex2html4227 HREF="node203.html"> File Names</A>
+<B> Previous:</B> <A NAME=tex2html4223 HREF="node213.html"> Discussion of Logical </A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

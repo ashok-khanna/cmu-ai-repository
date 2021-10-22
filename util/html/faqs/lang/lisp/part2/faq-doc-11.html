@@ -1,0 +1,84 @@
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/faqs/lang/lisp/part2/faq-doc-11.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 17:20:48 GMT -->
+<HEAD>
+<TITLE>FAQ: Lisp Frequently Asked Questions 2/7 [Monthly posting] - [2-11] How do I save an executable image of my loaded Lisp system? How do I run a Unix command in my Lisp? How do I exit Lisp? Access environment variables?</TITLE>
+</HEAD>
+<BODY>
+<H1>[2-11] How do I save an executable image of my loaded Lisp system? How do I run a Unix command in my Lisp? How do I exit Lisp? Access environment variables?</H1>
+<PRE>
+There is no standard for dumping a Lisp image. Here are the
+commands from some lisp implementations:
+   Lucid:               DISKSAVE
+   Symbolics:           Save World  [CP command]
+   CMU CL:              SAVE-LISP
+   Franz Allegro:       EXCL:DUMPLISP (documented) 
+                        SAVE-IMAGE (undocumented)
+   Medley:              IL:SYSOUT or IL:MAKESYS
+   MCL:                 SAVE-APPLICATION &#60;pathname&#62;
+                          &#38;key :toplevel-function  :creator :excise-compiler
+                          :size :resources :init-file :clear-clos-caches
+   KCL:                 (si:save-system "saved_kcl")
+   LispWorks:		LW:SAVE-IMAGE
+Be sure to garbage collect before dumping the image. You may need to
+experiment with the kind of garbage collection for large images, and
+may find better results if you build the image in stages.
+
+There is no standard for running a Unix shell command from Lisp,
+especially since not all Lisps run on top of Unix. Here are the
+commands from some Lisp implementations:
+   Allegro:             EXCL:RUN-SHELL-COMMAND (command &#38;key input output
+                                  error-output wait if-input-does-not-exist
+                                  if-output-exists if-error-output-exists)
+   Lucid:               RUN-PROGRAM (name 
+                                     &#38;key input output
+                                          error-output (wait t) arguments
+                                          (if-input-does-not-exist :error)
+                                          (if-output-exists :error)
+                                          (if-error-output-exists :error))
+   KCL:                 SYSTEM 
+                        For example, (system "ls -l").
+                        You can also try RUN-PROCESS and EXCLP, but they
+                        don't work with all versions of KCL.
+   CMU CL:              RUN-PROGRAM (program args
+			   &#38;key (env *environment-list*) (wait t) pty input
+			   if-input-does-not-exist output
+			   (if-output-exists :error) (error :output) 
+			   (if-error-exists :error) status-hook before-execve)
+   LispWorks:           FOREIGN:CALL-SYSTEM-SHOWING-OUTPUT
+
+To toggle source file recording and cross-reference annotations, use
+   Allegro:             excl:*record-source-file-info*
+			excl:*load-source-file-info* 
+			excl:*record-xref-info*
+			excl:*load-xref-info*
+   LispWorks:           (toggle-source-debugging nil)
+
+Memory management:
+   CMU CL:              (bytes-consed-between-gcs)  [this is setfable]
+   Lucid:		(change-memory-management 
+      			   &#38;key growth-limit expand expand-reserved)
+   Allegro:		*tenured-bytes-limit*
+   LispWorks:           LW:GET-GC-PARAMETERS
+                        (use LW:SET-GC-PARAMETERS to change them)
+
+Environment Variable Access:
+   Allegro:             (sys:getenv var)
+                        (sys:setenv var value) or (setf (sys:getenv var) value)
+   Lucid:               (environment-variable var)
+                        (set-environment-variable var value)
+   CMU CL 17:           (cdr (assoc (intern var :keyword) *environment-list*))
+   {A}KCL, GCL:         (system:getenv var)
+   CLISP:               (system::getenv var)
+
+Exiting/Quitting:
+   CLISP:               EXIT
+   Allegro:             EXIT (&#38;optional excl::code &#38;rest excl::args
+                              &#38;key excl::no-unwind excl::quiet)
+   LispWorks:           BYE (&#38;optional (arg 0))
+   Lucid:               QUIT (&#38;optional (lucid::status 0))
+   CMU CL:              QUIT (&#38;optional recklessly-p)
+</PRE>
+<A NAME=up HREF="faq.html">Go Back Up</A><P>
+<A NAME=up HREF="faq-doc-10.html">Go To Previous</A><P>
+<A NAME=up HREF="faq-doc-12.html">Go To Next</A><P>
+</BODY>

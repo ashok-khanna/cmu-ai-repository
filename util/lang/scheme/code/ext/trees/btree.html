@@ -1,0 +1,260 @@
+#| -*-Scheme-*-
+
+$Header: btree.scm,v 1.2 88/10/28 07:03:00 GMT cph Rel $
+
+Copyright (c) 1988 Massachusetts Institute of Technology
+
+This material was developed by the Scheme project at the Massachusetts
+Institute of Technology, Department of Electrical Engineering and
+Computer Science.  Permission to copy this software, to redistribute
+it, and to use it for any purpose is granted, subject to the following
+restrictions and understandings.
+
+1. Any copy made of this software must include this copyright notice
+in full.
+
+2. Users of this software agree to make their best efforts (a) to
+return to the MIT Scheme project any improvements or extensions that
+they make, so that these may be included in future releases; and (b)
+to inform MIT of noteworthy uses of this software.
+
+3. All materials developed as a consequence of the use of this
+software shall duly acknowledge such use, in accordance with the usual
+standards of acknowledging credit in academic research.
+
+4. MIT has made no warrantee or representation that the operation of
+this software will be error-free, and MIT is under no obligation to
+provide any services, by way of maintenance, update, or otherwise.
+
+5. In conjunction with products arising from the use of this material,
+there shall be no use of the name of the Massachusetts Institute of
+Technology nor of any adaptation thereof in any advertising,
+promotional, or sales literature without prior written consent from
+MIT in each case. |#
+
+;;;; Balanced Trees
+;;;  Knuth, Donald E., "The Art of Computer Programming",
+;;;  volume 3, "Sorting and Searching",
+;;;  section 6.2.3, "Balanced Trees".
+
+(declare (usual-integrations))
+
+(define-integrable (make-node wrapped-key left-link right-link balance-factor)
+  (vector wrapped-key left-link right-link balance-factor))
+
+(define-integrable (get-wrapped-key node) (vector-ref node 0))
+(define-integrable (set-wrapped-key! node key) (vector-set! node 0 key))
+
+(define-integrable (get-left-link node) (vector-ref node 1))
+(define-integrable (set-left-link! node link) (vector-set! node 1 link))
+
+(define-integrable (get-right-link node) (vector-ref node 2))
+(define-integrable (set-right-link! node link) (vector-set! node 2 link))
+
+(define-integrable (get-balance-factor node) (vector-ref node 3))
+(define-integrable (set-balance-factor! node b) (vector-set! node 3 b))
+
+(define-integrable balanced 'BALANCED)		; Knuth's 0
+(define-integrable tipped-left 'TIPPED-LEFT)	; Knuth's -1
+(define-integrable tipped-right 'TIPPED-RIGHT)	; Knuth's +1
+
+(define left-d (vector tipped-left tipped-right 1 2))
+(define right-d (vector tipped-right tipped-left 2 1))
+
+(define (-d d)
+  (cond ((eq? d left-d) right-d)
+	((eq? d right-d) left-d)
+	(else (error "-D: Bad argument" d))))
+
+(define-integrable (+a d)
+  (vector-ref d 0))
+
+(define-integrable (-a d)
+  (vector-ref d 1))
+
+(define-integrable (get-link+ p d)
+  (vector-ref p (vector-ref d 2)))
+
+(define-integrable (get-link- p d)
+  (vector-ref p (vector-ref d 3)))
+
+(define-integrable (set-link+! p d l)
+  (vector-set! p (vector-ref d 2) l))
+
+(define-integrable (set-link-! p d l)
+  (vector-set! p (vector-ref d 3) l))
+
+(define-integrable (cons-path p d path)
+  (list p d path))
+
+(define-integrable (path-components path receiver)
+  (apply receiver path))
+
+(define (make-btree)
+  (make-node 'DUMMY-KEY '() '() balanced))
+
+(define (btree-insert! btree < unwrap-key k wrap-key if-found if-not-found)
+  (let ((p (get-right-link btree)))
+    (if (null? p)
+	(let ((wk (wrap-key k)))
+	  (set-right-link! btree (make-node wk '() '() balanced))
+	  (if-not-found wk))
+	(let search ((t btree) (set-s-link! set-right-link!) (s p) (p p))
+	  (define (move-once set-link! q)
+	    (cond ((null? q)
+		   (let ((wk (wrap-key k)))
+		     (let ((q (make-node wk '() '() balanced)))
+		       (set-link! p q)
+		       (let ((d (if (< k (unwrap-key (get-wrapped-key s)))
+				    left-d
+				    right-d)))
+			 (let adjust-balance-factors! ((p (get-link+ s d)))
+			   (cond ((eq? p q) 'DONE)
+				 ((< k (unwrap-key (get-wrapped-key p)))
+				  (set-balance-factor! p tipped-left)
+				  (adjust-balance-factors!
+				   (get-left-link p)))
+				 (else
+				  (set-balance-factor! p tipped-right)
+				  (adjust-balance-factors!
+				   (get-right-link p)))))
+			 (cond ((eq? (get-balance-factor s) balanced)
+				(set-balance-factor! s (+a d)))
+			       ((eq? (get-balance-factor s) (-a d))
+				(set-balance-factor! s balanced))
+			       (else
+				(rebalance! s d
+				  (lambda (new-s)
+				    (set-s-link! t new-s))
+				  (lambda (new-s)
+				    new-s
+				    (error "Tree shouldn't be same height!"
+					   'BTREE-INSERT!)))))))
+		     (if-not-found wk)))
+		  ((eq? (get-balance-factor q) balanced)
+		   (search t set-s-link! s q))
+		  (else
+		   (search p set-link! q q))))
+	  (let ((kp (unwrap-key (get-wrapped-key p))))
+	    (cond ((< k kp)
+		   (move-once set-left-link! (get-left-link p)))
+		  ((< kp k)
+		   (move-once set-right-link! (get-right-link p)))
+		  (else
+		   (if-found (get-wrapped-key p)))))))))
+
+(define (btree-delete! btree < unwrap-key k if-found if-not-found)
+  (let loop ((p (get-right-link btree))
+	     (path (cons-path btree right-d '())))
+    (if (null? p)
+	(if-not-found k)
+	(let ((kp (unwrap-key (get-wrapped-key p))))
+	  (cond ((< k kp)
+		 (loop (get-left-link p)
+		       (cons-path p left-d path)))
+		((< kp k)
+		 (loop (get-right-link p)
+		       (cons-path p right-d path)))
+		(else
+		 (let ((result (get-wrapped-key p)))
+		   (cond ((null? (get-left-link p))
+			  (replace-node! path (get-right-link p)))
+			 ((null? (get-right-link p))
+			  (replace-node! path (get-left-link p)))
+			 (else
+			  (set-wrapped-key!
+			   p
+			   (get-wrapped-key
+			    (remove-successor! (get-right-link p)
+					       (cons-path p right-d path))))))
+		   (if-found result))))))))
+
+(define (btree-lookup btree < unwrap-key k if-found if-not-found)
+  (let loop ((p (get-right-link btree)))
+    (if (null? p)
+	(if-not-found k)
+	(let ((kp (unwrap-key (get-wrapped-key p))))
+	  (cond ((< k kp)
+		 (loop (get-left-link p)))
+		((< kp k)
+		 (loop (get-right-link p)))
+		(else
+		 (if-found (get-wrapped-key p))))))))
+
+(define (btree-fringe btree)
+  (let loop ((p (get-right-link btree)) (tail '()))
+    (if (null? p)
+	tail
+	(loop (get-left-link p)
+	      (cons (get-wrapped-key p)
+		    (loop (get-right-link p) tail))))))
+
+(define (remove-successor! p path)
+  (if (null? (get-left-link p))
+      (begin (replace-node! path (get-right-link p))
+	     p)
+      (remove-successor! (get-left-link p)
+			 (cons-path p left-d path))))
+
+(define (replace-node! path new-node)
+  (path-components path
+    (lambda (pl-1 dl-1 rest)
+      (set-link+! pl-1 dl-1 new-node)
+      (adjust-balance-factors! pl-1 dl-1 rest))))
+
+(define (adjust-balance-factors! pk dk path)
+  (cond ((null? path) 'DONE)
+	((eq? (get-balance-factor pk) balanced)
+	 (set-balance-factor! pk (-a dk)))
+	(else
+	 (path-components path
+	   (lambda (pk-1 dk-1 rest)
+	     (if (eq? (get-balance-factor pk) (+a dk))
+		 (begin (set-balance-factor! pk balanced)
+			(adjust-balance-factors! pk-1 dk-1 rest))
+		 (rebalance! pk (-d dk)
+			     (lambda (new-pk)
+			       (set-link+! pk-1 dk-1 new-pk)
+			       (adjust-balance-factors! pk-1 dk-1 rest))
+			     (lambda (new-pk)
+			       (set-link+! pk-1 dk-1 new-pk)))))))))
+
+(define (rebalance! A d if-shorter if-same-height)
+  (let ((B (get-link+ A d)))
+    (define (case-1)
+      (set-link+! A d (get-link- B d))
+      (set-balance-factor! A balanced)
+      (set-link-! B d A)
+      (set-balance-factor! B balanced)
+      (if-shorter B))
+
+    (define (case-2 X)
+      (set-link-! B d (get-link+ X d))
+      (set-link+! X d B)
+      (set-link+! A d (get-link- X d))
+      (set-link-! X d A)
+      (cond ((eq? (get-balance-factor X) balanced)
+	     (set-balance-factor! A balanced)
+	     (set-balance-factor! B balanced))
+	    ((eq? (get-balance-factor X) (+a d))
+	     (set-balance-factor! A (-a d))
+	     (set-balance-factor! B balanced))
+	    (else
+	     (set-balance-factor! A balanced)
+	     (set-balance-factor! B (+a d))))
+      (set-balance-factor! X balanced)
+      (if-shorter X))
+
+    (define (case-3)
+      (set-link+! A d (get-link- B d))
+      (set-balance-factor! A (+a d))
+      (set-link-! B d A)
+      (set-balance-factor! B (-a d))
+      (if-same-height B))
+
+    (cond ((eq? (get-balance-factor B) (+a d))
+	   (case-1))
+	  ((eq? (get-balance-factor B) (-a d))
+	   (case-2 (get-link- B d)))
+	  (else
+	   (case-3)))))

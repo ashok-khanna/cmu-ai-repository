@@ -1,0 +1,217 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node252.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:32:15 GMT -->
+<HEAD>
+<TITLE>26.12.2. Destructuring</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Destructuring">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4710 HREF="node253.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4708 HREF="node250.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4704 HREF="node251.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4712 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4713 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4711 HREF="node253.html"> Pretty Printing</A>
+<B>Up:</B> <A NAME=tex2html4709 HREF="node250.html"> Miscellaneous Features</A>
+<B> Previous:</B> <A NAME=tex2html4705 HREF="node251.html"> Data Types</A>
+<HR> <P>
+<H2><A NAME=SECTION0030122000000000000000>26.12.2. Destructuring</A></H2>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<A NAME=LOOPDESTRUCTURINGSECTION>Destructuring</A>
+allows you to bind a set of variables to a corresponding
+set of values anywhere that you can normally bind a value to a single
+variable.  During <tt>loop</tt> expansion, each variable in the variable list
+is matched with the values in the values list.  If there are more variables
+in the variable list than there are values in the values list, the 
+remaining variables are given a value of <tt>nil</tt>.  If there are more
+values than variables listed, the extra values are discarded.
+<P>
+Suppose you want to assign values from a list to the variables <tt>a</tt>,
+<tt>b</tt>, and <tt>c</tt>.  You could use one <tt>for</tt> clause to
+bind the variable <tt>numlist</tt> to the <i>car</i> of the specified expression,
+and then you could use another <tt>for</tt> clause to bind the variables
+<tt>a</tt>, <tt>b</tt>, and <tt>c</tt> sequentially.  
+<P><pre>
+;;; Collect values by using FOR constructs. 
+(loop for numlist in '((1 2 4.0) (5 6 8.3) (8 9 10.4)) 
+      for a integer = (first numlist) 
+      and for b integer = (second numlist) 
+      and for c float = (third numlist) 
+      collect (list c b a)) 
+   => ((4.0 2 1) (8.3 6 5) (10.4 9 8))
+</pre><P>
+Destructuring makes this process easier by allowing the variables to
+be bound in parallel in each loop iteration.  You can declare data
+types by using a list of <i>type-spec</i> arguments.  If all the types
+are the same, you can use a shorthand destructuring syntax, as the second
+example following illustrates.
+<P><pre>
+;;; Destructuring simplifies the process. 
+(loop for (a b c) (integer integer float) in 
+      '((1 2 4.0) (5 6 8.3) (8 9 10.4)) 
+      collect (list c b a))) 
+   => ((4.0 2 1) (8.3 6 5) (10.4 9 8)) 
+
+;;; If all the types are the same, this way is even simpler. 
+(loop for (a b c) float in 
+      '((1.0 2.0 4.0) (5.0 6.0 8.3) (8.0 9.0 10.4)) 
+      collect (list c b a)) 
+   => ((4.0 2.0 1.0) (8.3 6.0 5.0) (10.4 9.0 8.0))
+</pre><P>
+<P>
+If you use destructuring to declare or initialize a number of groups
+of variables into types, you can use the loop keyword <tt>and</tt>
+to simplify the process further.
+<P><pre>
+;;; Initialize and declare variables in parallel 
+;;; by using the AND construct. 
+(loop with (a b) float = '(1.0 2.0) 
+      and (c d) integer = '(3 4) 
+      and (e f) 
+      return (list a b c d e f)) 
+   => (1.0 2.0 3 4 NIL NIL)
+</pre><P>
+<P>
+  A data type specifier for a destructuring pattern is a tree of type
+  specifiers with the same shape as the tree of variables, with the
+  following exceptions:
+<P>
+  <UL>  <LI>  When aligning the trees, an atom in the type specifier tree that
+  matches a cons in the variable tree declares the same type for each
+  variable.
+<P>
+  <LI>  A cons in the type specifier tree that matches an atom in the
+  variable tree is a non-atomic type specifer.
+<P>
+  </UL>
+<P>
+<P><pre>
+;;; Declare X and Y to be of type VECTOR and FIXNUM, respectively. 
+(loop for (x y) of-type (vector fixnum) in my-list do ...)
+</pre><P>
+<P>
+If <tt>nil</tt> is used in a destructuring list, no variable is provided for
+its place.
+<P><pre>
+(loop for (a nil b) = '(1 2 3) 
+      do (return (list a b))) 
+   => (1 3)
+</pre><P>
+<P>
+Note that nonstandard lists can specify destructuring.
+<P><pre>
+(loop for (x . y) = '(1 . 2) 
+      do (return y)) 
+   => 2 
+
+(loop for ((a . b) (c . d)) 
+          of-type ((float . float) (integer . integer)) 
+          in '(((1.2 . 2.4) (3 . 4)) ((3.4 . 4.6) (5 . 6))) 
+      collect (list a b c d)) 
+   => ((1.2 2.4 3 4) (3.4 4.6 5 6))
+</pre><P>
+<P>
+[It is worth noting that the destructuring facility of <tt>loop</tt> predates,
+and differs in some details from, that
+of <tt>destructuring-bind</tt>, an extension that has been provided by many implementors
+of Common Lisp.-GLS]
+<P>
+<BR><b>[Loop Clause]</b><BR>
+<tt>initially</tt> <tt>{<i>expr</i>}*</tt> <tt><BR></tt><tt>finally</tt> <tt>[do | doing]</tt> <tt>{<i>expr</i>}*</tt> <tt><BR></tt><tt>finally</tt> <tt>return <em>expr</em></tt><P>The <tt>initially</tt> construct causes the specified expression to be evaluated
+in the loop prologue, which precedes all loop code except for 
+initial settings specified by constructs <tt>with</tt>, <tt>for</tt>, or
+<tt>as</tt>.
+The <tt>finally</tt> construct causes the specified expression to be evaluated
+in the loop epilogue after normal iteration terminates.
+<P>
+The <i>expr</i> argument can be any non-atomic Common Lisp form.
+<P>
+Clauses such as <tt>return</tt>, <tt>always</tt>, <tt>never</tt>, and <tt>thereis</tt>
+can bypass the <tt>finally</tt> clause.
+<P>
+The Common Lisp macro <tt>return</tt> (or the <tt>return</tt> loop construct) can be used
+after <tt>finally</tt> to return
+values from a loop.  The evaluation of the <tt>return</tt> form inside the
+<tt>finally</tt> clause takes precedence over returning the accumulation
+from clauses specified by such keywords as <tt>collect</tt>, <tt>nconc</tt>, 
+<tt>append</tt>, <tt>sum</tt>, <tt>count</tt>, <tt>maximize</tt>, and <tt>minimize</tt>; 
+the accumulation values for these pre-empted clauses are not returned by 
+the loop if <tt>return</tt> is used.
+<P>
+The constructs <tt>do</tt>, <tt>initially</tt>, and <tt>finally</tt> are the
+only loop keywords that take an arbitrary number of (non-atomic) forms and group
+them as if by using an implicit <tt>progn</tt>.
+<P>
+Examples:
+<P><pre>
+;;; This example parses a simple printed string representation  
+;;; from BUFFER (which is itself a string) and returns the 
+;;; index of the closing double-quote character. 
+
+(loop initially (unless (char= (char buffer 0) #\&quot;) 
+                  (loop-finish)) 
+      for i fixnum from 1 below (string-length buffer) 
+      when (char= (char buffer i) #\&quot;) 
+        return i) 
+
+;;; The FINALLY clause prints the last value of I. 
+;;; The collected value is returned. 
+
+(loop for i from 1 to 10 
+      when (&gt; i 5) 
+        collect i 
+      finally (print i)) `;Prints 1 line
+11 
+   => (6 7 8 9 10) 
+
+;;; Return both the count of collected numbers 
+;;; as well as the numbers themselves. 
+
+(loop for i from 1 to 10 
+      when (&gt; i 5) 
+        collect i into number-list 
+        and count i into number-count 
+      finally (return (values number-count number-list))) 
+   => 5 and (6 7 8 9 10)
+</pre><P>
+<P>
+<BR><b>[Loop Clause]</b><BR>
+<tt>named <i>name</i></tt><P>The <tt>named</tt> construct allows you to assign a name to a <tt>loop</tt>
+construct so that you can use the Common Lisp special form 
+<tt>return-from</tt> to exit the named loop.
+<P>
+Only one name may be assigned per loop; the specified name becomes the
+name of the implicit block for the loop.
+<P>
+If used, the <tt>named</tt>
+construct must be the first clause in the loop expression, coming right after the
+word <tt>loop</tt>.
+<P>
+Example:
+<P><pre>
+;;; Just name and return. 
+(loop named max 
+      for i from 1 to 10 
+      do (print i) 
+      do (return-from max 'done)) `;Prints 1 line
+1  
+   => DONE
+</pre><P>
+<P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+   
+<P>
+
+<BR> <HR><A NAME=tex2html4710 HREF="node253.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4708 HREF="node250.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4704 HREF="node251.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4712 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4713 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4711 HREF="node253.html"> Pretty Printing</A>
+<B>Up:</B> <A NAME=tex2html4709 HREF="node250.html"> Miscellaneous Features</A>
+<B> Previous:</B> <A NAME=tex2html4705 HREF="node251.html"> Data Types</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

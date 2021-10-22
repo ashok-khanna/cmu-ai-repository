@@ -1,0 +1,121 @@
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/faqs/lang/lisp/part3/faq-doc-4.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 17:20:49 GMT -->
+<HEAD>
+<TITLE>FAQ: Lisp Frequently Asked Questions 3/7 [Monthly posting] - [3-3] I used a destructive function (e.g. DELETE, SORT), but it didn't seem to work.  Why?</TITLE>
+</HEAD>
+<BODY>
+<H1>[3-3] I used a destructive function (e.g. DELETE, SORT), but it didn't seem to work.  Why?</H1>
+<PRE>
+I assume you mean that it didn't seem to modify the original list.  There
+are several possible reasons for this.  First, many destructive functions
+are not *required* to modify their input argument, merely *allowed* to; in
+some cases, the implementation may determine that it is more efficient to
+construct a new result than to modify the original (this may happen in Lisp
+systems that use "CDR coding", where RPLACD may have to turn a CDR-NEXT or
+CDR-NIL cell into a CDR-NORMAL cell), or the implementor may simply not
+have gotten around to implementing the destructive version in a truly
+destructive manner.  Another possibility is that the nature of the change
+that was made involves removing elements from the front of a list; in this
+case, the function can simply return the appropriate tail of the list,
+without actually modifying the list. And example of this is:
+     
+   (setq *a* (list 3 2 1))
+   (delete 3 *a*) =&#62; (2 1)
+   *a* =&#62; (3 2 1)
+
+Similarly, when one sorts a list, SORT may destructively rearrange the
+pointers (cons cells) that make up the list. SORT then returns the cons
+cell that now heads the list; the original cons cell could be anywhere in
+the list. The value of any variable that contained the original head of the
+list hasn't changed, but the contents of that cons cell have changed
+because SORT is a destructive function:
+
+   (setq *a* (list 2 1 3))
+   (sort *a* #'&#60;) =&#62; (1 2 3)
+   *a* =&#62; (2 3)     
+
+In both cases, the remedy is the same: store the result of the
+function back into the place whence the original value came, e.g.
+
+   (setq *a* (delete 3 *a*))
+   *a* =&#62; (2 1)
+
+Why don't the destructive functions do this automatically?  Recall
+that they are just ordinary functions, and all Lisp functions are
+called by value. They see the value of the argument, not the argument
+itself. Therefore, these functions do not know where the lists they
+are given came from; they are simply passed the cons cell that
+represents the head of the list. Their only obligation is to return
+the new cons cell that represents the head of the list. Thus
+"destructive" just means that the function may munge the list by
+modifying the pointers in the cars and cdrs of the list's cons cells.
+This can be more efficient, if one doesn't care whether the original
+list gets trashed or not.
+
+One thing to be careful about when doing this (storing the result back
+into the original location) is that the original list might be
+referenced from multiple places, and all of these places may need to
+be updated.  For instance:
+
+   (setq *a* (list 3 2 1))
+   (setq *b* *a*)
+   (setq *a* (delete 3 *a*))
+   *a* =&#62; (2 1)
+   *b* =&#62; (3 2 1) ; *B* doesn't "see" the change
+   (setq *a* (delete 1 *a*))
+   *a* =&#62; (2)
+   *b* =&#62; (3 2) ; *B* sees the change this time, though
+
+One may argue that destructive functions could do what you expect by
+rearranging the CARs of the list, shifting things up if the first element
+is being deleted, as they are likely to do if the argument is a vector
+rather than a list.  In many cases they could do this, although it would
+clearly be slower.  However, there is one case where this is not possible:
+when the argument or value is NIL, and the value or argument, respectively,
+is not.  It's not possible to transform the object referenced from the
+original cell from one data type to another, so the result must be stored
+back.  Here are some examples:
+
+   (setq *a* (list 3 2 1))
+   (delete-if #'numberp *a*) =&#62; NIL
+   *a* =&#62; (3 2 1)
+   (setq *a* nil *b* '(1 2 3))
+   (nconc *a* *b*) =&#62; (1 2 3)
+   *a* =&#62; NIL
+
+The names of most destructive functions (except for sort, delete,
+rplaca, rplacd, and setf of accessor functions) have the prefix N.
+
+In summary, the two common problems to watch out for when using
+destructive functions are:
+
+   1. Forgetting to store the result back. Even though the list
+      is modified in place, it is still necessary to store the
+      result of the function back into the original location, e.g.,
+           (setq foo (delete 'x foo))
+
+      If the original list was stored in multiple places, you may
+      need to store it back in all of them, e.g.
+           (setq bar foo)
+           ...
+           (setq foo (delete 'x foo))
+           (setq bar foo)
+
+   2. Sharing structure that gets modified. If it is important
+      to preserve the shared structure, then you should either
+      use a nondestructive operation or copy the structure first
+      using COPY-LIST or COPY-TREE.
+           (setq bar (cdr foo))
+           ...
+           (setq foo (sort foo #'&#60;))
+           ;;; now it's not safe to use BAR
+
+Note that even nondestructive functions, such as REMOVE, and UNION,
+can return a result which shares structure with an argument. 
+Nondestructive functions don't necessarily copy their arguments; they
+just don't modify them.
+</PRE>
+<A NAME=up HREF="faq.html">Go Back Up</A><P>
+<A NAME=up HREF="faq-doc-3.html">Go To Previous</A><P>
+<A NAME=up HREF="faq-doc-5.html">Go To Next</A><P>
+</BODY>

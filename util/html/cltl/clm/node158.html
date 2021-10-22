@@ -1,0 +1,296 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node158.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:31:35 GMT -->
+<HEAD>
+<TITLE>17.1. Array Creation</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Array Creation">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html3501 HREF="node159.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3499 HREF="node157.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3493 HREF="node157.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3503 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3504 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3502 HREF="node159.html"> Array Access</A>
+<B>Up:</B> <A NAME=tex2html3500 HREF="node157.html"> Arrays</A>
+<B> Previous:</B> <A NAME=tex2html3494 HREF="node157.html"> Arrays</A>
+<HR> <P>
+<H1><A NAME=SECTION002110000000000000000>17.1. Array Creation</A></H1>
+<P>
+Do not be daunted by the many options of the function <tt>make-array</tt>.
+All that is required to construct an array is a list of
+the dimensions; most of the options are for relatively esoteric
+applications.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>make-array <i>dimensions</i> &amp;key :element-type :initial-element :initial-contents :adjustable :fill-pointer :displaced-to :displaced-index-offset</tt><P>This is the primitive function for making arrays.  The <i>dimensions</i> argument
+should be a list of non-negative integers
+that are to be the dimensions of the array; the
+length of the list will be the dimensionality of the array.  
+Each dimension must be smaller than <tt>array-dimension-limit</tt>,
+and the product of all the dimensions must be smaller than
+<tt>array-total-size-limit</tt>.
+Note that if <i>dimensions</i> is <tt>nil</tt>, then a zero-dimensional array is created.
+For convenience when making a one-dimensional array, the single dimension
+may be provided as an integer rather than as a list of one integer.
+<P>
+An implementation of Common Lisp may impose a limit on the rank of an array,
+but this limit may not be smaller than 7.  Therefore, any Common Lisp
+program may assume the use of arrays of rank 7 or less.
+The implementation-dependent limit on array rank is reflected in
+<tt>array-rank-limit</tt>.
+<P>
+The keyword arguments for <tt>make-array</tt> are as follows:
+<P>
+<DL COMPACT><DT><tt>:element-type</tt>
+<DD>
+This argument
+should be the name of the type of the elements of the array;
+an array is constructed
+of the most specialized type that can nevertheless accommodate
+elements of the given type.
+The type <tt>t</tt> specifies a general array, one whose elements may
+be any Lisp object; this is the default type.
+</dl>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<dl compact><dd>
+X3J13 voted in January 1989
+(ARRAY-TYPE-ELEMENT-TYPE-SEMANTICS) <A NAME=17527>&#160;</A> 
+to change <tt>typep</tt> and <tt>subtypep</tt>
+so that the specialized <tt>array</tt> type specifier
+means the same thing for discrimination purposes
+as for declaration purposes: it encompasses those arrays
+that can result by specifying <i>element-type</i> as the element type
+to the function <tt>make-array</tt>.  Therefore we may say
+that if <i>type</i> is the <tt>:element-type</tt> argument, then
+the result will be an array of type <tt>(array <i>type</i>)</tt>;
+put another way, for any type <i>A</i>,
+<P><pre>
+(typep (make-array ... :element-type '<i>A</i> ...) 
+       '(array <i>A</i>)))
+</pre><P>
+is always true.
+See <tt>upgraded-array-element-type</tt>.
+</dl>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<dl compact>
+<DT><tt>:initial-element</tt>
+<DD>
+This argument
+may be used to initialize each element of the array.  The value
+must be of the type specified by the <tt>:element-type</tt> argument.  If the
+<tt>:initial-element</tt> option is omitted, the initial values of the array
+elements are undefined (unless the <tt>:initial-contents</tt> or
+<tt>:displaced-to</tt> option is used).
+The <tt>:initial-element</tt> option may not be used with the
+<tt>:initial-contents</tt> or <tt>:displaced-to</tt> option.
+<P>
+<DT><tt>:initial-contents</tt>
+<DD>
+This argument may be used to initialize the
+contents of the array.  The value is a nested structure of sequences.  If
+the array is zero-dimensional, then the value specifies the single
+element.  Otherwise, the value must be a sequence whose length is equal
+to the first dimension; each element must be a nested structure for an
+array whose dimensions are the remaining dimensions, and so on.
+For example:
+<P><pre>
+(make-array '(4 2 3) 
+            :initial-contents 
+            '(((a b c) (1 2 3)) 
+              ((d e f) (3 1 2)) 
+              ((g h i) (2 3 1)) 
+              ((j k l) (0 0 0))))
+</pre><P>
+The numbers of levels in the structure must equal the rank of the array.
+Each leaf of the nested structure
+must be of the type specified by the <tt>:type</tt> option.  If the
+<tt>:initial-contents</tt> option is omitted, the initial values of the array
+elements are undefined (unless the <tt>:initial-element</tt> or
+<tt>:displaced-to</tt> option is used).
+The <tt>:initial-contents</tt> option may not be used with the
+<tt>:initial-element</tt> or <tt>:displaced-to</tt> option.
+<P>
+<DT><tt>:adjustable</tt>
+<DD>
+This argument, if specified and not <tt>nil</tt>, indicates that it
+must be possible to alter the array's size dynamically after it is
+created.  This argument defaults to <tt>nil</tt>.
+</dl>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<dl compact><dd>
+X3J13 voted in June 1989
+(ADJUST-ARRAY-NOT-ADJUSTABLE) <A NAME=17565>&#160;</A> 
+to clarify that if this argument is non-<tt>nil</tt>
+then the predicate <tt>adjustable-array-p</tt> will necessarily be true when applied
+to the resulting array; but if this argument is <tt>nil</tt> (or omitted) then the
+resulting array may or may not be adjustable, depending on the implementation,
+and therefore <tt>adjustable-array-p</tt> may be correspondingly true or false of
+the resulting array.  Common Lisp provides no portable way to create a
+non-adjustable array, that is, an array for which <tt>adjustable-array-p</tt> is
+guaranteed to be false.
+</dl>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<dl compact>
+<DT><tt>:fill-pointer</tt>
+<DD>
+This argument
+specifies that the array should have a fill pointer.
+If this option is specified and not <tt>nil</tt>, the array must be one-dimensional.
+The value is used to initialize the fill pointer for the array.
+If the value <tt>t</tt> is specified, the length of the array is used;
+otherwise the value must be an integer between 0 (inclusive)
+and the length of the array (inclusive).
+This argument defaults to <tt>nil</tt>.
+<P>
+<DT><tt>:displaced-to</tt>
+<DD>
+This argument, if specified and
+not <tt>nil</tt>, specifies that the array will be a <i>displaced</i> array.
+The argument must then be an array;
+<tt>make-array</tt> will create
+an <i>indirect</i> or <i>shared</i> array that shares its contents with
+the specified array.  In this case the <tt>:displaced-index-offset</tt>
+option may be useful.
+It is an error if the array given as the <tt>:displaced-to</tt> argument
+does not have the same <tt>:element-type</tt> as the array being created.
+The <tt>:displaced-to</tt> option may not be used with the
+<tt>:initial-element</tt>
+or <tt>:initial-contents</tt> option.
+This argument defaults to <tt>nil</tt>.
+<P>
+<DT><tt>:displaced-index-offset</tt>
+<DD>
+This argument may be used only in conjunction
+with the <tt>displaced-to</tt> option.
+It must be a non-negative integer (it defaults to zero); it is made to be the
+index-offset of the created shared array.
+<P>
+When an array A is given as
+the <tt>:displaced-to</tt> argument to <tt>make-array</tt> when creating array B,
+then array B is said to be <i>displaced</i> to array A.  Now the
+total number of elements in an array, called the <i>total size</i> of the array,
+is calculated as the product of all the dimensions
+(see <tt>array-total-size</tt>).
+It is required that the total size of A be no smaller than the sum
+of the total size of B plus the offset <i>n</i> specified by
+the <tt>:displaced-index-offset</tt>
+argument.  The effect of displacing is that array B does not have any
+elements of its own but instead maps accesses to itself into
+accesses to array A.  The mapping treats both arrays as if they
+were one-dimensional by taking the elements in row-major order,
+and then maps an access to element <i>k</i> of array B to an access to element
+<i>k</i>+<i>n</i> of array A.
+<P>
+ </DL>
+<P>
+If <tt>make-array</tt> is called with each of the <tt>:adjustable</tt>, <tt>:fill-pointer</tt>,
+and <tt>:displaced-to</tt>
+arguments either unspecified or <tt>nil</tt>, then the
+resulting array is guaranteed to be a <i>simple</i> array
+(see section <A HREF="node29.html#ARRAYTYPESECTION">2.5</A>).
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989
+(ADJUST-ARRAY-NOT-ADJUSTABLE) <A NAME=17612>&#160;</A> 
+to clarify that if one or more of the <tt>:adjustable</tt>, <tt>:fill-pointer</tt>,
+and <tt>:displaced-to</tt> arguments is true, then whether the resulting
+array is simple is unspecified.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+Here are some examples of the use of <tt>make-array</tt>:
+<P><pre>
+;;; Create a one-dimensional array of five elements. 
+(make-array 5) 
+
+;;; Create a two-dimensional array, 3 by 4, with four-bit elements. 
+(make-array '(3 4) <tt>:element-type</tt> '(mod 16)) 
+
+;;; Create an array of single-floats.
+(make-array 5 <tt>:element-type</tt> 'single-float)) 
+
+;;; Making a shared array. 
+(setq a (make-array '(4 3))) 
+(setq b (make-array 8 :displaced-to a 
+                      :displaced-index-offset 2)) 
+;;; Now it is the case that: 
+        (aref b 0) == (aref a 0 2) 
+        (aref b 1) == (aref a 1 0) 
+        (aref b 2) == (aref a 1 1) 
+        (aref b 3) == (aref a 1 2) 
+        (aref b 4) == (aref a 2 0) 
+        (aref b 5) == (aref a 2 1) 
+        (aref b 6) == (aref a 2 2) 
+        (aref b 7) == (aref a 3 0)
+</pre><P>
+The last example depends on the fact that arrays are, in effect,
+stored in row-major order for purposes of sharing.  Put another way,
+the indices for the elements of an array are ordered
+lexicographically.
+<P>
+<hr>
+<b>Compatibility note:</b> Both Lisp Machine Lisp, as described in reference [<A HREF="node368.html#BLUELISPM">55</A>],
+and Fortran [<A HREF="node368.html#DRAFTFORTRAN77">15</A>,<A HREF="node368.html#ANSIFORTRAN77">3</A>] store arrays in
+column-major order.
+<hr>
+<P>
+<BR><b>[Constant]</b><BR>
+<tt>array-rank-limit</tt><P>The value of <tt>array-rank-limit</tt> is a positive integer that is
+the upper exclusive bound on the rank of an array.
+This bound depends on the implementation
+but will not be smaller than 8; therefore every Common Lisp implementation
+supports arrays whose rank is between 0 and 7 (inclusive).
+(Implementors are encouraged to make this limit as large as practicable
+without sacrificing performance.)
+<P>
+<BR><b>[Constant]</b><BR>
+<tt>array-dimension-limit</tt><P>The value of <tt>array-dimension-limit</tt> is a positive integer that is
+the upper exclusive bound on each individual dimension of an array.
+This bound depends on the implementation
+but will not be smaller than 1024.
+(Implementors are encouraged to make this limit as large as practicable
+without sacrificing performance.)
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989
+(FIXNUM-NON-PORTABLE) <A NAME=17633>&#160;</A> 
+to specify that the value
+of <tt>array-dimension-limit</tt> must be of type <tt>fixnum</tt>.
+This in turn implies that all valid array indices will be fixnums.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Constant]</b><BR>
+<tt>array-total-size-limit</tt><P>The value of <tt>array-total-size-limit</tt> is a positive integer that is
+the upper exclusive bound on the total number of elements in an array.
+This bound depends on the implementation
+but will not be smaller than 1024.
+(Implementors are encouraged to make this limit as large as practicable
+without sacrificing performance.)
+<P>
+The actual limit on array size imposed by the implementation may vary
+according to the <tt>:element-type</tt> of the array; in this case the value of
+<tt>array-total-size-limit</tt> will be the smallest of these individual
+limits.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>vector &amp;rest <i>objects</i></tt><P>The function <tt>vector</tt> is a convenient means for creating
+a simple general vector with specified initial contents.
+It is analogous to the function <tt>list</tt>.
+<P><pre>
+(vector <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42265.gif"> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42275.gif"> ... <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap40275.gif">) 
+   == (make-array (list <b><i>n</i></b>) :element-type t 
+             :initial-contents (list <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42265.gif"> <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap42275.gif"> ... <IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap40275.gif">))
+</pre><P>
+<P>
+<BR> <HR><A NAME=tex2html3501 HREF="node159.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html3499 HREF="node157.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html3493 HREF="node157.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html3503 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html3504 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html3502 HREF="node159.html"> Array Access</A>
+<B>Up:</B> <A NAME=tex2html3500 HREF="node157.html"> Arrays</A>
+<B> Previous:</B> <A NAME=tex2html3494 HREF="node157.html"> Arrays</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

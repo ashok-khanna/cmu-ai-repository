@@ -1,0 +1,114 @@
+#!/bin/sh
+# 
+# This is a shell archive containing a program to generate a tagfile
+# suitable for use with vi for LISP programs. (This is the equivalent
+# of ctags for LISP).
+# 
+# Written by John P. Flanagan <jpf@wstar.mil.wi.us>. 
+# WaveStar Technology, Oconomowoc, WI                         (414) 367-5014
+# 
+# To create the tags file just type "ltags.sh *.lsp > tags".
+# 
+# note:	The ltags.sh (as shipped) assumes a $HOME/bin directory containing
+#	the ltags.awk script, i.e., you probably want to put ltags.sh and
+#	ltags.awk in /usr/local/bin and edit ltags.sh accordingly...
+#
+#---------------------------------- cut here ----------------------------------
+#!/bin/sh
+# This is a shell archive.  Remove anything before this line,
+# then unpack it by saving it in a file and typing "sh file".
+#
+# Wrapped by John P. Flanagan <jpf@wstar.mil.wi.us> on Thu Apr 22 16:29:24 1993
+#
+# This archive contains:
+#	ltags.sh	ltags.awk	
+#
+# Error checking via wc(1) will be performed.
+# Error checking via sum(1) will be performed.
+
+LANG=""; export LANG
+PATH=/bin:/usr/bin:$PATH; export PATH
+
+if sum -r </dev/null >/dev/null 2>&1
+then
+	sumopt='-r'
+else
+	sumopt=''
+fi
+
+echo x - ltags.sh
+cat >ltags.sh <<'@EOF'
+#!/bin/sh
+# @(#)ltags.sh	1.5 04/22/93  Written By:  J. Flanagan, WaveStar Technology
+# Shell script to generate lisp tags on stdout (requires ltags.awk).
+
+(for file in $*
+ do
+ awk -f $HOME/bin/ltags.awk $file
+ done) | sort
+@EOF
+set `sum $sumopt <ltags.sh`; if test $1 -ne 16742
+then
+	echo ERROR: ltags.sh checksum is $1 should be 16742
+fi
+set `wc -lwc <ltags.sh`
+if test $1$2$3 != 834223
+then
+	echo ERROR: wc results of ltags.sh are $* should be 8 34 223
+fi
+
+chmod 755 ltags.sh
+
+echo x - ltags.awk
+cat >ltags.awk <<'@EOF'
+# @(#)ltags.awk	1.4 04/22/93  Written By:  J. Flanagan, WaveStar Technology
+# Q&D AWK Script to generate lisp tags on stdout suitable for use with vi.
+
+BEGIN {	OFS="," }
+tolower($1" "$2" "$3) ~ /^\([ ]*(defun|defmacro|define-modify-macro|define-setf-method|defclass|defgeneric|defmethod|defsetf|deftype|define-compiler-macro|define-condition|define-declaration|define-method-combination|defvar|defparameter|defvar|defconstant|defpackage|defstruct)[ ]+/ {
+	k= 2 + ($1 == "(")
+	tag = $k
+
+	if (tag ~ /^.+\(/)	# strip trailing left-parens "name("
+		tag = substr(tag,1,index(tag,"(")-1)
+	if (tag ~ /^[^(].+\)/)	# strip trailing right-parens "name)"
+		tag = substr(tag,1,index(tag,")")-1)
+
+	if (tag == "(") {	# if name is "( setf", use next arg
+		k++; tag = $k 
+	}
+
+	if (tolower(tag) ~ /^[(]?setf/) {
+		k++
+		if (index($k,"(")==0) {
+			tag = "(setf "$k	# append setf method name
+			if (index($k,")")==0)	# maybe add right-paren
+				tag=tag")"
+		}
+	}
+	else if (tag ~ /[()]/) {	# strip leading/trailing parens
+		sub("^[(]","",tag)
+		sub("[)]$","",tag)
+		if (tag ~ /[()]/) 	# any left? if yes, ignore tag
+			tag = ""
+	}
+
+	if (tag != "")
+		printf("%s\t%s\t/^%s/\n", tag, FILENAME, $0)
+}
+@EOF
+set `sum $sumopt <ltags.awk`; if test $1 -ne 44767
+then
+	echo ERROR: ltags.awk checksum is $1 should be 44767
+fi
+set `wc -lwc <ltags.awk`
+if test $1$2$3 != 351521177
+then
+	echo ERROR: wc results of ltags.awk are $* should be 35 152 1177
+fi
+
+chmod 666 ltags.awk
+
+exit 0
+
+

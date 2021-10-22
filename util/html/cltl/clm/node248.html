@@ -1,0 +1,166 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/util/html/cltl/clm/node248.html by HTTrack Website Copier/3.x [XR&CO'2014], Fri, 22 Oct 2021 00:32:28 GMT -->
+<HEAD>
+<TITLE>26.10. Conditional Execution</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Conditional Execution">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html4664 HREF="node249.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4662 HREF="node235.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4656 HREF="node247.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4666 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4667 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4665 HREF="node249.html"> Unconditional Execution</A>
+<B>Up:</B> <A NAME=tex2html4663 HREF="node235.html"> Loop</A>
+<B> Previous:</B> <A NAME=tex2html4657 HREF="node247.html"> Variable Initializations</A>
+<HR> <P>
+<H1><A NAME=SECTION0030100000000000000000>26.10. Conditional Execution</A></H1>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<A NAME=LOOPCONDSECTION>The</A>
+loop keywords <tt>if</tt>, <tt>when</tt>, and <tt>unless</tt> designate constructs that 
+are useful when you want some loop clauses to operate under a specified
+condition.
+<P>
+If the specified condition is true, the succeeding loop clause
+is executed.  If the specified condition is not true, the succeeding clause is
+skipped, and program control moves to the clause that follows the loop
+keyword <tt>else</tt>.  If the specified condition is not true and no
+<tt>else</tt> clause is specified, the entire conditional construct
+is skipped.  Several clauses can be connected into
+one compound clause with the loop keyword <tt>and</tt>.
+The end of the conditional clause can be marked with the keyword <tt>end</tt>.
+<P>
+<BR><b>[Loop Clause]</b><BR>
+<pre>
+if <em>expr</em> <i>clause</i> {and <i>clause</i>}*
+   [else <i>clause</i> {and <i>clause</i>}*] [end] 
+when <em>expr</em> <i>clause</i> {and <i>clause</i>}*
+   [else <i>clause</i> {and <i>clause</i>}*] [end] 
+unless <em>expr</em> <i>clause</i> {and <i>clause</i>}*
+   [else <i>clause</i> {and <i>clause</i>}*] [end]
+</pre>
+<P>The constructs <tt>when</tt> and <tt>if</tt> allow conditional execution of
+loop clauses.  These constructs are synonyms and
+can be used interchangeably.  [Compare this to the <i>macro</i> <tt>when</tt>,
+which does not allow an ``else'' part.-GLS]
+<P>
+If the value of the test expression <i>expr</i> is non-<tt>nil</tt>, the expression
+<i>clause1</i> is evaluated. If the test expression evaluates to <tt>nil</tt>
+and an <tt>else</tt> construct is specified, the statements that follow the
+<tt>else</tt> are evaluated; otherwise, control passes to the next clause.
+<P>
+The <tt>unless</tt> construct is equivalent to <tt>when</tt> (<tt>not</tt> 
+<i>expr</i>) and <tt>if</tt> (<tt>not</tt> <i>expr</i>).
+If the value of the test expression <i>expr</i> is <tt>nil</tt>, the expression
+<i>clause1</i> is evaluated. If the test expression evaluates to 
+non-<tt>nil</tt>
+and an <tt>else</tt> construct is specified, the statements that follow the
+<tt>else</tt> are evaluated; otherwise, control passes to the next clause.
+[Compare this to the <i>macro</i> <tt>unless</tt>,
+which does not allow an ``else'' part-or do I mean a ``then'' part?!  Ugh.
+To prevent confusion, I strongly recommend as a matter of style
+that <tt>else</tt> not be used with <tt>unless</tt> loop clauses.-GLS]
+<P>
+The <i>clause</i> arguments must be either accumulation, unconditional,
+or conditional clauses (see section <A HREF="node240.html#LOOPKINDSSECTION">26.3.2</A>).
+Clauses that follow the test expression can be grouped by using the 
+loop keyword <tt>and</tt> to produce a compound 
+clause.
+<P>
+The loop keyword <tt>it</tt> can be used to refer to the result of
+the test expression in a clause.  If multiple clauses are connected with <tt>and</tt>,
+the <tt>it</tt> construct must be used in the first
+clause in the block.  Since <tt>it</tt> is a loop keyword, <tt>it</tt> may not be used
+as a local variable within a loop.
+<P>
+If <tt>when</tt> or <tt>if</tt> clauses are nested, each <tt>else</tt> is
+paired with the closest preceding <tt>when</tt> or <tt>if</tt> construct that has
+no associated <tt>else</tt>.
+<P>
+The optional loop keyword <tt>end</tt> marks the end of the clause.  If this
+keyword is not specified, the next loop keyword marks the end.  You can use
+<tt>end</tt> to distinguish the scoping of compound clauses.
+<P><pre>
+;;; Group conditional clauses into a block. 
+(loop for i in numbers-list 
+      when (oddp i) 
+        do (print i) 
+        and collect i into odd-numbers 
+        and do (terpri) 
+      else     ;<tt>I</tt> is even 
+        collect i into even-numbers 
+      finally 
+        (return (values odd-numbers even-numbers)))
+</pre><P>
+<P><pre>
+;;; Collect numbers larger than 3. 
+(loop for i in '(1 2 3 4 5 6) 
+      when (and (&gt; i 3) i) 
+      collect it)     ;<tt>it</tt> refers to <tt>(and (&gt; i 3) i)</tt> 
+   => (4 5 6)
+</pre><P>
+<P><pre>
+;;; Find a number in a list. 
+(loop for i in '(1 2 3 4 5 6) 
+      when (and (&gt; i 3) i) 
+      return it) 
+   => 4
+</pre><P>
+<P><pre>
+;;; The preceding example is similar to the following one. 
+(loop for i in '(1 2 3 4 5 6) 
+      thereis (and (&gt; i 3) i)) 
+   => 4
+</pre><P>
+<P><pre>
+;;; An example of using UNLESS with ELSE (yuk).`-GLS 
+(loop for turtle in teenage-mutant-ninja-turtles do
+  (loop for x in '(joker brainiac shredder krazy-kat) 
+        unless (evil x) 
+          do (eat (make-pizza :anchovies t)) 
+        else unless (and (eq x 'shredder) (attacking-p x))
+               do (cut turtle slack);When the evil Shredder attacks, 
+             else (fight turtle x)));those turtle boys don't cut no slack
+</pre><P>
+<P><pre>
+;;; Nest conditional clauses. 
+(loop for i in list 
+      when (numberp i) 
+        when (bignump i) 
+          collect i into big-numbers 
+        else     ;Not <tt>(bignump i)</tt> 
+          collect i into other-numbers 
+      else     ;Not <tt>(numberp i)</tt> 
+        when (symbolp i)  
+          collect i into symbol-list 
+        else     ;Not <tt>(symbolp i)</tt> 
+          (error &quot;found a funny value in list ~S, value ~S~%&quot; 
+                &quot;list i)) 
+
+;;; Without the END marker, the last AND would apply to the 
+;;; inner IF rather than the outer one. 
+(loop for x from 0 to 3  
+      do (print x) 
+      if (zerop (mod x 2)) 
+        do (princ &quot; a&quot;) 
+          and if (zerop (floor x 2)) 
+                do (princ &quot; b&quot;) 
+              end 
+          and do (princ &quot; c&quot;))
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html4664 HREF="node249.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html4662 HREF="node235.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html4656 HREF="node247.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html4666 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html4667 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html4665 HREF="node249.html"> Unconditional Execution</A>
+<B>Up:</B> <A NAME=tex2html4663 HREF="node235.html"> Loop</A>
+<B> Previous:</B> <A NAME=tex2html4657 HREF="node247.html"> Variable Initializations</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>

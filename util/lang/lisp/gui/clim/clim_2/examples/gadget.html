@@ -1,0 +1,385 @@
+;;; Syntax: Common-lisp; Package: clim-user
+
+(in-package :clim-user)
+
+;;; This file defines two custom gadgets for clim:
+;;; 1) Ellipse-push-button.  Shows how an action-gadget can be implemented.
+;;; 2) Simple-slider.        Shows how a value-gadget can be implemented.
+;;;    (There is also a corresponding simple-slider-view for use with ACCEPT.)
+;;;
+;;; Invoke (clim-user::custom-gadget-demo) to see a demo.
+;;;
+;;; The primary purpose of this file is to provide some instructive 
+;;; examples that are relatively easy to understand.  These gadgets
+;;; are not particularly good, but they may illustrate enough of the protocol
+;;; that you could now go off and make some truly useful gadgets.  
+;;;
+;;; Note that there is currently no plan to support the introduction of
+;;; 3rd party gadgets into clim.  In my opinion, this is a sorry state
+;;; of affairs, but it may change if enough people complain to the clim vendors.  
+;;; For now, the whole gadget has to be written in lisp.
+;;;
+;;; Jeff Morrill (jmorrill@bbn.com)
+;;; 26 July 1993
+
+;;;**************************************************
+;;;
+;;; ELLIPSE-PUSH-BUTTON
+;;;
+;;; The following shows how a push-button gadget might be implemented.
+;;; It is derived from the example in the clim 2 specification.  
+
+(defclass ellipse-push-button
+    (action-gadget		; provides activate-callback
+     labelled-gadget-mixin	; provides label
+     silica::leaf-pane
+     silica:space-requirement-mixin)
+  ;; ARMED has three states:
+  ;;  NIL ==> the button is not armed
+  ;;  T   ==> the button is armed, waiting for a pointer button press
+  ;;  :ACTIVE ==> the button is armed, waiting for a pointer button release
+  ((armed :initform nil)))
+
+;; General highlight-by-inverting method.
+(defmethod highlight-button ((pane ellipse-push-button) medium)
+  (with-bounding-rectangle* (left top right bottom) 
+    (sheet-region pane)
+    (decf right)		; can't draw last pixel
+    (decf bottom)		; can't draw last pixel
+    (draw-ellipse* medium
+		   (truncate (+ left right) 2) 
+		   (truncate (+ bottom top) 2)
+		   (truncate (- right left) 2)
+		   0 0
+		   (truncate (- bottom top) 2)
+		   :ink +flipping-ink+
+		   :filled t))
+  (medium-force-output medium))
+
+;; Compute the amount of space required by the pane.
+(defmethod compose-space ((pane ellipse-push-button) &key width height)
+  (with-sheet-medium (medium pane)
+    (multiple-value-bind (w h)
+	(text-size medium (gadget-label pane)
+		   :text-style (slot-value pane 'text-style))
+      (incf h (+ 2 (stream-vertical-spacing pane)))
+      (incf w 2)
+      (make-space-requirement :width (if width (max width w) w)  
+			      :height (if height (max height h) h)))))
+
+;; This gets invoked to draw the push button.
+(defmethod handle-repaint ((pane ellipse-push-button) region)
+  (declare (ignore region))
+  (with-sheet-medium (medium pane)
+    (let ((text (gadget-label pane))
+	  (text-style (slot-value pane 'text-style))
+	  (armed (slot-value pane 'armed))
+	  (region (sheet-region pane)))
+      (with-bounding-rectangle* (left top right bottom) 
+	region
+	(decf right)		; can't draw last pixel
+	(decf bottom)		; can't draw last pixel
+	(draw-ellipse* medium
+		       (truncate (+ left right) 2) 
+		       (truncate (+ bottom top) 2)
+		       (truncate (- right left) 2)
+		       0 0
+		       (truncate (- bottom top) 2)
+		       :filled nil))
+      (draw-text medium text (bounding-rectangle-center region)
+		 :text-style text-style
+		 :align-x :center :align-y :center)
+      (when (eql armed :active)
+	(highlight-button pane medium)))))
+
+;; When we enter the push button's region, arm it.
+(defmethod handle-event ((pane ellipse-push-button) 
+			 (event pointer-enter-event))
+  (with-slots (armed) pane
+    (unless armed
+      (cond ((let ((pointer (pointer-event-pointer event)))
+	       (and (pointer-button-state pointer)
+		    (not (zerop (pointer-button-state pointer)))))
+	     (setf armed :active)
+	     (with-sheet-medium (medium pane)
+	       (highlight-button pane medium)))
+	    (t (setf armed t)))
+      (armed-callback pane (gadget-client pane) (gadget-id pane)))))
+
+;; When we leave the push button's region, disarm it.
+(defmethod handle-event ((pane ellipse-push-button) 
+			 (event pointer-exit-event))
+  (with-slots (armed) pane
+    (when armed
+      (when (prog1 (eq armed :active) (setf armed nil))
+	(with-sheet-medium (medium pane)
+	  (highlight-button pane medium)))
+      (disarmed-callback pane (gadget-client pane) (gadget-id pane)))))
+
+;; When the user presses a pointer button, ensure that the button
+;; is armed, and highlight it.
+(defmethod handle-event ((pane ellipse-push-button) 
+			 (event pointer-button-press-event))
+  (with-slots (armed) pane
+    (when armed
+      (setf armed :active)
+      (with-sheet-medium (medium pane)
+	(highlight-button pane medium)))))
+
+;; When the user releases the button and the button is still armed,
+;; call the activate callback.
+(defmethod handle-event ((pane ellipse-push-button)
+			 (event pointer-button-release-event))
+  (with-slots (armed) pane
+    (when (eq armed :active)
+      (setf armed t)
+      (with-sheet-medium (medium pane)
+	(highlight-button pane medium))
+      (activate-callback pane (gadget-client pane) (gadget-id pane)))))
+
+;; Make and display a button.
+(defun draw-command-button (stream label command x y active)
+  (stream-set-cursor-position stream x y)
+  (updating-output			
+   (stream :unique-id command :cache-value command)
+   (with-output-as-gadget (stream)
+     (make-pane 'ellipse-push-button
+		:label label
+		:active active
+		:activate-callback
+		#'(lambda (button)
+		    ;; This funny thing makes sure we go through
+		    ;; the usual command loop.
+		    (throw-highlighted-presentation
+		     (make-instance 'standard-presentation
+		       :object command
+		       :type 'command)
+		     *input-context*
+		     (make-instance 'pointer-button-press-event
+		       :sheet (sheet-parent button)
+		       :x 0 :y 0
+		       :button +pointer-left-button+)))))))
+
+;; In user code, the first argument to MAKE-PANE is typically an abstract
+;; class that is not actually instantiated.  The abstract class is
+;; mapped to a concrete class using the generic function MAKE-PANE-CLASS.
+;; This enables the user to realize a gadget that reflects the current
+;; look and feel without changing any source code.
+;;
+;; MAKE-PANE-CLASS returns NIL if there is no special mapping for the
+;; class.  This happens above with ELLIPSE-PUSH-BUTTON.  Since the name
+;; does not get mapped, it is used directly.
+;;
+;; But if we wanted Motif to use ELLIPSE-PUSH-BUTTON whenever MAKE-PANE
+;; needed a PUSH-BUTTON, the following hack would be required.
+
+#+example
+(defmethod silica:make-pane-class :around 
+	   ((framem xm-silica::motif-frame-manager) symbol &rest options)
+  ;; OPTIONS = the other args to make-pane
+  (if (eq symbol 'push-button) 'ellipse-push-button (call-next-method)))
+
+;;;**************************************************
+;;;
+;;; SIMPLE-SLIDER
+;;;
+;;; The following is how a value-gadget like a slider might
+;;; be implemented.
+
+(defclass simple-slider
+    (silica::range-gadget-mixin	; provides min & max
+     value-gadget		; provides gadget-value
+     silica::leaf-pane		; provides drawing surface
+     silica:space-requirement-mixin)
+  ((tick-length :initform 5 :initarg :tick-length)
+   (tick-number :initform 5 :initarg :tick-number)))
+
+(defmethod draw-slider ((pane simple-slider))
+  "Invoked by handle-repaint to draw the whole slider"
+  ;; Draws directly on the medium without recording any output history.
+  (with-sheet-medium (medium pane)
+    (with-slots (tick-length tick-number) pane
+      (multiple-value-bind (width height) (bounding-rectangle-size pane)
+	(decf width)		; can't draw last pixel
+	(decf height)		; can't draw last pixel
+	(let* ((min-value (gadget-min-value pane))
+	       (max-value (gadget-max-value pane))
+	       (x 0)
+	       (y (truncate height 2))
+	       (dx (truncate width (1- tick-number))))
+	  (setq width (* dx (1- tick-number))) ; correct for roundoff
+	  (flet ((draw-tick (a b)
+		   (medium-draw-line* medium a (- b tick-length) a (+ b tick-length)))
+		 (draw-label (a label alignment)
+		   (let ((text (format nil "~A" label)))
+		     (medium-draw-text* medium text a height
+					0 nil
+					alignment :bottom
+					nil nil nil))))
+	    ;; Draw all the lines
+	    (medium-draw-line* medium x y (+ x width) y)
+	    (dotimes (i tick-number) (draw-tick (+ x (* i dx)) y))
+	    ;; Label min & max
+	    (draw-label x min-value :left)
+	    (draw-label width max-value :right)
+	    ;; Draw the value
+	    (draw-value pane (gadget-value pane))))))))
+
+(defmethod draw-value ((pane simple-slider) value)
+  "Draws just the value part of the slider."
+  (assert (numberp value))
+  (with-sheet-medium (medium pane)
+    (with-slots (tick-length tick-number) pane
+      (multiple-value-bind (width height) (bounding-rectangle-size pane)
+	(decf width)
+	(decf height)
+	(let* ((min-value (gadget-min-value pane))
+	       (max-value (gadget-max-value pane))
+	       (x (truncate (* width (/ (- value min-value) (- max-value min-value))))))
+	  (when (<= 0 x width)
+	    (medium-draw-rectangle* medium 
+				    (- x 2) 0 (+ x 3) height
+				    t)))))))
+
+(defmethod update-slider-value ((pane simple-slider) from to)
+  "Erase the old value and display the new value."
+  (with-drawing-options (pane :ink +flipping-ink+)
+    (when from (draw-value pane from))
+    (when to (draw-value pane to))))
+
+(defmethod compose-space ((pane simple-slider) &key width height)
+  (make-space-requirement :width (or width 100) 
+			  :height (or height 40)
+			  :max-width +fill+))
+
+(defmethod handle-repaint ((pane simple-slider) region)
+  (declare (ignore region))
+  (draw-slider pane))
+
+(defmethod (setf gadget-value) :around (value (pane simple-slider) 
+					&key (invoke-callback t))
+  (let ((old (gadget-value pane)))
+    (call-next-method value pane :invoke-callback invoke-callback)
+    (update-slider-value pane old value)))
+
+(defmethod handle-event ((pane simple-slider) 
+			 (event pointer-button-press-event))
+  ;; When you click on the slider, change the value.
+  (let* ((x (pointer-event-x event))
+	 (width (bounding-rectangle-width pane))
+	 (min-value (gadget-min-value pane))
+	 (max-value (gadget-max-value pane))
+	 (value (+ min-value (* (/ (float x) width) (- max-value min-value)))))
+    (setf (gadget-value pane) value :invoke-callback t)))
+
+(defmethod handle-event ((pane simple-slider) 
+			 (event pointer-motion-event))
+  (when (logtest (pointer-button-state (pointer-event-pointer event))
+		 +pointer-left-button+)
+    ;; User is trying to drag.  Change the value.
+    (let* ((x (pointer-event-x event))
+	   (width (bounding-rectangle-width pane))
+	   (min-value (gadget-min-value pane))
+	   (max-value (gadget-max-value pane))
+	   (value (+ min-value (* (/ (float x) width) (- max-value min-value)))))
+      (setf (gadget-value pane) value :invoke-callback t))))
+
+;;; Now define a corresponding view.
+(defclass simple-slider-view (gadget-view) 
+	  ((initargs :initarg nil)))
+
+(defmethod initialize-instance :after ((view simple-slider-view)
+				       &rest keys &key &allow-other-keys)
+  ;; Just stuff all the initargs onto a slot 
+  (setf (slot-value view 'initargs) keys))
+
+(define-presentation-method 
+    accept-present-default
+    ((type t)
+     stream
+     (view simple-slider-view)
+     default default-supplied-p present-p query-identifier &key)
+  "Generates a simple-slider gadget for this query."
+  (declare (ignore present-p))
+  (unless default-supplied-p
+    (error "A default must be supplied to a simple-slider-view."))
+  (updating-output			
+   (stream :unique-id query-identifier :cache-value query-identifier)
+   (with-output-as-gadget (stream)
+     (apply #'make-pane 
+	    'simple-slider
+	    :client stream
+	    :id query-identifier
+	    :presentation-type type
+	    :value default
+	    :value-changed-callback 
+	    #'(lambda (gadget value)
+		;; This callback seems absurdly complicated
+		(throw-highlighted-presentation
+		 (make-instance 'standard-presentation
+		   :object `(clim-internals::com-change-query
+			     ,(gadget-id gadget)
+			     ,value)
+		   :type 'command)
+		 *input-context*
+		 (make-instance 'pointer-button-press-event
+		   :sheet (sheet-parent gadget)
+		   :x 0 :y 0
+		   :button +pointer-left-button+)))
+	    ;; Just pass the initargs along unadulterated
+	    (slot-value view 'initargs)))))
+
+;;;**************************************************
+;;;
+;;; Test Frame
+;;;
+
+(define-application-frame custom-gadget-demo () 
+  ((volume :initform 1 :accessor volume)
+   (how-many :initform 1 :accessor how-many))
+  (:panes
+   (display :accept-values
+	    :borders nil
+	    :scroll-bars nil
+	    :initial-cursor-visibility :off
+	    :display-function
+	    '(accept-values-pane-displayer
+	      :displayer display-button-dialog
+	      :resynchronize-every-pass t)))
+  (:layouts (main (vertically () display)))
+  (:command-table (custom-gadget-demo :inherit-from (accept-values-pane))))
+
+(defun display-button-dialog (frame stream)
+  (draw-command-button stream "Make Sound" '(com-beep) 50 100 nil)
+  (terpri stream)
+  (terpri stream)
+  (terpri stream)
+  (setf (volume frame)
+    (accept 'number
+	    :view '(simple-slider-view 
+		    :width 300
+		    :tick-number 10
+		    :min-value 0.0
+		    :max-value 5.0)
+	    :stream stream
+	    :prompt "Volume"
+	    :default (volume frame)))
+  (terpri stream)
+  (terpri stream)
+  (draw-command-button stream "  OK   " '(com-exit) 400 400 t))
+
+(define-command (com-beep :command-table custom-gadget-demo) ()
+  (menu-choose '(beep honk boom) 
+	       :gesture :select
+	       :label "Choose a sound"))
+
+(define-command (com-exit :command-table custom-gadget-demo) ()
+  (frame-exit *application-frame*))
+
+(defun custom-gadget-demo ()
+  (let ((frame (make-application-frame 'custom-gadget-demo
+				       :width 500
+				       :height 500)))
+    (run-frame-top-level frame)
+    (volume frame)))
+

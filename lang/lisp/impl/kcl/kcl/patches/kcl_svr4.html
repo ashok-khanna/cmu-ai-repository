@@ -1,0 +1,3306 @@
+*** ./bin/makefile.ORG	Wed Dec 23 05:59:14 1987
+--- ./bin/makefile	Wed Sep  1 18:18:58 1993
+***************
+*** 1,5 ****
+! DEFS	= -DUNIX -DBSD
+! # or 	DEFS	= -DUNIX -DATT
+  CFLAGS  = $(DEFS) -O
+  
+  
+--- 1,5 ----
+! DEFS	= -DUNIX -DATT
+! # or 	DEFS	= -DUNIX -DBSD
+  CFLAGS  = $(DEFS) -O
+  
+  
+*** ./c/read.d.ORG	Fri Feb 23 08:47:04 1990
+--- ./c/read.d	Thu Sep  2 09:53:06 1993
+***************
+*** 46,52 ****
+  #define	cat(c)	(READtable->rt.rt_self[char_code1((c))] \
+  		 .rte_chattrib)
+  
+! #define	SHARP_EQ_CONTEXT_SIZE	64
+  
+  setup_READtable()
+  {
+--- 46,52 ----
+  #define	cat(c)	(READtable->rt.rt_self[char_code1((c))] \
+  		 .rte_chattrib)
+  
+! #define	SHARP_EQ_CONTEXT_SIZE	128
+  
+  setup_READtable()
+  {
+***************
+*** 164,169 ****
+--- 164,170 ----
+  	vs_push(old_READtable);
+  
+  	frs_push(FRS_PROTECT, Cnil);
++ 	volatilize(&x);
+  	if (nlj_active) {
+  		e = TRUE;
+  		goto L;
+***************
+*** 242,247 ****
+--- 243,249 ----
+  	setup_READ();
+  
+  	frs_push(FRS_PROTECT, Cnil);
++ 	volatilize(&x);
+  	if (nlj_active) {
+  		e = TRUE;
+  		goto L;
+***************
+*** 306,311 ****
+--- 308,314 ----
+  	setup_standard_READ();
+  
+  	frs_push(FRS_PROTECT, Cnil);
++ 	volatilize(&x);
+  	if (nlj_active) {
+  		e = TRUE;
+  		goto L;
+***************
+*** 2591,2596 ****
+--- 2594,2600 ----
+  	setup_standard_READ();
+  
+  	frs_push(FRS_PROTECT, Cnil);
++ 	volatilize(&x);
+  	if (nlj_active) {
+  		e = TRUE;
+  		goto L;
+*** ./c/include.h.ORG	Wed Oct  3 15:39:58 1990
+--- ./c/include.h	Mon Sep 27 09:36:42 1993
+***************
+*** 25,30 ****
+--- 25,41 ----
+  UNIX -- UNIX operating system
+  BSD -- UNIX BSD
+  ATT -- UNIX System ?
++ SVR4 -- UNIX System V R4.x / ELF32
++ ELF_INIT_CODE_OFFSET -- The offset of the address of init_code() from the
++ 			beginning of the first executable section in ELF.
++ 			It would be 0 on most systems, but MIPS based SVR4
++ 			systems could have an additional part before
++ 			init_code().
++ ELF_EXTRA_SECTION_SIZE --- The expected size of extra sections inserted by
++ 			   ld when we link a fasl file.  For example, .got
++ 			   section of SUN4OS5.  The precise size is not
++ 			   always needed. KCL retries to link when it gets
++ 			   an unexpected large result from ld.
+  ALLOCATE_INCREMENTALLY -- Core is allocated incrementally.
+  ALLOW_FORK -- Fork is allowed.
+  
+***************
+*** 151,156 ****
+--- 162,189 ----
+  #define	IMMED
+  #endif
+  
++ #ifdef SUN4OS5
++ #define	IEEEFLOAT
++ #define	BYTE_ADDRESS
++ #define	CORE_STARTS_NEAR_0
++ #undef	DOWN_STACK
++ #undef	ARGS_ON_STACK
++ #undef	BSTATIC_REQUIRED
++ #undef	REVERSE_PARAMETER_ORDER
++ #define	SIGNED_CHAR
++ #undef	CC_OPTIMIZES_TEST
++ #define	REGISTER_VAR
++ #define	UNIX
++ #define	SVR4
++ #define	ALLOCATE_INCREMENTALLY
++ #define	ALLOW_FORK
++ #define	BITOP_C
++ #define EARITH_C
++ #define	IMMED
++ #define ELF_INIT_CODE_OFFSET	0x0
++ #define ELF_EXTRA_SECTION_SIZE	0xc
++ #endif
++ 
+  #ifdef LUNA
+  #define	IEEEFLOAT
+  #define	BYTE_ADDRESS
+***************
+*** 361,366 ****
+--- 394,420 ----
+  #define WORD_SWAPPED
+  #endif
+  
++ #ifdef EWS4800SVR4
++ #define	IEEEFLOAT
++ #define	BYTE_ADDRESS
++ #define	CORE_STARTS_NEAR_0
++ #undef	DOWN_STACK
++ #undef	ARGS_ON_STACK
++ #undef	BSTATIC_REQUIRED
++ #undef	REVERSE_PARAMETER_ORDER
++ #define	SIGNED_CHAR
++ #undef	CC_OPTIMIZES_TEST
++ #define	REGISTER_VAR
++ #define	UNIX
++ #define	SVR4
++ #define	ALLOCATE_INCREMENTALLY
++ #define	ALLOW_FORK
++ #define	BITOP_C
++ #define EARITH_C
++ #define	IMMED
++ #define ELF_INIT_CODE_OFFSET	0x10
++ #define ELF_EXTRA_SECTION_SIZE	0x0
++ #endif
+  
+  
+  #include <stdio.h>
+*** ./c/main.c.ORG	Thu Oct 12 01:15:34 1989
+--- ./c/main.c	Wed Aug 11 17:02:00 1993
+***************
+*** 18,23 ****
+--- 18,28 ----
+  #include <sys/resource.h>
+  #endif
+  
++ #ifdef SVR4
++ #include <sys/time.h>
++ #include <sys/resource.h>
++ #endif
++ 
+  #ifdef AOSVS
+  #include <packets:misc.h>
+  #endif
+***************
+*** 74,79 ****
+--- 79,87 ----
+  #ifdef BSD
+  	struct rlimit rl;
+  #endif
++ #ifdef SVR4
++ 	struct rlimit rl;
++ #endif
+  #ifdef AOSVS
+  	int ac0, ac1, ac2;
+  	P_RNGPR	p;
+***************
+*** 88,93 ****
+--- 96,102 ----
+  
+  	setbuf(stdin, stdin_buf);
+  	setbuf(stdout, stdout_buf);
++ 	setbuf_offset = (char *) stdout->_base - stdout_buf;
+  
+  	ARGC = argc;
+  	ARGV = argv;
+***************
+*** 162,167 ****
+--- 171,180 ----
+  	getrlimit(RLIMIT_STACK, &rl);
+  	cssize = rl.rlim_cur/4 - 4*CSGETA;
+  #endif
++ #ifdef SVR4
++ 	getrlimit(RLIMIT_STACK, &rl);
++ 	cssize = rl.rlim_cur/4 - 4*CSGETA;
++ #endif
+  
+  #ifndef DOWN_STACK
+  	cs_limit = cs_org - cssize;
+***************
+*** 519,524 ****
+--- 532,544 ----
+  #endif
+  }
+  
++ volatilize ()
++ {
++ 	/* Do nothing.
++ 	   Call volatilize(&arg1, ..., &argn) immediately after setjmp()
++ 	   for protecting auto-variables arg1 ... argn from optimization. */ 
++ }
++ 
+  Lby()
+  {
+  #ifdef UNIX
+***************
+*** 879,884 ****
+--- 899,923 ----
+  		     );
+  #endif
+  
++ #ifdef SUN4OS5
++ 	make_special("*FEATURES*",
++ #ifdef IMMED
++ 		     make_cons(make_ordinary("IMMED"),
++ #endif
++ 		     make_cons(make_ordinary("SUN"),
++ 		     make_cons(make_ordinary("SPARC"),
++ 		     make_cons(make_ordinary("IEEE-FLOATING-POINT"),
++ 		     make_cons(make_ordinary("UNIX"),
++ 		     make_cons(make_ordinary("SYSTEM-V"),
++ 		     make_cons(make_ordinary("SVR4"),
++ 		     make_cons(make_ordinary("COMMON"),
++ 		     make_cons(make_ordinary("KCL"), Cnil))))))))
++ #ifdef IMMED
++ 		     )
++ #endif
++ 		     );
++ #endif
++ 
+  #ifdef LUNA
+  	make_special("*FEATURES*",
+  #ifdef IMMED
+***************
+*** 1066,1071 ****
+--- 1105,1129 ----
+                       make_cons(make_ordinary("BSD"),
+                       make_cons(make_ordinary("COMMON"),
+                       make_cons(make_ordinary("KCL"), Cnil)))))
++ #ifdef IMMED
++ 		     )
++ #endif
++ 		     );
++ #endif
++ 
++ #ifdef EWS4800SVR4
++ 	make_special("*FEATURES*",
++ #ifdef IMMED
++ 		     make_cons(make_ordinary("IMMED"),
++ #endif
++ 		     make_cons(make_ordinary("NEC"),
++ 		     make_cons(make_ordinary("R4000"),
++ 		     make_cons(make_ordinary("IEEE-FLOATING-POINT"),
++ 		     make_cons(make_ordinary("UNIX"),
++ 		     make_cons(make_ordinary("SYSTEM-V"),
++ 		     make_cons(make_ordinary("SVR4"),
++ 		     make_cons(make_ordinary("COMMON"),
++ 		     make_cons(make_ordinary("KCL"), Cnil))))))))
+  #ifdef IMMED
+  		     )
+  #endif
+*** ./c/alloc.c.ORG	Sat Oct 14 03:20:12 1989
+--- ./c/alloc.c	Wed Nov 24 18:51:40 1993
+***************
+*** 54,59 ****
+--- 54,66 ----
+  extern etext;
+  #endif
+  
++ #ifdef SVR4
++ #include <sys/time.h>
++ #include <sys/resource.h>
++ struct rlimit data_rlimit;
++ extern etext;
++ #endif
++ 
+  char *
+  alloc_page(n)
+  int n;
+***************
+*** 467,473 ****
+  {
+  #ifdef BSD
+  	getrlimit(RLIMIT_DATA, &data_rlimit);
+! 	real_maxpage = ((int)&etext + data_rlimit.rlim_cur)/PAGESIZE;
+  	if (real_maxpage > MAXPAGE)
+  		real_maxpage = MAXPAGE;
+  #endif
+--- 474,480 ----
+  {
+  #ifdef BSD
+  	getrlimit(RLIMIT_DATA, &data_rlimit);
+! 	real_maxpage = ((unsigned int)&etext + data_rlimit.rlim_cur)/PAGESIZE;
+  	if (real_maxpage > MAXPAGE)
+  		real_maxpage = MAXPAGE;
+  #endif
+***************
+*** 474,479 ****
+--- 481,493 ----
+  
+  #ifdef ATT
+  	real_maxpage = MAXPAGE;
++ #endif
++ 
++ #ifdef SVR4
++ 	getrlimit(RLIMIT_DATA, &data_rlimit);
++ 	real_maxpage = ((unsigned int)&etext + data_rlimit.rlim_cur)/PAGESIZE;
++ 	if (real_maxpage > MAXPAGE)
++ 		real_maxpage = MAXPAGE;
+  #endif
+  
+  #ifdef E15
+*** ./c/file.d.ORG	Thu Feb  8 08:57:06 1990
+--- ./c/file.d	Wed Sep  1 12:35:51 1993
+***************
+*** 32,37 ****
+--- 32,41 ----
+  #include <syms.h>
+  #endif
+  
++ #ifdef SVR4
++ #include <elf.h>
++ #endif
++ 
+  #ifdef E15
+  #include <a.out.h>
+  #define exec	bhdr
+***************
+*** 415,421 ****
+  			closed_stream(strm);
+  		fflush(strm->sm.sm_fp);
+  
+! 		insert_contblock((char *)(strm->sm.sm_fp->_base), BUFSIZ);
+  
+  		/* Replace the above code with the following code */
+  		/* for BE prototypes. */
+--- 419,426 ----
+  			closed_stream(strm);
+  		fflush(strm->sm.sm_fp);
+  
+! 		insert_contblock((char *)(strm->sm.sm_fp->_base)-setbuf_offset,
+! 				 BUFSIZ);
+  
+  		/* Replace the above code with the following code */
+  		/* for BE prototypes. */
+***************
+*** 437,443 ****
+  		if (strm->sm.sm_fp == NULL)
+  			closed_stream(strm);
+  
+! 		insert_contblock((char *)(strm->sm.sm_fp->_base), BUFSIZ);
+  
+  		/* Replace the above code with the following code */
+  		/* for BE prototypes. */
+--- 442,449 ----
+  		if (strm->sm.sm_fp == NULL)
+  			closed_stream(strm);
+  
+! 		insert_contblock((char *)(strm->sm.sm_fp->_base)-setbuf_offset,
+! 				 BUFSIZ);
+  
+  		/* Replace the above code with the following code */
+  		/* for BE prototypes. */
+***************
+*** 919,924 ****
+--- 925,936 ----
+  #include <sys/ioctl.h>
+  #endif
+  
++ #ifdef SVR4
++ #undef PAGESIZE
++ #include <stropts.h>
++ #include <poll.h>
++ #endif
++ 
+  bool
+  listen_stream(strm)
+  object strm;
+***************
+*** 925,930 ****
+--- 937,945 ----
+  {
+  	object x;
+  	int c;
++ #ifdef SVR4
++ 	struct pollfd fd;
++ #endif
+  
+  BEGIN:
+  	switch (strm->sm.sm_mode) {
+***************
+*** 942,947 ****
+--- 957,974 ----
+  		else
+  			return(FALSE);
+  #else
++ #ifdef SVR4
++ 		if (strm->sm.sm_fp == NULL)
++ 			closed_stream(strm);
++ 		if (strm->sm.sm_fp->_cnt > 0)
++ 			return(TRUE);
++ 		fd.fd = fileno(strm->sm.sm_fp);
++ 		fd.events = POLLIN;
++ 		if (poll(&fd, 1, 0) > 0)
++ 			return(TRUE);
++ 		else
++ 			return(FALSE);
++ #else
+  		c = getc(strm->sm.sm_fp);
+  		if (feof(strm->sm.sm_fp))
+  			return(FALSE);
+***************
+*** 950,955 ****
+--- 977,983 ----
+  			return(TRUE);
+  		}
+  #endif
++ #endif
+  
+  	case smm_synonym:
+  		strm = symbol_value(strm->sm.sm_object0);
+***************
+*** 1556,1561 ****
+--- 1584,1597 ----
+  	bds_bind(Vpackage, package);
+  	bds_bind(Vstandard_input, strm);
+  	frs_push(FRS_PROTECT, Cnil);
++ #if defined(__sparc__) && defined(__GNUC__) && defined(__OPTIMIZE__)
++ 	/*
++ 	    Avoid a bug of gcc-2.4.[3-5], which may not handle registers
++ 	    properly across a setjmp. The following statements avoid this.
++ 	*/
++ 	if (nlj_tag)
++ 	    volatilize ();
++ #endif
+  	if (nlj_active) {
+  		close_stream(strm1, TRUE);
+  		nlj_active = FALSE;
+***************
+*** 1896,1901 ****
+--- 1932,1940 ----
+  #ifdef ATT
+  	struct filehdr fileheader;
+  #endif
++ #ifdef SVR4
++ 	Elf32_Ehdr elfheader;
++ #endif
+  #ifdef E15
+  	struct exec header;
+  #endif
+***************
+*** 1930,1935 ****
+--- 1969,1982 ----
+  	while ((i = getc(fp)) == 0)
+  		;
+  	ungetc(i, fp);
++ #endif
++ 
++ #ifdef SVR4
++ 	fp = faslfile->sm.sm_fp;
++ 	fread(&elfheader, sizeof(Elf32_Ehdr), 1, fp);
++ 	fseek(fp,
++ 	      elfheader.e_shoff+elfheader.e_shentsize*elfheader.e_shnum,
++ 	      0);
+  #endif
+  
+  #ifdef E15
+*** ./c/unixfasl.c.ORG	Sat Oct 20 16:40:02 1990
+--- ./c/unixfasl.c	Thu Sep  2 10:54:27 1993
+***************
+*** 21,26 ****
+--- 21,36 ----
+  #include <syms.h>
+  #endif
+  
++ #ifdef SVR4
++ #include <elf.h>
++ #define DO_ALIGN(addr, base, align) \
++ 	((unsigned long)(addr)+((unsigned long)(base)%(align)+(align) \
++ 				 -(unsigned long)(addr)%(align))%(align))
++ #ifndef ELF_EXTRA_SECTION_SIZE
++ #define ELF_EXTRA_SECTION_SIZE	0x0	/* default */
++ #endif
++ #endif
++ 
+  #ifdef E15
+  #include <a.out.h>
+  #define exec		bhdr
+***************
+*** 57,62 ****
+--- 67,87 ----
+  	int textstart;
+  #endif
+  
++ #ifdef SVR4
++ 	Elf32_Ehdr elfheader;
++ 	Elf32_Phdr ph;
++ 	Elf32_Shdr sh;
++ 	Elf32_Addr vaddr;
++ 	Elf32_Word align;
++ 	char *start;
++ 	char *init_code;
++ 	int size;
++ 	int textstart;
++ #define textsize	size
++ #define datasize	0
++ #define bsssize		0
++ #endif
++ 
+  #ifdef E15
+  	struct exec header;
+  #define	textsize	header.a_text
+***************
+*** 98,103 ****
+--- 123,148 ----
+  	else
+  		bsssize = 0;
+  #endif
++ #ifdef SVR4
++ 	fread(&elfheader, sizeof(elfheader), 1, fp);
++ 	align = 1;
++ 	textstart = 0;
++ 	size = 0;
++ 	for (i = 0; i < elfheader.e_shnum; i ++) {
++ 		fseek(fp, elfheader.e_shoff+i*elfheader.e_shentsize, 0);
++ 		fread(&sh, sizeof(sh), 1, fp);
++ 		if (!(sh.sh_flags & SHF_ALLOC) || 
++ 		    sh.sh_type == SHT_SYMTAB || sh.sh_type == SHT_STRTAB ||
++ 		    sh.sh_type == SHT_RELA || sh.sh_type == SHT_REL)
++ 		    continue;
++ 		if (!textstart || sh.sh_offset < textstart)
++ 		    textstart = sh.sh_offset;
++ 		if (align < sh.sh_addralign)
++ 			align = sh.sh_addralign;
++ 		size += sh.sh_size + sh.sh_addralign - 1;
++ 	}
++ 	size += ELF_EXTRA_SECTION_SIZE;
++ #endif
+  #ifdef E15
+  	fread(&header, sizeof(header), 1, fp);
+  #endif
+***************
+*** 134,139 ****
+--- 179,190 ----
+  	ungetc(i, fp);
+  #endif
+  
++ #ifdef SVR4
++ 	fseek(fp,
++ 	      elfheader.e_shoff+elfheader.e_shentsize*elfheader.e_shnum,
++ 	      0);
++ #endif
++ 
+  #ifdef E15
+  	fseek(fp,
+  	      header.a_text+header.a_data+
+***************
+*** 172,177 ****
+--- 223,240 ----
+  		filename,
+  		tempfilename);
+  #endif
++ #ifdef SVR4
++ 	coerce_to_filename(symbol_value(siVsystem_directory),
++ 			   system_directory);
++ 	start = (char *)DO_ALIGN(memory->cf.cf_start, textstart, align);
++ 	sprintf(command,
++ 		"%selfild -start %ld %s %s %s",
++ 		system_directory,
++ 		(unsigned long)start,
++ 		kcl_self,
++ 		filename,
++ 		tempfilename);
++ #endif
+  #ifdef E15
+  	coerce_to_filename(symbol_value(siVsystem_directory),
+  			   system_directory);
+***************
+*** 236,246 ****
+--- 299,368 ----
+  		goto AGAIN;
+  	}
+  #endif
++ #ifdef SVR4
++ 	fread(&elfheader, sizeof(elfheader), 1, fp);
++ 	init_code = (char *)0;
++ 	for (i = 0; i < elfheader.e_shnum; i ++) {
++ 		fseek(fp, elfheader.e_shoff+i*elfheader.e_shentsize, 0);
++ 		fread(&sh, sizeof(sh), 1, fp);
++ 		if (!(sh.sh_flags & SHF_ALLOC))
++ 		    continue;
++ 		if ((sh.sh_flags & SHF_EXECINSTR) &&
++ 		     (!init_code || (char *)sh.sh_addr < init_code))
++ 			init_code = (char *)sh.sh_addr;
++ 		if (align < sh.sh_addralign) {
++ 			align = sh.sh_addralign;
++ 			close_stream(tempfile, TRUE);
++ 			unlink(tempfilename);
++ 			goto AGAIN;
++ 		}
++ 	}
++ 	vaddr = (Elf32_Addr)start;
++ 	textstart = 0;
++ 	for (i = 0; i < elfheader.e_phnum; i ++) {
++ 		fseek(fp, elfheader.e_phoff+i*elfheader.e_phentsize, 0);
++ 		fread(&ph, sizeof(ph), 1, fp);
++ 		if (ph.p_type == PT_LOAD) {
++ 			if ((char *) ph.p_vaddr == start)
++ 			    textstart = ph.p_offset;
++ 			if (vaddr < ph.p_vaddr + ph.p_memsz)
++ 			    vaddr = ph.p_vaddr + ph.p_memsz;
++ 		}
++ 	}
++ 	if (size < (char *)vaddr - (char *)memory->cf.cf_start) {
++ 		insert_contblock(memory->cf.cf_start, memory->cf.cf_size);
++ 	        size = (char *)vaddr - start + align - 1;
++ 		memory->cf.cf_start = NULL;
++ 		memory->cf.cf_size = size;
++ 		memory->cf.cf_start = alloc_contblock(memory->cf.cf_size);
++ 		close_stream(tempfile, TRUE);
++ 		unlink(tempfilename);
++ 		goto AGAIN;
++ 	}
++ 	if (!textstart||!init_code)
++ 		FEerror("The linkage editor failed.", 0);
++ #ifdef ELF_INIT_CODE_OFFSET
++ 	init_code += ELF_INIT_CODE_OFFSET;
++ #endif
++ #endif
+  
++ #ifdef SVR4
++ 	for (i = 0; i < elfheader.e_phnum; i ++) {
++ 		fseek(fp, elfheader.e_phoff+i*elfheader.e_phentsize, 0);
++ 		fread(&ph, sizeof(ph), 1, fp);
++ 		if (ph.p_type == PT_LOAD) {
++ 			fseek(fp, ph.p_offset, 0);
++ 			fread((char *)ph.p_vaddr, ph.p_filesz, 1, fp);
++ 			memset ((char *)ph.p_vaddr + ph.p_filesz, 0,
++ 				ph.p_memsz - ph.p_filesz);
++ 		}
++ 	}
++ #else
+  	if (fseek(fp, textstart, 0) < 0)
+  		error("file seek error");
+  
+  	fread(memory->cf.cf_start, textsize + datasize, 1, fp);
++ #endif
+  
+  	close_stream(tempfile, TRUE);
+  
+***************
+*** 249,256 ****
+--- 371,382 ----
+  	unlink(tempfilename);
+  
+  /* IBMRT-3 */
++ #ifdef SVR4
++ 	(*(int (*)())init_code)(memory->cf.cf_start, memory->cf.cf_size, data);
++ #else
+  	(*(int (*)())(memory->cf.cf_start))
+  		(memory->cf.cf_start, memory->cf.cf_size, data);
++ #endif
+  
+  	vs_base = old_vs_base;
+  	vs_top = old_vs_top;
+***************
+*** 265,270 ****
+--- 391,399 ----
+  #ifdef ATT
+  #define HAS_FASLINK
+  #endif
++ #ifdef SVR4
++ #define HAS_FASLINK
++ #endif
+  
+  #ifdef HAS_FASLINK
+  int
+***************
+*** 283,288 ****
+--- 412,428 ----
+  	struct filehdr fileheader;
+  	struct scnhdr sectionheader;
+  	int textsize, datasize, bsssize, newbsssize;
++ 	    int textstart;
++ #endif
++ 
++ #ifdef SVR4
++ 	Elf32_Ehdr elfheader;
++ 	Elf32_Phdr ph;
++ 	Elf32_Shdr sh;
++ 	Elf32_Word align;
++ 	char *start;
++ 	char *init_code;
++ 	int size;
+  	int textstart;
+  #endif
+  
+***************
+*** 329,334 ****
+--- 469,486 ----
+  		ldargstr);
+  #endif
+  
++ #ifdef SVR4
++ 	coerce_to_filename(symbol_value(siVsystem_directory),
++ 			   system_directory);
++ 	sprintf(command,
++ 		"%selfild %s %s %s %s",
++ 		system_directory,
++ 		kcl_self,
++ 		filename,
++ 		tempfilename,
++ 		ldargstr);
++ #endif
++ 
+  	if (system(command) != 0)
+  		FEerror("The linkage editor failed.", 0);
+  
+***************
+*** 355,360 ****
+--- 507,535 ----
+  		bsssize = 0;
+  #endif
+  
++ #ifdef SVR4
++ 	fread(&elfheader, sizeof(elfheader), 1, fp);
++ 	align = 1;
++ 	textstart = 0;
++ 	for (i = 0; i < elfheader.e_shnum; i ++) {
++ 		fseek(fp, elfheader.e_shoff+i*elfheader.e_shentsize, 0);
++ 		fread(&sh, sizeof(sh), 1, fp);
++ 		if (!(sh.sh_flags & SHF_ALLOC))
++ 		    continue;
++ 		if (!textstart || sh.sh_offset < textstart)
++ 		    textstart = sh.sh_offset;
++ 		if (align < sh.sh_addralign)
++ 			align = sh.sh_addralign;
++ 	}
++ 	size = 0;
++ 	for (i = 0; i < elfheader.e_phnum; i ++) {
++ 		fseek(fp, elfheader.e_phoff+i*elfheader.e_phentsize, 0);
++ 		fread(&ph, sizeof(ph), 1, fp);
++ 		if (ph.p_type == PT_LOAD)
++ 			size += ph.p_memsz + align - 1;
++ 	}
++ #endif
++ 
+  	memory = alloc_object(t_cfun);
+  	memory->cf.cf_name = memory->cf.cf_data = OBJNULL;
+  	memory->cf.cf_start = NULL;
+***************
+*** 393,398 ****
+--- 568,580 ----
+  	ungetc(i, fp);
+  #endif
+  
++ #ifdef SVR4
++ 	fread(&elfheader, sizeof(elfheader), 1, fp);
++ 	fseek(fp,
++ 	      elfheader.e_shoff+elfheader.e_shentsize*elfheader.e_shnum,
++ 	      0);
++ #endif
++ 
+  	data = read_fasl_vector(faslfile);
+  	vs_push(data);
+  	close_stream(faslfile, TRUE);
+***************
+*** 422,427 ****
+--- 604,622 ----
+  		tempfilename,
+  		ldargstr);
+  #endif
++ #ifdef SVR4
++ 	coerce_to_filename(symbol_value(siVsystem_directory),
++ 			   system_directory);
++ 	start = (char *)DO_ALIGN(memory->cf.cf_start, textstart, align);
++ 	sprintf(command,
++ 		"%selfild -start %ld %s %s %s %s",
++ 		system_directory,
++ 		(unsigned long)start,
++ 		kcl_self,
++ 		filename,
++ 		tempfilename,
++ 		ldargstr);
++ #endif
+  
+  	if (system(command) != 0)
+  		FEerror("The linkage editor failed.", 0);
+***************
+*** 432,441 ****
+--- 627,664 ----
+  	vs_push(tempfile);
+  	fp = tempfile->sm.sm_fp;
+  
++ #ifdef SVR4
++ 	fread(&elfheader, sizeof(elfheader), 1, fp);
++ 	init_code = (char *)0;
++ 	for (i = 0; i < elfheader.e_shnum; i ++) {
++ 		fseek(fp, elfheader.e_shoff+i*elfheader.e_shentsize, 0);
++ 		fread(&sh, sizeof(sh), 1, fp);
++ 		if ((sh.sh_flags & SHF_ALLOC) &&
++ 		    (sh.sh_flags & SHF_EXECINSTR) &&
++ 		    (!init_code || (char *)sh.sh_addr < init_code))
++ 			init_code = (char *)sh.sh_addr;
++ 	}
++ 	if (!init_code)
++ 		FEerror("The linkage editor failed.", 0);
++ #ifdef ELF_INIT_CODE_OFFSET
++ 	init_code += ELF_INIT_CODE_OFFSET;
++ #endif
++ 	for (i = 0; i < elfheader.e_phnum; i ++) {
++ 		fseek(fp, elfheader.e_phoff+i*elfheader.e_phentsize, 0);
++ 		fread(&ph, sizeof(ph), 1, fp);
++ 		if (ph.p_type == PT_LOAD) {
++ 			fseek(fp, ph.p_offset, 0);
++ 			fread((char *)ph.p_vaddr, ph.p_filesz, 1, fp);
++ 			memset ((char *)ph.p_vaddr + ph.p_filesz, 0,
++ 				ph.p_memsz - ph.p_filesz);
++ 		}
++ 	}
++ #else
+  	if (fseek(fp, textstart, 0) < 0)
+  		error("file seek error");
+  
+  	fread(memory->cf.cf_start, textsize + datasize, 1, fp);
++ #endif
+  
+  	close_stream(tempfile, TRUE);
+  
+***************
+*** 444,451 ****
+--- 667,678 ----
+  	unlink(tempfilename);
+  
+  /* IBMRT-6 */
++ #ifdef SVR4
++ 	(*(int (*)())init_code)(memory->cf.cf_start, memory->cf.cf_size, data);
++ #else
+  	(*(int (*)())(memory->cf.cf_start))
+  		(memory->cf.cf_start, memory->cf.cf_size, data);
++ #endif
+  
+  	vs_base = old_vs_base;
+  	vs_top = old_vs_top;
+*** ./c/unixsave.c.ORG	Tue Oct  3 09:47:44 1989
+--- ./c/unixsave.c	Tue Aug 10 14:45:01 1993
+***************
+*** 16,21 ****
+--- 16,32 ----
+  #include <fcntl.h>
+  #endif
+  
++ #ifdef SVR4
++ #undef PAGESIZE
++ #include <sys/types.h>
++ #include <elf.h>
++ #include <libelf.h>
++ #include <fcntl.h>
++ #include <sys/stat.h>
++ #include <sys/mman.h>
++ #define getf	xgetf	/* <sys/file.h> may have a declation of getf() */
++ #endif
++ 
+  #include <sys/file.h>
+  
+  
+***************
+*** 112,117 ****
+--- 123,143 ----
+  	struct scnhdr sectionheader;
+  	int diff;
+  #endif
++ #ifdef SVR4
++ 	struct stat stat;
++ 	Elf32_Ehdr eh, *origehp;
++ 	Elf32_Shdr *bssshp, *datashp, sh, *shp;
++ 	Elf32_Phdr ph;
++ 	Elf32_Addr newend;
++ 	Elf32_Sym *symp, *symendp;
++ 	char *shnames, *symnames;
++ 	off_t vadiff, diff, endvaloff;
++ 	caddr_t mapaddr;
++ #define PHP(ehp,n) \
++ ((Elf32_Phdr *)((char *)mapaddr+((ehp)->e_phoff+(ehp)->e_phentsize*(n))))
++ #define SHP(ehp,n) \
++ ((Elf32_Shdr *)((char *)mapaddr+((ehp)->e_shoff+(ehp)->e_shentsize*(n))))
++ #endif
+  #ifdef E15
+  	struct exec header;
+  #endif
+***************
+*** 310,315 ****
+--- 336,444 ----
+  	filecpy(save, original, header.a_text);
+  #endif
+  
++ #ifdef SVR4
++ 	fstat (fileno(original), &stat);
++ 	mapaddr = mmap((caddr_t)0, stat.st_size, PROT_READ, MAP_SHARED,
++ 		       fileno(original), (off_t)0);
++ 	origehp = (Elf32_Ehdr *)mapaddr;
++ 	shnames = (char *)mapaddr+SHP(origehp, origehp->e_shstrndx)->sh_offset;
++ #ifdef ALLOCATE_INCREMENTALLY
++ 	data_end = core_end;
++ #else
++ 	data_end = sbrk(0);
++ #endif
++ 	newend = (Elf32_Addr)data_end;
++ 	bssshp = datashp = (Elf32_Shdr *)0;
++ 	for (n = 0; n < origehp->e_shnum; n ++) {
++ 		shp = SHP(origehp, n);
++ 		if (shp->sh_type == SHT_PROGBITS &&
++ 		    !strcmp(shnames + shp->sh_name, ".data"))
++ 			datashp = shp;
++ 		else if (shp->sh_type == SHT_NOBITS &&
++ 		    (!bssshp || bssshp->sh_addr <= shp->sh_addr) &&
++ 		    !strcmp(shnames + shp->sh_name, ".bss"))
++ 			bssshp = shp;
++ 	}
++ 	if (!bssshp||!datashp)
++ 		exit(1);
++ 	diff = data_end-(char *)bssshp->sh_addr;
++ 	vadiff = data_end-(char *)(bssshp->sh_addr+bssshp->sh_size);
++ 	eh = *origehp;
++ 	eh.e_shoff += diff;
++ 	eh.e_shnum += 1;
++ 	fwrite(&eh, sizeof(eh), 1, save);
++ 	for (n = 0; n < origehp->e_phnum; n ++) {
++ 		ph = *PHP(origehp, n);
++ 		if (ph.p_type == PT_LOAD && (ph.p_flags & PF_W) &&
++ 		    ph.p_vaddr <= bssshp->sh_addr &&
++ 		    bssshp->sh_addr+bssshp->sh_size <= ph.p_vaddr+ph.p_memsz)
++ 			ph.p_filesz = ph.p_memsz = data_end-(char *)ph.p_vaddr;
++ 		else {
++ 			if (ph.p_offset >= bssshp->sh_offset)
++ 				ph.p_offset += diff;
++ 			if (ph.p_vaddr >= bssshp->sh_addr)
++ 				ph.p_vaddr += vadiff;
++ 		}
++ 		fseek(save, eh.e_phoff+n*eh.e_phentsize, 0);
++ 		fwrite(&ph, sizeof(ph), 1, save);
++ 	}
++ 	for (n = 0; n < origehp->e_shnum; n ++) {
++ 		shp = SHP(origehp, n);
++ 		sh = *shp;
++ 		if (shp == bssshp) {
++ 			sh.sh_addr = (Elf32_Addr)data_end;
++ 			sh.sh_offset += diff;
++ 			sh.sh_size = 0;
++ 		}
++ 		else  {
++ 			if (sh.sh_offset >= bssshp->sh_offset)
++ 				sh.sh_offset += diff;
++ 			if (sh.sh_addr >= bssshp->sh_addr)
++ 				sh.sh_addr += vadiff;
++ 		}
++ 		fseek(save, eh.e_shoff+n*eh.e_shentsize, 0);
++ 		fwrite(&sh, sizeof(sh), 1, save);
++ 		fseek(save, sh.sh_offset, 0);
++ 		if (sh.sh_type == SHT_NOBITS)
++ 		    continue;
++ 		if (sh.sh_type == SHT_PROGBITS && (sh.sh_flags & SHF_WRITE) &&
++ 		    (!strncmp (shnames + sh.sh_name, ".data", 5)
++ 		     || !strncmp (shnames + sh.sh_name, ".bss", 4))) {
++ 			fwrite((char *)sh.sh_addr, sh.sh_size, 1, save);
++ 			continue;
++ 		}
++ 		fwrite((char *)mapaddr+shp->sh_offset, shp->sh_size, 1, save);
++ 		if (sh.sh_type != SHT_DYNSYM && sh.sh_type != SHT_SYMTAB)
++ 			continue;
++ 		/* update "_end" and "_edata" in symbol table */
++ 		symnames = (char *)mapaddr +
++ 		    SHP(origehp, shp->sh_link)->sh_offset;
++ 		symp = (Elf32_Sym *)((char *)mapaddr + shp->sh_offset);
++ 		symendp = (Elf32_Sym *)
++ 		    ((char *)mapaddr+shp->sh_offset + shp->sh_size);
++ 		for (; symp < symendp; symp ++) {
++ 			if (strcmp(symnames + symp->st_name, "_end") &&
++ 			    strcmp(symnames + symp->st_name, "_edata"))
++ 				continue;
++ 			fseek(save,
++ 			      sh.sh_offset+
++ 				  ((char *)&symp->st_value-
++ 				      ((char *)mapaddr+shp->sh_offset)),
++ 			      0);
++ 			fwrite(&newend, sizeof(newend), 1, save);
++ 		}
++ 	}
++ 	/* add extra section */
++ 	sh = *datashp;
++ 	sh.sh_addr = bssshp->sh_addr;
++ 	sh.sh_offset = bssshp->sh_offset;
++ 	sh.sh_size = data_end-(char *)bssshp->sh_addr;
++ 	fseek(save, eh.e_shoff+n*eh.e_shentsize, 0);
++ 	fwrite(&sh, sizeof(sh), 1, save);
++ 	fseek(save, sh.sh_offset, 0);
++ 	fwrite((char *)sh.sh_addr, sh.sh_size, 1, save);
++ 	munmap(mapaddr, stat.st_size);
++ #else /* SVR4 */
+  	for (n = header.a_data, p = data_begin;  ;  n -= BUFSIZ, p += BUFSIZ)
+  		if (n > BUFSIZ)
+  			fwrite(p, BUFSIZ, 1, save);
+***************
+*** 320,325 ****
+--- 449,455 ----
+  			break;
+  
+  	fseek(original, original_data, 1);
++ #endif /* SVR4 */
+  
+  #ifdef BSD
+  	filecpy(save, original, header.a_syms+header.a_trsize+header.a_drsize);
+***************
+*** 353,358 ****
+--- 483,493 ----
+  	check_type_or_pathname_string_symbol_stream(&vs_base[0]);
+  	coerce_to_filename(vs_base[0], filename);
+  	clear_beginning_time();
++ #ifdef SVR4
++ 	fclose (stdin);
++ 	fclose (stdout);
++ 	fclose (stderr);
++ #endif
+  	_cleanup();
+  	memory_save(kcl_self, filename);
+  	_exit(0);
+*** ./c/unixtime.c.ORG	Wed Mar 21 06:12:56 1990
+--- ./c/unixtime.c	Thu Jul 29 13:40:41 1993
+***************
+*** 9,14 ****
+--- 9,17 ----
+  */
+  
+  #include "include.h"
++ #ifdef SVR4
++ #undef PAGESIZE
++ #endif
+  #include <sys/types.h>
+  #include <sys/param.h>
+  
+***************
+*** 31,36 ****
+--- 34,45 ----
+  static long beginning;
+  #endif
+  
++ #ifdef SVR4
++ #include <sys/times.h>
++ #include <time.h>
++ static long beginning;
++ #endif
++ 
+  #ifdef E15
+  #include <sys/times.h>
+  static long beginning;
+***************
+*** 120,125 ****
+--- 129,139 ----
+  	vs_push(make_fixnum((time(0) - beginning)*60));
+  #endif
+  
++ #ifdef SVR4
++ 	check_arg(0);
++ 	vs_push(make_fixnum((time(0) - beginning)*HZ));
++ #endif
++ 
+  #ifdef E15
+  	check_arg(0);
+  	vs_push(make_fixnum((time(0) - beginning)*60));
+***************
+*** 139,144 ****
+--- 153,161 ----
+  #ifdef ATT
+  	beginning = time(0);
+  #endif
++ #ifdef SVR4
++ 	beginning = time(0);
++ #endif
+  #ifdef E15
+  	beginning = time(0);
+  #endif
+***************
+*** 153,158 ****
+--- 170,178 ----
+  	beginning = beginning_zero;
+  #endif
+  #ifdef ATT
++ 	beginning = 0;
++ #endif
++ #ifdef SVR4
+  	beginning = 0;
+  #endif
+  #ifdef E15
+*** ./c/unixfsys.c.ORG	Thu Feb  8 08:53:04 1990
+--- ./c/unixfsys.c	Thu Jul 29 14:26:29 1993
+***************
+*** 125,130 ****
+--- 125,141 ----
+  #endif
+  #endif
+  
++ #ifdef SVR4
++ char *
++ getwd(buffer)
++ char *buffer;
++ {
++ 	char *getcwd();
++ 
++ 	return(getcwd(buffer, MAXPATHLEN));
++ }
++ #endif
++ 
+  #ifdef E15
+  char *
+  getwd(buffer)
+***************
+*** 566,571 ****
+--- 577,633 ----
+  	vs_base = top;
+  }
+  #endif
++ #endif
++ 
++ #ifdef SVR4
++ Ldirectory()
++ {
++ 	char filename[MAXPATHLEN];
++ 	char command[MAXPATHLEN * 2];
++ 	FILE *fp;
++ 	register i, c;
++ 	object *top = vs_top;
++ 	char iobuffer[BUFSIZ];
++ 	extern FILE *popen();
++ 
++ 	check_arg(1);
++ 
++ 	check_type_or_pathname_string_symbol_stream(&vs_base[0]);
++ 	vs_base[0] = coerce_to_pathname(vs_base[0]);
++ 	if (vs_base[0]->pn.pn_name==Cnil && vs_base[0]->pn.pn_type==Cnil) {
++ 		coerce_to_filename(vs_base[0], filename);
++ 		strcat(filename, "*");
++ 	} else if (vs_base[0]->pn.pn_name==Cnil) {
++ 		vs_base[0]->pn.pn_name = Kwild;
++ 		coerce_to_filename(vs_base[0], filename);
++ 		vs_base[0]->pn.pn_name = Cnil;
++ 	} else if (vs_base[0]->pn.pn_type==Cnil) {
++ 		coerce_to_filename(vs_base[0], filename);
++ 		strcat(filename, "*");
++ 	} else
++ 		coerce_to_filename(vs_base[0], filename);
++ 	sprintf(command, "ls -d %s 2> /dev/null", filename);
++ 	fp = popen(command, "r");
++ 	setbuf(fp, iobuffer);
++ 	for (;;) {
++ 		for (i = 0;  c = getc(fp);  i++)
++ 			if (c <= 0)
++ 				goto L;
++ 			else if (c == '\n')
++ 				break;
++ 			else
++ 				filename[i] = c;
++ 		filename[i] = '\0';
++ 		vs_push(make_simple_string(filename));
++ 		vs_head = truename(vs_head);
++ 	}
++ L:
++ 	pclose(fp);
++ 	vs_push(Cnil);
++ 	while (vs_top > top + 1)
++ 		stack_cons();
++ 	vs_base = top;
++ }
+  #endif
+  
+  
+*** ./c/unixint.c.ORG	Wed Dec 23 06:14:26 1987
+--- ./c/unixint.c	Thu Jul 29 12:28:02 1993
+***************
+*** 91,96 ****
+--- 91,139 ----
+  }
+  #endif
+  
++ #ifdef SVR4
++ signal_catcher(sig, code, scp)
++ {
++ 	char str[64];
++ 
++ 	if (!interrupt_enable) {
++ 		sprintf(str, "signal %d caught (during GBC)", sig);
++ 		error(str);
++ 	} else {
++ 		vs_push(make_fixnum(sig));
++ 		FEerror("Signal ~D caught.~%\
++ The internal memory may be broken.~%\
++ You should check the signal and exit from Lisp.", 1, vs_head);
++ 	}
++ }
++ 
++ siLcatch_bad_signals()
++ {
++ 	check_arg(0);
++ 
++ 	sigset(SIGILL, signal_catcher);
++ 	sigset(SIGIOT, signal_catcher);
++ 	sigset(SIGEMT, signal_catcher);
++ 	sigset(SIGBUS, signal_catcher);
++ 	sigset(SIGSEGV, signal_catcher);
++ 	sigset(SIGSYS, signal_catcher);
++ 	vs_push(Ct);
++ }
++ 
++ siLuncatch_bad_signals()
++ {
++ 	check_arg(0);
++ 
++ 	sigset(SIGILL, SIG_DFL);
++ 	sigset(SIGIOT, SIG_DFL);
++ 	sigset(SIGEMT, SIG_DFL);
++ 	sigset(SIGBUS, SIG_DFL);
++ 	sigset(SIGSEGV, SIG_DFL);
++ 	sigset(SIGSYS, SIG_DFL);
++ 	vs_push(Ct);
++ }
++ #endif
++ 
+  init_interrupt()
+  {
+  	signal(SIGFPE, sigfpe);
+***************
+*** 102,107 ****
+--- 145,154 ----
+  	SVinterrupt_enable
+  	= make_si_special("*INTERRUPT-ENABLE*", Ct);
+  #ifdef BSD
++ 	make_si_function("CATCH-BAD-SIGNALS", siLcatch_bad_signals);
++ 	make_si_function("UNCATCH-BAD-SIGNALS", siLuncatch_bad_signals);
++ #endif
++ #ifdef SVR4
+  	make_si_function("CATCH-BAD-SIGNALS", siLcatch_bad_signals);
+  	make_si_function("UNCATCH-BAD-SIGNALS", siLuncatch_bad_signals);
+  #endif
+*** ./c/gbc.c.ORG	Tue Oct 10 11:52:34 1989
+--- ./c/gbc.c	Thu Jul 29 19:37:28 1993
+***************
+*** 432,438 ****
+  			    x->sm.sm_fp != NULL &&
+  			    x->sm.sm_fp->_base != NULL &&
+  			    x->sm.sm_fp->_base != BASEFF)
+! 				mark_contblock(x->sm.sm_fp->_base, BUFSIZ);
+  			break;
+  
+  		case smm_synonym:
+--- 432,439 ----
+  			    x->sm.sm_fp != NULL &&
+  			    x->sm.sm_fp->_base != NULL &&
+  			    x->sm.sm_fp->_base != BASEFF)
+! 				mark_contblock(x->sm.sm_fp->_base-setbuf_offset,
+! 					       BUFSIZ);
+  			break;
+  
+  		case smm_synonym:
+*** ./c/ews4800_chtab.s.ORG	Tue Aug 10 15:28:30 1993
+--- ./c/ews4800_chtab.s	Tue Aug 10 14:44:36 1993
+***************
+*** 0 ****
+--- 1,2 ----
++ 	.comm	character_table1 1024
++ 	.comm	character_table 2048
+*** ./c/format.c.ORG	Tue Oct 10 11:42:20 1989
+--- ./c/format.c	Wed Sep  1 10:52:05 1993
+***************
+*** 1865,1871 ****
+  	object fields[16];
+  	fmt_old;
+  	jmp_buf fmt_jmp_buf0;
+! 	int i, j, k, l, m, n, j0, l0;
+  	int up_colon;
+  	int special = 0;
+  	int spare_spaces, line_length;
+--- 1865,1871 ----
+  	object fields[16];
+  	fmt_old;
+  	jmp_buf fmt_jmp_buf0;
+! 	int i, j, k, l, m, n, old_n, j0, l0;
+  	int up_colon;
+  	int special = 0;
+  	int spare_spaces, line_length;
+***************
+*** 1889,1896 ****
+  		vs_push(fields[n]);
+  		fmt_save;
+  		fmt_jmp_buf = fmt_jmp_buf0;
+  		if (up_colon = setjmp(fmt_jmp_buf)) {
+! 			--n;
+  			if (--up_colon)
+  				fmt_error("illegal ~:^");
+  			fmt_restore1;
+--- 1889,1898 ----
+  		vs_push(fields[n]);
+  		fmt_save;
+  		fmt_jmp_buf = fmt_jmp_buf0;
++ 		old_n = n;
+  		if (up_colon = setjmp(fmt_jmp_buf)) {
+! 			volatilize(&old_n);
+! 			n = old_n;
+  			if (--up_colon)
+  				fmt_error("illegal ~:^");
+  			fmt_restore1;
+*** ./c/prog.c.ORG	Wed Dec 23 06:15:00 1987
+--- ./c/prog.c	Wed Sep  1 11:46:29 1993
+***************
+*** 61,66 ****
+--- 61,74 ----
+  
+  	frs_push(FRS_CATCH, id);
+  	body = bodysv;
++ #if defined(__sparc__) && defined(__GNUC__) && defined(__OPTIMIZE__)
++ 	/*
++ 	    Avoid a bug of gcc-2.4.[3-5], which may not handle registers
++ 	    properly across a setjmp. The following statements avoid this.
++ 	*/
++ 	if (nlj_tag)
++ 	    volatilize ();
++ #endif
+  	if (nlj_active) {
+  		label = cdr(nlj_tag);
+  		nlj_active = FALSE;
+*** ./cmpnew/makefile.ORG	Wed Oct  3 15:34:28 1990
+--- ./cmpnew/makefile	Wed Sep  1 17:29:17 1993
+***************
+*** 13,19 ****
+  
+  #CFLAGS	= -c -O
+  #Use the following if your machine/OS allows immediate data.  See h/include.h.
+! CFLAGS	= -c -O -DIMMED
+  
+  
+  all:	$(OBJS)
+--- 13,19 ----
+  
+  #CFLAGS	= -c -O
+  #Use the following if your machine/OS allows immediate data.  See h/include.h.
+! CFLAGS	= -c -O -DIMMED -I../h
+  
+  
+  all:	$(OBJS)
+***************
+*** 24,30 ****
+  
+  .c.o:
+  	cc $(CFLAGS) $*.c
+! 	/usr/5bin/echo "\000\000\004\020\000\000\000\000" >> $*.o
+  # If ATT, use the following code instead.
+  #	echo "\000\000\000\000" >> $*.o
+  	cat $*.data >> $*.o
+--- 24,32 ----
+  
+  .c.o:
+  	cc $(CFLAGS) $*.c
+! 	/usr/bin/echo "\000\000\004\020\000\000\000\000" >> $*.o
+! # If SUN3OS4 or SUN4, use the following code instead.
+! #	/usr/5bin/echo "\000\000\004\020\000\000\000\000" >> $*.o
+  # If ATT, use the following code instead.
+  #	echo "\000\000\000\000" >> $*.o
+  	cat $*.data >> $*.o
+*** ./cmpnew/cmpmain.lsp.ORG	Wed Oct  3 15:59:23 1990
+--- ./cmpnew/cmpmain.lsp	Thu Sep  2 12:21:12 1993
+***************
+*** 474,493 ****
+      (format nil
+        #-(or system-v e15 dgux)
+          #+buggy-cc
+!           #+vax "cc ~@[~*-O ~]-S -DIMMED -I. -w ~a ; as -J -W -o ~A ~A"
+            #-vax
+              #+sparc
+!               #+immed "cc ~@[~*-O ~]-S -DIMMED -I. -w ~a ; as -o ~A ~A"
+!               #-immed "cc ~@[~*-O ~]-S -I. -w ~a ; as -o ~A ~A"
+              #-sparc
+!               #+immed "cc ~@[~*-O ~]-S -DIMMED -I. -w ~a ; as -J -o ~A ~A"
+!               #-immed "cc ~@[~*-O ~]-S -I. -w ~a ; as -J -o ~A ~A"
+          #-buggy-cc
+!           #+immed "cc ~@[~*-O ~]-c -DIMMED -I. -w ~a"
+!           #-immed "cc ~@[~*-O ~]-c -I. -w ~a"
+        #+(or system-v e15 dgux)
+!         #+immed "cc ~@[~*-O ~]-c -DIMMED -I. ~a 2> /dev/null"
+!         #-immed "cc ~@[~*-O ~]-c -I. ~a 2> /dev/null"
+        (if (or (= *speed* 2) (= *speed* 3)) t nil)
+        (namestring c-pathname)
+        #+buggy-cc (namestring o-pathname)
+--- 474,494 ----
+      (format nil
+        #-(or system-v e15 dgux)
+          #+buggy-cc
+!           #+vax "~a ~@[~*-O ~]-S -DIMMED -I. -w ~a ; as -J -W -o ~A ~A"
+            #-vax
+              #+sparc
+!               #+immed "~a ~@[~*-O ~]-S -DIMMED -I. -w ~a ; as -o ~A ~A"
+!               #-immed "~a ~@[~*-O ~]-S -I. -w ~a ; as -o ~A ~A"
+              #-sparc
+!               #+immed "~a ~@[~*-O ~]-S -DIMMED -I. -w ~a ; as -J -o ~A ~A"
+!               #-immed "~a ~@[~*-O ~]-S -I. -w ~a ; as -J -o ~A ~A"
+          #-buggy-cc
+!           #+immed "~a ~@[~*-O ~]-c -DIMMED -I. -w ~a"
+!           #-immed "~a ~@[~*-O ~]-c -I. -w ~a"
+        #+(or system-v e15 dgux)
+!         #+immed "~a ~@[~*-O ~]-c -DIMMED -I. -I/opt/kcl/include ~a 2> /dev/null"
+!         #-immed "~a ~@[~*-O ~]-c -I. -I/opt/kcl/include ~a 2> /dev/null"
+!       (namestring (merge-pathnames si:*system-directory* "kclcc"))
+        (if (or (= *speed* 2) (= *speed* 3)) t nil)
+        (namestring c-pathname)
+        #+buggy-cc (namestring o-pathname)
+***************
+*** 520,529 ****
+  #+unix
+  (defun compiler-build (o-pathname data-pathname)
+    (when (probe-file o-pathname)
+!     #+(and system-v (not e15))
+      (safe-system (format nil "echo \"\\000\\000\\000\\000\" >> ~A"
+                           (namestring o-pathname)))
+!     #-(and system-v (not e15))
+      (with-open-file (o-file (namestring o-pathname)
+                              :direction :output :if-exists :append)
+        (dolist (v '(0 0 4 16 0 0 0 0)) (write-byte v o-file)))
+--- 521,530 ----
+  #+unix
+  (defun compiler-build (o-pathname data-pathname)
+    (when (probe-file o-pathname)
+!     #+(and system-v (not e15) (not svr4))
+      (safe-system (format nil "echo \"\\000\\000\\000\\000\" >> ~A"
+                           (namestring o-pathname)))
+!     #-(and system-v (not e15) (not svr4))
+      (with-open-file (o-file (namestring o-pathname)
+                              :direction :output :if-exists :append)
+        (dolist (v '(0 0 4 16 0 0 0 0)) (write-byte v o-file)))
+*** ./h/external.h.ORG	Fri Oct 13 23:47:04 1989
+--- ./h/external.h	Thu Jul 29 16:27:51 1993
+***************
+*** 9,36 ****
+  object alloc_object();
+  char *alloc_contblock();
+  char *alloc_relblock();
+! init_alloc();
+! init_alloc_function();
+  
+  /*  array.c  */
+  enum aelttype array_elttype();
+! array_allocself();
+  object aref();
+  object aset();
+  object aref1();
+  object aset1();
+! adjust_displaced();
+! init_array_function();
+  
+  /*  assignment.s  */
+! setq();
+! init_assignment();
+  
+  /*  backq.c  */
+  int backq_level;
+  
+  /*  bds.c  */
+! bds_unwind();
+  
+  /*  big.c  */
+  struct bignum *stretch_big();
+--- 9,36 ----
+  object alloc_object();
+  char *alloc_contblock();
+  char *alloc_relblock();
+! int init_alloc();
+! int init_alloc_function();
+  
+  /*  array.c  */
+  enum aelttype array_elttype();
+! int array_allocself();
+  object aref();
+  object aset();
+  object aref1();
+  object aset1();
+! int adjust_displaced();
+! int init_array_function();
+  
+  /*  assignment.s  */
+! int setq();
+! int init_assignment();
+  
+  /*  backq.c  */
+  int backq_level;
+  
+  /*  bds.c  */
+! int bds_unwind();
+  
+  /*  big.c  */
+  struct bignum *stretch_big();
+***************
+*** 41,55 ****
+  int big_compare();
+  int complement_big();
+  struct bignum *big_minus();
+! add_int_big();
+! sub_int_big();
+! mul_int_big();
+  int div_int_big();
+  struct bignum *big_plus();
+  struct bignum *big_times();
+  int big_length();
+  int big_quotient_remainder();
+! normalize_big();
+  object normalize_big_to_object();
+  double big_to_double();
+  
+--- 41,55 ----
+  int big_compare();
+  int complement_big();
+  struct bignum *big_minus();
+! int add_int_big();
+! int sub_int_big();
+! int mul_int_big();
+  int div_int_big();
+  struct bignum *big_plus();
+  struct bignum *big_times();
+  int big_length();
+  int big_quotient_remainder();
+! int normalize_big();
+  object normalize_big_to_object();
+  double big_to_double();
+  
+***************
+*** 60,74 ****
+  object ANDallow_other_keys;
+  object ANDaux;
+  object Kallow_other_keys;
+! lambda_bind();
+  object find_special();
+  object let_bind();
+  object letA_bind();
+! init_bind();
+  
+  /* block.c */
+  object Sblock;
+! init_block();
+  
+  /*  cfun.c  */
+  object make_cfun();
+--- 60,74 ----
+  object ANDallow_other_keys;
+  object ANDaux;
+  object Kallow_other_keys;
+! int lambda_bind();
+  object find_special();
+  object let_bind();
+  object letA_bind();
+! int init_bind();
+  
+  /* block.c */
+  object Sblock;
+! int init_block();
+  
+  /*  cfun.c  */
+  object make_cfun();
+***************
+*** 78,84 ****
+  object make_si_function();
+  object make_special_form();
+  object make_macro();
+! init_cfun();
+  
+  /*  character.d  */
+  object STreturn;
+--- 78,84 ----
+  object make_si_function();
+  object make_special_form();
+  object make_macro();
+! int init_cfun();
+  
+  /*  character.d  */
+  object STreturn;
+***************
+*** 94,125 ****
+  bool char_eq();
+  bool char_equal();
+  object coerce_to_character();
+! init_character();
+! init_character_function();
+  
+  /*  catch.c  */
+! init_catch();
+  
+  /*  cmpaux.c  */
+  char object_to_char();
+! set_VV();
+  int object_to_int();
+  float object_to_float();
+  double object_to_double();
+  
+  /*  error.c  */
+! FEerror();
+! FEwrong_type_argument();
+! FEtoo_few_arguments();
+! FEtoo_few_argumentsF();
+! FEtoo_many_arguments();
+! FEtoo_many_argumentsF();
+! FEunexpected_keyword();
+! FEinvalid_form();
+! FEunbound_variable();
+! FEinvalid_variable();
+! FEundefined_function();
+! FEinvalid_function();
+  object Kerror;
+  object Kwrong_type_argument;
+  object Ktoo_few_arguments;
+--- 94,125 ----
+  bool char_eq();
+  bool char_equal();
+  object coerce_to_character();
+! int init_character();
+! int init_character_function();
+  
+  /*  catch.c  */
+! int init_catch();
+  
+  /*  cmpaux.c  */
+  char object_to_char();
+! int set_VV();
+  int object_to_int();
+  float object_to_float();
+  double object_to_double();
+  
+  /*  error.c  */
+! int FEerror();
+! int FEwrong_type_argument();
+! int FEtoo_few_arguments();
+! int FEtoo_few_argumentsF();
+! int FEtoo_many_arguments();
+! int FEtoo_many_argumentsF();
+! int FEunexpected_keyword();
+! int FEinvalid_form();
+! int FEunbound_variable();
+! int FEinvalid_variable();
+! int FEundefined_function();
+! int FEinvalid_function();
+  object Kerror;
+  object Kwrong_type_argument;
+  object Ktoo_few_arguments;
+***************
+*** 139,157 ****
+  /*  eval.c  */
+  object Sapply;
+  object Sfuncall;
+! funcall();
+! funcall_no_event();
+! lispcall();
+! lispcall_no_event();
+! symlispcall();
+! symlispcall_no_event();
+  object simple_lispcall();
+  object simple_lispcall_no_event();
+  object simple_symlispcall();
+  object simple_symlispcall_no_event();
+! super_funcall();
+! super_funcall_no_event();
+! eval();
+  object Vevalhook;
+  object Vapplyhook;
+  object ieval();
+--- 139,157 ----
+  /*  eval.c  */
+  object Sapply;
+  object Sfuncall;
+! int funcall();
+! int funcall_no_event();
+! int lispcall();
+! int lispcall_no_event();
+! int symlispcall();
+! int symlispcall_no_event();
+  object simple_lispcall();
+  object simple_lispcall_no_event();
+  object simple_symlispcall();
+  object simple_symlispcall_no_event();
+! int super_funcall();
+! int super_funcall_no_event();
+! int eval();
+  object Vevalhook;
+  object Vapplyhook;
+  object ieval();
+***************
+*** 158,167 ****
+  object ifuncall1();
+  object ifuncall2();
+  object ifuncall3();
+! init_eval();
+  
+  /*  unixfasl.c  fasload.c  */
+! fasload();
+  
+  /*  file.d  */
+  object Vstandard_input;
+--- 158,167 ----
+  object ifuncall1();
+  object ifuncall2();
+  object ifuncall3();
+! int init_eval();
+  
+  /*  unixfasl.c  fasload.c  */
+! int fasload();
+  
+  /*  file.d  */
+  object Vstandard_input;
+***************
+*** 196,207 ****
+  object Kset_default_pathname;
+  object Vload_verbose;
+  object FASL_string;
+! end_of_stream();
+  bool input_stream_p();
+  bool output_stream_p();
+  object stream_element_type();
+  object open_stream();
+! close_stream();
+  object make_two_way_stream();
+  object make_echo_stream();
+  object make_string_input_stream();
+--- 196,207 ----
+  object Kset_default_pathname;
+  object Vload_verbose;
+  object FASL_string;
+! int end_of_stream();
+  bool input_stream_p();
+  bool output_stream_p();
+  object stream_element_type();
+  object open_stream();
+! int close_stream();
+  object make_two_way_stream();
+  object make_echo_stream();
+  object make_string_input_stream();
+***************
+*** 208,218 ****
+  object make_string_output_stream();
+  object get_output_stream_string();
+  int readc_stream();
+! unreadc_stream();
+! writec_stream();
+! writestr_stream();
+! unwritec_stream();
+! flush_stream();
+  bool stream_at_end();
+  bool listen_stream();
+  int file_position();
+--- 208,218 ----
+  object make_string_output_stream();
+  object get_output_stream_string();
+  int readc_stream();
+! int unreadc_stream();
+! int writec_stream();
+! int writestr_stream();
+! int unwritec_stream();
+! int flush_stream();
+  bool stream_at_end();
+  bool listen_stream();
+  int file_position();
+***************
+*** 219,232 ****
+  int file_position_set();
+  int file_length();
+  int file_column();
+! load();
+! init_file();
+! init_file_function();
+  object read_fasl_data();
+  
+  #ifdef UNIX
+  /*  unixfsys.c  */
+! coerce_to_filename();
+  FILE *backup_fopen();
+  int file_exists();
+  int file_len();
+--- 219,232 ----
+  int file_position_set();
+  int file_length();
+  int file_column();
+! int load();
+! int init_file();
+! int init_file_function();
+  object read_fasl_data();
+  
+  #ifdef UNIX
+  /*  unixfsys.c  */
+! int coerce_to_filename();
+  FILE *backup_fopen();
+  int file_exists();
+  int file_len();
+***************
+*** 238,262 ****
+  #endif
+  
+  /*  frame.c  */
+! unwind();
+  frame_ptr frs_sch();
+  frame_ptr frs_sch_catch();
+  
+  /*  gbc.c  */
+  bool GBC_enable;
+! GBC();
+! init_GBC();
+  
+  /*  let.c  */
+! let_var_list();
+! init_let();
+  
+  /*  lex.c  */
+  object assoc_eq();
+! lex_fun_bind();
+! lex_macro_bind();
+! lex_tag_bind();
+! lex_block_bind();
+  object lex_tag_sch();
+  object lex_block_sch();
+  
+--- 238,262 ----
+  #endif
+  
+  /*  frame.c  */
+! int unwind();
+  frame_ptr frs_sch();
+  frame_ptr frs_sch_catch();
+  
+  /*  gbc.c  */
+  bool GBC_enable;
+! int GBC();
+! int init_GBC();
+  
+  /*  let.c  */
+! int let_var_list();
+! int init_let();
+  
+  /*  lex.c  */
+  object assoc_eq();
+! int lex_fun_bind();
+! int lex_macro_bind();
+! int lex_tag_bind();
+! int lex_block_bind();
+  object lex_tag_sch();
+  object lex_block_sch();
+  
+***************
+*** 300,320 ****
+  object nth();
+  object nthcdr();
+  object make_cons();
+! stack_cons();
+  object list();
+  object listA();
+  object append();
+  object copy_list();
+  bool member_eq();
+! delete_eq();
+  object nconc();
+! init_list_function();
+  
+  /*  macros.c  */
+  object Vmacroexpand_hook;
+  object siSdefmacroA;
+  object macro_expand();
+! init_macros();
+  
+  /*  main.c  */
+  int ARGC;
+--- 300,320 ----
+  object nth();
+  object nthcdr();
+  object make_cons();
+! int stack_cons();
+  object list();
+  object listA();
+  object append();
+  object copy_list();
+  bool member_eq();
+! int delete_eq();
+  object nconc();
+! int init_list_function();
+  
+  /*  macros.c  */
+  object Vmacroexpand_hook;
+  object siSdefmacroA;
+  object macro_expand();
+! int init_macros();
+  
+  /*  main.c  */
+  int ARGC;
+***************
+*** 322,329 ****
+  #ifdef UNIX
+  char **ENVP;
+  #endif
+! char lisp_implementation_version[];
+! char system_directory[];
+  object siVsystem_directory;
+  #ifdef UNIX
+  char *kcl_self;
+--- 322,329 ----
+  #ifdef UNIX
+  char **ENVP;
+  #endif
+! extern char lisp_implementation_version[];
+! extern char system_directory[];
+  object siVsystem_directory;
+  #ifdef UNIX
+  char *kcl_self;
+***************
+*** 332,341 ****
+  char *merge_system_directory();
+  
+  /*  mapfun.c  */
+! init_mapfun();
+  
+  /*  multival.c  */
+! init_multival();
+  
+  /*  number.c  */
+  int fixint();
+--- 332,341 ----
+  char *merge_system_directory();
+  
+  /*  mapfun.c  */
+! int init_mapfun();
+  
+  /*  multival.c  */
+! int init_multival();
+  
+  /*  number.c  */
+  int fixint();
+***************
+*** 351,358 ****
+  #endif
+  object make_longfloat();
+  object make_complex();
+! init_number();
+! init_number_function();
+  double number_to_double();
+  int b_clr_op();
+  int b_set_op();
+--- 351,358 ----
+  #endif
+  object make_longfloat();
+  object make_complex();
+! int init_number();
+! int init_number_function();
+  double number_to_double();
+  int b_clr_op();
+  int b_set_op();
+***************
+*** 431,445 ****
+  object intern();
+  object find_symbol();
+  bool unintern();
+! export();
+! unexport();
+! import();
+! shadowing_import();
+! shadow();
+! use_package();
+! unuse_package();
+! init_package();
+! init_package_function();
+  
+  /*  pathname.d  */
+  object Vdefault_pathname_defaults;
+--- 431,445 ----
+  object intern();
+  object find_symbol();
+  bool unintern();
+! int export();
+! int unexport();
+! int import();
+! int shadowing_import();
+! int shadow();
+! int use_package();
+! int unuse_package();
+! int init_package();
+! int init_package_function();
+  
+  /*  pathname.d  */
+  object Vdefault_pathname_defaults;
+***************
+*** 470,476 ****
+  bool eql();
+  bool equal();
+  bool equalp();
+! init_predicate_function();
+  
+  /*  print.d  */
+  object Kupcase;
+--- 470,476 ----
+  bool eql();
+  bool equal();
+  bool equalp();
+! int init_predicate_function();
+  
+  /*  print.d  */
+  object Kupcase;
+***************
+*** 511,528 ****
+  int PRINTlength;
+  bool PRINTarray;
+  int (*write_ch_fun)();
+! edit_double();
+! write_object();
+! setupPRINTdefault();
+! cleanupPRINT();
+! write_object_by_default();
+! terpri_by_default();
+  bool potential_number_p();
+  object princ();
+  object prin1();
+  object print();
+  object terpri();
+! init_print_function();
+  object siSpretty_print_format;
+  
+  /*  read.d  */
+--- 511,528 ----
+  int PRINTlength;
+  bool PRINTarray;
+  int (*write_ch_fun)();
+! int edit_double();
+! int write_object();
+! int setupPRINTdefault();
+! int cleanupPRINT();
+! int write_object_by_default();
+! int terpri_by_default();
+  bool potential_number_p();
+  object princ();
+  object prin1();
+  object print();
+  object terpri();
+! int init_print_function();
+  object siSpretty_print_format;
+  
+  /*  read.d  */
+***************
+*** 549,559 ****
+  object default_dispatch_macro;
+  object big_register_0;
+  int sharp_eq_context_max;
+! setup_READtable();
+! setup_READ();
+! setup_standard_READ();
+  object read_char();
+! unread_char();
+  object peek_char();
+  object read_object_recursive();
+  object read_object_non_recursive();
+--- 549,559 ----
+  object default_dispatch_macro;
+  object big_register_0;
+  int sharp_eq_context_max;
+! int setup_READtable();
+! int setup_READ();
+! int setup_standard_READ();
+  object read_char();
+! int unread_char();
+  object peek_char();
+  object read_object_recursive();
+  object read_object_non_recursive();
+***************
+*** 564,576 ****
+  object copy_readtable();
+  object current_readtable();
+  object patch_sharp();
+! init_read();
+! init_read_function();
+  object read_fasl_vector();
+  
+  /*  reference.c  */
+  object symbol_function();
+! init_reference();
+  object Sfunction;
+  
+  /*  sequence.d  */
+--- 564,576 ----
+  object copy_readtable();
+  object current_readtable();
+  object patch_sharp();
+! int init_read();
+! int init_read_function();
+  object read_fasl_vector();
+  
+  /*  reference.c  */
+  object symbol_function();
+! int init_reference();
+  object Sfunction;
+  
+  /*  sequence.d  */
+***************
+*** 581,587 ****
+  int length();
+  object reverse();
+  object nreverse();
+! init_sequence_function();
+  
+  /*  structure.c  */
+  object siSstructure_print_function;
+--- 581,587 ----
+  int length();
+  object reverse();
+  object nreverse();
+! int init_sequence_function();
+  
+  /*  structure.c  */
+  object siSstructure_print_function;
+***************
+*** 589,595 ****
+  object structure_ref();
+  object structure_set();
+  object structure_to_list();
+! init_structure_function();
+  
+  /*  string.d  */
+  object alloc_simple_string();
+--- 589,595 ----
+  object structure_ref();
+  object structure_set();
+  object structure_to_list();
+! int init_structure_function();
+  
+  /*  string.d  */
+  object alloc_simple_string();
+***************
+*** 599,605 ****
+  object copy_simple_string();
+  object coerce_to_string();
+  bool member_char();
+! init_string_function();
+  
+  /*  symbol.d  */
+  object string_register;
+--- 599,605 ----
+  object copy_simple_string();
+  object coerce_to_string();
+  bool member_char();
+! int init_string_function();
+  
+  /*  symbol.d  */
+  object string_register;
+***************
+*** 608,614 ****
+  object gentemp_prefix;
+  int gentemp_counter;
+  object token;
+! set_up_string_register();
+  object make_symbol();
+  object make_ordinary();
+  object make_special();
+--- 608,614 ----
+  object gentemp_prefix;
+  int gentemp_counter;
+  object token;
+! int set_up_string_register();
+  object make_symbol();
+  object make_ordinary();
+  object make_special();
+***************
+*** 625,632 ****
+  bool remf();
+  object remprop();
+  bool keywordp();
+! init_symbol();
+! init_symbol_function();
+  object gensym();		/*  to be deleted  */
+  
+  #ifdef UNIX
+--- 625,632 ----
+  bool remf();
+  object remprop();
+  bool keywordp();
+! int init_symbol();
+! int init_symbol_function();
+  object gensym();		/*  to be deleted  */
+  
+  #ifdef UNIX
+***************
+*** 646,653 ****
+  object Sspecial,Sdeclare;
+  object siSvariable_documentation;
+  object siSfunction_documentation;
+! toplevel_eval();
+! init_toplevel();
+  
+  /*  typespec.c  */
+  object
+--- 646,653 ----
+  object Sspecial,Sdeclare;
+  object siSvariable_documentation;
+  object siSfunction_documentation;
+! int toplevel_eval();
+! int init_toplevel();
+  
+  /*  typespec.c  */
+  object
+***************
+*** 687,694 ****
+  object TSor_pathname_string_symbol;
+  #endif
+  object TSor_pathname_string_symbol_stream;
+! init_typespec();
+! int_typespec_function();
+  
+  int interrupt_flag;		/* console interupt flag */
+  int interrupt_enable;		/* console interupt enable */
+--- 687,694 ----
+  object TSor_pathname_string_symbol;
+  #endif
+  object TSor_pathname_string_symbol_stream;
+! int init_typespec();
+! int int_typespec_function();
+  
+  int interrupt_flag;		/* console interupt flag */
+  int interrupt_enable;		/* console interupt enable */
+*** ./h/object.h.ORG	Tue Jul 10 03:10:06 1990
+--- ./h/object.h	Thu Sep  2 12:28:58 1993
+***************
+*** 171,180 ****
+  
+  #ifdef SIGNED_CHAR
+  #ifdef BE
+! struct character character_table1[];
+! struct character character_table[];
+  #else
+! struct character character_table[];
+  #endif
+  #else
+  struct character character_table[CHCODELIM];
+--- 171,180 ----
+  
+  #ifdef SIGNED_CHAR
+  #ifdef BE
+! extern struct character character_table1[];
+! extern struct character character_table[];
+  #else
+! extern struct character character_table[];
+  #endif
+  #else
+  struct character character_table[CHCODELIM];
+***************
+*** 440,445 ****
+--- 440,449 ----
+  #define	BASEFF		(unsigned char *)0xffffffff
+  #endif
+  
++ #ifdef SVR4
++ #define	BASEFF		(unsigned char *)0xffffffff
++ #endif
++ 
+  #ifdef E15
+  #define	BASEFF		(unsigned char *)0xffffffff
+  #endif
+***************
+*** 714,719 ****
+--- 718,725 ----
+  
+  char *heap_end;			/*  heap end  */
+  char *core_end;			/*  core end  */
++ 
++ int setbuf_offset;		/* fp->_base - buf, when setbuf(fp, buf) */
+  
+  #ifdef BE
+  char *core_start;		/*  core start  */
+*** ./h/include.h.ORG	Wed Oct  3 15:37:17 1990
+--- ./h/include.h	Mon Sep 27 09:35:42 1993
+***************
+*** 25,30 ****
+--- 25,41 ----
+  UNIX -- UNIX operating system
+  BSD -- UNIX BSD
+  ATT -- UNIX System ?
++ SVR4 -- UNIX System V R4.x / ELF32
++ ELF_INIT_CODE_OFFSET -- The offset of the address of init_code() from the
++ 			beginning of the first executable section in ELF.
++ 			It would be 0 on most systems, but MIPS based SVR4
++ 			systems could have an additional part before
++ 			init_code().
++ ELF_EXTRA_SECTION_SIZE --- The expected size of extra sections inserted by
++ 			   ld when we link a fasl file.  For example, .got
++ 			   section of SUN4OS5.  The precise size is not
++ 			   always needed. KCL retries to link when it gets
++ 			   an unexpected large result from ld.
+  ALLOCATE_INCREMENTALLY -- Core is allocated incrementally.
+  ALLOW_FORK -- Fork is allowed.
+  
+***************
+*** 151,156 ****
+--- 162,189 ----
+  #define	IMMED
+  #endif
+  
++ #ifdef SUN4OS5
++ #define	IEEEFLOAT
++ #define	BYTE_ADDRESS
++ #define	CORE_STARTS_NEAR_0
++ #undef	DOWN_STACK
++ #undef	ARGS_ON_STACK
++ #undef	BSTATIC_REQUIRED
++ #undef	REVERSE_PARAMETER_ORDER
++ #define	SIGNED_CHAR
++ #undef	CC_OPTIMIZES_TEST
++ #define	REGISTER_VAR
++ #define	UNIX
++ #define	SVR4
++ #define	ALLOCATE_INCREMENTALLY
++ #define	ALLOW_FORK
++ #define	BITOP_C
++ #define EARITH_C
++ #define	IMMED
++ #define ELF_INIT_CODE_OFFSET	0x0
++ #define ELF_EXTRA_SECTION_SIZE	0xc
++ #endif
++ 
+  #ifdef LUNA
+  #define	IEEEFLOAT
+  #define	BYTE_ADDRESS
+***************
+*** 361,366 ****
+--- 394,420 ----
+  #define WORD_SWAPPED
+  #endif
+  
++ #ifdef EWS4800SVR4
++ #define	IEEEFLOAT
++ #define	BYTE_ADDRESS
++ #define	CORE_STARTS_NEAR_0
++ #undef	DOWN_STACK
++ #undef	ARGS_ON_STACK
++ #undef	BSTATIC_REQUIRED
++ #undef	REVERSE_PARAMETER_ORDER
++ #define	SIGNED_CHAR
++ #undef	CC_OPTIMIZES_TEST
++ #define	REGISTER_VAR
++ #define	UNIX
++ #define	SVR4
++ #define	ALLOCATE_INCREMENTALLY
++ #define	ALLOW_FORK
++ #define	BITOP_C
++ #define EARITH_C
++ #define	IMMED
++ #define ELF_INIT_CODE_OFFSET	0x10
++ #define ELF_EXTRA_SECTION_SIZE	0x0
++ #endif
+  
+  
+  #include <stdio.h>
+No differences encountered
+*** ./h/cmpinclude.h.ORG	Tue Jul 10 03:11:12 1990
+--- ./h/cmpinclude.h	Wed Sep  1 10:55:23 1993
+***************
+*** 39,45 ****
+  };
+  #define	fix(x)	(x)->FIX.FIXVAL
+  #define	SMALL_FIXNUM_LIMIT	1024
+! struct fixnum_struct small_fixnum_table[];
+  #define	small_fixnum(i)	(object)(small_fixnum_table+SMALL_FIXNUM_LIMIT+(i))
+  #endif
+  
+--- 39,45 ----
+  };
+  #define	fix(x)	(x)->FIX.FIXVAL
+  #define	SMALL_FIXNUM_LIMIT	1024
+! extern struct fixnum_struct small_fixnum_table[];
+  #define	small_fixnum(i)	(object)(small_fixnum_table+SMALL_FIXNUM_LIMIT+(i))
+  #endif
+  
+***************
+*** 86,94 ****
+  	unsigned char	ch_font;
+  	unsigned char	ch_bits;
+  };
+! struct character character_table[];
+  #ifdef BE
+! struct character character_table1[];
+  #endif
+  
+  #define	code_char(c)	(object)(character_table+(c))
+--- 86,94 ----
+  	unsigned char	ch_font;
+  	unsigned char	ch_bits;
+  };
+! extern struct character character_table[];
+  #ifdef BE
+! extern struct character character_table1[];
+  #endif
+  
+  #define	code_char(c)	(object)(character_table+(c))
+***************
+*** 321,327 ****
+  #endif
+  
+  #define	endp(obje)	endp1(obje)
+! object value_stack[];
+  #define	vs_org		value_stack
+  object *vs_limit;
+  object *vs_base;
+--- 321,327 ----
+  #endif
+  
+  #define	endp(obje)	endp1(obje)
+! extern object value_stack[];
+  #define	vs_org		value_stack
+  object *vs_limit;
+  object *vs_base;
+***************
+*** 350,356 ****
+  	object	bds_sym;
+  	object	bds_val;
+  };
+! struct bds_bd bind_stack[];
+  #define bds_org		bind_stack
+  typedef struct bds_bd *bds_ptr;
+  bds_ptr bds_limit;
+--- 350,356 ----
+  	object	bds_sym;
+  	object	bds_val;
+  };
+! extern struct bds_bd bind_stack[];
+  #define bds_org		bind_stack
+  typedef struct bds_bd *bds_ptr;
+  bds_ptr bds_limit;
+***************
+*** 368,374 ****
+  	object	ihs_function;
+  	object	*ihs_base;
+  } *ihs_ptr;
+! struct invocation_history ihs_stack[];
+  #define ihs_org		ihs_stack
+  ihs_ptr ihs_limit;
+  ihs_ptr ihs_top;
+--- 368,374 ----
+  	object	ihs_function;
+  	object	*ihs_base;
+  } *ihs_ptr;
+! extern struct invocation_history ihs_stack[];
+  #define ihs_org		ihs_stack
+  ihs_ptr ihs_limit;
+  ihs_ptr ihs_top;
+***************
+*** 394,400 ****
+  };
+  typedef struct frame *frame_ptr;
+  #define	alloc_frame_id()	alloc_object(t_spice)
+! struct frame frame_stack[];
+  #define frs_org		frame_stack
+  frame_ptr frs_limit;
+  frame_ptr frs_top;
+--- 394,400 ----
+  };
+  typedef struct frame *frame_ptr;
+  #define	alloc_frame_id()	alloc_object(t_spice)
+! extern struct frame frame_stack[];
+  #define frs_org		frame_stack
+  frame_ptr frs_limit;
+  frame_ptr frs_top;
+*** ./lsp/makefile.ORG	Wed Oct  3 15:33:30 1990
+--- ./lsp/makefile	Wed Sep  1 18:19:05 1993
+***************
+*** 12,18 ****
+  
+  #CFLAGS	= -c -O
+  #Use the following if your machine/OS allows immediate data.  See h/include.h.
+! CFLAGS	= -c -O -DIMMED
+  
+  all:	$(OBJS)
+  
+--- 12,18 ----
+  
+  #CFLAGS	= -c -O
+  #Use the following if your machine/OS allows immediate data.  See h/include.h.
+! CFLAGS	= -c -O -DIMMED -I../h
+  
+  all:	$(OBJS)
+  
+***************
+*** 22,28 ****
+  
+  .c.o:
+  	cc $(CFLAGS) $*.c
+! 	/usr/5bin/echo "\000\000\004\020\000\000\000\000" >> $*.o
+  # If ATT, use the following code instead.
+  #	echo "\000\000\000\000" >> $*.o
+  	cat $*.data >> $*.o
+--- 22,30 ----
+  
+  .c.o:
+  	cc $(CFLAGS) $*.c
+! 	/usr/bin/echo "\000\000\004\020\000\000\000\000" >> $*.o
+! # If SUN3OS4 or SUN4, use the following code instead.
+! #	/usr/5bin/echo "\000\000\004\020\000\000\000\000" >> $*.o
+  # If ATT, use the following code instead.
+  #	echo "\000\000\000\000" >> $*.o
+  	cat $*.data >> $*.o
+*** ./o/makefile.ORG	Tue Oct  2 09:04:08 1990
+--- ./o/makefile	Wed Sep  1 17:26:48 1993
+***************
+*** 1,13 ****
+! MACHINE = SUN4
+  #	Select 'VAX', 'SUN', 'SUN2R3', 'SUN3', 'SUN3OS4', 'SUN4', 'ISI',
+  #	'SEQ', 'IBMRT', 'NEWS', 'TAHOE', 'ATT3B2', 'S3000', 'OMRON', 'BE', 
+! #	or 'LUNA'
+  
+  CHTAB	= sun4_chtab.s
+  #	Select
+  #	    char_table.s : for VAX, SEQ, NEWS, TAHOE, and LUNA
+  #	    sun_chtab.s  : for SUN, SUN2R3, SUN3, and SUN3OS4
+! #	    sun4_chtab.s : for SUN4
+  #	    isi_chtab.s  : for ISI
+  #	    ibmrt_chtab.s: for IBMRT
+  #	    att_chtab.s  : for ATT3B2
+--- 1,14 ----
+! MACHINE = SUN4OS5
+  #	Select 'VAX', 'SUN', 'SUN2R3', 'SUN3', 'SUN3OS4', 'SUN4', 'ISI',
+  #	'SEQ', 'IBMRT', 'NEWS', 'TAHOE', 'ATT3B2', 'S3000', 'OMRON', 'BE', 
+! #	'LUNA', 'SUN4OS5' or 'EWS4800SVR4'
+  
+  CHTAB	= sun4_chtab.s
++ ASFLAGS = 
+  #	Select
+  #	    char_table.s : for VAX, SEQ, NEWS, TAHOE, and LUNA
+  #	    sun_chtab.s  : for SUN, SUN2R3, SUN3, and SUN3OS4
+! #	    sun4_chtab.s : for SUN4 and SUN4OS5
+  #	    isi_chtab.s  : for ISI
+  #	    ibmrt_chtab.s: for IBMRT
+  #	    att_chtab.s  : for ATT3B2
+***************
+*** 14,19 ****
+--- 15,21 ----
+  #	    uts_chtab.s  : for S3000
+  #	    omron_chtab.s: for OMRON
+  #	    be_chtab.s   : for BE
++ #	    ews4800_chtab.s : for EWS4800-SVR4 (Add -Kconform_pic to ASFLAGS)
+  
+  
+  HDIR	= ../h
+***************
+*** 20,26 ****
+  CDIR	= ../c
+  
+  
+! DEFS	= -D$(MACHINE) -DMAXPAGE=16384 -DVSSIZE=8152
+  CFLAGS	= $(DEFS) -I$(HDIR)
+  OFLAG	= -O
+  
+--- 22,28 ----
+  CDIR	= ../c
+  
+  
+! DEFS	= -D$(MACHINE) -DMAXPAGE=16384 -DVSSIZE=32768
+  CFLAGS	= $(DEFS) -I$(HDIR)
+  OFLAG	= -O
+  
+***************
+*** 51,57 ****
+  
+  
+  char_table.o: $(CDIR)/$(CHTAB)
+! 	as -o char_table.o $(CDIR)/$(CHTAB)
+  
+  character.o:	$(CDIR)/character.d $(DPP)
+  	$(DPP) $(CDIR)/character
+--- 53,59 ----
+  
+  
+  char_table.o: $(CDIR)/$(CHTAB)
+! 	as -o char_table.o $(ASFLAGS) $(CDIR)/$(CHTAB)
+  
+  character.o:	$(CDIR)/character.d $(DPP)
+  	$(DPP) $(CDIR)/character
+*** ./unixport/makefile.ORG	Wed Oct  3 17:15:26 1990
+--- ./unixport/makefile	Wed Sep  1 18:20:05 1993
+***************
+*** 1,7 ****
+! MACHINE = SUN4
+  #	Select 'VAX', 'SUN', 'SUN2R3', 'SUN3', 'SUN3OS4', 'SUN4', 'ISI',
+  #	'SEQ', 'IBMRT', 'NEWS', 'TAHOE', 'ATT3B2', 'S3000', 'OMRON', 'BE', 
+! #	or 'LUNA'
+  
+  HDIR	= ../h
+  ODIR	= ../o
+--- 1,7 ----
+! MACHINE = SUN4OS5
+  #	Select 'VAX', 'SUN', 'SUN2R3', 'SUN3', 'SUN3OS4', 'SUN4', 'ISI',
+  #	'SEQ', 'IBMRT', 'NEWS', 'TAHOE', 'ATT3B2', 'S3000', 'OMRON', 'BE', 
+! #	'LUNA', 'SUN4OS5' or 'EWS4800SVR4'
+  
+  HDIR	= ../h
+  ODIR	= ../o
+***************
+*** 9,21 ****
+  CMPDIR	= ../cmpnew
+  PORTDIR	= ../unixport
+  
+  
+! DEFS	= -D$(MACHINE) -DMAXPAGE=16384 -DVSSIZE=8152
+! CFLAGS	= -c $(DEFS) -I$(HDIR)
+  
+- LIBS	= -lm
+- 
+- 
+  OBJS	= $(ODIR)/main.o $(ODIR)/alloc.o $(ODIR)/gbc.o \
+  	$(ODIR)/bitop.o $(ODIR)/typespec.o $(ODIR)/eval.o \
+  	$(ODIR)/macros.o $(ODIR)/lex.o $(ODIR)/bds.o \
+--- 9,22 ----
+  CMPDIR	= ../cmpnew
+  PORTDIR	= ../unixport
+  
++ DEFS	= -D$(MACHINE) -DMAXPAGE=16384 -DVSSIZE=32768
++ CFLAGS	= -c $(DEFS) -I$(HDIR) -O
+  
+! #Use the following for SUN4OS5 and EWS4800SVR4
+! LIBS	= -lm -lelf -lsocket -lnsl
+! #Use the following for machines other than SUN4OS5 and EWS4800SVR4
+! #LIBS	= -lm
+  
+  OBJS	= $(ODIR)/main.o $(ODIR)/alloc.o $(ODIR)/gbc.o \
+  	$(ODIR)/bitop.o $(ODIR)/typespec.o $(ODIR)/eval.o \
+  	$(ODIR)/macros.o $(ODIR)/lex.o $(ODIR)/bds.o \
+***************
+*** 53,60 ****
+  	$(CMPDIR)/cmpspecial.o $(CMPDIR)/cmptag.o $(CMPDIR)/cmptop.o \
+  	$(CMPDIR)/cmpvar.o $(CMPDIR)/cmpvs.o $(CMPDIR)/cmpwt.o
+  
+  
+- 
+  saved_kcl:	raw_kcl init_kcl.lsp \
+  		$(LSPDIR)/setdoc.lsp \
+  		$(CMPDIR)/cmpmain.lsp \
+--- 54,64 ----
+  	$(CMPDIR)/cmpspecial.o $(CMPDIR)/cmptag.o $(CMPDIR)/cmptop.o \
+  	$(CMPDIR)/cmpvar.o $(CMPDIR)/cmpvs.o $(CMPDIR)/cmpwt.o
+  
++ #Use the following for SUN4OS5 and EWS4800SVR4
++ all:		saved_kcl saved_kcl.sym
++ #Use the following for machines other than SUN4OS5 and EWS4800SVR4
++ #all:		saved_kcl
+  
+  saved_kcl:	raw_kcl init_kcl.lsp \
+  		$(LSPDIR)/setdoc.lsp \
+  		$(CMPDIR)/cmpmain.lsp \
+***************
+*** 61,70 ****
+  		$(CMPDIR)/lfun_list.lsp \
+  		$(CMPDIR)/cmpopt.lsp
+  	raw_kcl $(PORTDIR)/ < init_kcl.lsp
+  
+! raw_kcl:	$(OBJS) sys_kcl.o $(LSPOBJS) $(CMPOBJS)
+! 	cc -Bstatic -o raw_kcl $(OBJS) sys_kcl.o $(LSPOBJS) $(CMPOBJS) $(LIBS)
+! #Use the following for machines other than SUN3OS4 and SUN4
+  #	cc -o raw_kcl $(OBJS) sys_kcl.o $(LSPOBJS) $(CMPOBJS) $(LIBS)
+  
+  sys_kcl.o:	sys_kcl.c
+--- 65,82 ----
+  		$(CMPDIR)/lfun_list.lsp \
+  		$(CMPDIR)/cmpopt.lsp
+  	raw_kcl $(PORTDIR)/ < init_kcl.lsp
++ 		@echo ''
+  
+! raw_kcl:	$(OBJS) sys_kcl.o forcelink.o $(LSPOBJS) $(CMPOBJS)
+! #Use the following for SUN4OS5
+! 	cc -o raw_kcl $(OBJS) sys_kcl.o forcelink.o \
+! 		$(LSPOBJS) $(CMPOBJS) $(LIBS)
+! #Use the following for EWS4800SVR4
+! #	cc -dn -o raw_kcl $(OBJS) sys_kcl.o forcelink.o \
+! #		$(LSPOBJS) $(CMPOBJS) $(LIBS)
+! #Use the following for SUN3OS4 and SUN4
+! #	cc -Bstatic -o raw_kcl $(OBJS) sys_kcl.o $(LSPOBJS) $(CMPOBJS) $(LIBS)
+! #Use the following for other machines
+  #	cc -o raw_kcl $(OBJS) sys_kcl.o $(LSPOBJS) $(CMPOBJS) $(LIBS)
+  
+  sys_kcl.o:	sys_kcl.c
+***************
+*** 73,77 ****
+  #get_start:	get_start.c
+  #	cc -o get_start get_start.c -lld
+  
+  clean:
+! 	rm -f saved_kcl raw_kcl *.o core a.out
+--- 85,111 ----
+  #get_start:	get_start.c
+  #	cc -o get_start get_start.c -lld
+  
++ saved_kcl.sym:	saved_kcl make_sym
++ 		make_sym saved_kcl saved_kcl.sym
++ 
++ make_sym:	make_sym.o
++ 		cc -o make_sym make_sym.o
++ 
++ # SunOS 5.1 can not link some functions in -lsocket and -lnsl statically.
++ # So we link them now.
++ # The following are not enough, just required ones for CLX/X11R5.
++ EXTRASYMS = close socket connect setsockopt gethostbyname inet_addr 
++ 
++ forcelink.c:	makefile
++ 		(   for sym in $(EXTRASYMS); do \
++ 			echo "extern int $$sym ();"; \
++ 		    done; \
++ 		    echo 'int (*extra_symbols[])()={ '; \
++ 		    for sym in $(EXTRASYMS); do \
++ 			echo "$$sym,"; \
++ 		    done; \
++ 		    echo '};' ) > forcelink.c
++ 	    
+  clean:
+! 	rm -f saved_kcl saved_kcl.sym raw_kcl make_sym *.o core a.out
+! 
+*** ./unixport/kclcc.ORG	Tue Aug  3 14:13:44 1993
+--- ./unixport/kclcc	Wed Sep  1 17:51:31 1993
+***************
+*** 0 ****
+--- 1,3 ----
++ #!/bin/sh
++ exec cc "$@"
++ exit 1
+*** ./unixport/cmpinclude.h.ORG	Tue Jul 10 03:11:12 1990
+--- ./unixport/cmpinclude.h	Wed Sep  1 10:55:51 1993
+***************
+*** 39,45 ****
+  };
+  #define	fix(x)	(x)->FIX.FIXVAL
+  #define	SMALL_FIXNUM_LIMIT	1024
+! struct fixnum_struct small_fixnum_table[];
+  #define	small_fixnum(i)	(object)(small_fixnum_table+SMALL_FIXNUM_LIMIT+(i))
+  #endif
+  
+--- 39,45 ----
+  };
+  #define	fix(x)	(x)->FIX.FIXVAL
+  #define	SMALL_FIXNUM_LIMIT	1024
+! extern struct fixnum_struct small_fixnum_table[];
+  #define	small_fixnum(i)	(object)(small_fixnum_table+SMALL_FIXNUM_LIMIT+(i))
+  #endif
+  
+***************
+*** 86,94 ****
+  	unsigned char	ch_font;
+  	unsigned char	ch_bits;
+  };
+! struct character character_table[];
+  #ifdef BE
+! struct character character_table1[];
+  #endif
+  
+  #define	code_char(c)	(object)(character_table+(c))
+--- 86,94 ----
+  	unsigned char	ch_font;
+  	unsigned char	ch_bits;
+  };
+! extern struct character character_table[];
+  #ifdef BE
+! extern struct character character_table1[];
+  #endif
+  
+  #define	code_char(c)	(object)(character_table+(c))
+***************
+*** 321,327 ****
+  #endif
+  
+  #define	endp(obje)	endp1(obje)
+! object value_stack[];
+  #define	vs_org		value_stack
+  object *vs_limit;
+  object *vs_base;
+--- 321,327 ----
+  #endif
+  
+  #define	endp(obje)	endp1(obje)
+! extern object value_stack[];
+  #define	vs_org		value_stack
+  object *vs_limit;
+  object *vs_base;
+***************
+*** 350,356 ****
+  	object	bds_sym;
+  	object	bds_val;
+  };
+! struct bds_bd bind_stack[];
+  #define bds_org		bind_stack
+  typedef struct bds_bd *bds_ptr;
+  bds_ptr bds_limit;
+--- 350,356 ----
+  	object	bds_sym;
+  	object	bds_val;
+  };
+! extern struct bds_bd bind_stack[];
+  #define bds_org		bind_stack
+  typedef struct bds_bd *bds_ptr;
+  bds_ptr bds_limit;
+***************
+*** 368,374 ****
+  	object	ihs_function;
+  	object	*ihs_base;
+  } *ihs_ptr;
+! struct invocation_history ihs_stack[];
+  #define ihs_org		ihs_stack
+  ihs_ptr ihs_limit;
+  ihs_ptr ihs_top;
+--- 368,374 ----
+  	object	ihs_function;
+  	object	*ihs_base;
+  } *ihs_ptr;
+! extern struct invocation_history ihs_stack[];
+  #define ihs_org		ihs_stack
+  ihs_ptr ihs_limit;
+  ihs_ptr ihs_top;
+***************
+*** 394,400 ****
+  };
+  typedef struct frame *frame_ptr;
+  #define	alloc_frame_id()	alloc_object(t_spice)
+! struct frame frame_stack[];
+  #define frs_org		frame_stack
+  frame_ptr frs_limit;
+  frame_ptr frs_top;
+--- 394,400 ----
+  };
+  typedef struct frame *frame_ptr;
+  #define	alloc_frame_id()	alloc_object(t_spice)
+! extern struct frame frame_stack[];
+  #define frs_org		frame_stack
+  frame_ptr frs_limit;
+  frame_ptr frs_top;
+No differences encountered
+*** ./unixport/elfild.ORG	Tue Aug  3 18:29:56 1993
+--- ./unixport/elfild	Thu Sep  2 13:02:10 1993
+***************
+*** 0 ****
+--- 1,37 ----
++ #!/bin/sh
++ #
++ #	an incremental linker for KCL on System V Rel. 4.x (ELF)
++ #
++ PATH=/usr/ccs/bin:/bin:/usr/bin:$PATH
++ 
++ start_address=
++ align=
++ 
++ if [ "X$1" = "X-start" ]; then
++     start_address="V$2"
++     shift 2
++ fi
++ 
++ if [ "X$1" = "X-align" ]; then
++     align="A$2"
++     shift 2
++ fi
++ 
++ kcl_self=$1
++ file=$2
++ temp_file=$3
++ shift 3
++ 
++ map_file=/tmp/ild$$
++ trap "rm -f $map_file; exit 0" 0 1 2 15
++ 
++ cat > $map_file <<EOF
++     text = LOAD $start_address $align;
++     text : ?A;
++ EOF
++ ld -dn -o $temp_file -M$map_file $file $kcl_self.sym "$@" 2>&1 1>/dev/null |\
++     grep -v 'warn.*_edata'
++ exit 0
++ #
++ #	End of script
++ #
+*** ./unixport/make_sym.c.ORG	Sat Jul 31 14:12:26 1993
+--- ./unixport/make_sym.c	Wed Sep  1 17:19:00 1993
+***************
+*** 0 ****
+--- 1,178 ----
++ /*
++ 	makesym.c
++ 
++ 	extract .symtab for incremental linking on SVR4 systems.
++ */
++ 
++ #include <stdio.h>
++ #include <sys/types.h>
++ #include <elf.h>
++ #include <fcntl.h>
++ #include <sys/stat.h>
++ #include <sys/mman.h>
++ #include <sys/file.h>
++ #ifdef EWS4800SVR4
++ #include <sys/elf_MIPS.h>
++ #endif
++ 
++ #define SHP(n) \
++     ((Elf32_Shdr *)((char *)mapaddr+(ehp->e_shoff+ehp->e_shentsize*(n))))
++ 
++ main (argc, argv)
++ int argc;
++ char *argv[];
++ {
++ 	FILE *original, *new;
++ 	struct stat stat;
++ 	caddr_t mapaddr;
++ 	Elf32_Ehdr *ehp, eh;
++ 	Elf32_Shdr *shstrshp, shstrsh;
++ 	Elf32_Shdr *symtabshp, symtabsh;
++ 	Elf32_Shdr *strtabshp, strtabsh;
++ #ifdef EWS4800SVR4
++ 	Elf32_Shdr *reginfoshp, reginfosh;
++ #endif
++ 	char *shnames;
++ 	int i, n;
++ 
++ 	if (argc < 2)
++ 	    exit (1);
++ 
++ 	original = fopen(argv[1], "r");
++ 	if (original == (FILE *)0) {
++ 		fprintf(stderr, "Can't open the original file.\n");
++ 		exit(1);
++ 	}
++ 	new = fopen(argv[2], "w");
++ 	if (new == (FILE *)0) {
++ 		fprintf(stderr, "Can't create the output file.\n");
++ 		exit(1);
++ 	}
++ 	fstat (fileno(original), &stat);
++ 	mapaddr = mmap((caddr_t)0, stat.st_size, PROT_READ, MAP_SHARED,
++ 		       fileno(original), (off_t)0);
++ 	ehp = (Elf32_Ehdr *)mapaddr;
++ 	shstrshp = SHP(ehp->e_shstrndx);
++ 	shstrsh = *shstrshp;
++ 	shnames = mapaddr+shstrshp->sh_offset;
++ 	symtabshp = (Elf32_Shdr *)0;
++ #ifdef EWS4800SVR4
++ 	reginfoshp = (Elf32_Shdr *)0;
++ #endif
++ 
++ 	/* Write .shstrtab */
++ 	fseek(new, sizeof(Elf32_Ehdr), 0);
++ 	shstrsh.sh_offset = ftell(new);
++ 	fwrite(mapaddr+shstrshp->sh_offset, shstrshp->sh_size, 1, new);
++ 
++ 	/* Search .symtab and .strtab */
++ 	for (i = 0; i < ehp->e_shnum; i ++) {
++ #ifdef EWS4800SVR4
++ 		if (!strcmp (shnames + SHP(i)->sh_name, ".reginfo")) { 
++ 			if (reginfoshp) {
++ 				fprintf (stderr, "Multiple .reginfo\n");
++ 				exit (1);
++ 			}
++ 			reginfoshp = SHP(i);
++ 			reginfosh = *reginfoshp;
++ 		
++ 		}
++ #endif
++ 		if (!strcmp (shnames + SHP(i)->sh_name, ".symtab")) { 
++ 			if (symtabshp) {
++ 				fprintf (stderr, "Multiple .symtab\n");
++ 				exit (1);
++ 			}
++ 			symtabshp = SHP(i);
++ 			symtabsh = *symtabshp;
++ 			symtabsh.sh_flags = SHF_ALLOC;
++ 			strtabshp = SHP(symtabshp->sh_link);
++ 			strtabsh = *strtabshp;
++ 			strtabsh.sh_flags = SHF_ALLOC;
++ 		}
++ 	}
++ 
++ #ifdef EWS4800SVR4
++ 	if (!reginfoshp) {
++ 		fprintf (stderr, "Can't find .reginfo\n");
++ 		exit (1);
++ 	}
++ 
++ 	/* Write .reginfo */
++ 	reginfosh.sh_offset = ftell(new);
++ 	reginfosh.sh_addr = 0;
++ 	fwrite(mapaddr+reginfoshp->sh_offset, reginfoshp->sh_size, 1, new);
++ #endif
++ 	if (!symtabshp) {
++ 		fprintf (stderr, "Can't find .symtab\n");
++ 		exit (1);
++ 	}
++ 
++ 	/* Write .symatb */
++ 	n = symtabshp->sh_size/symtabshp->sh_entsize;
++ 	symtabsh.sh_offset = ftell(new);
++ 	symtabsh.sh_link = 3;
++ 	symtabsh.sh_info = 1;
++ 	symtabsh.sh_size = 0;
++ 	for (i = 0; i < n; i ++) {
++ 	    Elf32_Sym sym;
++ 	    Elf32_Sym *symp = (Elf32_Sym *)
++ 		(mapaddr+symtabshp->sh_offset+i*symtabshp->sh_entsize);
++ 
++ 	    if (i == 0) {
++ 		    fwrite((char *)symp, sizeof(Elf32_Sym), 1, new);
++ 		    symtabsh.sh_size += symtabsh.sh_entsize;
++ 		    continue;
++ 	    }
++ 	    if (ELF32_ST_BIND(symp->st_info) == STB_LOCAL)
++ 		    continue;
++ 	    switch (ELF32_ST_TYPE(symp->st_info)) {
++ 		case STT_OBJECT:
++ 		case STT_FUNC:
++ 		    break;
++ 		default:
++ 		    continue;
++ 	    }
++ 	    sym = *symp;
++ 	    sym.st_shndx = SHN_ABS;
++ 	    fwrite((char *)&sym, sizeof(Elf32_Sym), 1, new);
++ 	    symtabsh.sh_size += symtabsh.sh_entsize;
++ 	}
++ 	strtabsh.sh_offset = ftell(new);
++ 
++ 	/* Write .strtab */
++ 	fwrite(mapaddr+strtabshp->sh_offset, strtabshp->sh_size, 1, new);
++ 
++ 	/* Write Elf header */
++ 	eh = *ehp;
++ 	eh.e_type = ET_REL;
++ 	eh.e_entry = 0;
++ 	eh.e_shoff = ftell(new);
++ #ifdef EWS4800SVR4
++ 	eh.e_flags &=
++ 	    ~(EF_MIPS_NOREORDER|EF_MIPS_PIC|EF_MIPS_CPIC|EF_MIPS_NPIC);
++ 	eh.e_shnum = 5;
++ #else
++ 	eh.e_shnum = 4;
++ #endif
++ 	eh.e_phoff = 0;
++ 	eh.e_phnum = eh.e_phentsize = 0;
++ 	eh.e_shstrndx = 1;
++ 	fseek(new, 0, 0);
++ 	fwrite((char *)&eh, sizeof(eh), 1, new);
++ 
++ 	/* Write section headers */
++ 	fseek(new, eh.e_shoff, 0);
++ 	fwrite((char *)SHP(0), sizeof(Elf32_Shdr), 1, new);
++ 	fwrite((char *)&shstrsh, sizeof(Elf32_Shdr), 1, new);
++ 	fwrite((char *)&symtabsh, sizeof(Elf32_Shdr), 1, new);
++ 	fwrite((char *)&strtabsh, sizeof(Elf32_Shdr), 1, new);
++ #ifdef EWS4800SVR4
++ 	fwrite((char *)&reginfosh, sizeof(Elf32_Shdr), 1, new);
++ #endif
++ 
++ 	munmap(mapaddr, stat.st_size);
++ 	fclose(new);
++ 	fclose(original);
++ 	exit (0);
++ }
+*** ./makefile.ORG	Wed Oct  3 17:27:34 1990
+--- ./makefile	Thu Sep  2 14:14:01 1993
+***************
+*** 7,13 ****
+  CMPDIR	= cmpnew
+  PORTDIR	= unixport
+  
+! all:	/usr/include/cmpinclude.h
+  	(cd $(BINDIR); make)
+  	(cd $(ODIR); make)
+  	(cd $(LSPDIR); make)
+--- 7,13 ----
+  CMPDIR	= cmpnew
+  PORTDIR	= unixport
+  
+! all:
+  	(cd $(BINDIR); make)
+  	(cd $(ODIR); make)
+  	(cd $(LSPDIR); make)
+***************
+*** 14,32 ****
+  	(cd $(CMPDIR); make)
+  	(cd $(PORTDIR); make)
+  
+! /usr/include/cmpinclude.h:	$(HDIR)/cmpinclude.h
+! 	@echo "su and make cmpinclude.h"
+! 	exit 1
+  
+! cmpinclude.h:
+! 	cp $(HDIR)/cmpinclude.h /usr/include
+! 
+! 
+! install:
+  	(cd $(PORTDIR); echo "#" > /usr/bin/kcl; \
+  	echo "`pwd`/saved_kcl `pwd`/" >> /usr/bin/kcl)
+  	chmod 755 /usr/bin/kcl
+! 	
+  
+  clean:
+  	(cd $(BINDIR); make clean)
+--- 14,47 ----
+  	(cd $(CMPDIR); make)
+  	(cd $(PORTDIR); make)
+  
+! #Use the following for SUN4OS5 and EWS4800SVR4
+! install: install.svr4
+! #Use the following for machines other than SUN4OS5 and EWS4800SVR4
+! #install: install.others
+  
+! install.others: force
+  	(cd $(PORTDIR); echo "#" > /usr/bin/kcl; \
+  	echo "`pwd`/saved_kcl `pwd`/" >> /usr/bin/kcl)
+  	chmod 755 /usr/bin/kcl
+! 	cp $(HDIR)/cmpinclude.h /usr/include
+! 
+! install.svr4: force
+! 	test -d /opt/kcl || mkdir /opt/kcl
+! 	test -d /opt/kcl/lib || mkdir /opt/kcl/lib
+! 	test -d /opt/kcl/bin || mkdir /opt/kcl/bin
+! 	test -d /opt/kcl/include || mkdir /opt/kcl/include
+! 	cp $(HDIR)/cmpinclude.h /opt/kcl/include
+! 	(echo '#!/bin/sh'; echo 'exec /opt/kcl/lib/saved_kcl /opt/kcl/lib/') \
+! 		> /opt/kcl/bin/kcl
+! 	(echo '#!/bin/sh'; \
+! 	 echo 'exec /opt/kcl/lib/saved_kcl /opt/kcl/lib/ "$$1" "$$1" U1000') \
+! 		> /opt/kcl/bin/lc
+! 	cp $(PORTDIR)/saved_kcl $(PORTDIR)/kclcc $(PORTDIR)/elfild \
+! 		$(PORTDIR)/saved_kcl.sym /opt/kcl/lib
+! 	chmod 755 /opt/kcl/bin/kcl /opt/kcl/bin/lc \
+! 		  /opt/kcl/lib/elfild /opt/kcl/lib/kclcc
+! 
+! force:
+  
+  clean:
+  	(cd $(BINDIR); make clean)
+*** ./README.SVR4.ORG	Thu Sep  2 10:16:09 1993
+--- ./README.SVR4	Thu Sep 23 10:51:28 1993
+***************
+*** 0 ****
+--- 1,153 ----
++ 
++ Note : Porting KCL (Nov 13, 1990) to System V R4 machines
++ 
++ 						Sep 2, 1993
++ 						H.Nakano
++ 						nakano@rins.ryukoku.ac.jp
++ 
++     The targets are the following machines.
++ 
++ 	ident			target machine
++ 	SUN4OS5			SPARC based SUNOS 5.x
++ 	EWS4800SVR4		MIPS based System V R4.2
++ 
++ 
++     FILE	                   CHANGES
++ 
++ h/include.h and c/include.h
++ 		1. System configurations for SUN4OS5 and EWS4800SVR4 have
++ 		   been added, where the following new macros have been
++ 		   introduced. 
++ 
++ 		   SVR4 --- This is System V R.4.x / ELF32
++ 		   ELF_INIT_CODE_OFFSET --- The offset of the address of
++ 		     init_code() from the beginning of the first executable
++ 		     section in ELF. It would be 0 on most systems, but
++ 		     MIPS based SVR4 systems could have an additional part
++ 		     before init_code().
++ 		   ELF_EXTRA_SECTION_SIZE --- The expected size of extra
++ 		     sections inserted by ld when we link a fasl file.
++ 		     For example, .got section of SUN4OS5.  The precise
++ 		     size is not always needed. KCL retries to link when
++ 		     it gets an unexpected large result from ld.
++ 
++ h/external.h	1. The type int has been added at every declaration of
++ 		   functions without type.
++ 
++ h/object.h	1. The storage class extern has been added at every
++ 		   declaration of an array without size.
++ 		2. BASEFF has been defined for SVR4 systems.
++ 
++ h/cmpinclude.h and unixport/cminclude.h
++ 		1. The storage class extern has been added at every
++ 		   declaration of an array without size.
++ 
++ unixport/makefile
++ 		1. Configurations for SUN4OS5 and EWS4800SVR4 have been added.
++ 		   The program raw_kcl is linked dynamically on SUN4OS5 and
++ 		   statically on EWS4800SVR4.  We link the functions listed
++ 		   in EXTRASYMS from libsocket.a and libnsl.a to raw_kcl by
++ 		   forcelink.o. Note that we can not link them by faslink on
++ 		   SunOS 5.1, since libsocket.a and libnsl.a can not be linked
++ 		   statically on SunOS 5.1.
++ 		2. -O has been added to CFLAGS.
++ 		3. MAXPAGE and VSSIZE have been changed.
++ 		4. The rules for make_sym and saved_kcl.sym have been added.
++ 
++ unixport/elfild
++ 		1. The linker used by fasload and faslink on SVR4 systems.
++ 		   Since SVR4-ld can not link fasl files with saved_kcl,
++ 		   it uses saved_kcl.sym instead, which is the symbol table
++ 		   extracted from saved_kcl, to resolve relocations in fasl
++ 		   files.
++ 
++ unixport/make_sym.c
++ 		1. The source file of make_sym, which extracts the symbol
++ 		   table from saved_kcl.
++ 
++ unixport/kclcc	1. The C compiler used by KCL, which would just call cc.
++ 
++ o/makefile	1. Configurations for SUN4OS5 and EWS4800SVR4 have been added.
++ 		2. ASFLAGS has been introduced since EWS4800SVR4 systems
++ 		   require -Kconform_pic option when assemble
++ 		   ews4800_chartab.s.
++ 		3. MAXPAGE and VSSIZE have been changed.
++ 
++ c/main.c	1. Stack limit is determined by getrlimit() in the same way
++ 		   as BSD systems.
++ 		2. A variable setbuf_offset has been introduced which contains
++ 		   the offset of the value of _base in FILE structs from
++ 		   the address of the buffer given by setbuf().
++ 		3. An empty function volatilize() has been defined in this
++ 		   file, which is used to protect auto-variables from
++ 		   optimization of cc.
++                 4. Features for SUN4OS5 and EWS4800SVR4 have been added.
++ 
++ c/alloc.c	1. Real_max_page is determined by getrlimit() in the same
++ 		   way as BSD systems.
++ 
++ c/gbc.c		1. The variable setbuf_offset is used when we call
++ 		   mark_contblock() for stream objects.
++ 
++ c/read.d	1. SHARP_EQ_CONTEXT_SIZE has been changed to 128, but this
++ 		   change is independent of SVR4.
++ 		2. The function volatilize() is called after frs_push() to
++ 		   protect a variable from optimization.
++ 
++ c/file.d	1. The variable setbuf_offset is used when we call
++ 		   insert_contblock() for stream objects.
++ 		2. The function listen_stream() has been implemented by poll().
++ 		3. Some redundant codes have been added in Lload() to avoid
++ 		   a bug of gcc-2.4.[3-5].
++ 		4. The function read_fasl_data() has been modified to
++ 		   support SVR4/ELF32 systems.
++ 
++ c/unixfasl.c	1. The functions fasload() and faslink() have been modified
++ 		   to support SVR4/ELF32 systems.
++ 
++ c/unixsave.c	1. The function memory_save() has been modified to support
++ 		   SVR4/ELF32 systems.
++ 		2. Some codes have been added in Lsave() to close stdin,
++ 		   stdout and stderr because _cleanup() does not do it.
++ 
++ c/unixtime.c	1. Timing functions have been implemented by time().
++ 
++ c/unixsys.c	1. The function getwd() is implemented by getcwd().
++ 		2. The function Ldirectory() is implemented in the same
++ 		   way as BSD systems.
++ 
++ c/unixint.c	1. The signal handling functions have been implemented
++ 		   by sigset().
++ 
++ c/prog.c	1. Some redundant codes have been added in Ftagbody() to
++ 		   avoid a bug of gcc-2.4.[3-5].
++ 
++ c/format.c	1. The function fmt_justification() has been modified to
++ 		   avoid ambiguity of the value of the auto variable n
++ 		   after the call of setjmp() (line 1894-1895). 
++ 
++ c/ews4800_chtab.s
++ 		1. The source of char_table.o for EWS4800SVR4.
++ 
++ cmpnew/makefile	1. -I../h has been added to CFLAGS to use ../h/cmpinclude.h
++ 		   rather than /usr/include/cmpinclude.h.
++ 		2. The default of echo command has been changed to
++ 		   /usr/bin/echo since SVR4 also has /usr/ucb/echo.
++ 
++ cmpnew/cmpmain.lsp
++ 		1. We use portdir/kclcc instead of cc when we compile
++ 		   c source files. This change is independent of SVR4.
++ 		2. We do not use echo command on SVR4 systems (line 524-530).
++ 
++ lsp/makefile	1. -I../h has been added to CFLAGS to use ../h/cmpinclude.h
++ 		   rather than /usr/include/cmpinclude.h.
++ 		2. The default of echo command has been changed to
++ 		   /usr/bin/echo.
++ 
++ bin/makefile	1. The default DEFS has been changed to use -DATT
++ 
++ ./makefile	1. The rule for cmpinclude.h and /usr/include/cmpinclude.h
++ 		   has been removed.
++ 		2. The rule for install has been modified.
++ 
++ End of Note

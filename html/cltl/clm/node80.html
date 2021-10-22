@@ -1,0 +1,1288 @@
+<!DOCTYPE HTML PUBLIC "-//W3O//DTD W3 HTML 2.0//EN">
+<!Converted with LaTeX2HTML 0.6.5 (Tue Nov 15 1994) by Nikos Drakos (nikos@cbl.leeds.ac.uk), CBLU, University of Leeds >
+
+<!-- Mirrored from www.cs.cmu.edu/afs/cs/project/ai-repository/ai/html/cltl/clm/node80.html by HTTrack Website Copier/3.x [XR&CO'2014], Wed, 20 Oct 2021 23:47:03 GMT -->
+<HEAD>
+<TITLE>7.2. Generalized Variables</TITLE>
+</HEAD>
+<BODY>
+<meta name="description" value=" Generalized Variables">
+<meta name="keywords" value="clm">
+<meta name="resource-type" value="document">
+<meta name="distribution" value="global">
+<P>
+<b>Common Lisp the Language, 2nd Edition</b>
+ <BR> <HR><A NAME=tex2html2524 HREF="node81.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2522 HREF="node76.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2516 HREF="node79.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2526 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2527 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2525 HREF="node81.html"> Function Invocation</A>
+<B>Up:</B> <A NAME=tex2html2523 HREF="node76.html"> Control Structure</A>
+<B> Previous:</B> <A NAME=tex2html2517 HREF="node79.html"> Assignment</A>
+<HR> <P>
+<H1><A NAME=SECTION001120000000000000000>7.2. Generalized Variables</A></H1>
+<P>
+<A NAME=SETFSECTION>In</A>
+Lisp, a variable can remember one piece of data,
+that is, one Lisp object.
+The main operations on a variable are to recover that object and
+to alter the variable to remember a new object; these operations are
+often called <i>access</i> and <i>update</i> operations.  The concept of
+variables named by symbols can be generalized to any storage location
+that can remember one piece of data, no matter how that location is
+named.  Examples of such storage locations are the <i>car</i> and <i>cdr</i> of
+a cons, elements of an array, and components of a structure.
+<P>
+For each kind of generalized variable, typically there are two functions
+that implement the conceptual <i>access</i> and <i>update</i> operations.
+For a variable, merely mentioning the name of the variable accesses it,
+while the <tt>setq</tt> special form can be used to update it.
+The function <tt>car</tt> accesses the <i>car</i> of a cons,
+and the function <tt>rplaca</tt> updates it.
+The function <tt>symbol-value</tt> accesses the dynamic value of a variable
+named by a given symbol, and the function <tt>set</tt> updates it.
+<P>
+Rather than thinking about two distinct functions that respectively
+access and update a storage location somehow deduced from their
+arguments, we can instead simply think of a call to the access function
+with given arguments as a <i>name</i> for the storage location.  Thus, just
+as <tt>x</tt> may be considered a name for a storage location (a variable), so
+<tt>(car x)</tt> is a name for the <i>car</i> of some cons (which is in turn
+named by <tt>x</tt>).  Now, rather than having to remember two functions for
+each kind of generalized variable (having to remember, for example, that
+<tt>rplaca</tt> corresponds to <tt>car</tt>), we adopt a uniform syntax for updating
+storage locations named in this way, using the <tt>setf</tt> macro.
+This is analogous to the way we use the <tt>setq</tt> special form to convert
+the name of a variable (which is also a form that accesses it) into a
+form that updates it.  The uniformity of this approach is illustrated in
+the following table.
+<P>
+<listing>
+Access Function     Update Function      Update Using setf
+----------------------------------------------------------------------
+x                   (setq x datum)       (setf x datum)
+(car x)             (rplaca x datum)     (setf (car x) datum)
+(symbol-value x)    (set x datum)        (setf (symbol-value x) datum)
+----------------------------------------------------------------------
+</listing>
+<P>
+<tt>setf</tt> is actually a macro that examines an access form and
+produces a call to the corresponding update function.
+<P>
+Given the existence of <tt>setf</tt> in Common Lisp, it is not necessary to have
+<tt>setq</tt>, <tt>rplaca</tt>, and <tt>set</tt>; they are redundant.  They
+are retained in Common Lisp because of their historical importance in Lisp.
+However, most other update functions (such as <tt>putprop</tt>, the update
+function for <tt>get</tt>) have been eliminated from Common Lisp
+in the expectation that <tt>setf</tt> will be uniformly used in their place.
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>setf</tt> <tt>{<i>place</i></tt> <tt><i>newvalue</i>}*</tt><P><tt>(setf <i>place</i> <i>newvalue</i>)</tt> takes a form <i>place</i> that when evaluated
+<i>accesses</i> a data object in some location and ``inverts''
+it to produce a corresponding form to <i>update</i> the location.
+A call to the <tt>setf</tt> macro therefore
+expands into an update form that stores the result of evaluating
+the form <i>newvalue</i> into the place referred to by the access form.
+<P>
+If more than one <i>place</i>-<i>newvalue</i> pair is specified,
+the pairs are processed sequentially; that is,
+<P><pre>
+(setf <i>place1</i> <i>newvalue1</i> 
+      <i>place2</i> <i>newvalue2</i>) 
+      ... 
+      <i>placen</i> <i>newvaluen</i>)
+</pre><P>
+is precisely equivalent to
+<P><pre>
+(progn (setf <i>place1</i> <i>newvalue1</i>) 
+       (setf <i>place2</i> <i>newvalue2</i>) 
+       ... 
+       (setf <i>placen</i> <i>newvaluen</i>))
+</pre><P>
+For consistency, it is legal to write <tt>(setf)</tt>, which simply returns <tt>nil</tt>.
+<P>
+The form <i>place</i> may be any one of the following:
+<UL><LI>
+The name of a variable (either lexical or dynamic).
+<P>
+<LI>
+A function call form whose first element is the name of
+any one of the following functions:
+<P>
+<listing>
+aref        car        svref    
+nth         cdr        get      
+elt         caar       getf             symbol-value 
+rest        cadr       gethash          symbol-function 
+first       cdar       documentation    symbol-plist 
+second      cddr       fill-pointer     macro-function 
+third       caaar      caaaar           cdaaar 
+fourth      caadr      caaadr           cdaadr 
+fifth       cadar      caadar           cdadar 
+sixth       caddr      caaddr           cdaddr 
+seventh     cdaar      cadaar           cddaar 
+eighth      cdadr      cadadr           cddadr 
+ninth       cddar      caddar           cdddar 
+tenth       cdddr      cadddr           cddddr
+</listing>
+</ul>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<ul>
+X3J13 voted in March 1988 (AREF-1D) <A NAME=5286>&#160;</A> 
+to add <tt>row-major-aref</tt> to this list.
+<P>
+
+<P>
+X3J13 voted in June 1989 (DEFINE-COMPILER-MACRO) <A NAME=5290>&#160;</A> 
+to add <tt>compiler-macro-function</tt> to this list.
+<P>
+
+X3J13 voted in March 1989 (FUNCTION-NAME) <A NAME=5294>&#160;</A>  to clarify that this
+rule applies only when the function name refers to a global function
+definition and not to a locally defined function or macro.
+</ul>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<ul>
+<LI>
+A function call form whose first element is the name of
+a selector function constructed by <tt>defstruct</tt>.
+<P>
+</ul>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<ul>
+X3J13 voted in March 1989 (FUNCTION-NAME) <A NAME=5298>&#160;</A>  to clarify that this
+rule applies only when the function name refers to a global function
+definition and not to a locally defined function or macro.
+</ul>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<ul>
+<P>
+<LI>
+A function call form whose first element is the name of
+any one of the following functions, provided that the new value
+
+is of the specified type so that it can be used to
+replace the specified ``location'' (which is in each of these cases
+not truly a generalized variable):
+<P>
+<pre>
+Function Name	Required Type 
+--------------------------------
+<tt>char</tt>	<tt>string-char</tt> 
+<tt>schar</tt>	<tt>string-char</tt> 
+<tt>bit</tt>	<tt>bit</tt> 
+<tt>sbit</tt>	<tt>bit</tt> 
+<tt>subseq</tt>	<tt>sequence</tt> 
+--------------------------------
+</pre>
+</ul>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<ul>
+X3J13 voted in March 1989 (CHARACTER-PROPOSAL) <A NAME=5320>&#160;</A> 
+to eliminate the type <tt>string-char</tt> and to redefine
+<tt>string</tt> to be the union of one or more specialized vector
+types, the types of whose elements are subtypes of the type <tt>character</tt>.
+In the preceding table, the type <tt>string-char</tt> should be replaced
+by some such phrase as ``the element-type of the argument vector.''
+<P>
+X3J13 voted in March 1989 (FUNCTION-NAME) <A NAME=5327>&#160;</A>  to clarify that this
+rule applies only when the function name refers to a global function
+definition and not to a locally defined function or macro.
+</ul>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<ul>
+<P>
+In the case of <tt>subseq</tt>, the replacement value must be a sequence
+whose elements may be contained by the sequence argument to <tt>subseq</tt>.
+(Note that this is not so stringent as to require that the
+replacement value be a sequence of the same type as the sequence
+of which the subsequence is specified.)
+If the length of the replacement value does not equal the length of
+the subsequence to be replaced, then the shorter length determines
+the number of elements to be stored, as for the function <tt>replace</tt>.
+<P>
+<LI>
+A function call form whose first element is the name of
+any one of the following functions, provided that the specified argument
+to that function is in turn a <i>place</i> form;
+in this case the new <i>place</i> has stored back into it the
+result of applying the specified ``update'' function
+(which is in each of these cases not a true update function):
+<P>
+<listing>
+Function Name   Argument That Is a place    Update Function Used 
+----------------------------------------------------------------
+char-bit        first                       set-char-bit 
+ldb             second                      dpb 
+mask-field      second                      deposit-field 
+----------------------------------------------------------------
+</listing>
+</UL>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<UL>
+X3J13 voted in March 1989 (CHARACTER-PROPOSAL) <A NAME=5348>&#160;</A> 
+to eliminate <tt>char-bit</tt> and <tt>set-char-bit</tt>.
+<P>
+X3J13 voted in March 1989 (FUNCTION-NAME) <A NAME=5353>&#160;</A>  to clarify that this
+rule applies only when the function name refers to a global function
+definition and not to a locally defined function or macro.
+</ul>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<ul>
+<LI>
+A <tt>the</tt> type declaration form, in which case the declaration is
+transferred to the <i>newvalue</i> form, and the resulting <tt>setf</tt> form is
+analyzed.  For example,
+<P><pre>
+(setf (the integer (cadr x)) (+ y 3))
+</pre><P>
+is processed as if it were
+<P><pre>
+(setf (cadr x) (the integer (+ y 3)))
+</pre><P>
+<P>
+<LI>
+A call to <tt>apply</tt> where the first argument form is of the form
+<tt>#'<i>name</i></tt>, that is, <tt>(function <i>name</i>)</tt>, where <i>name</i>
+is the name of a function, calls to which are recognized as places by <tt>setf</tt>.
+Suppose that the use of <tt>setf</tt> with <tt>apply</tt> looks like this:
+<P><pre>
+(setf (apply #'<i>name</i> <i>x1</i> <i>x2</i> ... <i>xn</i> <i>rest</i>) <i>x0</i>)
+</pre><P>
+The <tt>setf</tt> method for the function <i>name</i> must be such that
+<P><pre>
+(setf (<i>name</i> <i>z1</i> <i>z2</i> ... <i>zm</i>) <i>z0</i>)
+</pre><P>
+expands into a store form
+<P><pre>
+(<i>storefn</i> <i>zi<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap40509.gif"></i> <i>zi<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap40517.gif"></i> ... <i>zi<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap40519.gif"></i> <i>zm</i>)
+</pre><P>
+That is, it must expand into a function call such that all arguments but
+the last may be any permutation or subset of the new value <i>z0</i> and
+the arguments of the access form, but the <i>last</i> argument of the storing
+call must be the same as the last argument of the access call.
+See <tt>define-setf-method</tt> for more details on accessing
+and storing forms.
+<P>
+Given this, the <tt>setf</tt>-of-<tt>apply</tt> form shown above expands into
+<P><pre>
+(apply #'<i>storefn</i> <i>xi<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap40509.gif"></i> <i>xi<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap40517.gif"></i> ... <i>xi<IMG ALIGN=BOTTOM ALT="" SRC="_24769_tex2html_wrap40519.gif"></i> <i>rest</i>)
+</pre><P>
+As an example, suppose that the variable <tt>indexes</tt> contains a list
+of subscripts for a multidimensional array <i>foo</i> whose rank is not
+known until run time.  One may access the indicated
+element of the array by writing
+<P><pre>
+(apply #'aref foo indexes)
+</pre><P>
+and one may alter the value of the indicated element to that
+of <tt>newvalue</tt> by writing
+<P><pre>
+(setf (apply #'aref foo indexes) newvalue)
+</pre><P>
+<P>
+</UL>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<UL>
+X3J13 voted in March 1989 (FUNCTION-NAME) <A NAME=5413>&#160;</A>  to clarify that this
+rule applies only when the function name <tt>apply</tt> refers to the global function
+definition and not to a locally defined function or macro named <tt>apply</tt>.
+</ul><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<ul>
+<LI>
+A macro call, in which case <tt>setf</tt> expands the macro call and
+then analyzes the resulting form.
+<P>
+</UL>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<UL>
+X3J13 voted in March 1989 (FUNCTION-NAME) <A NAME=5419>&#160;</A>  to clarify that this
+step uses <tt>macroexpand-1</tt>, not <tt>macroexpand</tt>.  This allows the chance
+to apply any of the rules preceding this one to any of the intermediate expansions.
+</UL>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<UL>
+<LI>
+Any form for which a <tt>defsetf</tt>
+or <tt>define-setf-method</tt> declaration has been made.
+<P>
+</ul>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+<ul>
+X3J13 voted in March 1989 (FUNCTION-NAME) <A NAME=5426>&#160;</A>  to clarify that this
+rule applies only when the function name in the form refers to a global function
+definition and not to a locally defined function or macro.
+<P>
+</UL>
+<P>
+X3J13 voted in March 1989 (FUNCTION-NAME) <A NAME=5430>&#160;</A>  to add one more rule to
+the preceding list, coming after all those listed above:
+<UL><LI>  Any other list whose first element is a symbol (call it <i>f</i>).
+     In this case, the call to <tt>setf</tt> expands into a call to the function
+     named by the
+     list <tt>(setf <i>f</i>)</tt> (see section <A HREF="node77.html#FUNCTIONNAMESECTION">7.1</A>).
+     The first argument is the new value and the
+     remaining arguments are the values of the remaining elements of
+     <i>place</i>.  This expansion occurs regardless of whether either <i>f</i> or
+     <tt>(setf <i>f</i>)</tt> is defined as a function locally, globally, or not at
+     all.  For example,
+<P><pre>
+(setf (<i>f</i> <i>arg1</i> <i>arg2</i> ...) <i>newvalue</i>)
+</pre><P>
+     expands into a form with the same effect and value as
+<P><pre>
+(let ((#:temp1 <i>arg1</i>)     ;Force correct order of evaluation 
+      (#:temp2 <i>arg2</i>) 
+      ... 
+      (#:temp0 newvalue)) 
+  (funcall (function (setf <i>f</i>)) 
+           #:temp0 
+           #:temp1 
+           #:temp2 ...))
+</pre><P>
+By convention, any function named <tt>(setf <i>f</i>)</tt> should return its first
+argument as its only value, in order to preserve the specification that
+<tt>setf</tt> returns its <i>newvalue</i>.
+</UL>
+<P>
+X3J13 voted in March 1989
+(SYMBOL-MACROLET-SEMANTICS) <A NAME=5457>&#160;</A>  to add this case as well:
+<UL><LI> A variable reference that refers to a symbol macro definition made by
+<tt>symbol-macrolet</tt>, in which case <tt>setf</tt> expands the reference and
+then analyzes the resulting form.
+</UL>
+<img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<tt>setf</tt> carefully arranges to preserve the usual left-to-right
+order in which the various subforms are evaluated.
+On the other hand,
+the exact expansion for any particular form is not guaranteed and
+may even be implementation-dependent; all that is guaranteed is that
+the expansion of a <tt>setf</tt> form will be an update form that works
+for that particular implementation, and that the left-to-right evaluation
+of subforms is preserved.
+<P>
+The ultimate result of evaluating a <tt>setf</tt> form is the value
+of <i>newvalue</i>.  Therefore <tt>(setf (car x) y)</tt> does not expand
+into precisely <tt>(rplaca x y)</tt>, but into something more like
+<P><pre>
+(let ((G1 x) (G2 y)) (rplaca G1 G2) G2)
+</pre><P>
+the precise expansion being implementation-dependent.
+<P>
+The user can define new <tt>setf</tt> expansions by using <tt>defsetf</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (SETF-MULTIPLE-STORE-VARIABLES) <A NAME=5476>&#160;</A> 
+to extend the specification of <tt>setf</tt> to allow a <i>place</i>
+whose <tt>setf</tt> method has more than one store variable (see <tt>define-setf-method</tt>).
+In such a case as many values are accepted from the <i>newvalue</i> form
+as there are store variables; extra values are ignored
+and missing values default to <tt>nil</tt>,
+as is usual in situations involving multiple values.
+<P>
+A proposal was submitted to X3J13 in September 1989
+to add a <tt>setf</tt> method for <tt>values</tt> so that one could
+in fact write, for example,
+<P><pre>
+(setf (values quotient remainder) 
+      (truncate linewidth tabstop))
+</pre><P>
+but unless this proposal is accepted users will have to
+define a <tt>setf</tt> method for <tt>values</tt> themselves (not a difficult task).
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>psetf</tt> <tt>{<i>place</i></tt> <tt><i>newvalue</i>}*</tt><P><tt>psetf</tt> is like <tt>setf</tt> except that if more than one <i>place</i>-<i>newvalue</i>
+pair is specified, then the assignments of new values to places are
+done in parallel.  More precisely, all subforms that are to be evaluated
+are evaluated from left to right; after all evaluations have been performed,
+all of the assignments are performed in an unpredictable order.
+(The unpredictability matters only if more than one <i>place</i> form
+refers to the same place.)
+<tt>psetf</tt> always returns <tt>nil</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (SETF-MULTIPLE-STORE-VARIABLES) <A NAME=5501>&#160;</A> 
+to extend the specification of <tt>psetf</tt> to allow a <i>place</i>
+whose <tt>setf</tt> method has more than one store variable (see <tt>define-setf-method</tt>).
+In such a case as many values are accepted from the <i>newvalue</i> form
+as there are store variables; extra values are ignored
+and missing values default to <tt>nil</tt>,
+as is usual in situations involving multiple values.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>shiftf</tt> <tt>{<i>place</i>}+</tt> <tt><i>newvalue</i></tt><P>Each <i>place</i> form may be any form acceptable
+as a generalized variable to <tt>setf</tt>.
+In the form <tt>(shiftf <i>place1</i> <i>place2</i> ... <i>placen</i> <i>newvalue</i>)</tt>,
+the values in <i>place1</i> through <i>placen</i> are accessed and saved,
+and <i>newvalue</i> is evaluated, for a total of <i>n+1</i> values in all.
+Values 2 through <i>n+1</i> are then stored into <i>place1</i> through <i>placen</i>,
+and value 1 (the original value of <i>place1</i>) is returned.
+It is as if all the places form a shift register; the <i>newvalue</i>
+is shifted in from the right, all values shift over to the left one place,
+and the value shifted out of <i>place1</i> is returned.  For example:
+<P><pre>
+(setq x (list 'a 'b 'c)) => (a b c) 
+
+(shiftf (cadr x) 'z) => b 
+   and now x => (a z c) 
+
+(shiftf (cadr x) (cddr x) 'q) => z 
+   and now x => (a (c) . q)
+</pre><P>
+The effect of <tt>(shiftf <i>place1</i> <i>place2</i> ... <i>placen</i> <i>newvalue</i>)</tt>
+is equivalent to
+<P><pre>
+(let ((<i>var1</i> <i>place1</i>) 
+      (<i>var2</i> <i>place2</i>) 
+      ... 
+      (<i>varn</i> <i>placen</i>)) 
+  (setf <i>place1</i> <i>var2</i>) 
+  (setf <i>place2</i> <i>var3</i>) 
+  ... 
+  (setf <i>placen</i> <i>newvalue</i>) 
+  <i>var1</i>)
+</pre><P>
+except that the latter would evaluate any subforms of each <i>place</i> twice,
+whereas <tt>shiftf</tt> takes care to evaluate them only once.
+For example:
+<P><pre>
+(setq n 0) 
+(setq x '(a b c d)) 
+(shiftf (nth (setq n (+ n 1)) x) 'z) => b 
+   and now x => (a z c d) 
+
+<i>but</i> 
+
+(setq n 0) 
+(setq x '(a b c d)) 
+(prog1 (nth (setq n (+ n 1)) x) 
+       (setf (nth (setq n (+ n 1)) x) 'z)) => b 
+   and now x => (a b z d)
+</pre><P>
+Moreover, for certain <i>place</i> forms <tt>shiftf</tt> may be
+significantly more efficient than the <tt>prog1</tt> version.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (SETF-MULTIPLE-STORE-VARIABLES) <A NAME=5562>&#160;</A> 
+to extend the specification of <tt>shiftf</tt> to allow a <i>place</i>
+whose <tt>setf</tt> method has more than one store variable (see <tt>define-setf-method</tt>).
+In such a case as many values are accepted from the <i>newvalue</i> form
+as there are store variables; extra values are ignored
+and missing values default to <tt>nil</tt>,
+as is usual in situations involving multiple values.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<hr>
+<b>Rationale:</b> <tt>shiftf</tt> and <tt>rotatef</tt> have been included in Common Lisp
+as generalizations of two-argument versions formerly called <tt>swapf</tt>
+and <tt>exchf</tt>.  The two-argument versions have been found to be
+very useful, but the names were easily confused.  The generalization
+to many argument forms and the change of names were both inspired
+by the work of Suzuki [<A HREF="node368.html#SUZUKIPOINTERROTATION">47</A>],
+which indicates that use of these primitives can make certain complex
+pointer-manipulation programs clearer and easier to prove correct.
+<hr>
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>rotatef</tt> <tt>{<i>place</i>}*</tt><P>Each <i>place</i> form may be any form acceptable
+as a generalized variable to <tt>setf</tt>.
+In the form <tt>(rotatef <i>place1</i> <i>place2</i> ... <i>placen</i>)</tt>,
+the values in <i>place1</i> through <i>placen</i> are accessed and saved.
+Values 2 through <i>n</i> and value 1 are then stored into <i>place1</i> through <i>placen</i>.
+It is as if all the places form an end-around shift register
+that is rotated one place to the left, with the value of <i>place1</i>
+being shifted around the end to <i>placen</i>.
+Note that <tt>(rotatef <i>place1</i> <i>place2</i>)</tt> exchanges the contents
+of <i>place1</i> and <i>place2</i>.
+<P>
+The effect of <tt>(rotatef <i>place1</i> <i>place2</i> ... <i>placen</i>)</tt>
+is roughly equivalent to
+<P><pre>
+(psetf <i>place1</i> <i>place2</i> 
+       <i>place2</i> <i>place3</i> 
+       ... 
+       <i>placen</i> <i>place1</i>)
+</pre><P>
+except that the latter would evaluate any subforms of each <i>place</i> twice,
+whereas <tt>rotatef</tt> takes care to evaluate them only once.
+Moreover, for certain <i>place</i> forms <tt>rotatef</tt> may be
+significantly more efficient.
+<P>
+<tt>rotatef</tt> always returns <tt>nil</tt>.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in June 1989 (SETF-MULTIPLE-STORE-VARIABLES) <A NAME=5614>&#160;</A> 
+to extend the specification of <tt>rotatef</tt> to allow a <i>place</i>
+whose <tt>setf</tt> method has more than one store variable (see <tt>define-setf-method</tt>).
+In such a case as many values are accepted from the <i>newvalue</i> form
+as there are store variables; extra values are ignored
+and missing values default to <tt>nil</tt>,
+as is usual in situations involving multiple values.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+Other macros that manipulate generalized variables include
+<tt>getf</tt>, <tt>remf</tt>,
+<tt>incf</tt>, <tt>decf</tt>, <tt>push</tt>, <tt>pop</tt>,
+<tt>assert</tt>, <tt>ctypecase</tt>, and <tt>ccase</tt>.
+<P>
+Macros that manipulate generalized variables must guarantee the ``obvious''
+semantics:  subforms of generalized-variable references are
+evaluated exactly as many times as they appear in the source program, and
+they are evaluated in exactly the same order as they appear in the source
+program.
+<P>
+In generalized-variable references such as <tt>shiftf</tt>, <tt>incf</tt>, <tt>push</tt>,
+and <tt>setf</tt> of <tt>ldb</tt>, the generalized variables are both read and
+written in the same reference.   Preserving the source program order of
+evaluation and the number of evaluations is particularly important.
+<P>
+As an example of these semantic rules, in the generalized-variable
+reference <tt>(setf <i>reference</i> <i>value</i>)</tt> the <i>value</i> form
+must be evaluated <i>after</i> all the subforms of the reference because
+the <i>value</i> form appears to the right of them.
+<P>
+The expansion of these macros must consist of code that follows these
+rules or has the same effect as such code.  This is accomplished by
+introducing temporary variables bound to the subforms of the reference.
+As an optimization in the implementation,
+temporary variables may be eliminated whenever it
+can be proved that removing them has no effect on the semantics of the program.
+For example, a constant need never be saved in a temporary variable.
+A variable, or for that matter any form that does not have side effects, need not be
+saved in a temporary variable if it can be proved that its value will
+not change within the scope of the generalized-variable reference.
+<P>
+Common Lisp provides built-in facilities to take care of
+these semantic complications and optimizations.  Since the required
+semantics can be guaranteed by these facilities, the user does not
+have to worry about writing correct code for them, especially in
+complex cases.  Even experts can become confused and make mistakes
+while writing this sort of code.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988 (PUSH-EVALUATION-ORDER) <A NAME=5643>&#160;</A> 
+to clarify the preceding discussion about the order of evaluation of
+subforms in calls to <tt>setf</tt> and related macros.
+The general intent is clear: evaluation
+proceeds from left to right whenever possible. However, the left-to-right rule does not
+remove the obligation on writers of macros and <tt>define-setf-method</tt> to work
+to ensure left-to-right order of evaluation.
+<P>
+Let it be emphasized that, in the following discussion,
+a <i>form</i> is something whose syntactic use is such that it will
+be evaluated.  A <i>subform</i> means a form that is nested inside another form,
+not merely any Lisp object nested inside a form regardless of syntactic context.
+<P>
+The evaluation ordering of subforms within a generalized variable
+reference is determined by the order specified by the second value returned by
+<tt>get-setf-method</tt>.  For all predefined generalized variable references
+(<tt>getf</tt>, <tt>ldb</tt>), this order of evaluation is exactly left-to-right.
+When a generalized
+variable reference is derived from a macro expansion, this rule is applied
+<i>after</i> the macro is expanded to find the appropriate generalized variable
+reference.
+<P>
+This is intended to make it clear that if the user writes a <tt>defmacro</tt> or
+<tt>define-setf-method</tt> macro that doesn't preserve left-to-right
+evaluation order, the order specified in the
+user's code holds.  For example, given
+<P><pre>
+(defmacro wrong-order (x y) `(getf ,y ,x))
+</pre><P>
+then
+<P><pre>
+(push <i>value</i> (wrong-order <i>place1</i> <i>place2</i>))
+</pre><P>
+will evaluate <i>place2</i> first and then <i>place1</i> because that is the order they
+are evaluated in the macro expansion.
+<P>
+For the macros that manipulate generalized variables (<tt>push</tt>, <tt>pushnew</tt>, <tt>getf</tt>,
+<tt>remf</tt>, <tt>incf</tt>, <tt>decf</tt>, <tt>shiftf</tt>, <tt>rotatef</tt>,
+<tt>psetf</tt>, <tt>setf</tt>, <tt>pop</tt>, and those defined with
+<tt>define-modify-macro</tt>) the subforms of the macro call are evaluated exactly once
+in left-to-right order, with the subforms of the generalized variable
+references evaluated in the order specified above.
+<P>
+Each of
+<tt>push</tt>, <tt>pushnew</tt>, <tt>getf</tt>, <tt>remf</tt>, <tt>incf</tt>, <tt>decf</tt>,
+<tt>shiftf</tt>, <tt>rotatef</tt>, <tt>psetf</tt>, and <tt>pop</tt> evaluates
+all subforms before modifying any of the generalized variable locations.  Moreover,
+<tt>setf</tt> itself,
+in the case when a call on it has more than two arguments, performs its
+operation on each pair in sequence.  That is, in
+<P><pre>
+(setf <i>place1</i> <i>value1</i> <i>place2</i> <i>value2</i> ...)
+</pre><P>
+the subforms of <i>place1</i> and <i>value1</i> are evaluated, the
+location specified by <i>place1</i> is modified to contain the value returned by
+<i>value1</i>, and then the rest of the <tt>setf</tt> form is processed in a like manner.
+<P>
+For the macros <tt>check-type</tt>, <tt>ctypecase</tt>, and <tt>ccase</tt>, subforms of the
+generalized variable reference are evaluated once per test of a generalized
+variable, but they may be
+evaluated again if the type check fails (in the case of <tt>check-type</tt>) or if none of
+the cases holds (in <tt>ctypecase</tt> or <tt>ccase</tt>).
+<P>
+For the macro <tt>assert</tt>, the order of evaluation of the generalized variable
+references is not specified.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+Another reason for building in these functions is that the
+appropriate optimizations will differ from implementation to
+implementation.  In some implementations most of the optimization is
+performed by the compiler, while in others a simpler compiler is used and
+most of the optimization is performed in the macros.  The cost of
+binding a temporary variable relative to the cost of other Lisp
+operations may differ greatly between one implementation
+and another, and some implementations may find it
+best never to remove temporary variables except in the simplest cases.
+<P>
+A good example of the issues involved can be seen in the following
+generalized-variable reference:
+<P><pre>
+(incf (ldb byte-field variable))
+</pre><P>
+This ought to expand into something like
+<P><pre>
+(setq variable 
+      (dpb (1+ (ldb byte-field variable)) 
+           byte-field 
+           variable))
+</pre><P>
+In this expansion example we have
+ignored the further complexity of returning the correct
+value, which is the incremented byte, not the new value of <tt>variable</tt>.
+Note that the variable <tt>byte-field</tt> is evaluated twice, and the
+variable <tt>variable</tt> is referred to three times:
+once as the location in which to store a value,
+and twice during the computation of that value.
+<P>
+Now consider this expression:
+<P><pre>
+(incf (ldb (aref byte-fields (incf i)) 
+           (aref (determine-words-array) i)))
+</pre><P>
+It ought to expand into something like this:
+<P><pre>
+(let ((temp1 (aref byte-fields (incf i))) 
+      (temp2 (determine-words-array))) 
+  (setf (aref temp2 i) 
+        (dpb (1+ (ldb temp1 (aref temp2 i))) 
+             temp1 
+             (aref temp2 i))))
+</pre><P>
+Again we have ignored the complexity of returning the correct value.
+What is important here is that the expressions <tt>(incf i)</tt>
+and <tt>(determine-words-array)</tt>
+must not be duplicated because each may have a side effect or
+be affected by side effects.
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in January 1989 (SETF-SUB-METHODS) <A NAME=5720>&#160;</A> 
+to specify more precisely the order of evaluation of subforms
+when <tt>setf</tt> is used with an access function that itself
+takes a <i>place</i> as an argument, for example, <tt>ldb</tt>, <tt>mask-field</tt>, and
+<tt>getf</tt>.  (The vote also discussed the function <tt>char-bit</tt>,
+but another vote (CHARACTER-PROPOSAL) <A NAME=5727>&#160;</A>  removed that function
+from the language.)  The <tt>setf</tt> methods for such accessors produce expansions
+that effectively require explicit calls to <tt>get-setf-method</tt>.
+<P>
+The code produced as the macro expansion of a <tt>setf</tt> form that
+itself admits a generalized variable as an argument must essentially
+do the following major steps:
+<UL><LI> It evaluates the value-producing subforms, in left-to-right order, and 
+     binds the temporary variables to them; this is called <i>binding the temporaries</i>.
+<P>
+<LI> It reads the value from the generalized variable, using the supplied 
+     accessing form, to get the old value;  this is called <i>doing the
+     access</i>.  Note that this is done after all the evaluations of the 
+     preceding step, including any side effects they may have.
+<P>
+<LI> It binds the store variable to a new value, and then installs this
+     new value into the generalized variable using the supplied storing 
+     form; this is called <i>doing the store</i>.
+</UL>
+Doing the access for a generalized variable reference is not part of
+the series of evaluations that must be done in left-to-right order.
+<P>
+The place-specifier forms <tt>ldb</tt>, <tt>mask-field</tt>, and <tt>getf</tt> admit (other)
+<i>place</i> specifiers as arguments. During the <tt>setf</tt> expansion of these forms, it 
+is necessary to call <tt>get-setf-method</tt> to determine how the inner, 
+nested generalized variable must be treated.
+<P>
+    In a form such as
+<P><pre>
+(setf (ldb <i>byte-spec</i> <i>place-form</i>) <i>newvalue-form</i>)
+</pre><P>
+    the place referred to by the <i>place-form</i> must always be both accessed 
+    and updated;  note that the update is to the generalized variable 
+    specified by <i>place-form</i>, not to any object of type <tt>integer</tt>.
+<P>
+    Thus this call to <tt>setf</tt> should generate code to do the following:
+<UL>    <LI> Evaluate <i>byte-spec</i> and bind into a temporary
+    <LI> Bind the temporaries for <i>place-form</i>
+    <LI> Evaluate <i>newvalue-form</i> and bind into the store variable
+    <LI> Do the access to <i>place-form</i>
+    <LI> Do the store into <i>place-form</i> with the given bit-field of the
+          accessed integer replaced with the value in the store variable
+</UL>
+    If the evaluation of <i>newvalue-form</i> alters what is found in the 
+    given <i>place</i>-such as setting a different bit-field of the
+    integer-then the change of the bit-field denoted by
+    <i>byte-spec</i> will be to that 
+    altered integer, because the access step must be done after the <i>newvalue-form</i>
+    evaluation.  Nevertheless, the 
+    evaluations required for binding the temporaries are done before the
+    evaluation of the <i>newvalue-form</i>, thereby preserving
+    the required left-to-right evaluation order.
+<P>
+The treatment of <tt>mask-field</tt> is similar to that of <tt>ldb</tt>.
+<P>
+    In a form such as:
+<P><pre>
+(setf (getf <i>place-form</i> <i>ind-form</i>) <i>newvalue-form</i>)
+</pre><P>
+    the place referred to by the <i>place-form</i> must always be both accessed 
+    and updated;  note that the update is to the generalized variable 
+    specified by <i>place-form</i>, not necessarily to the particular list
+    which is the property list in question.
+<P>
+    Thus this call to <tt>setf</tt> should generate code to do the following:
+<UL>    <LI> Bind the temporaries for <i>place-form</i> 
+    <LI> Evaluate <i>ind-form</i> and bind into a temporary
+    <LI> Evaluate the <i>newvalue-form</i> and bind into the store variable
+    <LI> Do the access to <i>place-form</i>
+    <LI> Do the store into <i>place-form</i> with a possibly new property list
+       obtained by combining the results of the evaluations and the access
+</UL>
+<P>
+    If the evaluation of <i>newvalue-form</i> alters what is found in the 
+    given <i>place</i>-such as setting a different named property in the
+    list-then the change of the property denoted by <i>ind-form</i> will be to that 
+    altered list, because the access step is done after the <i>newvalue-form</i>
+    evaluation.   Nevertheless, the 
+    evaluations required for binding the temporaries are done before the
+    evaluation of the <i>newvalue-form</i>, thereby preserving
+    the required left-to-right evaluation order.
+<P>
+    Note that the phrase ``possibly new property list'' treats the 
+    implementation of property lists as a ``black box''; it can mean that 
+    the former property list is somehow destructively re-used, or it can 
+    mean partial or full copying of it.  A side effect may or may not occur;
+    therefore <tt>setf</tt> must proceed as if the resultant property list
+    were a different copy
+    needing to be stored back into the generalized variable.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+The Common Lisp facilities provided to deal with these semantic issues include:
+<UL><LI>
+Built-in macros such as <tt>setf</tt> and <tt>push</tt> that follow the semantic rules.
+<P>
+<LI>
+The <tt>define-modify-macro</tt> macro, which allows new generalized-variable
+manipulating macros (of a certain restricted kind) to be defined easily.
+It takes care of the semantic rules automatically.
+<P>
+<LI>
+The <tt>defsetf</tt> macro, which allows new types of generalized-variable references
+to be defined easily.  It takes care of the semantic rules automatically.
+<P>
+<LI>
+The <tt>define-setf-method</tt> macro and the <tt>get-setf-method</tt> function, which
+provide access to the internal mechanisms when it is necessary
+to define a complicated new type of generalized-variable reference
+or generalized-variable-manipulating macro.
+</UL>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+Also important are the changes that allow lexical environments to be
+used in appropriate ways in <tt>setf</tt> methods.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Macro]</b><BR>
+<tt>define-modify-macro</tt> <tt><i>name lambda-list function</i> <br>[<i>doc-string</i>]</tt><P>This macro defines a read-modify-write macro
+named <i>name</i>.  An example of such a macro is <tt>incf</tt>.  The first
+subform of the macro will be a generalized-variable reference.
+The <i>function</i> is literally the function to apply to the old contents of the
+generalized-variable to get the new contents; it is not evaluated.
+<i>lambda-list</i> describes
+the remaining arguments for the <i>function</i>; these arguments come from
+the remaining subforms of the macro after the generalized-variable reference.
+<i>lambda-list</i> may contain <tt>&amp;optional</tt> and <tt>&amp;rest</tt> markers.
+(The <tt>&amp;key</tt> marker is not permitted here; <tt>&amp;rest</tt> suffices for the purposes
+of <tt>define-modify-macro</tt>.)
+<i>doc-string</i> is documentation for the macro <i>name</i> being defined.
+<P>
+The expansion of a <tt>define-modify-macro</tt> is equivalent to the following, except
+that it generates code that follows the semantic rules outlined above.
+<P><pre>
+(defmacro <i>name</i> (<i>reference</i> . <i>lambda-list</i>) 
+  <i>doc-string</i> 
+  `(setf ,<i>reference</i> 
+         (<i>function</i> ,<i>reference</i> ,<i>arg1</i> ,<i>arg2</i> ...)))
+</pre><P>
+where <i>arg1</i>, <i>arg2</i>, ..., are the parameters appearing in <i>lambda-list</i>;
+appropriate provision is made for a <tt>&amp;rest</tt> parameter.
+<P>
+As an example, <tt>incf</tt> could have been defined by:
+<P><pre>
+(define-modify-macro incf (&amp;optional (delta 1)) +)
+</pre><P>
+<P>
+An example of a possibly useful macro not predefined in Common Lisp is
+<P><pre>
+(define-modify-macro unionf (other-set &amp;rest keywords) union)
+</pre><P>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988 (GET-SETF-METHOD-ENVIRONMENT) <A NAME=5835>&#160;</A> 
+to specify that <tt>define-modify-macro</tt> creates macros that
+take <tt>&amp;environment</tt> arguments and perform the
+equivalent of correctly passing such lexical
+environments to <tt>get-setf-method</tt> in order to correctly maintain 
+lexical references.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR><b>[Macro]</b>
+<pre>
+defsetf <i>access-fn</i> {<i>update-fn</i> [<i>doc-string</i>] |<br>
+                   <i>lambda-list</i> (<i>store-variable</i>)<br>
+                   <b>[[</b>{<i>declaration</i>}* | <i>doc-string</i><b>]]</b> {<i>form</i>}*}
+</pre>
+<P>This defines how to <tt>setf</tt> a generalized-variable reference
+of the form<br> <tt>(<i>access-fn</i> ...)</tt>.  The value of a generalized-variable
+reference can always be obtained simply by evaluating it, so <i>access-fn</i>
+should be the name of a function or a macro.
+<P>
+The user of <tt>defsetf</tt> provides a description of how to store into the
+generalized-variable reference and return the value that was stored (because
+<tt>setf</tt> is defined to return this value).  The implementation
+of <tt>defsetf</tt> takes care of
+ensuring that subforms of the reference are evaluated exactly once and
+in the proper left-to-right order.  In order to do this,
+<tt>defsetf</tt> requires that <i>access-fn</i> be a function or a macro
+that evaluates its arguments, behaving like a function.
+Furthermore, a <tt>setf</tt> of a call on <i>access-fn</i> will also evaluate
+all of <i>access-fn</i>'s arguments; it cannot treat any of them specially.
+This means that <tt>defsetf</tt> cannot be used to describe how to store into
+a generalized variable that is a byte, such as <tt>(ldb field reference)</tt>.
+To handle situations that do not fit the restrictions imposed by <tt>defsetf</tt>,
+use <tt>define-setf-method</tt>, which gives the user additional control
+at the cost of increased complexity.
+<P>
+A <tt>defsetf</tt> declaration may take one of two forms.
+The simple form is
+<P><pre>
+(defsetf <i>access-fn</i> <i>update-fn</i> <i>doc-string</i>)
+</pre><P>
+The <i>update-fn</i> must name a function (or macro) that takes one more argument
+than <i>access-fn</i> takes.  When <tt>setf</tt> is given a <i>place</i>
+that is a call on <i>access-fn</i>, it expands into
+a call on <i>update-fn</i> that is given all the arguments to
+<i>access-fn</i> and also, as its last argument, the new value
+(which must be returned by <i>update-fn</i> as its value).
+For example, the effect of
+<P><pre>
+(defsetf symbol-value set)
+</pre><P>
+is built into the Common Lisp system.
+This causes the expansion
+<P><pre>
+(setf (symbol-value foo) fu) -> (set foo fu)
+</pre><P>
+for example.  Note that
+<P><pre>
+(defsetf car rplaca)
+</pre><P>
+would be incorrect because <tt>rplaca</tt> does not return its last argument.
+<P>
+The complex form of <tt>defsetf</tt> looks like
+<P><pre>
+(defsetf <i>access-fn</i> <i>lambda-list</i> (<i>store-variable</i>) . <i>body</i>)
+</pre><P>
+and resembles <tt>defmacro</tt>.  The <i>body</i> must
+compute the expansion of a <tt>setf</tt> of a call on <i>access-fn</i>.
+<P>
+The <i>lambda-list</i> describes the arguments of <i>access-fn</i>.  <tt>&amp;optional</tt>,
+<tt>&amp;rest</tt>, and <tt>&amp;key</tt> markers are permitted in <i>lambda-list</i>.
+Optional arguments may
+have defaults and ``supplied-p'' flags.  The <i>store-variable</i> describes the
+value to be stored into the generalized-variable reference.
+<P>
+<hr>
+<b>Rationale:</b> The <i>store-variable</i> is enclosed
+in parentheses to provide for an extension
+to multiple store variables that would
+receive multiple values from the second subform of <tt>setf</tt>.
+The rules given below for coding <tt>setf</tt> methods discuss
+the proper handling of multiple store variables to allow for
+the possibility that this extension may be incorporated into Common Lisp
+in the future.
+<hr>
+<P>
+The <i>body</i> forms can be written as if the variables in the <i>lambda-list</i>
+were bound to subforms of the call on <i>access-fn</i> and the
+<i>store-variable</i> were bound to the second subform of <tt>setf</tt>.
+However, this is not actually the case.  During the evaluation of the
+<i>body</i> forms, these variables are bound to names of temporary variables,
+generated as if by <tt>gensym</tt> or <tt>gentemp</tt>,
+that will be bound by the
+expansion of <tt>setf</tt> to the values of those subforms.  This binding
+permits the
+<i>body</i> forms to be written without regard for order-of-evaluation
+issues.  <tt>defsetf</tt> arranges for the temporary variables to be
+optimized out of the final result in cases where that is possible.  In
+other words, an attempt is made by <tt>defsetf</tt> to generate
+the best code possible in a particular implementation.
+<P>
+Note that the code generated by the <i>body</i> forms must include provision
+for returning the correct value (the value of <i>store-variable</i>).  This is
+handled by the <i>body</i> forms rather than by <tt>defsetf</tt> because
+in many cases this value can be returned at no extra cost, by calling a
+function that simultaneously stores into the generalized variable and
+returns the correct value.
+<P>
+An example of the use of the complex form of <tt>defsetf</tt>:
+<P><pre>
+(defsetf subseq (sequence start &amp;optional end) (new-sequence) 
+  `(progn (replace ,sequence ,new-sequence 
+                   :start1 ,start :end1 ,end) 
+          ,new-sequence))
+</pre><P>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988 (FLET-IMPLICIT-BLOCK) <A NAME=5924>&#160;</A> 
+to specify that the body of the expander function defined
+by the complex form of <tt>defsetf</tt> is implicitly enclosed in a <tt>block</tt> construct
+whose name is the same as the <i>name</i> of the <i>access-fn</i>.
+Therefore <tt>return-from</tt> may be used to exit from the function.
+<P>
+X3J13 voted in March 1989 (DEFINING-MACROS-NON-TOP-LEVEL) <A NAME=5932>&#160;</A> 
+to clarify that, while defining forms normally appear at top level,
+it is meaningful to place them in non-top-level contexts; the complex form of
+<tt>defsetf</tt> must define the expander function
+within the enclosing lexical environment, not within the global
+environment.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+The underlying theory by which <tt>setf</tt> and related macros arrange to
+conform to the semantic rules given above is that from any
+generalized-variable reference one may derive its ``<tt>setf</tt> method,''
+which describes how to store into that reference and which subforms of
+it are evaluated.
+<P>
+<hr>
+<b>Compatibility note:</b> To avoid confusion,
+it should be noted that the use of the word ``method'' here in connection
+with <tt>setf</tt> has nothing to do with its use in Lisp Machine Lisp in connection
+with message-passing and the Lisp Machine Lisp ``flavor system.''
+<br><img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+And of course it also has nothing to do with the methods in
+the Common Lisp Object System
+(CLOS) <A NAME=5941>&#160;</A> .
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<hr>
+<P>
+Given knowledge of the subforms of the reference,
+it is possible to avoid evaluating them multiple times or in the wrong
+order.  A <tt>setf</tt> method for a given access form can be expressed as
+five values:
+<UL><LI>
+A list of <i>temporary variables</i>
+<P>
+<LI>
+A list of <i>value forms</i> (subforms of the given form)
+to whose values the temporary variables are to be bound
+<P>
+<LI>
+A second list of temporary variables, called <i>store variables</i>
+<P>
+<LI>
+A <i>storing form</i>
+<P>
+<LI>
+An <i>accessing form</i>
+</UL>
+<P>
+The temporary variables will be bound to the values of
+the value forms as if by <tt>let*</tt>; that is, the
+value forms will be evaluated in the order given
+and may refer to the values of earlier value forms
+by using the corresponding variables.
+<P>
+The store variables are to be bound to the values of the <i>newvalue</i> form,
+that is, the values to be
+stored into the generalized variable.  In almost all cases only a
+single value is to be stored, and there is only one store variable.
+<P>
+The storing form and the accessing form may contain references to
+the temporary variables (and also, in the case of the storing form,
+to the store variables).  The accessing form returns the value of the
+generalized variable.  The storing form modifies the value of the
+generalized variable and guarantees to return the values of the
+store variables as
+its values; these are the correct values for <tt>setf</tt> to
+return.  (Again, in most cases there is a single store variable
+and thus a single value to be returned.)
+The value returned by the accessing form is, of course,
+affected by execution of the storing form, but either of these
+forms may be evaluated any number of times and therefore should be
+free of side effects (other than the storing action of the storing form).
+<P>
+The temporary variables and the store variables are generated names,
+as if by <tt>gensym</tt> or <tt>gentemp</tt>,
+so that there is never any problem of name clashes among them, or
+between them and other variables in the program.  This is necessary to
+make the special forms that do more than one <tt>setf</tt> in parallel work
+properly; these are <tt>psetf</tt>, <tt>shiftf</tt>, and <tt>rotatef</tt>.  Computation
+of the <tt>setf</tt> method must always create new variable names; it may not return
+the same ones every time.
+<P>
+Some examples of <tt>setf</tt> methods for particular forms:
+<UL><LI>
+For a variable <tt>x</tt>:
+<P><pre>
+() 
+() 
+(g0001) 
+(setq x g0001) 
+x
+</pre><P>
+<P>
+<LI>
+For <tt>(car <i>exp</i>)</tt>:
+<P><pre>
+(g0002) 
+(<i>exp</i>) 
+(g0003)  
+(progn (rplaca g0002 g0003) g0003) 
+(car g0002)
+</pre><P>
+<P>
+<LI>
+For <tt>(subseq <i>seq</i> <i>s</i> <i>e</i>)</tt>:
+<P><pre>
+(g0004 g0005 g0006) 
+(<i>seq</i> <i>s</i> <i>e</i>) 
+(g0007) 
+(progn (replace g0004 g0007 :start1 g0005 :end1 g0006) 
+       g0007) 
+(subseq g0004 g0005 g0006)
+</pre><P>
+</UL>
+<P>
+<BR><b>[Macro]</b><BR>
+<pre>
+define-setf-method <i>access-fn lambda-list</i>
+                   <b>[[</b> {<i>declaration</i>}* | <i>doc-string</i> <b>]]</b>  {<i>form</i>}*
+</pre>
+<P>This defines how
+to <tt>setf</tt> a generalized-variable reference that is of the form
+<tt>(<i>access-fn</i>...)</tt>.  The value of a generalized-variable reference can
+always be obtained simply by evaluating it, so <i>access-fn</i> should be the
+name of a function or a macro.
+<P>
+The <i>lambda-list</i> describes the subforms of the generalized-variable
+reference, as with <tt>defmacro</tt>.  The result of evaluating the
+<i>forms</i> in the body must be five values representing
+the <tt>setf</tt> method, as described
+above.  Note that <tt>define-setf-method</tt> differs from the complex form of
+<tt>defsetf</tt> in that while the body is being executed the variables in
+<i>lambda-list</i> are bound to parts of the generalized-variable reference,
+not to temporary variables that will be bound to the values of such parts.
+In addition, <tt>define-setf-method</tt> does not have <tt>defsetf</tt>'s
+restriction that <i>access-fn</i> must be a function or a function-like
+macro; an arbitrary <tt>defmacro</tt> destructuring pattern is permitted in
+<i>lambda-list</i>.
+<P>
+By definition there are no good small examples of <tt>define-setf-method</tt>
+because the easy cases can all be handled by <tt>defsetf</tt>.
+A typical use is to define the <tt>setf</tt> method for <tt>ldb</tt>:
+<P><pre>
+;;; SETF method for the form (LDB bytespec int). 
+;;; Recall that the int form must itself be suitable for SETF. 
+(define-setf-method ldb (bytespec int) 
+  (multiple-value-bind (temps vals stores 
+                        store-form access-form) 
+      (get-setf-method int)         ;Get SETF method for int 
+    (let ((btemp (gensym))          ;Temp var for byte specifier 
+          (store (gensym))          ;Temp var for byte to store 
+          (stemp (first stores)))   ;Temp var for int to store 
+      ;; Return the SETF method for LDB as five values. 
+      (values (cons btemp temps)    ;Temporary variables 
+              (cons bytespec vals)  ;Value forms 
+              (list store)          ;Store variables 
+              `(let ((,stemp (dpb ,store ,btemp ,access-form))) 
+                 ,store-form 
+                 ,store)                     ;Storing form 
+              `(ldb ,btemp ,access-form)     ;Accessing form 
+              ))))
+</pre><P>
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988 (GET-SETF-METHOD-ENVIRONMENT) <A NAME=6009>&#160;</A> 
+to specify that the <tt>&amp;environment</tt> lambda-list keyword may appear in the
+<i>lambda-list</i> in the same manner as for <tt>defmacro</tt> in order
+to obtain the lexical environment of the call to the <tt>setf</tt> macro.
+The preceding example should be modified to take advantage of
+this new feature.  The <tt>setf</tt> method must accept an <tt>&amp;environment</tt>
+parameter, which will receive the lexical environment of the call to <tt>setf</tt>;
+this environment must then be given to <tt>get-setf-method</tt> in order
+that it may correctly use any locally bound <tt>setf</tt> method that
+might be applicable to the <i>place</i> form that appears as the second
+argument to <tt>ldb</tt> in the call to <tt>setf</tt>.
+<P>
+<P><pre>
+;;; SETF method for the form (LDB bytespec int). 
+;;; Recall that the int form must itself be suitable for SETF. 
+;;; Note the use of an &amp;environment parameter to receive the 
+;;; lexical environment of the call for use with GET-SETF-METHOD. 
+(define-setf-method ldb (bytespec int &amp;environment env) 
+  (multiple-value-bind (temps vals stores 
+                        store-form access-form) 
+      (get-setf-method int env)     ;Get SETF method for int 
+    (let ((btemp (gensym))          ;Temp var for byte specifier 
+          (store (gensym))          ;Temp var for byte to store 
+          (stemp (first stores)))   ;Temp var for int to store 
+      ;; Return the SETF method for LDB as five values. 
+      (values (cons btemp temps)    ;Temporary variables 
+              (cons bytespec vals)  ;Value forms 
+              (list store)          ;Store variables 
+              `(let ((,stemp (dpb ,store ,btemp ,access-form))) 
+                 ,store-form 
+                 ,store)                     ;Storing form 
+              `(ldb ,btemp ,access-form)     ;Accessing form 
+              ))))
+</pre><P>
+<P>
+X3J13 voted in March 1988 (FLET-IMPLICIT-BLOCK) <A NAME=6028>&#160;</A> 
+to specify that the body of the expander function defined
+by <tt>define-setf-method</tt> is implicitly enclosed in a <tt>block</tt> construct
+whose name is the same as the <i>name</i> of the <i>access-fn</i>.
+Therefore <tt>return-from</tt> may be used to exit from the function.
+<P>
+X3J13 voted in March 1989 (DEFINING-MACROS-NON-TOP-LEVEL) <A NAME=6036>&#160;</A> 
+to clarify that, while defining forms normally appear at top level,
+it is meaningful to place them in non-top-level contexts;
+<tt>define-setf-method</tt> must define the expander function
+within the enclosing lexical environment, not within the global
+environment.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<BR><b>[Function]</b><BR>
+<tt>get-setf-method</tt> <tt><i>form</i></tt><P><tt>get-setf-method</tt> returns
+five values constituting the <tt>setf</tt> method for <i>form</i>.
+The <i>form</i> must be a
+generalized-variable reference.  <tt>get-setf-method</tt> takes care of
+error-checking and macro expansion and guarantees to return exactly one
+store variable.
+<P>
+As an example, an extremely simplified version of <tt>setf</tt>,
+allowing no more and no fewer than two
+subforms, containing no optimization to remove unnecessary variables, and
+not allowing storing of multiple values, could be defined by:
+<P><pre>
+(defmacro setf (reference value) 
+  (multiple-value-bind (vars vals stores store-form access-form) 
+      (get-setf-method reference) 
+    (declare (ignore access-form)) 
+    `(let* ,(mapcar #'list 
+                    (append vars stores) 
+                    (append vals (list value))) 
+       ,store-form)))
+</pre><P>
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988 (GET-SETF-METHOD-ENVIRONMENT) <A NAME=6054>&#160;</A> 
+to add an optional environment argument to <tt>get-setf-method</tt>.
+The revised definition and example are as follows.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>get-setf-method</tt> <tt><i>form</i></tt> <tt>&amp;optional</tt> <tt><i>env</i></tt><P>
+<tt>get-setf-method</tt> returns
+five values constituting the <tt>setf</tt> method for <i>form</i>.
+The <i>form</i> must be a
+generalized-variable reference.
+The <i>env</i> must be an environment of the sort obtained through
+the <tt>&amp;environment</tt> lambda-list keyword; if <i>env</i> is <tt>nil</tt> or omitted,
+the null lexical environment is assumed.
+<tt>get-setf-method</tt> takes care of
+error checking and macro expansion and guarantees to return exactly one
+store variable.
+<P>
+As an example, an extremely simplified version of <tt>setf</tt>,
+allowing no more and no fewer than two
+subforms, containing no optimization to remove unnecessary variables, and
+not allowing storing of multiple values, could be defined by:
+<P><pre>
+(defmacro setf (reference value &amp;environment env) 
+  (multiple-value-bind (vars vals stores store-form access-form) 
+      (get-setf-method reference env)     ;Note use of environment
+    (declare (ignore access-form)) 
+    `(let* ,(mapcar #'list 
+                    (append vars stores) 
+                    (append vals (list value))) 
+       ,store-form)))
+</pre><P>
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<img align=bottom alt="old_change_begin" src="gif/old_change_begin.gif"><br>
+<BR><b>[Function]</b><BR>
+<tt>get-setf-method-multiple-value</tt> <tt><i>form</i></tt><P>
+<tt>get-setf-method-multiple-value</tt>
+returns five values constituting the <tt>setf</tt> method for <i>form</i>.
+The <i>form</i> must be a
+generalized-variable reference.  This is the same as <tt>get-setf-method</tt>
+except that it does not check the number of store variables; use this
+in cases that allow storing multiple values into a generalized variable.
+There are no such cases in standard Common Lisp, but this function is provided
+to allow for possible extensions.
+<br><img align=bottom alt="old_change_end" src="gif/old_change_end.gif">
+<P>
+<img align=bottom alt="change_begin" src="gif/change_begin.gif"><br>
+X3J13 voted in March 1988 (GET-SETF-METHOD-ENVIRONMENT) <A NAME=6083>&#160;</A> 
+to add an optional environment argument to <tt>get-setf-method</tt>.
+The revised definition is as follows.
+<P>
+<BR><b>[Function]</b><BR>
+<tt>get-setf-method-multiple-value</tt> <tt><i>form</i></tt> <tt>&amp;optional</tt> <tt><i>env</i></tt><P><tt>get-setf-method-multiple-value</tt>
+returns five values constituting the <tt>setf</tt> method for <i>form</i>.
+The <i>form</i> must be a
+generalized-variable reference.
+The <i>env</i> must be an environment of the sort obtained through
+the <tt>&amp;environment</tt> lambda-list keyword; if <i>env</i> is <tt>nil</tt> or omitted,
+the null lexical environment is assumed.
+<P>
+This is the same as <tt>get-setf-method</tt>
+except that it does not check the number of store variables; use this
+in cases that allow storing multiple values into a generalized variable.
+There are no such cases in standard Common Lisp, but this function is provided
+to allow for possible extensions.
+<P>
+X3J13 voted in March 1988 (GET-SETF-METHOD-ENVIRONMENT) <A NAME=6098>&#160;</A> 
+to clarify that a <tt>setf</tt> method for a functional name is applicable
+only when the global binding of that name is lexically visible.
+If such a name has a local binding introduced by <tt>flet</tt>, <tt>labels</tt>,
+or <tt>macrolet</tt>, then global definitions of <tt>setf</tt> methods for
+that name do not apply and are not visible.  All of the standard Common Lisp
+macros that modify a <tt>setf</tt> <i>place</i> (for example,
+<tt>incf</tt>, <tt>decf</tt>, <tt>pop</tt>, and <tt>rotatef</tt>) obey this convention.
+<br><img align=bottom alt="change_end" src="gif/change_end.gif">
+<P>
+<BR> <HR><A NAME=tex2html2524 HREF="node81.html"><IMG ALIGN=BOTTOM ALT="next" SRC="icons/next_motif.gif"></A> <A NAME=tex2html2522 HREF="node76.html"><IMG ALIGN=BOTTOM ALT="up" SRC="icons/up_motif.gif"></A> <A NAME=tex2html2516 HREF="node79.html"><IMG ALIGN=BOTTOM ALT="previous" SRC="icons/previous_motif.gif"></A> <A NAME=tex2html2526 HREF="node1.html"><IMG ALIGN=BOTTOM ALT="contents" SRC="icons/contents_motif.gif"></A> <A NAME=tex2html2527 HREF="index-2.html"><IMG ALIGN=BOTTOM ALT="index" SRC="icons/index_motif.gif"></A> <BR>
+<B> Next:</B> <A NAME=tex2html2525 HREF="node81.html"> Function Invocation</A>
+<B>Up:</B> <A NAME=tex2html2523 HREF="node76.html"> Control Structure</A>
+<B> Previous:</B> <A NAME=tex2html2517 HREF="node79.html"> Assignment</A>
+<HR> <P>
+<HR>
+<P><ADDRESS>
+AI.Repository@cs.cmu.edu
+</ADDRESS>
+</BODY>
